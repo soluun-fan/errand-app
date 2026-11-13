@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tuslamj Hub
 
-## Getting Started
+Errand marketplace + SafePay protected payments for Ulaanbaatar. Product brief and rules: [CLAUDE.md](CLAUDE.md).
+Clickable prototype: open [prototype/index.html](prototype/index.html) in a browser.
 
-First, run the development server:
+## Run it locally
+
+Needs Node 24 and [Docker](https://docs.docker.com/get-docker/) (for the local Supabase stack).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run db:start          # starts Supabase in Docker, applies supabase/migrations, prints keys
+cp .env.example .env.local   # paste the API URL, Publishable key and Secret key it printed
+npm run seed              # demo users + one paid demo task
+npm run dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign in with a demo number — no SMS is sent, the code is always **123456**:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Number | Who |
+|---|---|
+| 8800 0001 | Solongo B. — customer |
+| 8800 0002 | Tsogt G. — customer (ДАН verified) |
+| 8800 0011 | Bat-Erdene G. — helper, approved |
+| 8800 0012 | Nomin A. — helper, approved |
+| 8800 0013 | Temuulen M. — helper, pending approval |
+| 8800 0099 | Ops team — admin |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`npm run db:reset` wipes the database and re-applies migrations (run `npm run seed` again after).
 
-## Learn More
+### Using a hosted Supabase project instead of Docker
 
-To learn more about Next.js, take a look at the following resources:
+1. Create a project at supabase.com, then `npx supabase login` and `npx supabase link --project-ref <ref>`.
+2. `npx supabase db push` to apply the migrations.
+3. Auth → Providers → Phone: enable it, configure an SMS provider (a placeholder works for test
+   numbers), and add the demo numbers above under *Test phone numbers* with OTP `123456`.
+4. Put the project URL and keys in `.env.local`, then `npm run seed`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| | |
+|---|---|
+| `npm test` | All tests: deal engine, mapping, and the SQL schema (runs the migrations in an in-process Postgres — no Docker needed) |
+| `npm run typecheck` | TypeScript |
+| `npm run dev` / `build` / `start` | Next.js |
 
-## Deploy on Vercel
+## Layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/lib/engine/     Deal engine: state machine, money split, ledger rules. Pure, no I/O.
+src/lib/db/         Row ↔ engine mapping and the deal repository (load → apply → one atomic RPC).
+src/lib/supabase/   Supabase clients: user (RLS), admin (service role, server only), proxy session refresh.
+src/app/            Next.js routes. /login = phone OTP sign-in.
+supabase/           config.toml (phone auth + demo OTP numbers) and SQL migrations.
+scripts/seed.ts     Demo data, created through the engine like real traffic.
+```

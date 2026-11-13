@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tuslamj Hub — Errands + SafePay (working prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#14171F;--muted:#5B6270;--line:#E4E7EC;--bg:#F6F7F9;--card:#fff;--teal:#0E7C66;--teal-d:#0A5C4C;--teal-l:#EAF5F2;--amber:#E8892B;--amber-l:#FDF1E3;--amber-d:#6B3A08;--red:#B42318;--red-l:#FCECEA;--indigo:#2F3A8F;--indigo-l:#ECEEFA}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 20px;background:#fff;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;margin-right:auto}
+.brand span{display:inline-flex;width:30px;height:30px;border-radius:8px;background:var(--teal);color:#fff;align-items:center;justify-content:center;font-size:15px}
+.clock{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:8px;font-size:13px}
+.who select{height:38px;border:1px solid #C9CED6;border-radius:10px;padding:0 10px;background:#fff}
+.wrap{display:flex;flex-wrap:wrap;gap:20px;max-width:1240px;margin:0 auto;padding:20px}
+nav.side{flex:1 1 200px;max-width:240px;display:flex;flex-direction:column;gap:4px}
+nav.side button{display:flex;align-items:center;gap:10px;text-align:left;border:none;background:none;padding:11px 12px;border-radius:10px;color:var(--ink);font-weight:500;min-height:44px}
+nav.side button.on{background:var(--ink);color:#fff}
+nav.side button:not(.on):hover{background:#EDEFF2}
+nav.side .badge{margin-left:auto;background:var(--amber);color:#fff;border-radius:10px;font-size:11px;padding:1px 7px}
+main{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:16px}
+@media(max-width:760px){nav.side{max-width:none;flex-direction:row;flex-wrap:wrap}nav.side button{flex:1 1 auto}}
+h1{font-size:24px;margin:0}
+h2{font-size:18px;margin:0}
+.sub{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.cat{border:1px solid var(--line);background:#fff;border-radius:14px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:600;font-size:13px;min-height:44px}
+.cat .ic{font-size:13px;width:36px;height:36px;border-radius:18px;background:var(--teal-l);color:var(--teal-d);display:flex;align-items:center;justify-content:center;font-weight:700}
+.cat:hover{border-color:var(--teal)}
+.btn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid #C9CED6;background:#fff;font-weight:600;color:var(--ink)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.go{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.bad{background:#fff;border-color:var(--red);color:var(--red)}
+.btn.badf{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+label.f input,label.f select,label.f textarea{border:1px solid #C9CED6;border-radius:12px;padding:11px 12px;font-weight:400;font-size:15px;background:#fff;color:var(--ink)}
+label.f textarea{min-height:84px;resize:vertical}
+.seg{display:inline-flex;border:1px solid #C9CED6;border-radius:12px;overflow:hidden}
+.seg label{display:flex;align-items:center;gap:6px;padding:10px 14px;font-size:14px;font-weight:500;cursor:pointer}
+.seg input{accent-color:var(--teal)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:9px;white-space:nowrap}
+.p-held{background:var(--amber-l);color:var(--amber-d)}
+.p-ok{background:var(--teal-l);color:var(--teal-d)}
+.p-bad{background:var(--red-l);color:#7A1A12}
+.p-info{background:var(--indigo-l);color:#1F2766}
+.p-grey{background:#F1F3F6;color:#3D4350}
+.note{padding:12px 14px;border-radius:12px;font-size:13px}
+.n-held{background:var(--amber-l);color:#4A2905;border:1px solid #F3D3AE}
+.n-ok{background:var(--teal-l);color:#0A4A3C;border:1px solid #BFE3D9}
+.n-bad{background:var(--red-l);color:#7A1A12;border:1px solid #F1C2BD}
+.n-info{background:var(--indigo-l);color:#1F2766;border:1px solid #CBD0F0}
+.item{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:8px;text-align:left;color:var(--ink)}
+button.item:hover{border-color:var(--teal)}
+.av{width:40px;height:40px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;background:var(--teal-l);color:var(--teal-d);flex:none}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.kv.tot{font-weight:700;font-size:16px;border-top:1px solid var(--line);padding-top:10px}
+.tl{display:flex;flex-direction:column;gap:0}
+.tl div{display:flex;gap:12px;font-size:13px;padding-bottom:10px;position:relative}
+.tl div::before{content:"";width:10px;height:10px;border-radius:5px;background:var(--teal);flex:none;margin-top:4px}
+.tl .t{color:var(--muted);min-width:96px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tbox{overflow-x:auto}
+.chat{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding:4px}
+.msg{max-width:80%;padding:8px 12px;border-radius:12px;font-size:14px;background:#F1F3F6}
+.msg.me{align-self:flex-end;background:var(--teal);color:#fff}
+.msg.sys{align-self:center;background:var(--amber-l);color:var(--amber-d);font-size:12px}
+.qr{width:150px;height:150px;display:grid;grid-template-columns:repeat(15,1fr);border:8px solid #fff;outline:1px solid var(--line)}
+.qr i{display:block}
+.overlay{min-height:100%;position:fixed;inset:0;background:rgba(20,23,31,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:20}
+.modal{background:#fff;border-radius:18px;padding:22px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:30;display:none;max-width:90vw}
+.stat{display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:14px;background:#fff;border:1px solid var(--line)}
+.stat b{font-size:22px}
+.stars{color:var(--amber);letter-spacing:2px}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.code{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:2px;font-size:18px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span>T</span>Tuslamj Hub <small class="sub" style="font-weight:500">prototype · demo data</small></div>
+  <div class="clock" id="clock"></div>
+  <div class="who"><label for="whoSel">Viewing as</label><select id="whoSel"></select></div>
+</header>
+<div class="wrap">
+  <nav class="side" id="nav" aria-label="Sections"></nav>
+  <main id="main"></main>
+</div>
+<div id="modalRoot"></div>
+<div id="toast" role="status"></div>
+<script>
+(function(){
+const CATS=[
+ {id:'shop',name:'Shopping',ab:'SH',base:6000,items:true},
+ {id:'carry',name:'Carry / move',ab:'CA',base:15000},
+ {id:'queue',name:'Queue for me',ab:'QU',base:8000},
+ {id:'deliver',name:'Pick up & deliver',ab:'DE',base:5000,items:true},
+ {id:'repair',name:'Small repair',ab:'RE',base:12000},
+ {id:'other',name:'Other',ab:'OT',base:7000}
+];
+const SERVICE_FEE=1000, COMMISSION=0.10, MIN_FEE=5000, CHECK_H=24, CANCEL_FEE=3000, MAX_APPLY=5;
+const H=3600000;
+const KEY='tuslamj-hub-v1';
+
+function seed(){
+  const t0=Date.now();
+  const s={offset:0,seq:3,
+    users:{
+      c1:{id:'c1',name:'Solongo B.',role:'customer',area:'8th khoroo',verified:'phone'},
+      c2:{id:'c2',name:'Tsogt G.',role:'customer',area:'3rd khoroo',verified:'dan'},
+      h1:{id:'h1',name:'Bat-Erdene G.',role:'helper',status:'approved',rating:4.9,done:128,cats:['shop','carry','queue','deliver','repair','other'],balance:0,acct:'M Bank ••••4417'},
+      h2:{id:'h2',name:'Nomin A.',role:'helper',status:'approved',rating:4.8,done:61,cats:['shop','queue','deliver','carry'],balance:0,acct:'Khan ••••2290'},
+      h3:{id:'h3',name:'Temuulen M.',role:'helper',status:'pending',rating:0,done:0,cats:['carry','repair'],balance:0,acct:'Golomt ••••0815'},
+      ops:{id:'ops',name:'Ops team',role:'admin'}
+    },
+    current:'c1', ui:{view:'home',id:null},
+    bank:41000, platform:0, refunds:{},
+    deals:[{id:'E1',type:'errand',title:'Carry a washing machine to 5th floor',desc:'No elevator. 2 people needed. Bldg 12, entrance 2.',cat:'carry',mode:'schedule',when:'Tomorrow 15:00',address:'3rd khoroo, Bldg 12',itemBudget:0,fee:40000,customerId:'c2',helperId:null,status:'open',held:41000,offers:[{helperId:'h2',note:'I can come with my brother.',ts:t0-20*60000}],events:[{ts:t0-60*60000,text:'Task posted'},{ts:t0-59*60000,text:'Paid ₮41,000 · held by partner bank (bank confirmed)'}],chat:[],receipt:null,proof:false,checkUntil:null}],
+    ledger:[{ts:t0-59*60000,deal:'E1',what:'Pay-in via QPay',amt:41000,to:'Hold account'}]
+  };
+  return s;
+}
+let S;
+function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):seed();}catch(e){S=seed();}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+load();
+
+const $=s=>document.querySelector(s);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>'₮'+Math.round(n).toLocaleString('en-US');
+const now=()=>Date.now()+S.offset;
+const U=id=>S.users[id]||{name:'?'};
+const me=()=>S.users[S.current];
+const cat=id=>CATS.find(c=>c.id===id)||CATS[5];
+const ini=n=>n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
+const tfmt=ts=>{const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toTimeString().slice(0,5);};
+const left=ms=>{if(ms<=0)return'0m';const h=Math.floor(ms/H),m=Math.floor((ms%H)/60000);return (h?h+'h ':'')+m+'m';};
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2600);}
+function ev(d,text){d.events.push({ts:now(),text});}
+function led(d,what,amt,to){S.ledger.push({ts:now(),deal:d.id,what,amt,to});}
+function newId(p){S.seq++;return p+S.seq;}
+function deal(id){return S.deals.find(d=>d.id===id);}
+
+const STATUS={
+ awaiting_payment:['Waiting for payment','p-grey'],
+ open:['Paid · held · finding helper','p-held'],
+ matched:['Helper matched · held','p-held'],
+ in_progress:['In progress · held','p-held'],
+ held:['Paid · held','p-held'],
+ handed_over:['Handed over · held','p-held'],
+ check:['Check window · held','p-held'],
+ disputed:['Disputed · release paused','p-bad'],
+ released:['Released','p-ok'],
+ refunded:['Refunded','p-info'],
+ cancelled:['Cancelled · refunded','p-info'],
+ expired:['No helper · refunded','p-info']
+};
+const pill=st=>{const s=STATUS[st]||[st,'p-grey'];return '<span class="pill '+s[1]+'">'+esc(s[0])+'</span>';};
+
+/* ---------- money engine (stands in for the bank's API) ---------- */
+function totalFor(d){return d.type==='errand'? d.itemBudget+d.fee+SERVICE_FEE : d.price+d.buyerFee;}
+function bankConfirmPayment(d){
+  const amt=totalFor(d);d.held=amt;S.bank+=amt;led(d,'Pay-in via QPay',amt,'Hold account');
+  ev(d,'Paid '+fmt(amt)+' · held by partner bank (bank confirmed)');
+  if(d.type==='errand'){d.status='open';ev(d,d.mode==='now'?'Nearby helpers notified · first to accept gets it':'Nearby helpers notified · up to '+MAX_APPLY+' can apply');}
+  else{d.status='held';}
+}
+function refundAll(d,reason,status){
+  const back=d.held;S.bank-=back;S.refunds[d.customerId||d.buyerId]=(S.refunds[d.customerId||d.buyerId]||0)+back;
+  led(d,'Refund · '+reason,-back,U(d.customerId||d.buyerId).name);d.held=0;d.status=status||'refunded';ev(d,'Refunded '+fmt(back)+' to '+U(d.customerId||d.buyerId).name+' ('+reason+')');
+}
+function release(d,how){
+  if(d.type==='errand'){
+    const spent=d.receipt?Math.min(d.receipt,d.itemBudget):0;
+    const comm=Math.round(d.fee*COMMISSION);
+    const helperNet=d.fee-comm+spent, refund=d.itemBudget-spent, plat=SERVICE_FEE+comm;
+    S.bank-=d.held;U(d.helperId).balance+=helperNet;S.platform+=plat;
+    if(refund>0){S.refunds[d.customerId]=(S.refunds[d.customerId]||0)+refund;led(d,'Unspent budget back',-refund,U(d.customerId).name);}
+    led(d,'Release to helper ('+how+')',-helperNet,U(d.helperId).name);led(d,'Platform fee',-plat,'Platform');
+    ev(d,'Released ('+how+'): '+fmt(helperNet)+' to '+U(d.helperId).name+(refund>0?', '+fmt(refund)+' back to customer':'')+', '+fmt(plat)+' platform fee');
+  } else {
+    S.bank-=d.held;U(d.sellerId).balance=(U(d.sellerId).balance||0)+d.price;S.platform+=d.buyerFee;
+    led(d,'Release to seller ('+how+')',-d.price,U(d.sellerId).name);led(d,'Platform fee',-d.buyerFee,'Platform');
+    ev(d,'Released ('+how+'): '+fmt(d.price)+' to '+U(d.sellerId).name);
+  }
+  d.held=0;d.status='released';
+}
+function tick(){
+  let changed=false;
+  S.deals.forEach(d=>{if(d.status==='check'&&d.checkUntil&&now()>=d.checkUntil){release(d,'auto · no complaint in time');changed=true;}});
+  if(changed){save();}
+  return changed;
+}
+
+/* ---------- chat with anti-off-platform guard ---------- */
+function guardMsg(t){
+  let warn=false;
+  let out=t.replace(/(\+?976)?[\s-]?\d{4}[\s-]?\d{4}/g,()=>{warn=true;return '[number hidden]';});
+  if(/(cash|бэлэн|данс|account number|transfer directly|шууд шилжүүл)/i.test(t))warn=true;
+  return {out,warn};
+}
+
+/* ---------- views ---------- */
+function navItems(){
+  const r=me().role;
+  if(r==='customer')return [['home','Home'],['post','Post a task'],['mytasks','My tasks'],['safepay','SafePay deals'],['how','How it works']];
+  if(r==='helper')return [['feed','Task feed'],['myjobs','My jobs'],['earn','Earnings'],['safepay','SafePay deals'],['how','How it works']];
+  return [['ops','Overview'],['disputes','Disputes'],['verify','Helper approvals'],['ledger','Bank hold ledger'],['how','How it works']];
+}
+function badge(v){
+  const id=S.current;
+  if(v==='mytasks')return S.deals.filter(d=>d.type==='errand'&&d.customerId===id&&['open','check','matched','in_progress'].includes(d.status)).length;
+  if(v==='feed'&&me().role==='helper')return feedFor(id).length;
+  if(v==='disputes')return S.deals.filter(d=>d.status==='disputed').length;
+  if(v==='verify')return Object.values(S.users).filter(u=>u.status==='pending').length;
+  if(v==='safepay')return S.deals.filter(d=>d.type==='goods'&&(d.sellerId===id||d.buyerId===id)&&!['released','refunded'].includes(d.status)).length;
+  return 0;
+}
+function renderNav(){
+  $('#nav').innerHTML=navItems().map(([v,l])=>{const b=badge(v);const on=S.ui.view===v||(S.ui.view==='deal'&&false);return '<button data-a="go" data-v="'+v+'" class="'+(on?'on':'')+'">'+esc(l)+(b?'<span class="badge">'+b+'</span>':'')+'</button>';}).join('');
+}
+function renderHeader(){
+  $('#clock').innerHTML='Demo clock: <b>'+tfmt(now())+'</b> <button class="btn sm" data-a="ff" data-h="1">+1 h</button><button class="btn sm" data-a="ff" data-h="24">+24 h</button><button class="btn sm" data-a="reset">Reset demo</button>';
+  $('#whoSel').innerHTML=Object.values(S.users).map(u=>'<option value="'+u.id+'"'+(u.id===S.current?' selected':'')+'>'+esc(u.name)+' — '+(u.role==='admin'?'operations':u.role+(u.status==='pending'?' (pending)':''))+'</option>').join('');
+}
+
+function vHome(){
+  const mine=S.deals.filter(d=>d.type==='errand'&&d.customerId===S.current&&!['released','refunded','cancelled','expired'].includes(d.status));
+  const helpers=Object.values(S.users).filter(u=>u.role==='helper'&&u.status==='approved');
+  return '<div class="card"><h1>What do you need help with?</h1><div class="sub">Pick a category. Your payment is held by the partner bank until you confirm the job is done.</div>'+
+  '<div class="cats">'+CATS.map(c=>'<button class="cat" data-a="post" data-c="'+c.id+'"><span class="ic">'+c.ab+'</span>'+esc(c.name)+'</button>').join('')+'</div></div>'+
+  '<div class="card"><div class="row between"><h2>Active</h2><button class="btn sm" data-a="go" data-v="mytasks">All my tasks</button></div>'+
+  (mine.length?'<div class="grid">'+mine.map(taskCard).join('')+'</div>':'<div class="empty">No active tasks. Post one above.</div>')+'</div>'+
+  '<div class="card"><h2>Helpers near you</h2><div class="grid">'+helpers.map(h=>'<div class="item"><div class="row"><span class="av">'+ini(h.name)+'</span><div><b>'+esc(h.name)+'</b><div class="sub">★ '+h.rating+' · '+h.done+' tasks</div></div></div><div class="row"><span class="pill p-ok">ДАН ID verified</span><span class="pill p-ok">Bank name matched</span></div><div class="sub">Does: '+h.cats.map(c=>esc(cat(c).name)).join(', ')+'</div></div>').join('')+'</div></div>'+
+  '<div class="card" style="background:var(--teal);color:#fff;border:none"><h2>SafePay — buying from a stranger?</h2><div style="color:#CDEDE5;font-size:14px">The bank holds the money until you have the item. Sellers only see "Paid · held" from the bank — screenshots never count.</div><div><button class="btn" data-a="go" data-v="safepay">Open SafePay</button></div></div>';
+}
+function taskCard(d){
+  return '<button class="item" data-a="open" data-id="'+d.id+'"><div class="row between"><span class="pill p-grey">'+esc(cat(d.cat).name)+' · '+(d.mode==='now'?'Now':'Scheduled')+'</span>'+pill(d.status)+'</div><b>'+esc(d.title)+'</b><div class="sub">'+esc(d.address)+' · '+esc(d.when)+'</div><div class="row between"><b>'+fmt(d.fee)+'</b><span class="sub">'+(d.offers.length?d.offers.length+' applicant(s)':'')+(d.helperId?'Helper: '+esc(U(d.helperId).name):'')+'</span></div></button>';
+}
+function vPost(){
+  const c=cat(S.ui.cat||'shop');
+  return '<div class="card"><h1>Post a task</h1><div class="sub">You set the fee (minimum '+fmt(MIN_FEE)+'). You pay when posting; the bank holds it. No helper in time → automatic full refund.</div>'+
+  '<form data-form="post" class="card" style="padding:0;border:none">'+
+  '<label class="f">Category<select name="cat" id="pcat">'+CATS.map(x=>'<option value="'+x.id+'"'+(x.id===c.id?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></label>'+
+  '<label class="f">Short title<input name="title" required maxlength="80" placeholder="e.g. Groceries from Nomin, Zaisan"></label>'+
+  '<label class="f">What exactly should the helper do?<textarea name="desc" required placeholder="Items, quantities, floor, anything the helper must know"></textarea></label>'+
+  '<label class="f">Address<input name="address" required value="'+esc((me().area||'')+', Bldg 45, apt 12')+'"></label>'+
+  '<div class="row"><div class="seg" role="radiogroup" aria-label="Timing"><label><input type="radio" name="mode" value="now" checked> Now — first helper to accept</label><label><input type="radio" name="mode" value="schedule"> Schedule — choose from up to '+MAX_APPLY+'</label></div></div>'+
+  '<label class="f">When (for scheduled)<input name="when" placeholder="e.g. Tomorrow 15:00"></label>'+
+  '<div class="row"><label class="f" style="flex:1">Distance (km, for the suggestion)<input name="km" type="number" min="0" step="0.1" value="1.5" id="pkm"></label>'+
+  '<label class="f" style="flex:1">Item budget (if buying things)<input name="items" type="number" min="0" step="500" value="'+(c.items?38000:0)+'"></label></div>'+
+  '<div class="note n-ok" id="sugg"></div>'+
+  '<label class="f">Your fee for the helper (₮)<input name="fee" type="number" min="'+MIN_FEE+'" step="500" required id="pfee"></label>'+
+  '<div class="note n-info">Banned: alcohol/cigarettes for others, medicines, rides, childcare, entering homes alone. Never pay helpers outside the app.</div>'+
+  '<div class="row"><button class="btn pri" type="submit">Continue to payment</button></div></form></div>';
+}
+function suggest(){
+  const c=cat(($('#pcat')||{}).value),km=parseFloat(($('#pkm')||{}).value)||0;
+  const v=Math.max(MIN_FEE,Math.round((c.base+km*1500)/500)*500);
+  const s=$('#sugg');if(s)s.innerHTML='<b>Suggested fee: '+fmt(v)+'</b> — based on '+esc(c.name)+' base + '+km+' km. Helpers see your fee; a fair fee gets accepted faster.';
+  const f=$('#pfee');if(f&&!f.dataset.touched)f.value=v;
+}
+function vMyTasks(){
+  const mine=S.deals.filter(d=>d.type==='errand'&&d.customerId===S.current).slice().reverse();
+  return '<div class="card"><h1>My tasks</h1>'+(mine.length?'<div class="grid">'+mine.map(taskCard).join('')+'</div>':'<div class="empty">Nothing yet.</div>')+'</div>';
+}
+function feedFor(hid){
+  const h=U(hid);if(h.role!=='helper')return [];
+  return S.deals.filter(d=>d.type==='errand'&&d.status==='open'&&h.cats.includes(d.cat)&&d.customerId!==hid&&!d.offers.some(o=>o.helperId===hid));
+}
+function vFeed(){
+  const h=me();
+  if(h.status!=='approved')return '<div class="card"><h1>Almost there</h1><div class="note n-held">Your verification is waiting for team review (ДАН ID, live selfie match, same-name bank account). You can see tasks after approval.</div><div class="sub">Tip: switch to "Ops team" and approve '+esc(h.name)+' under Helper approvals.</div></div>';
+  const list=feedFor(h.id);
+  return '<div class="card"><div class="row between"><h1>Tasks near you</h1><span class="pill p-ok">Online</span></div><div class="sub">Only tasks in your categories. Every task here is already paid and held by the bank.</div>'+
+  (list.length?'<div class="grid">'+list.map(d=>'<div class="item"><div class="row between"><span class="pill p-grey">'+esc(cat(d.cat).name)+' · '+(d.mode==='now'?'Now':esc(d.when))+'</span><span class="pill p-held">'+fmt(d.held)+' held</span></div><b>'+esc(d.title)+'</b><div class="sub">'+esc(d.desc)+'</div><div class="sub">'+esc(d.address)+(d.itemBudget?' · item budget '+fmt(d.itemBudget):'')+'</div><div class="row between"><b style="font-size:20px">'+fmt(d.fee)+'</b>'+(d.mode==='now'?'<button class="btn go" data-a="accept" data-id="'+d.id+'">Accept</button>':'<button class="btn go" data-a="apply" data-id="'+d.id+'">Apply ('+d.offers.length+'/'+MAX_APPLY+')</button>')+'</div><div class="sub">You receive '+fmt(d.fee-Math.round(d.fee*COMMISSION))+' after the '+Math.round(COMMISSION*100)+'% fee'+(d.itemBudget?' + item costs reimbursed by receipt':'')+'.</div></div>').join('')+'</div>':'<div class="empty">No open tasks right now. Switch to a customer and post one.</div>')+'</div>';
+}
+function vMyJobs(){
+  const id=S.current;
+  const list=S.deals.filter(d=>d.type==='errand'&&(d.helperId===id||d.offers.some(o=>o.helperId===id))).slice().reverse();
+  return '<div class="card"><h1>My jobs</h1>'+(list.length?'<div class="grid">'+list.map(d=>{const st=d.helperId===id?d.status:(d.helperId?'not chosen':'applied');return '<button class="item" data-a="open" data-id="'+d.id+'"><div class="row between"><b>'+esc(d.title)+'</b>'+(st==='applied'?'<span class="pill p-info">Applied · waiting</span>':st==='not chosen'?'<span class="pill p-grey">Not chosen</span>':pill(st))+'</div><div class="sub">'+esc(d.address)+'</div><b>'+fmt(d.fee)+'</b></button>';}).join('')+'</div>':'<div class="empty">No jobs yet. Accept or apply from the Task feed.</div>')+'</div>';
+}
+function vEarn(){
+  const h=me();
+  const hist=S.ledger.filter(l=>l.to===h.name).slice().reverse();
+  const pending=S.deals.filter(d=>d.helperId===h.id&&['matched','in_progress','check','disputed'].includes(d.status)).reduce((a,d)=>a+d.fee,0);
+  return '<div class="row"><div class="stat" style="flex:1"><span class="sub">Available</span><b>'+fmt(h.balance||0)+'</b></div><div class="stat" style="flex:1"><span class="sub">Still held (in jobs)</span><b>'+fmt(pending)+'</b></div></div>'+
+  '<div class="card"><div class="row between"><div><b>Payout account</b><div class="sub">'+esc(h.acct||'—')+' · name matches ДАН ✓</div></div><button class="btn go" data-a="withdraw" '+((h.balance||0)>0?'':'disabled')+'>Withdraw '+fmt(h.balance||0)+'</button></div><div class="sub">Payouts go only to an account in your own verified name.</div></div>'+
+  '<div class="card"><h2>History</h2>'+(hist.length?'<div class="tbox"><table><tr><th>When</th><th>Deal</th><th>What</th><th>Amount</th></tr>'+hist.map(l=>'<tr><td>'+tfmt(l.ts)+'</td><td>'+esc(l.deal)+'</td><td>'+esc(l.what)+'</td><td>'+fmt(Math.abs(l.amt))+'</td></tr>').join('')+'</table></div>':'<div class="empty">No payouts yet.</div>')+'</div>';
+}
+
+/* ---------- deal detail (errand) ---------- */
+function vDeal(){
+  const d=deal(S.ui.id);if(!d)return '<div class="card">Not found.</div>';
+  if(d.type==='goods')return vGoods(d);
+  const id=S.current, isC=d.customerId===id, isH=d.helperId===id, r=me().role;
+  let act='';
+  if(isC){
+    if(d.status==='awaiting_payment')act='<button class="btn pri" data-a="pay" data-id="'+d.id+'">Pay '+fmt(totalFor(d))+' into hold</button><button class="btn" data-a="cancel" data-id="'+d.id+'">Discard</button>';
+    if(d.status==='open'){
+      act='<div class="note n-held">Your '+fmt(d.held)+' is held by the bank. '+(d.mode==='now'?'Waiting for the first helper to accept.':'Choose a helper below.')+'</div>';
+      if(d.mode==='schedule')act+=d.offers.length?d.offers.map(o=>{const h=U(o.helperId);return '<div class="item"><div class="row"><span class="av">'+ini(h.name)+'</span><div style="flex:1"><b>'+esc(h.name)+'</b><div class="sub">★ '+h.rating+' · '+h.done+' tasks · ID verified</div></div><button class="btn go" data-a="choose" data-id="'+d.id+'" data-h="'+h.id+'">Choose</button></div><div class="sub">"'+esc(o.note)+'"</div></div>';}).join(''):'<div class="empty">No applicants yet. Switch to a helper to apply.</div>';
+      act+='<div class="row"><button class="btn" data-a="cancel" data-id="'+d.id+'">Cancel (full refund)</button><button class="btn" data-a="expire" data-id="'+d.id+'">Simulate: no helper found</button></div>';
+    }
+    if(d.status==='matched')act='<div class="note n-held">'+esc(U(d.helperId).name)+' is matched. Cancelling now costs '+fmt(CANCEL_FEE)+' (paid to the helper for their time).</div><div class="row"><button class="btn bad" data-a="cancel" data-id="'+d.id+'">Cancel ('+fmt(CANCEL_FEE)+' fee)</button></div>';
+    if(d.status==='check'){const spent=d.receipt?Math.min(d.receipt,d.itemBudget):0,comm=Math.round(d.fee*COMMISSION);
+      act='<div class="note n-held">Auto-release in <b>'+left(d.checkUntil-now())+'</b> unless you report a problem.</div>'+
+      '<div class="card" style="padding:14px"><b>When you confirm, the bank pays out</b><div class="kv"><span>To helper · fee after '+Math.round(COMMISSION*100)+'%</span><span>'+fmt(d.fee-comm)+'</span></div>'+(d.itemBudget?'<div class="kv"><span>To helper · items by receipt</span><span>'+fmt(spent)+'</span></div><div class="kv"><span>Back to you · unspent budget</span><span>'+fmt(d.itemBudget-spent)+'</span></div>':'')+'<div class="kv sub"><span>Platform (service '+fmt(SERVICE_FEE)+' + commission '+fmt(comm)+')</span><span>'+fmt(SERVICE_FEE+comm)+'</span></div><div class="kv tot"><span>Total held</span><span>'+fmt(d.held)+'</span></div></div>'+
+      '<div class="row"><button class="btn go" data-a="confirm" data-id="'+d.id+'">Confirm &amp; release</button><button class="btn bad" data-a="dispute" data-id="'+d.id+'">Something\'s wrong — keep it held</button></div>';}
+    if(['released','refunded','cancelled','expired'].includes(d.status)&&!d.rated&&d.status==='released')act='<div class="row"><span>Rate '+esc(U(d.helperId).name)+':</span>'+[1,2,3,4,5].map(n=>'<button class="btn sm" data-a="rate" data-id="'+d.id+'" data-n="'+n+'">'+n+'★</button>').join('')+'</div>';
+  }
+  if(isH){
+    if(d.status==='matched')act='<div class="note n-ok">Payment confirmed by the bank — '+fmt(d.held)+' held. Start when you leave.</div><button class="btn go" data-a="start" data-id="'+d.id+'">Start task</button>';
+    if(d.status==='in_progress'){
+      act='<div class="note n-ok">Proof steps (required before payout)</div>'+
+      (d.itemBudget?'<form data-form="receipt" data-id="'+d.id+'" class="row"><label class="f" style="flex:1">1. Receipt amount (max '+fmt(d.itemBudget)+')<input name="amt" type="number" min="0" max="'+d.itemBudget+'" step="100" required value="'+(d.receipt||'')+'"></label><label class="f" style="flex:1">Receipt photo<input type="file" accept="image/*" name="ph"></label><button class="btn" type="submit">'+(d.receipt?'Update':'Save')+' receipt</button></form>'+(d.receipt?'<span class="pill p-ok">Receipt saved: '+fmt(d.receipt)+'</span>':''):'')+
+      '<div class="row"><label class="f" style="flex:1">'+(d.itemBudget?'2':'1')+'. Handover photo at the door (time + location attached)<input type="file" accept="image/*" data-a2="proof" data-id="'+d.id+'"></label>'+(d.proof?'<span class="pill p-ok">Photo attached</span>':'<button class="btn sm" data-a="sampleproof" data-id="'+d.id+'">Use sample photo</button>')+'</div>'+
+      '<button class="btn go" data-a="finish" data-id="'+d.id+'" '+(d.proof&&(!d.itemBudget||d.receipt!=null)?'':'disabled')+'>Mark done</button>';
+    }
+    if(d.status==='check')act='<div class="note n-held">Waiting for the customer to confirm. Auto-release to you in <b>'+left(d.checkUntil-now())+'</b>.</div>';
+  }
+  if(r==='helper'&&!isH&&d.status==='open'&&U(id).status==='approved'&&U(id).cats.includes(d.cat)&&!d.offers.some(o=>o.helperId===id))act=d.mode==='now'?'<button class="btn go" data-a="accept" data-id="'+d.id+'">Accept</button>':'<button class="btn go" data-a="apply" data-id="'+d.id+'">Apply</button>';
+  if(d.status==='disputed')act='<div class="note n-bad">Disputed: "'+esc(d.dispute.reason)+'". Money stays with the bank until the team decides (switch to Ops team → Disputes).</div>';
+  const canChat=(isC||isH)&&d.helperId&&!['released','refunded','cancelled','expired','awaiting_payment'].includes(d.status);
+  return '<div class="row"><button class="btn sm" data-a="back">← Back</button></div>'+
+  '<div class="card"><div class="row between"><div><span class="sub">'+esc(d.id)+' · '+esc(cat(d.cat).name)+' · '+(d.mode==='now'?'Now':'Scheduled: '+esc(d.when))+'</span><h1>'+esc(d.title)+'</h1></div>'+pill(d.status)+'</div><div>'+esc(d.desc)+'</div><div class="sub">'+esc(d.address)+' · customer '+esc(U(d.customerId).name)+(d.helperId?' · helper '+esc(U(d.helperId).name):'')+'</div>'+
+  '<div class="row"><span class="pill p-grey">Fee '+fmt(d.fee)+'</span>'+(d.itemBudget?'<span class="pill p-grey">Item budget '+fmt(d.itemBudget)+'</span>':'')+(d.held?'<span class="pill p-held">'+fmt(d.held)+' held by bank</span>':'')+'</div>'+act+'</div>'+
+  (canChat?chatBox(d):'')+
+  '<div class="card"><h2>Timeline</h2><div class="tl">'+d.events.map(e=>'<div><span class="t">'+tfmt(e.ts)+'</span><span>'+esc(e.text)+'</span></div>').join('')+'</div></div>';
+}
+function chatBox(d){
+  return '<div class="card"><h2>Chat</h2><div class="chat">'+(d.chat.length?d.chat.map(m=>'<div class="msg '+(m.sys?'sys':m.from===S.current?'me':'')+'">'+(m.sys?'':'<b>'+esc(U(m.from).name.split(' ')[0])+':</b> ')+esc(m.text)+'</div>').join(''):'<div class="sub">Say hi. Phone numbers are hidden automatically — keep everything in the app.</div>')+'</div><form data-form="chat" data-id="'+d.id+'" class="row"><label class="f" style="flex:1"><span class="sub" style="font-weight:500">Message</span><input name="t" required autocomplete="off" placeholder="Type a message"></label><button class="btn pri" type="submit">Send</button></form><div class="sub">Chats disappear 24 h after the deal closes.</div></div>';
+}
+
+/* ---------- SafePay (goods) ---------- */
+function vSafe(){
+  const id=S.current;
+  const mine=S.deals.filter(d=>d.type==='goods'&&(d.sellerId===id||d.buyerId===id)).slice().reverse();
+  if(me().role==='admin')return '<div class="card">Switch to a customer or helper to use SafePay.</div>';
+  return '<div class="card"><h1>SafePay deals</h1><div class="sub">Buying or selling with a stranger? The buyer pays into a bank hold. The seller hands over only after the app shows "Paid · held". The buyer then has a check window to confirm or report a problem.</div></div>'+
+  '<div class="row" style="align-items:stretch"><form data-form="newgoods" class="card" style="flex:1 1 300px"><h2>I\'m selling — create a deal link</h2><label class="f">Item<input name="title" required placeholder="iPhone 13, 128 GB, blue"></label><label class="f">Price (₮)<input name="price" type="number" min="1000" step="1000" required placeholder="1350000"></label><label class="f">Buyer check window<select name="hrs"><option value="24">24 hours</option><option value="72">3 days</option></select></label><button class="btn go" type="submit">Create link</button></form>'+
+  '<form data-form="opencode" class="card" style="flex:1 1 300px"><h2>I\'m buying — open a link</h2><div class="sub">Paste the 6-character code the seller sent. Only codes that open inside this app are genuine; ignore look-alike websites.</div><label class="f">Deal code<input name="code" required maxlength="8" placeholder="e.g. 7K2Q9F" style="text-transform:uppercase"></label><button class="btn pri" type="submit">Check &amp; open</button></form></div>'+
+  '<div class="card"><h2>My deals</h2>'+(mine.length?'<div class="grid">'+mine.map(d=>'<button class="item" data-a="open" data-id="'+d.id+'"><div class="row between"><b>'+esc(d.title)+'</b>'+pill(d.status)+'</div><div class="sub">'+(d.sellerId===id?'You sell':'You buy')+' · code <span class="code" style="font-size:13px">'+esc(d.code)+'</span></div><b>'+fmt(d.price)+'</b></button>').join('')+'</div>':'<div class="empty">No deals yet.</div>')+'</div>';
+}
+function vGoods(d){
+  const id=S.current, isS=d.sellerId===id, isB=d.buyerId===id, s=U(d.sellerId);
+  const sellerDeals=S.deals.filter(x=>x.type==='goods'&&x.sellerId===d.sellerId&&x.status==='released').length;
+  const reports=S.deals.filter(x=>x.type==='goods'&&x.sellerId===d.sellerId&&x.dispute&&x.dispute.outcome==='refund').length;
+  let act='';
+  if(isS){
+    if(d.status==='awaiting_payment')act='<div class="note n-info">Send the buyer this code: <span class="code">'+esc(d.code)+'</span><br>Do <b>not</b> hand over the item until this page says <b>Paid · held</b>. Ignore any payment screenshot.</div><div class="sub">Demo: switch to another customer, open SafePay and enter the code.</div>';
+    if(d.status==='held')act='<div class="note n-ok"><b>Bank confirmed:</b> '+fmt(d.held)+' is held. Safe to hand over now.</div><div class="row"><label class="f" style="flex:1">Handover photo<input type="file" accept="image/*"></label><button class="btn go" data-a="handover" data-id="'+d.id+'">Mark handed over</button></div>';
+    if(d.status==='check')act='<div class="note n-held">Buyer is checking. Auto-release to you in <b>'+left(d.checkUntil-now())+'</b>.</div>';
+  } else if(isB||(!d.buyerId&&d.status==='awaiting_payment')){
+    if(d.status==='awaiting_payment')act='<div class="kv"><span>Price</span><span>'+fmt(d.price)+'</span></div><div class="kv sub"><span>Buyer protection fee</span><span>'+fmt(d.buyerFee)+'</span></div><div class="kv tot"><span>You pay into hold</span><span>'+fmt(d.price+d.buyerFee)+'</span></div><div class="note n-held">1. The bank holds your money — the seller can\'t touch it. 2. Meet, check the item. 3. Confirm, or report within '+d.hrs+' h and it stays held.</div><button class="btn pri" data-a="pay" data-id="'+d.id+'">Pay into hold with QPay</button>';
+    if(d.status==='held')act='<div class="note n-held">Paid · held. Meet the seller and check the item. The seller will mark it handed over.</div>';
+    if(d.status==='check')act='<div class="note n-held">Check window: <b>'+left(d.checkUntil-now())+'</b> left, then the money releases automatically.</div><div class="row"><button class="btn go" data-a="confirm" data-id="'+d.id+'">Received, OK — release</button><button class="btn bad" data-a="dispute" data-id="'+d.id+'">Not as described</button></div>';
+    if(d.status==='released'&&isB)act='<div class="note n-ok">Done. The seller has been paid.</div>';
+  }
+  if(d.status==='disputed')act='<div class="note n-bad">Disputed: "'+esc(d.dispute.reason)+'". Money stays with the bank until the team decides.</div>';
+  return '<div class="row"><button class="btn sm" data-a="back">← Back</button></div>'+
+  '<div class="note n-ok"><b>Genuine SafePay deal</b> · opened inside the app · code '+esc(d.code)+'</div>'+
+  '<div class="card"><div class="row between"><h1>'+esc(d.title)+'</h1>'+pill(d.status)+'</div><b style="font-size:22px">'+fmt(d.price)+'</b>'+
+  '<div class="item"><div class="sub" style="font-weight:600">Seller check</div><div class="row"><span class="av">'+ini(s.name)+'</span><b>'+esc(s.name)+'</b></div><div class="row"><span class="pill '+(s.verified==='dan'||s.role==='helper'?'p-ok':'p-held')+'">'+(s.verified==='dan'||s.role==='helper'?'✓ ДАН ID verified':'Phone only — not ID verified')+'</span><span class="pill p-ok">'+sellerDeals+' safe deals done</span><span class="pill '+(reports?'p-bad':'p-ok')+'">'+reports+' upheld complaints</span></div></div>'+act+'</div>'+
+  '<div class="card"><h2>Timeline</h2><div class="tl">'+d.events.map(e=>'<div><span class="t">'+tfmt(e.ts)+'</span><span>'+esc(e.text)+'</span></div>').join('')+'</div></div>';
+}
+
+/* ---------- ops ---------- */
+function vOps(){
+  const held=S.deals.filter(d=>d.held>0);
+  const helperBal=Object.values(S.users).reduce((a,u)=>a+(u.balance||0),0);
+  return '<h1>Operations overview</h1><div class="grid"><div class="stat"><span class="sub">Held at partner bank</span><b>'+fmt(S.bank)+'</b><span class="sub">'+held.length+' deal(s)</span></div><div class="stat"><span class="sub">Platform revenue</span><b>'+fmt(S.platform)+'</b></div><div class="stat"><span class="sub">Helper/seller balances owed</span><b>'+fmt(helperBal)+'</b></div><div class="stat"><span class="sub">Open disputes</span><b>'+S.deals.filter(d=>d.status==='disputed').length+'</b></div></div>'+
+  '<div class="card"><h2>All deals</h2><div class="tbox"><table><tr><th>ID</th><th>Type</th><th>Title</th><th>Status</th><th>Held</th></tr>'+S.deals.slice().reverse().map(d=>'<tr><td>'+esc(d.id)+'</td><td>'+(d.type==='errand'?'Errand':'SafePay')+'</td><td>'+esc(d.title)+'</td><td>'+pill(d.status)+'</td><td>'+fmt(d.held||0)+'</td></tr>').join('')+'</table></div></div>'+
+  '<div class="note n-info">Check: held at bank (<b>'+fmt(S.bank)+'</b>) always equals the sum of "Held" above (<b>'+fmt(held.reduce((a,d)=>a+d.held,0))+'</b>).</div>';
+}
+function vDisputes(){
+  const list=S.deals.filter(d=>d.status==='disputed'||(d.dispute&&d.dispute.outcome));
+  return '<div class="card"><h1>Disputes</h1><div class="sub">Money stays held until you decide. Look at the evidence from both sides.</div></div>'+(list.length?list.slice().reverse().map(d=>{
+    const other=d.type==='errand'?U(d.helperId).name:U(d.sellerId).name, payer=U(d.customerId||d.buyerId).name;
+    return '<div class="card"><div class="row between"><b>'+esc(d.id)+' · '+esc(d.title)+'</b>'+pill(d.status)+'</div><div class="sub">Opened by '+esc(payer)+' against '+esc(other)+' · '+fmt(d.held||0)+' held</div><div class="note n-bad">Reason: '+esc(d.dispute.reason)+(d.dispute.note?' — "'+esc(d.dispute.note)+'"':'')+'</div><div class="sub">Evidence: '+(d.type==='errand'?(d.proof?'handover photo ✓':'no handover photo')+(d.itemBudget?' · receipt '+(d.receipt!=null?fmt(d.receipt):'missing'):''):(d.handoverPhoto?'handover photo ✓':'no photo'))+' · '+d.events.length+' timeline events</div>'+
+    (d.status==='disputed'?'<div class="row"><button class="btn go" data-a="decide" data-id="'+d.id+'" data-o="release">Release to '+esc(other)+'</button><button class="btn badf" data-a="decide" data-id="'+d.id+'" data-o="refund">Refund '+esc(payer)+'</button></div>':'<span class="pill p-grey">Decided: '+esc(d.dispute.outcome)+'</span>')+'</div>';}).join(''):'<div class="card empty">No disputes.</div>');
+}
+function vVerify(){
+  const list=Object.values(S.users).filter(u=>u.role==='helper');
+  return '<div class="card"><h1>Helper approvals</h1><div class="sub">In production: ДАН identity, live selfie matched to the ID photo, payout account name must match. Here you see the result of those checks.</div></div><div class="grid">'+list.map(u=>'<div class="item"><div class="row"><span class="av">'+ini(u.name)+'</span><b>'+esc(u.name)+'</b></div><div class="row"><span class="pill p-ok">ДАН ✓</span><span class="pill p-ok">Selfie match ✓</span><span class="pill p-ok">Bank name ✓</span></div><div class="sub">Categories: '+u.cats.map(c=>esc(cat(c).name)).join(', ')+'</div>'+(u.status==='pending'?'<div class="row"><button class="btn go" data-a="approve" data-id="'+u.id+'">Approve</button><button class="btn bad" data-a="reject" data-id="'+u.id+'">Reject</button></div>':'<span class="pill '+(u.status==='approved'?'p-ok':'p-bad')+'">'+esc(u.status)+'</span>')+'</div>').join('')+'</div>';
+}
+function vLedger(){
+  return '<div class="card"><h1>Bank hold ledger</h1><div class="sub">Every movement of money, as the partner bank would report it. Your platform only sends instructions (hold, release, refund); the bank moves the money.</div><div class="tbox"><table><tr><th>When</th><th>Deal</th><th>Movement</th><th>To</th><th>Amount</th></tr>'+S.ledger.slice().reverse().map(l=>'<tr><td>'+tfmt(l.ts)+'</td><td>'+esc(l.deal)+'</td><td>'+esc(l.what)+'</td><td>'+esc(l.to)+'</td><td style="color:'+(l.amt>0?'var(--teal-d)':'var(--ink)')+'">'+(l.amt>0?'+':'−')+fmt(Math.abs(l.amt))+'</td></tr>').join('')+'</table></div><div class="kv tot"><span>Currently held</span><span>'+fmt(S.bank)+'</span></div></div>';
+}
+function vHow(){
+  return '<div class="card"><h1>How to demo this</h1><div class="sub">One browser plays every role. Use "Viewing as" at the top to switch people, and the demo clock to skip time.</div>'+
+  '<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px"><li>As <b>Solongo</b>: Post a task (Shopping, Now) → pay into hold → "Simulate bank confirmation".</li><li>Switch to <b>Bat-Erdene</b>: Task feed → Accept → Start → save a receipt → add a handover photo → Mark done.</li><li>Back to <b>Solongo</b>: My tasks → Confirm &amp; release (or report a problem). Or press <b>+24 h</b> to see auto-release.</li><li>As <b>Ops team</b>: see the bank ledger, resolve disputes, approve Temuulen.</li><li>SafePay: as <b>Tsogt</b> create a deal link → switch to <b>Solongo</b> → SafePay → enter the code → pay → as Tsogt mark handed over → as Solongo confirm.</li></ol></div>'+
+  '<div class="card"><h2>Rules built in</h2><ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px"><li>Money moves only on a (simulated) bank confirmation — never on a screenshot.</li><li>Customer sets the fee, minimum '+fmt(MIN_FEE)+'; suggested fee shown.</li><li>Now = first helper to accept; Schedule = up to '+MAX_APPLY+' applicants, customer chooses.</li><li>No helper → automatic full refund. Cancel after match → '+fmt(CANCEL_FEE)+' to the helper.</li><li>Payout needs proof: receipt (if buying) + handover photo. Unspent item budget returns to the customer.</li><li>Check window '+CHECK_H+' h → auto-release if no complaint. Complaint → held until the team decides.</li><li>Helper commission '+Math.round(COMMISSION*100)+'%, service fee '+fmt(SERVICE_FEE)+', SafePay buyer fee 1% (min ₮1,000) — demo values.</li><li>Phone numbers in chat are hidden; "pay outside the app" phrases trigger a warning.</li></ul></div>'+
+  '<div class="note n-info">Prototype only. The money engine here stands in for the partner bank / QPay API: in production the bank holds the funds and confirms every pay-in, release and refund.</div>';
+}
+
+/* ---------- payment modal (mock QPay) ---------- */
+function payModal(d){
+  let cells='';for(let i=0;i<225;i++){const r=Math.floor(i/15),c=i%15;const corner=(r<4&&c<4)||(r<4&&c>10)||(r>10&&c<4);const on=corner?((r%3===0||c%3===0)&&!(r===1&&c===1)):((i*7+d.id.length*13+r*c)%3===0);cells+='<i style="background:'+(on?'#14171F':'#fff')+'"></i>';}
+  $('#modalRoot').innerHTML='<div class="overlay" role="dialog" aria-modal="true" aria-label="Pay with QPay"><div class="modal"><h2>Pay '+fmt(totalFor(d))+' with QPay</h2><div class="sub">Scan with any Mongolian bank app. The money goes to a separate hold account at the partner bank.</div><div class="row" style="justify-content:center"><div class="qr" aria-hidden="true">'+cells+'</div></div><div class="note n-held">This screen updates only when the <b>bank</b> confirms payment. A screenshot of a transfer does nothing.</div><button class="btn go" data-a="bankok" data-id="'+d.id+'">Simulate bank confirmation</button><button class="btn" data-a="closem">Cancel</button></div></div>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  tick();
+  const v=S.ui.view, r=me().role;
+  const allowed=navItems().map(x=>x[0]).concat(['deal']);
+  if(!allowed.includes(v)){S.ui.view=navItems()[0][0];}
+  renderHeader();renderNav();
+  const map={home:vHome,post:vPost,mytasks:vMyTasks,feed:vFeed,myjobs:vMyJobs,earn:vEarn,deal:vDeal,safepay:vSafe,ops:vOps,disputes:vDisputes,verify:vVerify,ledger:vLedger,how:vHow};
+  $('#main').innerHTML=(map[S.ui.view]||vHome)();
+  if(S.ui.view==='post')suggest();
+  save();
+}
+function go(v,extra){S.ui=Object.assign({view:v,id:null},extra||{});$('#modalRoot').innerHTML='';render();window.scrollTo(0,0);}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a, d=b.dataset.id?deal(b.dataset.id):null;
+  switch(a){
+    case 'go':go(b.dataset.v);break;
+    case 'post':go('post',{cat:b.dataset.c});break;
+    case 'open':go('deal',{id:b.dataset.id,prev:S.ui.view});break;
+    case 'back':go(S.ui.prev||navItems()[0][0]);break;
+    case 'ff':S.offset+=parseInt(b.dataset.h,10)*H;if(tick())toast('Time skipped — auto-release ran');render();break;
+    case 'reset':S=seed();go(navItems()[0][0]);toast('Demo reset');break;
+    case 'pay':payModal(d);break;
+    case 'closem':$('#modalRoot').innerHTML='';break;
+    case 'bankok':
+      if(d.type==='goods'&&!d.buyerId)d.buyerId=S.current;
+      bankConfirmPayment(d);$('#modalRoot').innerHTML='';toast('Bank confirmed — money is held');render();break;
+    case 'accept':
+      if(d.status!=='open'){toast('Too late — someone else accepted');render();break;}
+      d.helperId=S.current;d.status='matched';ev(d,U(S.current).name+' accepted (first to accept)');toast('Task is yours');go('deal',{id:d.id,prev:'myjobs'});break;
+    case 'apply':
+      if(d.offers.length>=MAX_APPLY){toast('This task already has '+MAX_APPLY+' applicants');break;}
+      d.offers.push({helperId:S.current,note:'I can do it at the posted time.',ts:now()});ev(d,U(S.current).name+' applied');toast('Applied — the customer will choose');render();break;
+    case 'choose':
+      d.helperId=b.dataset.h;d.status='matched';ev(d,'Customer chose '+U(d.helperId).name);toast('Helper chosen');render();break;
+    case 'cancel':
+      if(d.status==='awaiting_payment'){S.deals=S.deals.filter(x=>x!==d);go('mytasks');break;}
+      if(d.status==='open'){refundAll(d,'cancelled before match','cancelled');}
+      else if(d.status==='matched'){
+        const h=U(d.helperId);S.bank-=CANCEL_FEE;h.balance+=CANCEL_FEE;led(d,'Cancellation fee to helper',-CANCEL_FEE,h.name);d.held-=CANCEL_FEE;refundAll(d,'cancelled after match','cancelled');ev(d,fmt(CANCEL_FEE)+' cancellation fee paid to '+h.name);
+      }
+      toast('Cancelled');render();break;
+    case 'expire':refundAll(d,'no helper found','expired');toast('Automatic full refund');render();break;
+    case 'start':d.status='in_progress';ev(d,'Helper started');render();break;
+    case 'sampleproof':d.proof=true;ev(d,'Handover photo uploaded (time + GPS)');render();break;
+    case 'finish':d.status='check';d.checkUntil=now()+CHECK_H*H;ev(d,'Helper marked done · '+CHECK_H+' h check window started');toast('Done — waiting for confirmation');render();break;
+    case 'confirm':release(d,'confirmed by '+(d.type==='errand'?'customer':'buyer'));toast('Released');render();break;
+    case 'dispute':disputeModal(d);break;
+    case 'decide':
+      if(b.dataset.o==='release'){release(d,'team decision');d.dispute.outcome='release';}
+      else{refundAll(d,'team decision');d.dispute.outcome='refund';}
+      toast('Decision applied by the bank');render();break;
+    case 'rate':d.rated=+b.dataset.n;const h=U(d.helperId);h.rating=Math.round(((h.rating*h.done)+d.rated)/(h.done+1)*10)/10;h.done++;ev(d,'Customer rated '+d.rated+'★');toast('Thanks for rating');render();break;
+    case 'withdraw':{const u=me();const amt=u.balance;led({id:'—'},'Withdrawal to '+u.acct,-amt,u.name+' (bank account)');u.balance=0;toast(fmt(amt)+' sent to '+u.acct);render();break;}
+    case 'approve':U(b.dataset.id).status='approved';toast('Approved');render();break;
+    case 'reject':U(b.dataset.id).status='rejected';toast('Rejected');render();break;
+    case 'handover':d.status='check';d.handoverPhoto=true;d.checkUntil=now()+d.hrs*H;ev(d,'Seller marked handed over (photo) · '+d.hrs+' h check window');render();break;
+    case 'dsubmit':{
+      const f=$('#dform');const reason=(f.querySelector('input[name=reason]:checked')||{value:'Other'}).value, note=f.querySelector('textarea[name=note]').value.trim();
+      d.status='disputed';d.dispute={reason,note,ts:now()};ev(d,'Problem reported: '+reason+' · release paused');$('#modalRoot').innerHTML='';toast('Reported — money stays held');render();break;}
+  }
+});
+function disputeModal(d){
+  const reasons=d.type==='errand'?['Task not done','Done badly / not as agreed','Wrong items or receipt','Item damaged']:['Didn\'t receive it','Not as described','Fake or stolen item'];
+  $('#modalRoot').innerHTML='<div class="overlay" role="dialog" aria-modal="true" aria-label="Report a problem"><form class="modal" id="dform" onsubmit="return false"><h2>What went wrong?</h2>'+reasons.map((r,i)=>'<label style="display:flex;gap:10px;align-items:center;min-height:36px"><input type="radio" name="reason" value="'+esc(r)+'"'+(i===0?' checked':'')+' style="width:20px;height:20px;accent-color:var(--teal)">'+esc(r)+'</label>').join('')+'<label class="f">Details<textarea name="note" placeholder="What happened? Add photos in the real app."></textarea></label><div class="note n-held">The money stays with the bank. The other side gets 48 h to respond; then the team decides.</div><button class="btn badf" type="button" data-a="dsubmit" data-id="'+d.id+'">Submit report</button><button class="btn" type="button" data-a="closem">Cancel</button></form></div>';
+}
+document.addEventListener('submit',e=>{
+  const f=e.target;if(!f.dataset.form)return;e.preventDefault();
+  const fd=new FormData(f), k=f.dataset.form;
+  if(k==='post'){
+    const fee=parseInt(fd.get('fee'),10)||0;if(fee<MIN_FEE){toast('Minimum fee is '+fmt(MIN_FEE));return;}
+    const d={id:newId('E'),type:'errand',title:fd.get('title').trim(),desc:fd.get('desc').trim(),cat:fd.get('cat'),mode:fd.get('mode'),when:fd.get('mode')==='now'?'Now (ASAP)':(fd.get('when')||'Scheduled'),address:fd.get('address').trim(),itemBudget:Math.max(0,parseInt(fd.get('items'),10)||0),fee,customerId:S.current,helperId:null,status:'awaiting_payment',held:0,offers:[],events:[],chat:[],receipt:null,proof:false,checkUntil:null};
+    ev(d,'Task posted');S.deals.push(d);go('deal',{id:d.id,prev:'mytasks'});payModal(d);
+  }
+  if(k==='receipt'){const d=deal(f.dataset.id);const amt=Math.max(0,Math.min(parseInt(fd.get('amt'),10)||0,d.itemBudget));d.receipt=amt;ev(d,'Receipt uploaded · '+fmt(amt));render();}
+  if(k==='chat'){const d=deal(f.dataset.id);const g=guardMsg(String(fd.get('t')));d.chat.push({from:S.current,text:g.out,ts:now()});if(g.warn)d.chat.push({sys:true,text:'Keep contact and payment inside the app. Off-app deals are not protected and can get accounts suspended.'});render();}
+  if(k==='newgoods'){
+    const price=parseInt(fd.get('price'),10)||0;if(price<1000){toast('Enter a price');return;}
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';for(let i=0;i<6;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+    const d={id:newId('S'),type:'goods',title:fd.get('title').trim(),price,buyerFee:Math.max(1000,Math.round(price*0.01)),hrs:parseInt(fd.get('hrs'),10),sellerId:S.current,buyerId:null,status:'awaiting_payment',held:0,code,events:[],chat:[],offers:[]};
+    ev(d,'Deal created by seller · code '+code);S.deals.push(d);toast('Link created — code '+code);go('deal',{id:d.id,prev:'safepay'});
+  }
+  if(k==='opencode'){
+    const code=String(fd.get('code')).trim().toUpperCase();const d=S.deals.find(x=>x.type==='goods'&&x.code===code);
+    if(!d){toast('No genuine SafePay deal with that code. Don\'t pay outside the app.');return;}
+    if(d.sellerId===S.current){toast('That is your own deal');go('deal',{id:d.id,prev:'safepay'});return;}
+    if(d.buyerId&&d.buyerId!==S.current){toast('This deal already has a buyer');return;}
+    go('deal',{id:d.id,prev:'safepay'});
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='pcat'||e.target.id==='pkm')suggest();
+  if(e.target.id==='pfee')e.target.dataset.touched='1';
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='pcat'){suggest();const it=document.querySelector('input[name=items]');if(it)it.value=cat(t.value).items?38000:0;}
+  if(t.dataset.a2==='proof'&&t.files&&t.files.length){const d=deal(t.dataset.id);d.proof=true;ev(d,'Handover photo uploaded (time + GPS)');render();}
+});
+$('#whoSel').addEventListener('change',e=>{S.current=e.target.value;S.ui={view:navItems()[0][0],id:null};render();});
+setInterval(()=>{if(tick())render();else if(S.ui.view==='deal'){const a=document.activeElement;if(!a||!/INPUT|TEXTAREA|SELECT/.test(a.tagName))render();}},30000);
+render();
+})();
+</script>
+</body>
+</html>
