@@ -11,9 +11,23 @@ export interface OfferPerson {
 }
 
 /** UI-FLOWS C4 offer card: name, ✓ level, ★ rating (count), jobs done, message, Choose. */
-export function OfferCard({ person, note, t, action }: { person: OfferPerson; note?: string; t: T; action?: ReactNode }) {
+export function OfferCard({
+  person,
+  note,
+  t,
+  action,
+  badge,
+}: {
+  person: OfferPerson;
+  note?: string;
+  t: T;
+  action?: ReactNode;
+  /** e.g. "Санал болгосон" on the best-ranked applicant. */
+  badge?: string;
+}) {
   return (
-    <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
+    <div className={`flex flex-col gap-2 rounded-card border bg-bg p-4 ${badge ? "border-2 border-ink" : "border-line"}`}>
+      {badge && <span className="self-start rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-white">★ {badge}</span>}
       <div className="flex items-center gap-3">
         <Avatar name={person.name} size={56} />
         <div className="min-w-0 flex-1">

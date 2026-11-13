@@ -4,6 +4,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deals/queries";
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
+import { rankApplicants } from "@/lib/dispatch/rank";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
@@ -29,6 +30,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     .eq("deal_id", deal.id)
     .maybeSingle<{ notified: number }>();
   const isCustomer = deal.customerId === viewer.profile.id;
+  const ranked = isCustomer && deal.status === "open" ? await rankApplicants(deal) : [];
   const live = ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status);
 
   return (
@@ -48,6 +50,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       mockPay={mockPaymentsEnabled()}
       action={taskAction}
       dispatch={dispatch}
+      ranked={ranked}
     />
     </>
   );

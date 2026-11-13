@@ -7,7 +7,8 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
-import { runDispatch } from "@/lib/dispatch/run";
+import { releaseOtherCommitments } from "@/lib/dispatch/rank";
+import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { EngineError, amountDue, type Command } from "@/lib/engine";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
@@ -38,6 +39,9 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         const invoice = await paymentProvider().createInvoice(deal.id, amountDue(deal));
         const paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
         if (paid.deal.type === "errand" && paid.deal.helperId) {
+          // the helper is busy now: their other applications / unpaid matches step back
+          await releaseOtherCommitments(paid.deal.helperId, deal.id);
+          await runDispatch(deal.id); // marks the winner, closes the other offers
           await notify([paid.deal.helperId], {
             title: "push.paidTitle",
             body: "push.paidBody",
@@ -89,7 +93,11 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           if (note.length < DISPUTE_NOTE_MIN) return { error: t("dispute.noteShort") };
           cmd = { type: "dispute", reason, note };
         } else return { error: t("error.generic") };
-        await runCommand(db, dealId, cmd, viewer.actor);
+        const r = await runCommand(db, dealId, cmd, viewer.actor);
+        if (cmd.type === "choose" && r.deal.type === "errand") {
+          await notifyChosen(r.deal, false);
+          await runDispatch(dealId);
+        }
       }
     }
   } catch (e) {

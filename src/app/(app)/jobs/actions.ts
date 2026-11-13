@@ -6,6 +6,7 @@ import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, runCommand } from "@/lib/db/deals";
+import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
 import { EngineError, type Command } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
@@ -64,7 +65,10 @@ export async function removePush(endpoint: string): Promise<void> {
   await removeSubscription(viewer.profile.id, endpoint);
 }
 
-/** Helper-side task actions: accept (Now), quote (Custom), withdraw before payment, start, skip an offer. */
+/**
+ * Helper-side task actions: apply ("Хийж чадна", Instant) or quote (Custom) — the customer chooses —
+ * take back an application, step back before payment, start, skip an offer.
+ */
 export async function jobAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const viewer = await helperViewer();
   const t = await getT();
@@ -85,25 +89,29 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       return { done: true };
     }
 
+    if ((intent === "apply" || intent === "quote") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
+      return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
+    }
     let cmd: Command;
-    if (intent === "accept") cmd = { type: "accept" };
+    const note = String(form.get("note") ?? "").slice(0, 300);
+    if (intent === "apply") cmd = { type: "apply", note };
     else if (intent === "quote") {
       const price = Number(String(form.get("price") ?? "").replace(/[^\d]/g, ""));
       if (!Number.isInteger(price) || price <= 0) return { error: t("job.quoteInvalid") };
-      cmd = { type: "apply", note: String(form.get("note") ?? "").slice(0, 300), price };
-    } else if (intent === "withdraw") cmd = { type: "cancel" };
+      cmd = { type: "apply", note, price };
+    } else if (intent === "unapply") cmd = { type: "withdraw_offer" };
+    else if (intent === "withdraw") cmd = { type: "cancel" };
     else if (intent === "start") cmd = { type: "start" };
     else return { error: t("error.generic") };
 
     const { deal } = await runCommand(db, dealId, cmd, viewer.actor);
     if (deal.type !== "errand") return { error: t("error.generic") };
 
-    if (intent === "accept") {
-      await runDispatch(dealId); // closes everyone else's offer: the post leaves all feeds
+    if (intent === "apply") {
       await notify([deal.customerId], {
-        title: "push.acceptedTitle",
-        body: "push.acceptedBody",
-        params: { name: viewer.profile.name || "—" },
+        title: "push.applicantTitle",
+        body: "push.applicantBody",
+        params: { name: viewer.profile.name || "—", title: deal.title },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
@@ -123,9 +131,10 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       refresh();
       if (e.code === "FORBIDDEN") return { error: t("error.forbidden") };
       if (/Minimum fee/.test(e.message)) return { error: t("job.quoteInvalid") };
-      return { error: intent === "accept" ? t("job.taken") : t("error.changed") };
+      if (/applicants/.test(e.message)) return { error: t("job.full") };
+      return { error: intent === "apply" || intent === "quote" ? t("job.taken") : t("error.changed") };
     }
-    if (e instanceof DbError) return { error: intent === "accept" ? t("job.taken") : t("error.generic") };
+    if (e instanceof DbError) return { error: t("error.changed") };
     throw e;
   }
   refresh();

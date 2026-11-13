@@ -64,6 +64,10 @@ export interface EngineConfig {
   roundTripBps: number;
   /** Buy-for-me: optional extra held on top of the item budget, refunded if unused (1000 = 10%). */
   budgetBufferBps: number;
+  /** Instant tasks: a helper's application lapses after this long (they may be busy by then). */
+  applicationMinutes: number;
+  /** "Choose for me": the system picks the best applicant this long after the first one applied. */
+  autoPickMinutes: number;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -91,6 +95,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   secondPersonFee: 15000,
   roundTripBps: 5000,
   budgetBufferBps: 1000,
+  applicationMinutes: 15,
+  autoPickMinutes: 3,
 };
 
 export const HOUR_MS = 3_600_000;

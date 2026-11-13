@@ -46,10 +46,26 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const secondary: React.ReactNode[] = [];
   let line: React.ReactNode = null;
 
-  if (deal.status === "open" && !myOffer) {
+  const canTake = viewer.actor.helperApproved && (viewer.actor.categories ?? []).includes(deal.category);
+  if (deal.status === "open" && !myOffer && !canTake) {
+    line = viewer.actor.helperApproved
+      ? t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
+      : t("job.needApproval");
+  } else if (deal.status === "open" && !myOffer) {
     if (deal.mode === "now") {
       primary = (
-        <InlineAction action={jobAction} fields={{ ...fields, intent: "accept" }} label={t("job.accept", { amount: fmtMoney(net) })} className={`${btn.primary} w-full`} />
+        <InlineAction
+          action={jobAction}
+          fields={{ ...fields, intent: "apply" }}
+          label={t("job.apply", { amount: fmtMoney(net) })}
+          className={`${btn.primary} w-full`}
+          done={<Note tone="info">{t("job.applied")}</Note>}
+        >
+          <label className={fieldLabel}>
+            {t("job.applyNote")}
+            <input name="note" maxLength={300} className={field} placeholder={t("job.applyNotePh")} />
+          </label>
+        </InlineAction>
       );
     } else {
       primary = (
@@ -73,7 +89,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     }
     secondary.push(<InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
   } else if (deal.status === "open" && myOffer) {
-    line = t("job.quoteSent", { amount: fmtMoney(myOffer.price ?? deal.postedFee) });
+    line = myOffer.price !== null ? t("job.quoteSent", { amount: fmtMoney(myOffer.price) }) : t("job.applied");
+    secondary.push(
+      <InlineAction key="unapply" action={jobAction} fields={{ ...fields, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />,
+    );
   } else if (mine && deal.status === "awaiting_payment") {
     line = deal.payBy ? <Countdown until={deal.payBy} serverNow={now} template={t("job.waitingPay")} /> : null;
     secondary.push(

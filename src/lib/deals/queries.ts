@@ -2,7 +2,8 @@ import "server-only";
 import type { Viewer } from "@/lib/auth";
 import { loadDeal, runCommand } from "@/lib/db/deals";
 import { dealFromRow, type DealRow } from "@/lib/db/mapping";
-import { dueCommand, type Deal, type ErrandDeal } from "@/lib/engine";
+import { distanceKm } from "@/lib/dispatch/plan";
+import { dueCommand, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM = { kind: "system" } as const;
@@ -255,8 +256,8 @@ export async function nearbyFeed(helperId: string): Promise<JobListItem[]> {
 }
 
 /**
- * A task as a helper may see it: their own job, a task they quoted on, or an open task in their
- * categories (feed / offer). Settled first, like the customer view.
+ * A task as a helper may see it: their own job, a task they quoted on, or any open task (the board).
+ * Settled first, like the customer view.
  */
 export async function getJobForHelper(id: string, viewer: Viewer): Promise<ErrandDeal | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
@@ -264,6 +265,48 @@ export async function getJobForHelper(id: string, viewer: Viewer): Promise<Erran
   if (!deal || deal.type !== "errand") return null;
   const settled = (await settle(deal)) as ErrandDeal;
   if (canView(settled, viewer)) return settled;
-  const eligible = viewer.actor.helperApproved && viewer.actor.categories?.includes(settled.category) && settled.customerId !== viewer.profile.id;
-  return eligible && settled.status === "open" ? settled : null;
+  // Open tasks are on the public board ("Бүх ажил"); accepting still needs an approved helper in that category.
+  return settled.status === "open" && settled.customerId !== viewer.profile.id ? settled : null;
+}
+
+export type BoardSort = "near" | "new" | "pay";
+
+/**
+ * "Бүх ажил": every open task in the city (not limited to the helper's radius or categories),
+ * like a public board. Distance is from the helper's last position when known.
+ */
+export async function browseOpenDeals(
+  viewerId: string,
+  opts: { category?: CategoryId; sort: BoardSort; from: { lat: number; lng: number } | null },
+): Promise<JobListItem[]> {
+  let q = createAdminClient()
+    .from("deals")
+    .select("*")
+    .eq("type", "errand")
+    .eq("status", "open")
+    .neq("customer_id", viewerId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (opts.category) q = q.eq("category", opts.category);
+  const { data, error } = await q.returns<DealRow[]>();
+  if (error) throw new Error(error.message);
+  const items = (data ?? []).map((r) => {
+    const deal = dealFromRow(r) as ErrandDeal;
+    return { deal, distanceKm: opts.from && deal.location ? distanceKm(opts.from, deal.location) : null };
+  });
+  if (opts.sort === "near") items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  if (opts.sort === "pay") items.sort((a, b) => b.deal.fee - a.deal.fee);
+  return items;
+}
+
+/** Open tasks this helper has applied to (their pending requests). */
+export async function myApplications(helperId: string): Promise<JobListItem[]> {
+  const { data } = await createAdminClient()
+    .from("offers")
+    .select("deal_id, deals!inner(status)")
+    .eq("helper_id", helperId)
+    .eq("deals.status", "open")
+    .returns<{ deal_id: string }[]>();
+  const deals = await dealsByIds((data ?? []).map((o) => o.deal_id));
+  return [...deals.values()].map((deal) => ({ deal, distanceKm: null }));
 }

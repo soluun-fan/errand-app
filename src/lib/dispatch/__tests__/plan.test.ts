@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CITY_WAVE, WAVES, bayesRating, dueWave, pickWave, score, type Candidate } from "../plan";
+import { CITY_WAVE, WAVES, bayesRating, distanceKm, dueWave, pickWave, score, type Candidate } from "../plan";
 
 const c = (helperId: string, distanceKm: number | null, o: Partial<Candidate> = {}): Candidate => ({
   helperId,
@@ -60,5 +60,12 @@ describe("dueWave", () => {
     expect(dueWave(0, T, T + 45_000)).toBe(1);
     expect(dueWave(2, T, T + 60_000)).toBe(3);
     expect(dueWave(CITY_WAVE, T, T + 10 ** 9)).toBeNull();
+  });
+});
+
+describe("distanceKm", () => {
+  it("matches the SQL haversine: 0.009° of latitude ≈ 1 km", () => {
+    expect(distanceKm({ lat: 47.9186, lng: 106.9177 }, { lat: 47.9276, lng: 106.9177 })).toBeCloseTo(1.0007, 3);
+    expect(distanceKm({ lat: 47.9, lng: 106.9 }, { lat: 47.9, lng: 106.9 })).toBe(0);
   });
 });

@@ -9,7 +9,7 @@ import { StepTracker } from "@/components/step-tracker";
 import { Card, FlowHeader, HeldBadge, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, errandSplit, type ErrandDeal } from "@/lib/engine";
+import { amountDue, autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { MockQr } from "./mock-qr";
@@ -30,6 +30,8 @@ export interface DealViewProps {
   action: FormAction;
   /** Dispatch progress while the task is open (how many helpers were notified). */
   dispatch?: { notified: number } | null;
+  /** Live applicants, best first (dispatch score); the first is "Recommended". */
+  ranked?: { helperId: string; distanceKm: number | null }[];
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -58,6 +60,14 @@ export function DealView(p: DealViewProps) {
     commissionBps: deal.commissionBps,
   });
   const fields = { dealId: deal.id };
+  // Live applicants, best first (the page ranks them; unranked ones keep their order).
+  const rankOf = (h: string) => p.ranked?.findIndex((r) => r.helperId === h) ?? -1;
+  const applicants = [...liveOffers(deal, serverNow)].sort((a, b) => {
+    const ra = rankOf(a.helperId);
+    const rb = rankOf(b.helperId);
+    return (ra < 0 ? 1e9 : ra) - (rb < 0 ? 1e9 : rb);
+  });
+  const pickAt = autoPickAt(deal, serverNow);
   const topUp = deal.topUp;
   const topUpPending = deal.status === "in_progress" && topUp?.status === "pending" ? topUp : null;
   const againLink = (cls: string) => (
@@ -87,9 +97,11 @@ export function DealView(p: DealViewProps) {
       line = (
         <>
           {deal.mode === "now"
-            ? p.dispatch?.notified
-              ? t("deal.line.openNow", { n: p.dispatch.notified })
-              : t("deal.line.openNowStart")
+            ? deal.offers.length > 0
+              ? t("deal.line.openChoose", { n: deal.offers.length })
+              : p.dispatch?.notified
+                ? t("deal.line.openNow", { n: p.dispatch.notified })
+                : t("deal.line.openNowStart")
             : t("deal.line.openSchedule", { offers: deal.offers.length, max: deal.maxApplicants })}{" "}
           {deal.matchBy && t("deal.line.noMatchBy", { when: fmtDateTime(deal.matchBy, locale) })}
         </>
@@ -381,17 +393,26 @@ export function DealView(p: DealViewProps) {
         <OfferCard person={person(people.get(deal.helperId), helperName)} t={t} />
       )}
 
-      {deal.status === "open" && deal.mode === "schedule" && isCustomer && (
-        <section className="flex flex-col gap-2">
-          <h2 className="font-bold">{t("deal.offers", { n: deal.offers.length, max: deal.maxApplicants })}</h2>
-          {deal.offers.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
-          {deal.offers.map((o) => {
+      {deal.status === "open" && isCustomer && (
+        <section className="flex flex-col gap-2" aria-live="polite">
+          <h2 className="font-bold">{t("deal.offers", { n: applicants.length, max: deal.maxApplicants })}</h2>
+          {applicants.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
+          {applicants.length > 0 && pickAt !== null && (
+            <p className="self-start rounded-full bg-fill px-3 py-1 text-sm font-medium">
+              <Countdown until={pickAt} serverNow={serverNow} template={t("deal.autoPickIn")} />
+            </p>
+          )}
+          {applicants.map((o, i) => {
             const pp = person(people.get(o.helperId), t("deal.newHelper"));
+            const km = p.ranked?.find((r) => r.helperId === o.helperId)?.distanceKm ?? null;
             return (
               <OfferCard
                 key={o.helperId}
                 person={pp}
-                note={[o.price !== null ? fmtMoney(o.price) : null, o.note].filter(Boolean).join(" · ")}
+                badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
+                note={[o.price !== null ? fmtMoney(o.price) : null, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note]
+                  .filter(Boolean)
+                  .join(" · ")}
                 t={t}
                 action={
                   <ConfirmSheet

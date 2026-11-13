@@ -34,6 +34,7 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
     budgetBuffer: x.budgetBuffer,
     people: x.people,
     pin: d.location,
+    autoPick: x.autoPick,
   };
 }
 

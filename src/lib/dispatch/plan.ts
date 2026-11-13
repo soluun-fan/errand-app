@@ -76,3 +76,11 @@ export function dueWave(current: number, startedAt: number | null, now: number):
   if (current >= CITY_WAVE) return null;
   return now >= startedAt + WAVES[current].seconds * 1000 ? current + 1 : null;
 }
+
+/** Great-circle distance in km (same formula as the SQL in dispatch_candidates). */
+export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const rad = (x: number) => (x * Math.PI) / 180;
+  const h =
+    Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}

@@ -47,6 +47,8 @@ export interface ErrandDetails {
   roundTrip: boolean;
   /** Buy-for-me: customer allowed going up to 10% over the budget; the extra is held too. */
   budgetBuffer: boolean;
+  /** "Choose for me": if the customer hasn't picked, the system picks the best applicant. */
+  autoPick: boolean;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -61,6 +63,7 @@ export const DEFAULT_DETAILS: ErrandDetails = {
   heavy: false,
   roundTrip: false,
   budgetBuffer: false,
+  autoPick: false,
 };
 
 /**
@@ -204,7 +207,8 @@ export type Command =
   | { type: "claim" } // goods: buyer attaches to the deal before paying
   | { type: "accept" } // errand now-mode: first helper wins
   | { type: "apply"; note: string; price?: number } // errand schedule-mode: offer, optionally with a quote
-  | { type: "choose"; helperId: string }
+  | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
+  | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
   | { type: "cancel" }
   | { type: "expire" }
   | { type: "start" }

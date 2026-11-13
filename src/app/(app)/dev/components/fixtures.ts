@@ -93,6 +93,8 @@ export function buildFixture(state: FixtureState, now: number): { deal: ErrandDe
       run({ type: "accept" }, helper(FX.helper));
       break;
     case "open_now":
+      run({ type: "apply", note: "5 min away." }, helper(FX.helper));
+      run({ type: "apply", note: "" }, helper(FX.helper2));
       break;
     case "open_schedule":
       run({ type: "apply", note: "I can come at the posted time." }, helper(FX.helper));

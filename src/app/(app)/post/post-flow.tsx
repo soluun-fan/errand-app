@@ -52,6 +52,8 @@ export interface Draft {
   saveAs: AddressKind | "";
   /** Map pin for the drop-off / task place (drives nearby dispatch). */
   pin: Pin | null;
+  /** "Choose for me": pick the best applicant if I haven't chosen in a few minutes. */
+  autoPick: boolean;
 }
 
 /** The address fields a saved address fills in. */
@@ -124,6 +126,7 @@ export function PostFlow({
     raise: 0,
     saveAs: "",
     pin: null,
+    autoPick: true,
     ...(home && !initial.address ? fromSaved(home) : {}),
     ...initial,
   };
@@ -175,6 +178,7 @@ export function PostFlow({
     heavy: isCarry && d.heavy,
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
+    autoPick: d.autoPick,
   };
   const quote = quoteFee(d.category, details, cfg, startsAt);
   const needTwo = quote.peopleRequired === 2;
@@ -525,6 +529,8 @@ export function PostFlow({
             </summary>
             <MoneyBreakdown rows={breakdown} total={{ label: t("money.totalHeld"), amount: total }} caption={itemBudget > 0 ? t("money.itemBudgetNote") : undefined} />
           </details>
+
+          <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub")} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
 
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
             <span aria-hidden>🔒</span>

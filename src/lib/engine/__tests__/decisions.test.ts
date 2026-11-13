@@ -1,7 +1,7 @@
 /** Rules decided 2026-11-13 (docs/decisions.md): round trip, budget buffer, over-budget top-up. */
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, DEFAULT_DETAILS, ext, heldItemBudget, payable, quoteFee, type ErrandDeal } from "../index";
-import { World, customer, helper, provider } from "./helpers";
+import { DEFAULT_CONFIG, DEFAULT_DETAILS, MINUTE_MS, autoPickAt, ext, heldItemBudget, payable, quoteFee, type ErrandDeal } from "../index";
+import { T0, World, customer, helper, provider, system } from "./helpers";
 
 const c1 = customer("c1");
 const h1 = helper("h1");
@@ -138,5 +138,59 @@ describe("receipt over budget → top-up", () => {
     w.do(id, { type: "accept" }, h1);
     w.pay(id);
     w.reject(id, { type: "decline_topup" }, c1, "ILLEGAL_TRANSITION");
+  });
+});
+
+describe("customer chooses (applications on every task)", () => {
+  const h2 = helper("h2");
+
+  it("Instant task: helpers apply at the set price, the customer picks one", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "apply", note: "5 min away" }, h1);
+    w.do(id, { type: "apply", note: "" }, h2);
+    w.reject(id, { type: "apply", note: "", price: 20000 }, helper("h3"), "INVALID_INPUT"); // no haggling on Instant
+    w.reject(id, { type: "choose", helperId: "h1" }, h2, "FORBIDDEN");
+    w.do(id, { type: "choose", helperId: "h2" }, c1);
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h2", fee: 10000 });
+    w.pay(id);
+    expect(w.get(id).status).toBe("matched");
+  });
+
+  it("Instant applications lapse after 15 min; the helper may apply again", () => {
+    const w = new World();
+    const id = w.post({ scheduledAt: T0 + 5 * 60 * MINUTE_MS }); // keeps the task open long enough
+    w.do(id, { type: "apply", note: "" }, h1);
+    w.now += 15 * MINUTE_MS;
+    w.reject(id, { type: "choose", helperId: "h1" }, c1, "INVALID_INPUT");
+    w.do(id, { type: "apply", note: "still free" }, h1);
+    w.do(id, { type: "choose", helperId: "h1" }, c1);
+  });
+
+  it("a helper can withdraw their application; the system can withdraw it once they're busy", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "apply", note: "" }, h1);
+    w.do(id, { type: "apply", note: "" }, h2);
+    w.do(id, { type: "withdraw_offer" }, h1);
+    w.reject(id, { type: "withdraw_offer" }, h1, "INVALID_INPUT");
+    w.do(id, { type: "withdraw_offer", helperId: "h2" }, system);
+    expect((w.get(id) as ErrandDeal).offers).toEqual([]);
+  });
+
+  it("'Choose for me': the system may pick 3 min after the first application, never before or when off", () => {
+    const w = new World();
+    const id = w.post({ details: { autoPick: true } });
+    w.do(id, { type: "apply", note: "" }, h1);
+    expect(autoPickAt(w.get(id) as ErrandDeal, w.now)).toBe(T0 + 3 * MINUTE_MS);
+    w.reject(id, { type: "choose", helperId: "h1" }, system, "ILLEGAL_TRANSITION");
+    w.now += 3 * MINUTE_MS;
+    w.do(id, { type: "choose", helperId: "h1" }, system);
+    expect(w.codes(id)).toContain("chosen");
+
+    const off = w.post();
+    w.do(off, { type: "apply", note: "" }, h1);
+    w.now += 10 * MINUTE_MS;
+    w.reject(off, { type: "choose", helperId: "h1" }, system, "ILLEGAL_TRANSITION");
   });
 });

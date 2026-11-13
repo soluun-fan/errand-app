@@ -1,10 +1,11 @@
 import "server-only";
-import { loadDeal } from "@/lib/db/deals";
-import type { ErrandDeal } from "@/lib/engine";
+import { loadDeal, runCommand } from "@/lib/db/deals";
+import { autoPickAt, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CITY_WAVE, WAVES, dueWave, pickWave, type Candidate } from "./plan";
+import { CITY_WAVE, dueWave, pickWave, WAVES, type Candidate } from "./plan";
+import { rankApplicants } from "./rank";
 
 interface CandidateRow {
   helper_id: string;
@@ -25,13 +26,28 @@ export interface DispatchStatus {
  * Advances one task's dispatch (docs/rules.md §Dispatch). Idempotent and safe to call often —
  * after posting, from the customer's "searching…" screen, and from the cron tick:
  * - task no longer open → close the remaining offers (the post leaves every feed)
- * - otherwise send the next wave if it is due; an empty wave widens straight away
+ * - "Choose for me" due → pick the best-ranked applicant (as the system)
+ * - otherwise send the next wave if it is due and the applicant list isn't full;
+ *   an empty wave widens straight away
  * Duplicate offers are impossible (primary key); a race can at worst send a wave early.
  */
 export async function runDispatch(dealId: string, now = Date.now()): Promise<DispatchStatus | null> {
   const db = createAdminClient();
-  const deal = await loadDeal(db, dealId);
+  let deal = await loadDeal(db, dealId);
   if (!deal || deal.type !== "errand") return null;
+
+  const pickAt = autoPickAt(deal, now);
+  if (pickAt !== null && now >= pickAt) {
+    const [best] = await rankApplicants(deal, now);
+    if (best) {
+      try {
+        deal = (await runCommand(db, dealId, { type: "choose", helperId: best.helperId }, { kind: "system" })).deal as ErrandDeal;
+        await notifyChosen(deal, true);
+      } catch {
+        deal = (await loadDeal(db, dealId)) as ErrandDeal; // someone acted first
+      }
+    }
+  }
 
   const { data: state } = await db
     .from("dispatch_state")
@@ -48,7 +64,9 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
   let startedAt = state ? Date.parse(state.wave_started_at) : null;
   let notified = state?.notified ?? 0;
 
+  const full = liveOffers(deal, now).length >= deal.maxApplicants;
   for (;;) {
+    if (full) break;
     const due = dueWave(wave, startedAt, now);
     if (due === null) break;
     const { data, error } = await db.rpc("dispatch_candidates", {
@@ -61,7 +79,8 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId);
     const picks = pickWave(rows.map(toCandidate), due, new Set((offered ?? []).map((o) => o.helper_id as string)));
 
-    const expires = due === CITY_WAVE ? (deal.matchBy ?? now + 30 * 60_000) : now + WAVES[due].seconds * 1000;
+    // Notified helpers may apply until the task closes; the wave timer only paces the widening.
+    const expires = deal.matchBy ?? now + 30 * 60_000;
     if (picks.length) {
       await db
         .from("dispatch_offers")
@@ -114,6 +133,27 @@ async function notifyHelpers(deal: ErrandDeal, helperIds: string[]) {
     url: `/jobs/${deal.id}`,
     tag: `job-${deal.id}`,
   });
+}
+
+/** Chosen (by the customer or "Choose for me"): tell the helper to wait for payment; tell the customer if we chose. */
+export async function notifyChosen(deal: ErrandDeal, auto: boolean) {
+  if (!deal.helperId) return;
+  await notify([deal.helperId], {
+    title: "push.chosenTitle",
+    body: "push.chosenBody",
+    params: { title: deal.title },
+    url: `/jobs/${deal.id}`,
+    tag: `job-${deal.id}`,
+  });
+  if (auto) {
+    await notify([deal.customerId], {
+      title: "push.autoChosenTitle",
+      body: "push.acceptedBody",
+      params: { title: deal.title },
+      url: `/tasks/${deal.id}`,
+      tag: `task-${deal.id}`,
+    });
+  }
 }
 
 /** The task left "open": the winner's offer is marked won, everyone else's closes. */

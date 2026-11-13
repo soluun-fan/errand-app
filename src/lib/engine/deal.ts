@@ -211,6 +211,7 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
     heavy: Boolean(d.heavy),
     roundTrip: Boolean(d.roundTrip) && d.km > 0,
     budgetBuffer: Boolean(d.budgetBuffer),
+    autoPick: Boolean(d.autoPick),
   };
 }
 
@@ -303,6 +304,20 @@ function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number
   e.fee = fee;
   e.status = "awaiting_payment";
   e.payBy = tx.ctx.now + DEFAULT_CONFIG.paymentWindowMinutes * MINUTE_MS;
+}
+
+/** Applications still standing: on Instant tasks they lapse after `applicationMinutes`. */
+export function liveOffers(e: ErrandDeal, now: number): ErrandDeal["offers"] {
+  if (e.mode !== "now") return e.offers;
+  return e.offers.filter((o) => now - o.at < DEFAULT_CONFIG.applicationMinutes * MINUTE_MS);
+}
+
+/** When "Choose for me" may pick (first live application + autoPickMinutes), or null. */
+export function autoPickAt(e: ErrandDeal, now: number): number | null {
+  if (!e.details.autoPick || e.status !== "open") return null;
+  const live = liveOffers(e, now);
+  if (!live.length) return null;
+  return Math.min(...live.map((o) => o.at)) + DEFAULT_CONFIG.autoPickMinutes * MINUTE_MS;
 }
 
 /** The match lapsed before payment (timeout or helper withdrew): back to searching. */
@@ -444,10 +459,12 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const e = asErrand(d, "apply");
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "apply to", "open");
-      if (e.mode !== "schedule") fail("ILLEGAL_TRANSITION", "Now tasks are first-to-accept; use accept");
+      // Both kinds take applications and the customer chooses (docs/decisions.md 2026-11-13).
+      e.offers = liveOffers(e, ctx.now); // lapsed Instant applications drop out (and may re-apply)
       if (e.offers.some((o) => o.helperId === u.id)) fail("INVALID_INPUT", "You already applied");
       if (e.offers.length >= e.maxApplicants) fail("ILLEGAL_TRANSITION", `Task already has ${e.maxApplicants} applicants`);
       const price = cmd.price ?? null;
+      if (price !== null && e.mode === "now") fail("INVALID_INPUT", "Instant tasks have a set price; no quotes");
       if (price !== null) {
         assertMoney(price, "price");
         if (price < DEFAULT_CONFIG.minFee) fail("INVALID_INPUT", `Minimum fee is ₮${DEFAULT_CONFIG.minFee}`);
@@ -459,14 +476,34 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
 
     case "choose": {
       const e = asErrand(d, "choose");
-      requirePayer(ctx, e);
       requireStatus(e, "choose a helper for", "open");
-      if (e.mode !== "schedule") fail("ILLEGAL_TRANSITION", "Only scheduled tasks have applicants to choose from");
+      if (ctx.actor.kind === "system") {
+        const at = autoPickAt(e, ctx.now);
+        if (at === null || ctx.now < at) fail("ILLEGAL_TRANSITION", "Auto-pick is off or not due yet");
+      } else {
+        requirePayer(ctx, e);
+      }
+      e.offers = liveOffers(e, ctx.now);
       const offer = e.offers.find((o) => o.helperId === cmd.helperId);
-      if (!offer) fail("INVALID_INPUT", "That helper did not apply");
+      if (!offer) fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
       const fee = (offer as NonNullable<typeof offer>).price ?? e.postedFee;
       assignHelper(tx, e, cmd.helperId, fee);
-      tx.ev("chosen", { helperId: cmd.helperId, fee: e.fee });
+      tx.ev("chosen", { helperId: cmd.helperId, fee: e.fee, by: ctx.actor.kind === "system" ? "auto" : "customer" });
+      break;
+    }
+
+    case "withdraw_offer": {
+      const e = asErrand(d, "withdraw an application from");
+      requireStatus(e, "withdraw an application from", "open");
+      let helperId: string;
+      if (ctx.actor.kind === "system") {
+        helperId = cmd.helperId ?? fail("INVALID_INPUT", "helperId is required");
+      } else {
+        helperId = requireUser(ctx).id;
+      }
+      if (!e.offers.some((o) => o.helperId === helperId)) fail("INVALID_INPUT", "No application to withdraw");
+      e.offers = e.offers.filter((o) => o.helperId !== helperId);
+      tx.ev("offer_withdrawn", { helperId });
       break;
     }
 

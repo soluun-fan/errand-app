@@ -17,6 +17,7 @@ function commandsFor(deal: Deal, actors: { payer: Actor; worker: Actor; other: A
     [{ type: "accept" }, helper("h2")],
     [{ type: "apply", note: "" }, helper("h2")],
     [{ type: "choose", helperId: "h2" }, actors.payer],
+    [{ type: "withdraw_offer" }, helper("h2")],
     [{ type: "cancel" }, actors.other],
     [{ type: "expire" }, system],
     [{ type: "start" }, actors.worker],
@@ -98,7 +99,7 @@ checkTable(
   },
   {
     awaiting_payment: ["confirm_payment", "cancel", "expire"],
-    open: ["accept", "cancel", "expire"],
+    open: ["accept", "apply", "choose", "withdraw_offer", "cancel", "expire"],
     matched: ["cancel", "start"],
     in_progress: ["record_receipt", "record_handover", "finish"],
     check: ["confirm", "dispute", "auto_release"],
