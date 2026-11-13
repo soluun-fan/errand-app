@@ -12,6 +12,9 @@ import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
 import { amountDue, autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
+import { TaskMap, type MapMarker } from "@/components/task-map";
+import { distanceKm } from "@/lib/dispatch/plan";
+import { googlePlaceUrl } from "@/lib/maps";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
 
@@ -32,6 +35,8 @@ export interface DealViewProps {
   dispatch?: { notified: number } | null;
   /** Live applicants, best first (dispatch score); the first is "Recommended". */
   ranked?: { helperId: string; distanceKm: number | null }[];
+  /** Live helper position during the job (customer only). */
+  helperPos?: { lat: number; lng: number } | null;
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -388,6 +393,26 @@ export function DealView(p: DealViewProps) {
           </Link>
         )}
       </Card>
+
+      {deal.location && waiting && (
+        <section className="flex flex-col gap-2">
+          <TaskMap
+            className="h-52"
+            markers={[
+              { ...deal.location, kind: "task", label: deal.address } as MapMarker,
+              ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
+            ]}
+          />
+          {p.helperPos ? (
+            <p className="text-sm text-ink-2">
+              {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })} · {t("map.helperLive")}
+            </p>
+          ) : null}
+          <a href={googlePlaceUrl(deal.location)} target="_blank" rel="noopener noreferrer" className="self-start text-[15px] font-medium underline underline-offset-4">
+            {t("map.openGoogle")}
+          </a>
+        </section>
+      )}
 
       {deal.helperId && (
         <OfferCard person={person(people.get(deal.helperId), helperName)} t={t} />

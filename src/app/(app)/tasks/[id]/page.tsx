@@ -31,6 +31,18 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     .maybeSingle<{ notified: number }>();
   const isCustomer = deal.customerId === viewer.profile.id;
   const ranked = isCustomer && deal.status === "open" ? await rankApplicants(deal) : [];
+  // The helper's live position (sent by their phone during the job; ignored if older than 10 min).
+  let helperPos: { lat: number; lng: number } | null = null;
+  if (isCustomer && deal.helperId && (deal.status === "matched" || deal.status === "in_progress")) {
+    const { data: pos } = await createAdminClient()
+      .from("helper_presence")
+      .select("lat, lng, updated_at")
+      .eq("user_id", deal.helperId)
+      .maybeSingle<{ lat: number | null; lng: number | null; updated_at: string }>();
+    if (pos?.lat != null && pos.lng != null && Date.now() - Date.parse(pos.updated_at) < 10 * 60_000) {
+      helperPos = { lat: pos.lat, lng: pos.lng };
+    }
+  }
   const live = ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status);
 
   return (
@@ -51,6 +63,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       action={taskAction}
       dispatch={dispatch}
       ranked={ranked}
+      helperPos={helperPos}
     />
     </>
   );

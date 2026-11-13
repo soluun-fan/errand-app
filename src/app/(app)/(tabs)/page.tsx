@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DealCard } from "@/components/deal-card";
-import { MapPill, MapSlot } from "@/components/map-slot";
+import { MapPill } from "@/components/map-slot";
+import { TaskMap, type MapMarker } from "@/components/task-map";
 import { Avatar, chipClass } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -23,11 +24,16 @@ export default async function Home() {
   const everCompleted = all.some((x) => x.deal.status === "released");
   const repeat = [...new Map(all.filter((x) => x.deal.status === "released").map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
 
+  const pins: MapMarker[] = active.flatMap(({ deal }) =>
+    deal.location ? [{ ...deal.location, kind: "task" as const, label: deal.title, href: `/tasks/${deal.id}` }] : [],
+  );
+
   return (
     <>
       <div className="-mx-5 -mt-2">
-        <MapSlot>
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+        <div className="relative h-[38vh] min-h-56">
+          <TaskMap markers={pins} showMe rounded={false} className="absolute inset-0" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4 [&>*]:pointer-events-auto">
             <span className="flex items-center gap-2 rounded-full bg-bg/95 py-1.5 pl-1.5 pr-3 font-semibold shadow-float">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">T</span>
               {t("home.city")}
@@ -36,14 +42,14 @@ export default async function Home() {
               <Avatar name={viewer.profile.name || "?"} size={44} />
             </Link>
           </div>
-          <div className="absolute inset-x-0 top-[38%] flex justify-center px-6">
-            <Link href="/profile">
+          <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center px-6">
+            <Link href="/profile" className="pointer-events-auto">
               <MapPill>
                 <span aria-hidden>📍</span> {viewer.profile.area || t("home.area")} ›
               </MapPill>
             </Link>
           </div>
-        </MapSlot>
+        </div>
       </div>
 
       {/* sheet over the map */}

@@ -456,6 +456,12 @@ export const en = {
   },
   map: {
     label: "Map",
+    open: "Open",
+    directions: "Directions in Google Maps",
+    openGoogle: "Open in Google Maps",
+    approx: "Approximate area. The exact pin shows once you're matched.",
+    helperHere: "{name} is about {km} km away",
+    helperLive: "Live position of your helper (updates every ~30 s)",
     pinLabel: "Map: move it so the pin sits on the place",
     myLocation: "My location",
     moveHint: "Move the map to put the pin on the place",

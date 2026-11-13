@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Countdown } from "@/components/countdown";
 import { InlineAction } from "@/components/inline-action";
+import { JobBeacon } from "@/components/job-beacon";
+import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
@@ -11,6 +13,7 @@ import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
 import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
+import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { jobAction } from "../actions";
 
 /**
@@ -130,9 +133,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     );
   }
 
+  // Exact pin only for the matched helper; everyone else sees a ~300 m area (privacy).
+  const onJob = mine && (deal.status === "matched" || deal.status === "in_progress");
+  const exact = mine && deal.status !== "open";
+  const markers: MapMarker[] = deal.location
+    ? [exact ? { ...deal.location, kind: "task", label: deal.address } : { ...fuzz(deal.location), kind: "area" }]
+    : [];
+  const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupAddress);
+
   return (
     <>
       <FlowHeader href="/jobs" label={t("common.back")} />
+      {onJob && <JobBeacon dealId={deal.id} />}
       {(deal.status === "open" || deal.status === "awaiting_payment") && <AutoRefresh seconds={10} />}
 
       <Card>
@@ -152,10 +164,19 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </Card>
 
+      {markers.length > 0 && <TaskMap markers={markers} showMe className="h-56" />}
+      {exact ? (
+        <a href={directions} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} w-full`}>
+          🧭 {t("map.directions")}
+        </a>
+      ) : (
+        deal.location && <p className="-mt-2 text-sm text-ink-2">{t("map.approx")}</p>
+      )}
+
       <Card>
         <p className="whitespace-pre-line text-[16px]">{deal.description}</p>
         {deal.pickupAddress && <p className="text-[15px] text-ink-2">● {t("deal.pickupAt", { place: deal.pickupAddress })}</p>}
-        <p className="text-[15px] text-ink-2">↘ {deal.address}</p>
+        {exact && <p className="text-[15px] text-ink-2">↘ {deal.address}</p>}
         {bits.length > 0 && <p className="text-[15px] text-ink-2">{bits.join(" · ")}</p>}
         {mine && dt.note && <p className="rounded-input bg-fill p-2.5 text-[15px]">{dt.note}</p>}
         {!mine && <p className="text-sm text-ink-2">{t("job.addressAfterMatch")}</p>}

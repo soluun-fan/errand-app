@@ -55,6 +55,21 @@ export async function heartbeat(lat: number, lng: number): Promise<void> {
     .eq("online", true);
 }
 
+/**
+ * Live position during a job (matched / in progress), even if the helper went "offline" for new
+ * work — the customer of that task sees where their helper is. Only the assigned helper can send.
+ */
+export async function trackJob(dealId: string, lat: number, lng: number): Promise<void> {
+  const viewer = await helperViewer();
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+  const db = createAdminClient();
+  const { data } = await db.from("deals").select("helper_id, status").eq("id", dealId).maybeSingle<{ helper_id: string | null; status: string }>();
+  if (!data || data.helper_id !== viewer.profile.id || !["matched", "in_progress"].includes(data.status)) return;
+  await db
+    .from("helper_presence")
+    .upsert({ user_id: viewer.profile.id, lat, lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+}
+
 export async function savePush(sub: BrowserSubscription): Promise<void> {
   const viewer = await helperViewer();
   await saveSubscription(viewer.profile.id, sub, await getLocale());
