@@ -28,6 +28,8 @@ export interface DealViewProps {
   autoOpenPay: boolean;
   mockPay: boolean;
   action: FormAction;
+  /** Dispatch progress while the task is open (how many helpers were notified). */
+  dispatch?: { notified: number } | null;
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -77,14 +79,18 @@ export function DealView(p: DealViewProps) {
   let line: ReactNode;
   switch (deal.status) {
     case "awaiting_payment":
-      line = deal.payBy ? <Countdown until={deal.payBy} serverNow={serverNow} template={t("deal.line.awaiting_payment")} /> : null;
+      line = deal.payBy ? (
+        <Countdown until={deal.payBy} serverNow={serverNow} template={t("deal.line.awaiting_payment", { helper: helperName, time: "{time}" })} />
+      ) : null;
       break;
     case "open":
       line = (
         <>
           {deal.mode === "now"
-            ? t("deal.line.openNow", { held: fmtMoney(deal.heldAmount) })
-            : t("deal.line.openSchedule", { held: fmtMoney(deal.heldAmount), offers: deal.offers.length, max: deal.maxApplicants })}{" "}
+            ? p.dispatch?.notified
+              ? t("deal.line.openNow", { n: p.dispatch.notified })
+              : t("deal.line.openNowStart")
+            : t("deal.line.openSchedule", { offers: deal.offers.length, max: deal.maxApplicants })}{" "}
           {deal.matchBy && t("deal.line.noMatchBy", { when: fmtDateTime(deal.matchBy, locale) })}
         </>
       );
@@ -171,13 +177,14 @@ export function DealView(p: DealViewProps) {
         );
         secondary.push(
           <ConfirmSheet
-            key="discard"
+            key="cancel"
             action={p.action}
             fields={{ ...fields, intent: "cancel" }}
-            trigger={t("deal.discard")}
+            trigger={t("deal.cancel")}
             triggerClass={btn.text}
-            title={t("deal.discard")}
-            confirmLabel={t("deal.discard")}
+            title={t("deal.cancelFreeTitle")}
+            body={t("deal.cancelUnpaidBody")}
+            confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
           />,
         );
@@ -191,7 +198,7 @@ export function DealView(p: DealViewProps) {
             trigger={t("deal.cancel")}
             triggerClass={btn.text}
             title={t("deal.cancelFreeTitle")}
-            body={t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) })}
+            body={deal.heldAmount > 0 ? t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) }) : t("deal.cancelUnpaidBody")}
             confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
           />,
@@ -384,7 +391,7 @@ export function DealView(p: DealViewProps) {
               <OfferCard
                 key={o.helperId}
                 person={pp}
-                note={o.note}
+                note={[o.price !== null ? fmtMoney(o.price) : null, o.note].filter(Boolean).join(" · ")}
                 t={t}
                 action={
                   <ConfirmSheet

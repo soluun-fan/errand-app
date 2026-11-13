@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, type CategoryId, type EngineConfig 
 import { EngineError, assertMoney, fail } from "./errors";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee } from "./money";
-import { DEFAULT_DETAILS, type ErrandDetails } from "./types";
+import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint } from "./types";
 import type {
   Account,
   Command,
@@ -173,10 +173,19 @@ export interface NewErrandInput {
   scheduledAt?: number | null;
   pickupAddress?: string | null;
   address: string;
+  location?: GeoPoint | null;
   itemBudget: number;
   fee: number;
   customerId: string;
   details?: Partial<ErrandDetails>;
+}
+
+/** Rough Mongolia bounding box: catches swapped lat/lng and junk pins. */
+function validLocation(p: GeoPoint | null | undefined): GeoPoint | null {
+  if (p === null || p === undefined) return null;
+  const ok = Number.isFinite(p.lat) && Number.isFinite(p.lng) && p.lat >= 41.5 && p.lat <= 52.2 && p.lng >= 87.7 && p.lng <= 120;
+  if (!ok) fail("INVALID_INPUT", "Pin must be inside Mongolia");
+  return { lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 };
 }
 
 const clean = (s: string | null | undefined, max = 200) => {
@@ -230,11 +239,13 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
 
+  const matchWindowMinutes = input.mode === "now" ? cfg.nowMatchWindowMinutes : cfg.scheduleMatchWindowMinutes;
+  // Posting is free: the task goes straight to helpers; the customer pays once someone is matched.
   const deal: ErrandDeal = {
     id: input.id,
     version: 0,
     type: "errand",
-    status: "awaiting_payment",
+    status: "open",
     title,
     description,
     category: input.category,
@@ -242,19 +253,21 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     scheduledAt,
     pickupAddress: input.pickupAddress?.trim() || null,
     address: input.address.trim(),
-    payBy: ctx.now + cfg.paymentWindowMinutes * MINUTE_MS,
+    location: validLocation(input.location),
+    payBy: null,
     details,
     itemBudget,
     fee: input.fee,
+    postedFee: input.fee,
     serviceFee: cfg.serviceFee,
     commissionBps: cfg.commissionBps,
     cancelFee: cfg.cancelFee,
     maxApplicants: cfg.maxApplicants,
-    matchWindowMinutes: input.mode === "now" ? cfg.nowMatchWindowMinutes : cfg.scheduleMatchWindowMinutes,
+    matchWindowMinutes,
     customerId: input.customerId,
     helperId: null,
     offers: [],
-    matchBy: null,
+    matchBy: scheduledAt ?? ctx.now + matchWindowMinutes * MINUTE_MS,
     receiptAmount: null,
     topUp: null,
     handoverProofAt: null,
@@ -267,11 +280,37 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   };
   return {
     deal,
-    events: [{ dealId: deal.id, code: "posted", data: { amountDue: amountDue(deal) }, at: ctx.now }],
+    events: [
+      { dealId: deal.id, code: "posted", data: { amountDue: amountDue(deal) }, at: ctx.now },
+      { dealId: deal.id, code: "helpers_notified", data: { mode: deal.mode }, at: ctx.now },
+    ],
     ledger: [],
     effects: [],
     duplicate: false,
   };
+}
+
+/**
+ * A helper is assigned: the customer now has the payment window to pay (the bank holds it).
+ * Legacy deals that were paid at posting go straight to "matched".
+ */
+function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number): void {
+  e.helperId = helperId;
+  if (e.heldAmount > 0) {
+    e.status = "matched";
+    return;
+  }
+  e.fee = fee;
+  e.status = "awaiting_payment";
+  e.payBy = tx.ctx.now + DEFAULT_CONFIG.paymentWindowMinutes * MINUTE_MS;
+}
+
+/** The match lapsed before payment (timeout or helper withdrew): back to searching. */
+function unassignHelper(e: ErrandDeal): void {
+  e.helperId = null;
+  e.payBy = null;
+  e.fee = e.postedFee;
+  e.status = "open";
 }
 
 export interface NewGoodsInput {
@@ -371,9 +410,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       d.paymentRef = cmd.providerRef;
       tx.ev("paid", { amount: cmd.amount });
       if (d.type === "errand") {
-        d.status = "open";
-        d.matchBy = d.scheduledAt !== null ? d.scheduledAt : ctx.now + d.matchWindowMinutes * MINUTE_MS;
-        tx.ev("helpers_notified", { mode: d.mode });
+        if (d.helperId === null) fail("INVARIANT_BROKEN", `Errand ${d.id} awaiting payment without a helper`);
+        d.status = "matched";
+        d.payBy = null;
       } else {
         d.status = "held";
       }
@@ -396,8 +435,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "accept", "open");
       if (e.mode !== "now") fail("ILLEGAL_TRANSITION", "Scheduled tasks take applications, not instant accepts");
-      e.helperId = u.id;
-      e.status = "matched";
+      assignHelper(tx, e, u.id, e.postedFee);
       tx.ev("accepted", { helperId: u.id });
       break;
     }
@@ -409,8 +447,13 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       if (e.mode !== "schedule") fail("ILLEGAL_TRANSITION", "Now tasks are first-to-accept; use accept");
       if (e.offers.some((o) => o.helperId === u.id)) fail("INVALID_INPUT", "You already applied");
       if (e.offers.length >= e.maxApplicants) fail("ILLEGAL_TRANSITION", `Task already has ${e.maxApplicants} applicants`);
-      e.offers.push({ helperId: u.id, note: cmd.note.trim(), at: ctx.now });
-      tx.ev("applied", { helperId: u.id });
+      const price = cmd.price ?? null;
+      if (price !== null) {
+        assertMoney(price, "price");
+        if (price < DEFAULT_CONFIG.minFee) fail("INVALID_INPUT", `Minimum fee is ₮${DEFAULT_CONFIG.minFee}`);
+      }
+      e.offers.push({ helperId: u.id, note: cmd.note.trim().slice(0, 300), price, at: ctx.now });
+      tx.ev("applied", price === null ? { helperId: u.id } : { helperId: u.id, price });
       break;
     }
 
@@ -419,10 +462,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requirePayer(ctx, e);
       requireStatus(e, "choose a helper for", "open");
       if (e.mode !== "schedule") fail("ILLEGAL_TRANSITION", "Only scheduled tasks have applicants to choose from");
-      if (!e.offers.some((o) => o.helperId === cmd.helperId)) fail("INVALID_INPUT", "That helper did not apply");
-      e.helperId = cmd.helperId;
-      e.status = "matched";
-      tx.ev("chosen", { helperId: cmd.helperId });
+      const offer = e.offers.find((o) => o.helperId === cmd.helperId);
+      if (!offer) fail("INVALID_INPUT", "That helper did not apply");
+      const fee = (offer as NonNullable<typeof offer>).price ?? e.postedFee;
+      assignHelper(tx, e, cmd.helperId, fee);
+      tx.ev("chosen", { helperId: cmd.helperId, fee: e.fee });
       break;
     }
 
@@ -430,7 +474,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireUser(ctx);
       if (d.type === "errand") {
         if (u.id === d.customerId) {
-          requireStatus(d, "cancel", "awaiting_payment", "open", "matched");
+          requireStatus(d, "cancel", "open", "awaiting_payment", "matched");
           if (d.status === "matched") {
             const helperId = d.helperId as string;
             const fee = Math.min(d.cancelFee, d.heldAmount);
@@ -440,6 +484,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           refundAll(tx, "customer_cancelled");
           d.status = "cancelled";
           tx.ev("cancelled", { by: "customer" });
+        } else if (d.helperId !== null && u.id === d.helperId && d.status === "awaiting_payment") {
+          // Not paid yet: the helper can step back without a penalty; the task searches again.
+          if (d.mode === "schedule") d.offers = d.offers.filter((o) => o.helperId !== u.id);
+          unassignHelper(d);
+          tx.ev("helper_withdrew", { helperId: u.id });
         } else if (d.helperId !== null && u.id === d.helperId) {
           requireStatus(d, "cancel", "matched", "in_progress");
           refundAll(tx, "helper_cancelled");
@@ -464,14 +513,21 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requireKind(ctx, "system", "Expiry");
       requireStatus(e, "expire", "awaiting_payment", "open");
       if (e.status === "awaiting_payment") {
-        // Never paid: nothing is held, nothing to refund.
+        // Matched but not paid in time: release the helper. Nothing is held, nothing to refund.
         if (e.payBy === null || ctx.now < e.payBy) fail("ILLEGAL_TRANSITION", "Payment window has not ended yet");
-        e.status = "expired";
-        tx.ev("payment_expired");
+        const helperId = e.helperId as string;
+        if (e.mode === "schedule") e.offers = e.offers.filter((o) => o.helperId !== helperId);
+        unassignHelper(e);
+        if (e.matchBy !== null && ctx.now >= e.matchBy) {
+          e.status = "expired";
+          tx.ev("payment_expired");
+        } else {
+          tx.ev("payment_timeout", { helperId });
+        }
         break;
       }
       if (e.matchBy === null || ctx.now < e.matchBy) fail("ILLEGAL_TRANSITION", "Match window has not ended yet");
-      refundAll(tx, "no_helper");
+      refundAll(tx, "no_helper"); // legacy deals paid at posting
       e.status = "expired";
       tx.ev("expired");
       break;

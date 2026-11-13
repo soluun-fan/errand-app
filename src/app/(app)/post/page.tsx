@@ -33,6 +33,7 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
     itemBudget: d.itemBudget > 0 ? String(typedBudget(d)) : "",
     budgetBuffer: x.budgetBuffer,
     people: x.people,
+    pin: d.location,
   };
 }
 

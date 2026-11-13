@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { MODE_COOKIE } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
-const PUBLIC_PATHS = ["/login"];
+/** No session needed: the login page, and the cron tick (it checks CRON_SECRET itself). */
+const PUBLIC_PATHS = ["/login", "/api/cron"];
 
 /**
  * Refreshes the Supabase session cookie on every request and does an optimistic

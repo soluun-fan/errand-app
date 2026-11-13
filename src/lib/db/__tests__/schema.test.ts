@@ -96,6 +96,9 @@ async function postErrand(input: Partial<NewErrandInput> = {}, now = T0): Promis
 const pay = (d: Deal, now = T0, ref = `qpay-${d.id}`) =>
   step(d, { type: "confirm_payment", providerRef: ref, amount: amountDue(d) }, provider, now);
 
+/** Posted and accepted by h1, not paid yet. */
+const matched = async (input: Partial<NewErrandInput> = {}) => step(await postErrand(input), { type: "accept" }, helper(U.h1), T0);
+
 async function scalar<T>(q: PGlite | Transaction, sql: string, params: unknown[] = []): Promise<T> {
   const r = await q.query<{ v: T }>(sql, params);
   return r.rows[0].v;
@@ -136,8 +139,8 @@ describe("migration", () => {
 describe("engine → database round trip", () => {
   it("errand: full happy path, money matches the engine at every step", async () => {
     let d = await postErrand();
-    d = await pay(d);
     d = await step(d, { type: "accept" }, helper(U.h1), T0 + 60_000);
+    d = await pay(d, T0 + 90_000);
     d = await step(d, { type: "start" }, helper(U.h1), T0 + 120_000);
     d = await step(d, { type: "record_receipt", amount: 35500 }, helper(U.h1), T0 + 180_000);
     d = await step(d, { type: "record_handover" }, helper(U.h1), T0 + 240_000);
@@ -163,8 +166,8 @@ describe("engine → database round trip", () => {
   it("over-budget top-up: second payment grows the item budget; round trip + buffer details persist", async () => {
     let d = await postErrand({ itemBudget: 50000, fee: 10500, details: { km: 2, roundTrip: true, budgetBuffer: true } }); // 6000 + 2 km + ½ return
     expect(d.type === "errand" && d.itemBudget).toBe(55000);
-    d = await pay(d);
     d = await step(d, { type: "accept" }, helper(U.h1), T0 + 60_000);
+    d = await pay(d, T0 + 90_000);
     d = await step(d, { type: "start" }, helper(U.h1), T0 + 120_000);
     d = await step(d, { type: "record_receipt", amount: 58000 }, helper(U.h1), T0 + 180_000);
     expect(d.type === "errand" && d.topUp).toMatchObject({ amount: 3000, status: "pending" });
@@ -181,11 +184,24 @@ describe("engine → database round trip", () => {
 
   it("scheduled errand: offers are stored and reloaded in order", async () => {
     let d = await postErrand({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, itemBudget: 0 });
-    d = await pay(d);
     d = await step(d, { type: "apply", note: "first" }, helper(U.h1), T0 + 1000);
-    d = await step(d, { type: "apply", note: "second" }, helper(U.h2, ["shop"]), T0 + 2000);
+    d = await step(d, { type: "apply", note: "second", price: 12000 }, helper(U.h2, ["shop"]), T0 + 2000);
     d = await step(d, { type: "choose", helperId: U.h2 }, customer(U.c1), T0 + 3000);
-    expect(d.type === "errand" && d.offers.map((o) => o.note)).toEqual(["first", "second"]);
+    expect(d.type === "errand" && d.offers.map((o) => [o.note, o.price])).toEqual([["first", null], ["second", 12000]]);
+    d = await pay(d, T0 + 4000);
+    expect(d.heldAmount).toBe(12000 + 1000);
+    await noViolations();
+  });
+
+  it("a match not paid in 10 min reopens the task: fee, pay_by and the dropped offer persist", async () => {
+    let d = await postErrand({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, itemBudget: 0, location: { lat: 47.9184, lng: 106.9177 } });
+    expect(d.type === "errand" && d.location).toEqual({ lat: 47.9184, lng: 106.9177 });
+    d = await step(d, { type: "apply", note: "quote", price: 20000 }, helper(U.h1), T0 + 1000);
+    d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
+    expect(d).toMatchObject({ status: "awaiting_payment", fee: 20000 });
+    const later = T0 + 2000 + 10 * 60_000;
+    d = await persist(d, runDue(d, later) as Transition, later); // persist() asserts DB == engine
+    expect(d).toMatchObject({ status: "open", fee: 9000, payBy: null, helperId: null, offers: [] });
     await noViolations();
   });
 
@@ -206,7 +222,7 @@ describe("engine → database round trip", () => {
     await noViolations();
   });
 
-  it("unpaid task expires after 30 min; pickup address round-trips", async () => {
+  it("a task nobody takes expires after 30 min; pickup address round-trips", async () => {
     let d = await postErrand({ pickupAddress: "Nomin supermarket", itemBudget: 0 });
     expect(d.type === "errand" && d.pickupAddress).toBe("Nomin supermarket");
     const later = T0 + 31 * 60_000;
@@ -217,8 +233,8 @@ describe("engine → database round trip", () => {
 
   it("rating: once per deal, only by the customer after release; stats update", async () => {
     let d = await postErrand({ itemBudget: 0 });
-    d = await pay(d);
     d = await step(d, { type: "accept" }, helper(U.h1), T0);
+    d = await pay(d);
     d = await step(d, { type: "start" }, helper(U.h1), T0);
     d = await step(d, { type: "record_handover" }, helper(U.h1), T0);
     d = await step(d, { type: "finish" }, helper(U.h1), T0);
@@ -247,8 +263,8 @@ describe("engine → database round trip", () => {
 
   it("helper cancel suspends the helper for 3 days", async () => {
     let d = await postErrand({ itemBudget: 0 });
-    d = await pay(d);
     d = await step(d, { type: "accept" }, helper(U.h2, ["shop"]), T0);
+    d = await pay(d);
     d = await step(d, { type: "cancel" }, helper(U.h2, ["shop"]), T0 + 1000);
     expect(d.status).toBe("cancelled");
     const p = await db.query<ProfileRow>(
@@ -268,8 +284,7 @@ describe("engine → database round trip", () => {
 
 describe("database safety nets (even if app code is wrong)", () => {
   it("rejects a stale write (optimistic locking) with PT409", async () => {
-    let d = await postErrand();
-    d = await pay(d);
+    const d = await postErrand();
     const stale = d;
     await step(d, { type: "accept" }, helper(U.h1), T0);
     const t = apply(stale, { type: "accept" }, { now: T0, actor: helper(U.h2, ["shop"]) });
@@ -289,7 +304,7 @@ describe("database safety nets (even if app code is wrong)", () => {
   });
 
   it("rejects a transition whose ledger doesn't match held_amount, and writes nothing", async () => {
-    const d = await postErrand();
+    const d = await step(await postErrand(), { type: "accept" }, helper(U.h1), T0);
     const t = apply(d, { type: "confirm_payment", providerRef: "tamper", amount: amountDue(d) }, { now: T0, actor: provider });
     const args = applyTransitionArgs(d, t, T0);
     args.p_deal = { ...args.p_deal, held_amount: args.p_deal.held_amount + 1 };
@@ -300,24 +315,87 @@ describe("database safety nets (even if app code is wrong)", () => {
   });
 
   it("books one provider payment only once", async () => {
-    const a = await pay(await postErrand(), T0, "same-ref");
-    const b = await postErrand();
+    const a = await pay(await matched(), T0, "same-ref");
+    const b = await matched();
     const t = apply(b, { type: "confirm_payment", providerRef: "same-ref", amount: amountDue(b) }, { now: T0, actor: provider });
     const err = await sqlError(as(db, "service_role", null, (tx) => rpc(tx, "apply_transition", applyTransitionArgs(b, t, T0))));
     expect(err.message).toMatch(/duplicate key|unique/);
-    expect(a.status).toBe("open");
+    expect(a.status).toBe("matched");
   });
 
   it("keeps the ledger append-only", async () => {
-    await pay(await postErrand());
+    await pay(await matched());
     expect((await sqlError(db.query(`update public.ledger_entries set amount = 1`))).message).toMatch(/append-only/);
     expect((await sqlError(db.query(`delete from public.ledger_entries`))).message).toMatch(/append-only/);
   });
 
   it("refuses closed deals that still hold money", async () => {
-    const d = await pay(await postErrand());
+    const d = await pay(await matched());
     const err = await sqlError(db.query(`update public.deals set status = 'cancelled' where id = $1`, [d.id]));
     expect(err.message).toMatch(/closed_deals_hold_nothing/);
+  });
+});
+
+describe("dispatch queries", () => {
+  // Sükhbaatar Square; ~1 km and ~6 km away.
+  const SQ = { lat: 47.9186, lng: 106.9177 };
+  const presence = (uid: string, lat: number, lng: number, radius: number, online = true, ago = "1 minute") =>
+    db.query(
+      `insert into public.helper_presence (user_id, online, lat, lng, radius_km, updated_at)
+       values ($1, $2, $3, $4, $5, now() - $6::interval)
+       on conflict (user_id) do update set online = excluded.online, lat = excluded.lat, lng = excluded.lng,
+         radius_km = excluded.radius_km, updated_at = excluded.updated_at`,
+      [uid, online, lat, lng, radius, ago],
+    );
+  const candidates = (dealId: string, maxKm: number) =>
+    as(db, "service_role", null, async (tx) =>
+      (await tx.query<{ helper_id: string; distance_km: number }>(
+        `select helper_id, distance_km from public.dispatch_candidates($1, $2)`,
+        [dealId, maxKm],
+      )).rows,
+    );
+
+  it("finds online, approved helpers in the category within both radii, with distance", async () => {
+    await presence(U.h1, 47.9276, 106.9177, 5); // ~1 km north, will go 5 km
+    await presence(U.h2, 47.9726, 106.9177, 3); // ~6 km north, only goes 3 km
+    const d = await postErrand({ category: "shop", location: SQ });
+    const near = await candidates(d.id, 2);
+    expect(near.map((r) => r.helper_id)).toEqual([U.h1]);
+    expect(near[0].distance_km).toBeGreaterThan(0.9);
+    expect(near[0].distance_km).toBeLessThan(1.1);
+    // h2 is 6 km away but only travels 3 km → never offered, even city-wide
+    expect((await candidates(d.id, 1000)).map((r) => r.helper_id)).not.toContain(U.h2);
+  });
+
+  it("skips offline helpers, stale positions, other categories and the customer themself", async () => {
+    const repair = await postErrand({ category: "repair", fee: 15000, location: SQ });
+    await presence(U.h2, 47.9186, 106.9177, 10); // right there, but h2 only does shopping
+    expect((await candidates(repair.id, 1000)).map((r) => r.helper_id)).not.toContain(U.h2);
+    await presence(U.h1, 47.9186, 106.9177, 10, true, "11 minutes");
+    expect(await candidates(repair.id, 1000)).toEqual([]);
+    await presence(U.h1, 47.9186, 106.9177, 10, false);
+    expect(await candidates(repair.id, 1000)).toEqual([]);
+  });
+
+  it("nearby feed lists open tasks nearest first; matched tasks disappear", async () => {
+    await presence(U.h1, 47.9186, 106.9177, 10);
+    const far = await postErrand({ title: "far", location: { lat: 47.9726, lng: 106.9177 } });
+    const near = await postErrand({ title: "near", location: { lat: 47.9196, lng: 106.9177 } });
+    const feed = () =>
+      as(db, "service_role", null, async (tx) =>
+        (await tx.query<{ deal_id: string }>(`select deal_id from public.nearby_open_deals($1)`, [U.h1])).rows.map((r) => r.deal_id),
+      );
+    const ids = await feed();
+    expect(ids.indexOf(near.id)).toBeLessThan(ids.indexOf(far.id));
+    await step(near, { type: "accept" }, helper(U.h1), T0);
+    expect(await feed()).not.toContain(near.id);
+  });
+
+  it("clients can't call the dispatch queries or read other helpers' presence", async () => {
+    const err = await sqlError(as(db, "authenticated", U.h1, (tx) => tx.query(`select * from public.nearby_open_deals($1)`, [U.h1])));
+    expect(err.message).toMatch(/permission denied/);
+    const rows = await as(db, "authenticated", U.h2, async (tx) => (await tx.query(`select user_id from public.helper_presence`)).rows);
+    expect(rows).toEqual([{ user_id: U.h2 }]);
   });
 });
 
@@ -359,10 +437,10 @@ describe("send SMS hook (mock OTP)", () => {
 
 describe("row level security", () => {
   let open: Deal;
-  let unpaid: Deal;
+  let taken: Deal;
   beforeAll(async () => {
-    unpaid = await postErrand({ title: "unpaid", category: "repair", fee: 15000 });
-    open = await pay(await postErrand({ title: "open repair", category: "repair", fee: 15000 }));
+    open = await postErrand({ title: "open repair", category: "repair", fee: 15000 });
+    taken = await step(await postErrand({ title: "taken shopping" }), { type: "accept" }, helper(U.h2, ["shop"]), T0);
   });
 
   const visibleDeals = (userId: string) =>
@@ -371,17 +449,18 @@ describe("row level security", () => {
     );
 
   it("customers see their own deals, not other people's", async () => {
-    expect(await visibleDeals(U.c1)).toEqual(expect.arrayContaining([unpaid.id, open.id]));
+    expect(await visibleDeals(U.c1)).toEqual(expect.arrayContaining([taken.id, open.id]));
     const c2 = await visibleDeals(U.c2);
-    expect(c2).not.toContain(unpaid.id);
+    expect(c2).not.toContain(taken.id);
     expect(c2).not.toContain(open.id);
   });
 
-  it("approved helpers see paid open tasks in their categories only", async () => {
+  it("approved helpers see open tasks in their categories; a matched task leaves the feed", async () => {
     const h1 = await visibleDeals(U.h1); // all categories
     expect(h1).toContain(open.id);
-    expect(h1).not.toContain(unpaid.id); // not paid yet
+    expect(h1).not.toContain(taken.id); // matched to h2 → gone from everyone else's feed
     expect(await visibleDeals(U.h2)).not.toContain(open.id); // h2 only does shopping
+    expect(await visibleDeals(U.h2)).toContain(taken.id); // ...but sees the task they took
   });
 
   it("anonymous users see nothing", async () => {

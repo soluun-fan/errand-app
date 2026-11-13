@@ -6,6 +6,9 @@ import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
+import { getDealForViewer } from "@/lib/deals/queries";
+import { runDispatch } from "@/lib/dispatch/run";
+import { notify } from "@/lib/push";
 import { EngineError, amountDue, type Command } from "@/lib/engine";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
@@ -33,7 +36,16 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         const deal = await loadDeal(db, dealId);
         if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
         const invoice = await paymentProvider().createInvoice(deal.id, amountDue(deal));
-        await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        const paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        if (paid.deal.type === "errand" && paid.deal.helperId) {
+          await notify([paid.deal.helperId], {
+            title: "push.paidTitle",
+            body: "push.paidBody",
+            params: { title: paid.deal.title },
+            url: `/jobs/${deal.id}`,
+            tag: `job-${deal.id}`,
+          });
+        }
         // No refresh here: the pay sheet shows "held safely" first, then refreshes itself.
         return { done: true };
       }
@@ -91,4 +103,17 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
 
   refresh();
   return { done: true };
+}
+
+/**
+ * Polled from the customer's task screen while it is live: settles anything due (payment window,
+ * expiry) and advances the dispatch waves. Cheap and idempotent; the cron tick does the same.
+ */
+export async function pokeTask(dealId: string): Promise<void> {
+  const viewer = await getViewer();
+  if (!viewer) return;
+  const deal = await getDealForViewer(dealId, viewer); // settles due commands
+  if (deal?.type === "errand" && deal.customerId === viewer.profile.id && deal.status === "open") {
+    await runDispatch(deal.id);
+  }
 }

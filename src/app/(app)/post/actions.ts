@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
 import { ADDRESS_KINDS, saveAddress, type AddressKind } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
+import { runDispatch } from "@/lib/dispatch/run";
 import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, DEFAULT_CONFIG, EngineError, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
@@ -53,6 +54,17 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     return { error: t("error.generic"), step: 1 };
   }
 
+  let location: { lat: number; lng: number } | null = null;
+  const rawPin = String(form.get("location") ?? "");
+  if (rawPin) {
+    try {
+      const p = JSON.parse(rawPin) as { lat?: unknown; lng?: unknown };
+      if (typeof p.lat === "number" && typeof p.lng === "number") location = { lat: p.lat, lng: p.lng };
+    } catch {
+      /* ignore a broken pin; the address text still works */
+    }
+  }
+
   const fee = int(form.get("fee"));
   const itemBudget = form.get("buyForMe") === "on" ? int(form.get("itemBudget")) : 0;
   if (form.get("buyForMe") === "on" && !(itemBudget > 0)) return { error: t("task.reasonBudget"), step: 1 };
@@ -70,6 +82,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         scheduledAt,
         pickupAddress,
         address,
+        location,
         itemBudget,
         fee,
         customerId: viewer.profile.id,
@@ -84,6 +97,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: 2 };
+      if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: 1 };
       return { error: e.message, step: 1 };
     }
     throw e;
@@ -95,12 +109,18 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     const x = details as ErrandDetails;
     try {
       await saveAddress(
-        { kind: saveAs, label: null, address, entrance: x.entrance, floor: x.floor, unit: x.unit, lift: x.lift, note: x.note },
+        { kind: saveAs, label: null, address, entrance: x.entrance, floor: x.floor, unit: x.unit, lift: x.lift, note: x.note, lat: location?.lat ?? null, lng: location?.lng ?? null },
         viewer.profile.id,
       );
     } catch (e) {
       console.error("saving address failed", e);
     }
   }
-  redirect(`/tasks/${id}?pay=1`);
+  // First wave goes out right away (nearest, best helpers); the task screen keeps it moving.
+  try {
+    await runDispatch(id);
+  } catch (e) {
+    console.error("dispatch failed", e);
+  }
+  redirect(`/tasks/${id}`);
 }

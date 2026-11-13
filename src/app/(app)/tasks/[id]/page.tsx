@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deals/queries";
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
-import { taskAction } from "./actions";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
 
-export default async function TaskPage({ params, searchParams }: PageProps<"/tasks/[id]">) {
+export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const { id } = await params;
   const deal = await getDealForViewer(id, viewer);
   if (!deal || deal.type !== "errand") notFound();
 
@@ -21,7 +23,17 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
     ...events.map((e) => e.data.helperId as string | undefined),
   ]);
 
+  const { data: dispatch } = await createAdminClient()
+    .from("dispatch_state")
+    .select("notified")
+    .eq("deal_id", deal.id)
+    .maybeSingle<{ notified: number }>();
+  const isCustomer = deal.customerId === viewer.profile.id;
+  const live = ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status);
+
   return (
+    <>
+    {live && <AutoRefresh seconds={deal.status === "open" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
     <DealView
       deal={deal}
       events={events}
@@ -31,9 +43,12 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
       t={t}
       locale={locale}
       rated={rated}
-      autoOpenPay={sp.pay === "1"}
+      // a helper just accepted: open the pay sheet straight away
+      autoOpenPay={isCustomer && deal.status === "awaiting_payment"}
       mockPay={mockPaymentsEnabled()}
       action={taskAction}
+      dispatch={dispatch}
     />
+    </>
   );
 }

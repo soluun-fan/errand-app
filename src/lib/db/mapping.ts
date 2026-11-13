@@ -43,6 +43,7 @@ export interface DealRow {
   lng: number | null;
   item_budget: number | null;
   fee: number | null;
+  posted_fee: number | null;
   service_fee: number | null;
   commission_bps: number | null;
   cancel_fee: number | null;
@@ -83,6 +84,7 @@ const topUpToRow = (t: TopUp | null): TopUpRow | null =>
 export interface OfferRow {
   helper_id: string;
   note: string;
+  price?: number | null;
   created_at: string;
 }
 
@@ -158,10 +160,12 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       scheduledAt: toMs(row.scheduled_at),
       pickupAddress: row.pickup_address ?? null,
       address: req(row.address, "address"),
+      location: row.lat !== null && row.lng !== null ? { lat: Number(row.lat), lng: Number(row.lng) } : null,
       payBy: toMs(row.pay_by ?? null),
       details: { ...DEFAULT_DETAILS, ...(row.details ?? {}) },
       itemBudget: money(row.item_budget, "item_budget"),
       fee: money(row.fee, "fee"),
+      postedFee: money(row.posted_fee ?? row.fee, "posted_fee"),
       serviceFee: money(row.service_fee, "service_fee"),
       commissionBps: req(row.commission_bps, "commission_bps"),
       cancelFee: money(row.cancel_fee, "cancel_fee"),
@@ -171,7 +175,12 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       helperId: row.helper_id,
       offers: [...offers]
         .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
-        .map((o) => ({ helperId: o.helper_id, note: o.note, at: req(toMs(o.created_at), "offer.created_at") })),
+        .map((o) => ({
+          helperId: o.helper_id,
+          note: o.note,
+          price: moneyOrNull(o.price ?? null, "offer.price"),
+          at: req(toMs(o.created_at), "offer.created_at"),
+        })),
       matchBy: toMs(row.match_by),
       receiptAmount: moneyOrNull(row.receipt_amount, "receipt_amount"),
       topUp: topUpFromRow(row.top_up),
@@ -206,6 +215,7 @@ export function dealToRow(d: Deal): DealRow {
     lng: null,
     item_budget: null,
     fee: null,
+    posted_fee: null,
     service_fee: null,
     commission_bps: null,
     cancel_fee: null,
@@ -248,8 +258,11 @@ export function dealToRow(d: Deal): DealRow {
       address: d.address,
       pay_by: toIso(d.payBy),
       details: d.details,
+      lat: d.location?.lat ?? null,
+      lng: d.location?.lng ?? null,
       item_budget: d.itemBudget,
       fee: d.fee,
+      posted_fee: d.postedFee,
       service_fee: d.serviceFee,
       commission_bps: d.commissionBps,
       cancel_fee: d.cancelFee,
@@ -323,12 +336,15 @@ export interface LedgerRow {
 export function applyTransitionArgs(before: Deal, t: Transition, now: number) {
   const after = t.deal;
   const known = new Set(before.type === "errand" ? before.offers.map((o) => o.helperId) : []);
+  const kept = new Set(after.type === "errand" ? after.offers.map((o) => o.helperId) : []);
   const newOffers =
     after.type === "errand"
       ? after.offers
           .filter((o) => !known.has(o.helperId))
-          .map((o) => ({ helper_id: o.helperId, note: o.note, created_at: toIso(o.at) }))
+          .map((o) => ({ helper_id: o.helperId, note: o.note, price: o.price, created_at: toIso(o.at) }))
       : [];
+  // Offers dropped by the transition (helper withdrew / match lapsed unpaid).
+  const removedOffers = [...known].filter((h) => !kept.has(h));
   const disputeChanged = JSON.stringify(before.dispute) !== JSON.stringify(after.dispute);
   const ledger: LedgerRow[] = t.ledger.map((l) => ({
     kind: l.kind,
@@ -347,6 +363,7 @@ export function applyTransitionArgs(before: Deal, t: Transition, now: number) {
     p_expected_version: before.version,
     p_deal: dealToRow(after),
     p_new_offers: newOffers,
+    p_removed_offers: removedOffers,
     p_dispute: disputeChanged && after.dispute ? disputeToRow(after.dispute) : null,
     p_events: eventRows(t),
     p_ledger: ledger,

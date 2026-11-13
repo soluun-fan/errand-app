@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/choice";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
+import { PinMap, type Pin } from "@/components/pin-map";
 import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
@@ -49,6 +50,8 @@ export interface Draft {
   raise: number;
   /** Save the drop-off address as Home / Work / Other when posting ("" = don't). */
   saveAs: AddressKind | "";
+  /** Map pin for the drop-off / task place (drives nearby dispatch). */
+  pin: Pin | null;
 }
 
 /** The address fields a saved address fills in. */
@@ -62,6 +65,7 @@ function fromSaved(a: SavedAddress): Partial<Draft> {
     note: a.note ?? "",
     showDetails: Boolean(a.entrance || a.floor !== null || a.unit || a.lift || a.note),
     saveAs: "",
+    pin: a.lat !== null && a.lng !== null ? { lat: a.lat, lng: a.lng } : null,
   };
 }
 
@@ -119,6 +123,7 @@ export function PostFlow({
     people: 1,
     raise: 0,
     saveAs: "",
+    pin: null,
     ...(home && !initial.address ? fromSaved(home) : {}),
     ...initial,
   };
@@ -246,6 +251,7 @@ export function PostFlow({
       <input type="hidden" name="buyForMe" value={buys && d.buyForMe ? "on" : ""} />
       <input type="hidden" name="itemBudget" value={itemBudget} />
       <input type="hidden" name="saveAs" value={savedMatch ? "" : d.saveAs} />
+      <input type="hidden" name="location" value={d.pin ? JSON.stringify(d.pin) : ""} />
 
       {STEPS[step] === "what" && (
         <>
@@ -277,6 +283,13 @@ export function PostFlow({
 
       {STEPS[step] === "where" && (
         <>
+          <section className="flex flex-col gap-2">
+            <div>
+              <h2 className="text-[15px] font-semibold">{t("map.pinTitle")}</h2>
+              <p className="text-sm text-ink-2">{t("map.pinSub")}</p>
+            </div>
+            <PinMap value={d.pin} onChange={(p) => set("pin", p)} />
+          </section>
           {/* RouteCard (DESIGN §4.5) */}
           <div className="rounded-card border border-line">
             {twoPoint && (

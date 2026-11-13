@@ -2,10 +2,10 @@ import type { T } from "@/i18n";
 import type { ErrandDeal } from "@/lib/engine/types";
 import { fmtClock } from "@/lib/format";
 
-/** UI-FLOWS §2: Paid → Matched → Working → Check → Done. */
+/** Matched → Paid (held) → Working → Check → Done (posting is free; pay once a helper accepts). */
 const STEPS = [
-  { key: "paid", events: ["paid"] },
   { key: "matched", events: ["accepted", "chosen"] },
+  { key: "paid", events: ["paid"] },
   { key: "working", events: ["started"] },
   { key: "check", events: ["done"] },
   { key: "done", events: ["released"] },
@@ -14,9 +14,9 @@ const STEPS = [
 /** Index of the step in progress; STEPS.length when everything is finished; null when the deal closed early. */
 export function trackerPosition(status: ErrandDeal["status"]): number | null {
   switch (status) {
-    case "awaiting_payment":
-      return 0;
     case "open":
+      return 0;
+    case "awaiting_payment":
       return 1;
     case "matched":
     case "in_progress":

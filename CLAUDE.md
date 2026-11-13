@@ -40,8 +40,8 @@ Next.js 16 (App Router) + TypeScript + Tailwind 4 · Supabase (Postgres, auth, s
 1. ✅ Setup, schema, seed, mock OTP auth
 2. ✅ Deal engine module + unit tests (`docs/rules.md` §Tests)
 3. ✅ UI tokens + components page (`docs/ui.md`)
-4. Customer flow: post → pay (mock) → match → live → check → confirm/dispute → rate — *partly built; see docs/decisions.md "Status"*
-5. Helper: approval gate, feed, accept/quote, proof upload, earnings
-6. Chat with masking · 7. SafePay · 8. Ops panel · 9. Background jobs · 10. MN copy review · 11. Real QPay/bank adapters
+4. ✅ Customer flow: post (free, map pin) → match → pay held (mock) → live → check → confirm/dispute → rate
+5. Helper: ✅ online + radius, wave dispatch + Web Push, nearby feed, accept/quote/withdraw/start · ⏳ proof upload (photo/video + AI checks), earnings
+6. Chat with masking + LiveKit voice/video calls · 7. Two-way ratings · 8. SafePay · 9. Ops panel · 10. Background jobs (✅ `/api/cron/tick`; scheduler TBD) · 11. MN copy review · 12. Real QPay/bank adapters
 
 Keep this file short. Put new detail in the matching `docs/` file.

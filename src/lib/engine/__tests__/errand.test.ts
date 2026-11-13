@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOUR_MS, MINUTE_MS, apply, createErrand, ext, payable, type ErrandDeal } from "../index";
+import { HOUR_MS, MINUTE_MS, amountDue, apply, createErrand, ext, payable, type ErrandDeal } from "../index";
 import { T0, World, admin, customer, helper, provider, system } from "./helpers";
 
 const c1 = customer("c1");
@@ -9,8 +9,8 @@ const h2 = helper("h2");
 /** Posts a shopping errand with an item budget and takes it to the check window. */
 function toCheck(w: World, opts: { receipt?: number } = {}) {
   const id = w.post({ itemBudget: 38000, fee: 9000 });
-  w.pay(id);
   w.do(id, { type: "accept" }, h1);
+  w.pay(id);
   w.do(id, { type: "start" }, h1);
   w.do(id, { type: "record_receipt", amount: opts.receipt ?? 35500 }, h1);
   w.do(id, { type: "record_handover" }, h1);
@@ -37,9 +37,9 @@ describe("errand happy path (Now)", () => {
     expect(w.bal("hold")).toBe(0);
     expect(w.codes(id)).toEqual([
       "posted",
-      "paid",
       "helpers_notified",
       "accepted",
+      "paid",
       "started",
       "receipt_recorded",
       "handover_recorded",
@@ -51,8 +51,8 @@ describe("errand happy path (Now)", () => {
   it("is first-to-accept: a second helper is turned away", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.reject(id, { type: "accept" }, h2, "ILLEGAL_TRANSITION");
     expect((w.get(id) as ErrandDeal).helperId).toBe("h1");
   });
@@ -60,17 +60,61 @@ describe("errand happy path (Now)", () => {
   it("only lets approved helpers in the right category accept, never the customer", () => {
     const w = new World();
     const id = w.post({ category: "repair", fee: 15000 });
-    w.pay(id);
     w.reject(id, { type: "accept" }, helper("h3", { helperApproved: false }), "FORBIDDEN");
     w.reject(id, { type: "accept" }, helper("h2", { categories: ["shop"] }), "FORBIDDEN");
     w.reject(id, { type: "accept" }, c1, "FORBIDDEN");
     w.reject(id, { type: "accept" }, helper("c1"), "FORBIDDEN"); // customer in helper mode
   });
 
-  it("does not show tasks before payment: accept on awaiting_payment is illegal", () => {
+  it("posting is free; accepting asks the customer to pay within 10 min; work starts only after payment", () => {
     const w = new World();
     const id = w.post();
-    w.reject(id, { type: "accept" }, h1, "ILLEGAL_TRANSITION");
+    expect(w.get(id)).toMatchObject({ status: "open", heldAmount: 0, payBy: null });
+    w.do(id, { type: "accept" }, h1);
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h1", payBy: T0 + 10 * MINUTE_MS });
+    w.reject(id, { type: "start" }, h1, "ILLEGAL_TRANSITION");
+    w.reject(id, { type: "accept" }, h2, "ILLEGAL_TRANSITION");
+    w.pay(id);
+    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 11000, payBy: null });
+    w.do(id, { type: "start" }, h1);
+  });
+
+  it("a match not paid within 10 min releases the helper and searches again", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "accept" }, h1);
+    w.now += 9 * MINUTE_MS;
+    expect(w.tick()).toBe(0);
+    w.now += MINUTE_MS;
+    expect(w.tick()).toBe(1);
+    expect(w.get(id)).toMatchObject({ status: "open", helperId: null, payBy: null });
+    expect(w.codes(id)).toContain("payment_timeout");
+    expect(w.ledger).toEqual([]);
+    // a late bank confirmation is rejected (the provider must refund it)
+    w.reject(id, { type: "confirm_payment", providerRef: "late", amount: 11000 }, provider, "ILLEGAL_TRANSITION");
+    w.do(id, { type: "accept" }, h2);
+    expect((w.get(id) as ErrandDeal).helperId).toBe("h2");
+  });
+
+  it("a lapse after the match deadline expires the task instead", () => {
+    const w = new World();
+    const id = w.post();
+    w.now += 25 * MINUTE_MS;
+    w.do(id, { type: "accept" }, h1); // pay by 35 min; match deadline is 30 min
+    w.now += 10 * MINUTE_MS;
+    expect(w.tick()).toBe(1);
+    expect(w.get(id).status).toBe("expired");
+    expect(w.codes(id)).toContain("payment_expired");
+  });
+
+  it("before payment the helper may withdraw without a penalty; the task searches again", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "accept" }, h1);
+    const t = w.do(id, { type: "cancel" }, h1);
+    expect(t.effects).toEqual([]);
+    expect(w.get(id)).toMatchObject({ status: "open", helperId: null });
+    expect(w.codes(id)).toContain("helper_withdrew");
   });
 });
 
@@ -78,7 +122,6 @@ describe("scheduled errands", () => {
   it("takes up to 5 applicants, then the customer chooses one", () => {
     const w = new World();
     const id = w.post({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, category: "carry", fee: 40000 });
-    w.pay(id);
     w.reject(id, { type: "accept" }, h1, "ILLEGAL_TRANSITION");
     for (let i = 1; i <= 5; i++) w.do(id, { type: "apply", note: "I can come" }, helper(`h${i}`));
     w.reject(id, { type: "apply", note: "me too" }, helper("h6"), "ILLEGAL_TRANSITION");
@@ -86,14 +129,34 @@ describe("scheduled errands", () => {
     w.reject(id, { type: "choose", helperId: "h3" }, helper("h3"), "FORBIDDEN");
     w.do(id, { type: "choose", helperId: "h3" }, c1);
     const d = w.get(id) as ErrandDeal;
-    expect(d.status).toBe("matched");
+    expect(d.status).toBe("awaiting_payment");
     expect(d.helperId).toBe("h3");
+    w.pay(id);
+    expect(w.get(id).status).toBe("matched");
+  });
+
+  it("quotes: choosing a helper's price sets what is held; a lapse restores the posted fee", () => {
+    const w = new World();
+    const id = w.post({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, category: "repair", fee: 15000 });
+    w.reject(id, { type: "apply", note: "", price: 4000 }, h1, "INVALID_INPUT"); // below the minimum
+    w.do(id, { type: "apply", note: "Have the tools", price: 22000 }, h1);
+    w.do(id, { type: "apply", note: "" }, h2); // no price = the posted fee
+    w.do(id, { type: "choose", helperId: "h1" }, c1);
+    expect(w.get(id)).toMatchObject({ fee: 22000, postedFee: 15000 });
+    expect(amountDue(w.get(id))).toBe(23000);
+    w.now += 10 * MINUTE_MS;
+    w.tick(); // not paid → h1's offer is dropped, fee restored
+    const d = w.get(id) as ErrandDeal;
+    expect(d).toMatchObject({ status: "open", fee: 15000 });
+    expect(d.offers.map((o) => o.helperId)).toEqual(["h2"]);
+    w.do(id, { type: "choose", helperId: "h2" }, c1);
+    w.pay(id);
+    expect(w.get(id).heldAmount).toBe(16000);
   });
 
   it("rejects a duplicate application", () => {
     const w = new World();
     const id = w.post({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS });
-    w.pay(id);
     w.do(id, { type: "apply", note: "" }, h1);
     w.reject(id, { type: "apply", note: "" }, h1, "INVALID_INPUT");
   });
@@ -101,7 +164,6 @@ describe("scheduled errands", () => {
   it("expires at the scheduled time if nobody was chosen", () => {
     const w = new World();
     const id = w.post({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS });
-    w.pay(id);
     expect((w.get(id) as ErrandDeal).matchBy).toBe(T0 + 30 * HOUR_MS);
     w.advance(29);
     expect(w.tick()).toBe(0);
@@ -132,26 +194,11 @@ describe("scheduled errands", () => {
 });
 
 describe("UI-FLOWS rules", () => {
-  it("an unpaid task expires after 30 minutes, with no money moved", () => {
-    const w = new World();
-    const id = w.post();
-    expect((w.get(id) as ErrandDeal).payBy).toBe(T0 + 30 * MINUTE_MS);
-    w.now += 29 * MINUTE_MS;
-    expect(w.tick()).toBe(0);
-    w.now += MINUTE_MS;
-    expect(w.tick()).toBe(1);
-    expect(w.get(id).status).toBe("expired");
-    expect(w.codes(id)).toEqual(["posted", "payment_expired"]);
-    expect(w.ledger).toEqual([]);
-    // a late bank confirmation is rejected (the provider must refund it)
-    w.reject(id, { type: "confirm_payment", providerRef: "late", amount: 11000 }, provider, "ILLEGAL_TRANSITION");
-  });
-
   it("a paid task does not expire on the payment window", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.advance(5);
     expect(w.tick()).toBe(0);
     expect(w.get(id).status).toBe("matched");
@@ -211,7 +258,6 @@ describe("instant price (quoteFee)", () => {
   it("an instant task can be scheduled; the no-helper deadline is the scheduled time", () => {
     const w = new World();
     const id = w.post({ scheduledAt: T0 + 5 * HOUR_MS });
-    w.pay(id);
     expect((w.get(id) as ErrandDeal).matchBy).toBe(T0 + 5 * HOUR_MS);
   });
 });
@@ -237,19 +283,21 @@ describe("payment webhook", () => {
   it("is idempotent: the same provider event twice moves money once", () => {
     const w = new World();
     const id = w.post();
+    w.do(id, { type: "accept" }, h1);
     w.pay(id, "qpay-123");
     const again = w.do(id, { type: "confirm_payment", providerRef: "qpay-123", amount: 11000 }, provider);
     expect(again.duplicate).toBe(true);
     expect(again.ledger).toEqual([]);
     expect(w.bal("hold")).toBe(11000);
     // still idempotent after the deal has moved on
-    w.do(id, { type: "accept" }, h1);
+    w.do(id, { type: "start" }, h1);
     expect(w.do(id, { type: "confirm_payment", providerRef: "qpay-123", amount: 11000 }, provider).duplicate).toBe(true);
   });
 
   it("rejects a second, different payment for an already-paid deal", () => {
     const w = new World();
     const id = w.post();
+    w.do(id, { type: "accept" }, h1);
     w.pay(id, "qpay-1");
     w.reject(id, { type: "confirm_payment", providerRef: "qpay-2", amount: 11000 }, provider, "ILLEGAL_TRANSITION");
   });
@@ -257,6 +305,8 @@ describe("payment webhook", () => {
   it("rejects wrong amounts and anyone but the provider (no screenshots)", () => {
     const w = new World();
     const id = w.post();
+    w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 11000 }, provider, "ILLEGAL_TRANSITION"); // nobody matched yet
+    w.do(id, { type: "accept" }, h1);
     w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 10999 }, provider, "PAYMENT_MISMATCH");
     w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 11000 }, c1, "FORBIDDEN");
     w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 11000 }, system, "FORBIDDEN");
@@ -270,8 +320,8 @@ describe("proof before done", () => {
   it("needs a handover photo, and a receipt when there is an item budget", () => {
     const w = new World();
     const id = w.post({ itemBudget: 20000 });
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.do(id, { type: "start" }, h1);
     w.reject(id, { type: "finish" }, h1, "PROOF_MISSING");
     w.do(id, { type: "record_handover" }, h1);
@@ -284,8 +334,8 @@ describe("proof before done", () => {
   it("only the assigned helper can start, add proof and finish", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.reject(id, { type: "start" }, h2, "FORBIDDEN");
     w.reject(id, { type: "start" }, c1, "FORBIDDEN");
     w.do(id, { type: "start" }, h1);
@@ -303,20 +353,20 @@ describe("cancellation", () => {
     expect(w.ledger).toEqual([]);
   });
 
-  it("before match: free, full refund", () => {
+  it("matched but not paid yet: free, nothing moves", () => {
     const w = new World();
     const id = w.post({ itemBudget: 38000, fee: 9000 });
-    w.pay(id);
+    w.do(id, { type: "accept" }, h1);
     w.do(id, { type: "cancel" }, c1);
     expect(w.get(id).status).toBe("cancelled");
-    expect(w.bal(ext("c1"))).toBe(0);
+    expect(w.ledger).toEqual([]);
   });
 
   it("after match, before start: ₮3,000 to the helper, rest refunded", () => {
     const w = new World();
     const id = w.post({ fee: 10000 });
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.do(id, { type: "cancel" }, c1);
     expect(w.get(id).status).toBe("cancelled");
     expect(w.bal(payable("h1"))).toBe(3000);
@@ -327,8 +377,8 @@ describe("cancellation", () => {
   it("customer cannot cancel once the helper has started", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.do(id, { type: "start" }, h1);
     w.reject(id, { type: "cancel" }, c1, "ILLEGAL_TRANSITION");
   });
@@ -336,8 +386,8 @@ describe("cancellation", () => {
   it("helper cancels: full refund to the customer and a penalty effect", () => {
     const w = new World();
     const id = w.post({ itemBudget: 5000 });
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.do(id, { type: "start" }, h1);
     const t = w.do(id, { type: "cancel" }, h1);
     expect(w.get(id).status).toBe("cancelled");
@@ -349,17 +399,15 @@ describe("cancellation", () => {
   it("strangers cannot cancel", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.reject(id, { type: "cancel" }, h2, "FORBIDDEN");
     w.reject(id, { type: "cancel" }, customer("c2"), "FORBIDDEN");
   });
 });
 
 describe("no-match expiry", () => {
-  it("Now task with no helper after 30 min → expired with full refund", () => {
+  it("Now task with no helper after 30 min → expired, nothing was ever charged", () => {
     const w = new World();
     const id = w.post({ itemBudget: 10000 });
-    w.pay(id);
     expect((w.get(id) as ErrandDeal).matchBy).toBe(T0 + 30 * MINUTE_MS);
     w.reject(id, { type: "expire" }, system, "ILLEGAL_TRANSITION"); // too early
     w.now += 29 * MINUTE_MS;
@@ -374,8 +422,8 @@ describe("no-match expiry", () => {
   it("a matched task never expires", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.advance(48);
     expect(w.tick()).toBe(0);
     expect(w.get(id).status).toBe("matched");
@@ -384,7 +432,6 @@ describe("no-match expiry", () => {
   it("only the system can expire", () => {
     const w = new World();
     const id = w.post();
-    w.pay(id);
     w.advance(1);
     w.reject(id, { type: "expire" }, c1, "FORBIDDEN");
   });
@@ -489,7 +536,7 @@ describe("purity", () => {
     const id = w.post();
     const before = w.get(id);
     const snapshot = structuredClone(before);
-    const t = apply(before, { type: "confirm_payment", providerRef: "r", amount: 11000 }, { now: T0, actor: provider });
+    const t = apply(before, { type: "accept" }, { now: T0, actor: h1 });
     expect(before).toEqual(snapshot);
     expect(t.deal.version).toBe(before.version + 1);
   });

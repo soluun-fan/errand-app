@@ -43,9 +43,9 @@ describe("budget buffer (+10%)", () => {
     const id = w.post({ itemBudget: 50000, fee: 9000, details: { budgetBuffer: true } });
     const d = w.get(id) as ErrandDeal;
     expect(d.itemBudget).toBe(55000);
+    w.do(id, { type: "accept" }, h1);
     w.pay(id);
     expect(w.get(id).heldAmount).toBe(55000 + 9000 + DEFAULT_CONFIG.serviceFee);
-    w.do(id, { type: "accept" }, h1);
     w.do(id, { type: "start" }, h1);
     // 4% over the typed budget: inside the buffer, no top-up needed
     w.do(id, { type: "record_receipt", amount: 52000 }, h1);
@@ -61,8 +61,8 @@ describe("budget buffer (+10%)", () => {
 describe("receipt over budget → top-up", () => {
   function inProgress(w: World) {
     const id = w.post({ itemBudget: 50000, fee: 9000 });
-    w.pay(id);
     w.do(id, { type: "accept" }, h1);
+    w.pay(id);
     w.do(id, { type: "start" }, h1);
     return id;
   }
@@ -135,6 +135,7 @@ describe("receipt over budget → top-up", () => {
   it("only while the task is in progress", () => {
     const w = new World();
     const id = w.post({ itemBudget: 50000, fee: 9000 });
+    w.do(id, { type: "accept" }, h1);
     w.pay(id);
     w.reject(id, { type: "decline_topup" }, c1, "ILLEGAL_TRANSITION");
   });

@@ -17,9 +17,11 @@ export interface SavedAddress {
   unit: string | null;
   lift: Lift | null;
   note: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
-const COLUMNS = "id, kind, label, address, entrance, floor, unit, lift, note";
+const COLUMNS = "id, kind, label, address, entrance, floor, unit, lift, note, lat, lng";
 const ORDER: Record<AddressKind, number> = { home: 0, work: 1, other: 2 };
 
 /**

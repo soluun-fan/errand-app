@@ -81,6 +81,7 @@ export function buildFixture(state: FixtureState, now: number): { deal: ErrandDe
   const pay = () => run({ type: "confirm_payment", providerRef: `fx-${state}`, amount: amountDue(deal) }, provider, 1);
   const toCheck = () => {
     run({ type: "accept" }, helper(FX.helper));
+    pay();
     run({ type: "start" }, helper(FX.helper));
     run({ type: "record_receipt", amount: 3250 }, helper(FX.helper), 15);
     run({ type: "record_handover" }, helper(FX.helper), 12);
@@ -89,64 +90,59 @@ export function buildFixture(state: FixtureState, now: number): { deal: ErrandDe
 
   switch (state) {
     case "awaiting_payment":
+      run({ type: "accept" }, helper(FX.helper));
       break;
     case "open_now":
-      pay();
       break;
     case "open_schedule":
-      pay();
       run({ type: "apply", note: "I can come at the posted time." }, helper(FX.helper));
       run({ type: "apply", note: "I live 5 min away." }, helper(FX.helper2));
       break;
     case "matched":
-      pay();
       run({ type: "accept" }, helper(FX.helper));
+      pay();
       break;
     case "in_progress":
-      pay();
       run({ type: "accept" }, helper(FX.helper));
+      pay();
       run({ type: "start" }, helper(FX.helper));
       run({ type: "record_receipt", amount: 3250 }, helper(FX.helper), 15);
       break;
     case "topup_pending":
     case "topup_paid":
-      pay();
       run({ type: "accept" }, helper(FX.helper));
+      pay();
       run({ type: "start" }, helper(FX.helper));
       run({ type: "record_receipt", amount: 6800 }, helper(FX.helper), 15); // budget 5,000 → 1,800 over
       if (state === "topup_paid") run({ type: "confirm_topup", providerRef: "fx-topup", amount: 1800 }, provider, 2);
       break;
     case "check":
-      pay();
       toCheck();
       break;
     case "disputed":
-      pay();
       toCheck();
       run({ type: "dispute", reason: "wrongItem", note: "Got skim milk instead of whole milk, and only 6 eggs." }, customer);
       break;
     case "released":
-      pay();
       toCheck();
       run({ type: "confirm" }, customer);
       break;
     case "refunded":
-      pay();
       toCheck();
       run({ type: "dispute", reason: "notDone", note: "Nobody came, but the task was marked done." }, customer);
       run({ type: "resolve", outcome: "refund" }, { kind: "user", id: "ops", role: "admin" });
       break;
     case "cancelled_fee":
-      pay();
       run({ type: "accept" }, helper(FX.helper));
+      pay();
       run({ type: "cancel" }, customer);
       break;
     case "expired_unpaid":
+      run({ type: "accept" }, helper(FX.helper));
       at = now;
-      run({ type: "expire" }, system, 0);
+      run({ type: "expire" }, system, 0); // match deadline passed while waiting for payment
       break;
     case "expired_no_helper":
-      pay();
       at = now;
       run({ type: "expire" }, system, 0);
       break;

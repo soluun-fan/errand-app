@@ -53,7 +53,7 @@ export interface EngineConfig {
   nightEndHour: number;
   /** Ulaanbaatar is UTC+8 all year. */
   utcOffsetHours: number;
-  /** An errand not paid within this window expires (nothing to refund). */
+  /** After a helper is matched the customer pays within this window, or the helper is released. */
   paymentWindowMinutes: number;
   titleMax: number;
   descriptionMax: number;
@@ -84,7 +84,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   nightStartHour: 22,
   nightEndHour: 7,
   utcOffsetHours: 8,
-  paymentWindowMinutes: 30,
+  paymentWindowMinutes: 10,
   titleMax: 40,
   descriptionMax: 500,
   carryPerFloor: 1500,

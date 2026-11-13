@@ -4,8 +4,8 @@ import type { Command, Deal, Transition } from "./types";
 /**
  * What a background job should do with this deal right now, if anything.
  * - check window ended with no complaint → auto_release
- * - "open" errand past its match deadline → expire (full refund)
- * - unpaid errand past its payment window → expire (nothing held)
+ * - "open" errand past its match deadline → expire (nothing held; legacy prepaid deals are refunded)
+ * - matched but unpaid past its payment window → expire (helper released; back to searching, or expired)
  */
 export function dueCommand(deal: Deal, now: number): Command | null {
   if (deal.status === "check" && deal.checkUntil !== null && now >= deal.checkUntil) return { type: "auto_release" };

@@ -79,7 +79,15 @@ export type DisputeOutcome = "release" | "refund";
 export interface Offer {
   helperId: string;
   note: string;
+  /** Custom-mode quote: the helper's price for the task (null = the posted fee). */
+  price: number | null;
   at: number;
+}
+
+/** WGS84 pin for the task (drop-off / where it happens). Drives distance-based dispatch. */
+export interface GeoPoint {
+  lat: number;
+  lng: number;
 }
 
 export interface Dispute {
@@ -118,11 +126,16 @@ export interface ErrandDeal extends DealBase {
   /** Optional: where the helper picks something up (store, office). */
   pickupAddress: string | null;
   address: string;
-  /** Unpaid errands expire at this time (set at posting). */
+  /** Map pin for `address`; null when the customer typed an address only. */
+  location: GeoPoint | null;
+  /** After a helper is matched, the customer must pay by this time (null otherwise). */
   payBy: number | null;
   details: ErrandDetails;
   itemBudget: number;
+  /** The helper fee to be held: the posted fee, or the chosen helper's quote. */
   fee: number;
+  /** The fee the customer posted; restored when a match lapses unpaid. */
+  postedFee: number;
   /** Fee terms snapshotted at posting so config changes don't alter existing deals. */
   serviceFee: number;
   commissionBps: number;
@@ -132,7 +145,7 @@ export interface ErrandDeal extends DealBase {
   customerId: string;
   helperId: string | null;
   offers: Offer[];
-  /** Deadline for finding a helper; set when payment is confirmed. */
+  /** Deadline for finding a helper; set at posting. */
   matchBy: number | null;
   receiptAmount: number | null;
   /** Pending / paid / declined over-budget top-up, if the receipt ever exceeded the budget. */
@@ -190,7 +203,7 @@ export type Command =
   | { type: "confirm_payment"; providerRef: string; amount: number }
   | { type: "claim" } // goods: buyer attaches to the deal before paying
   | { type: "accept" } // errand now-mode: first helper wins
-  | { type: "apply"; note: string } // errand schedule-mode
+  | { type: "apply"; note: string; price?: number } // errand schedule-mode: offer, optionally with a quote
   | { type: "choose"; helperId: string }
   | { type: "cancel" }
   | { type: "expire" }

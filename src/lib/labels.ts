@@ -65,9 +65,14 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return t("event.paid", { amount: money("amount") });
     case "helpers_notified":
       return t(data.mode === "now" ? "event.helpers_notified_now" : "event.helpers_notified_schedule");
-    case "accepted":
     case "applied":
+      return data.price !== undefined
+        ? t("event.applied_price", { name: name(data.helperId), amount: money("price") })
+        : t("event.applied", { name: name(data.helperId) });
+    case "accepted":
     case "chosen":
+    case "payment_timeout":
+    case "helper_withdrew":
       return t(`event.${code}`, { name: name(data.helperId) });
     case "receipt_recorded":
       return t("event.receipt_recorded", { amount: money("amount") });
