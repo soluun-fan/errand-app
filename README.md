@@ -1,6 +1,7 @@
 # Tuslamj Hub
 
 Errand marketplace + SafePay protected payments for Ulaanbaatar. Product brief and rules: [CLAUDE.md](CLAUDE.md).
+Every screen, state and microcopy: [UI-FLOWS.md](UI-FLOWS.md).
 Clickable prototype: open [prototype/index.html](prototype/index.html) in a browser.
 
 ## Run it locally
@@ -42,6 +43,7 @@ Sign in with a demo number — no SMS is sent, the code is always **123456**:
 |---|---|
 | `npm test` | All tests: deal engine, mapping, and the SQL schema (runs the migrations in an in-process Postgres — no Docker needed) |
 | `npm run typecheck` | TypeScript |
+| `/dev/components` (in the app) | Component gallery + the deal screen in every state, from fixtures (dev only) |
 | `npm run dev` / `build` / `start` | Next.js |
 
 ## Layout
@@ -50,7 +52,9 @@ Sign in with a demo number — no SMS is sent, the code is always **123456**:
 src/lib/engine/     Deal engine: state machine, money split, ledger rules. Pure, no I/O.
 src/lib/db/         Row ↔ engine mapping and the deal repository (load → apply → one atomic RPC).
 src/lib/supabase/   Supabase clients: user (RLS), admin (service role, server only), proxy session refresh.
-src/app/            Next.js routes. /login = phone OTP sign-in.
+src/app/            Next.js routes. /login = phone OTP sign-in; (app)/ = signed-in screens with the bottom tab bar.
+src/components/     Design system: StatusBadge, StepTracker, MoneyBreakdown, DealCard, OfferCard, sheets, Countdown…
+src/i18n/           Mongolian (default) + English strings. en.ts defines the keys; mn.ts is a draft for native review.
 supabase/           config.toml (phone auth + demo OTP numbers) and SQL migrations.
 scripts/seed.ts     Demo data, created through the engine like real traffic.
 ```

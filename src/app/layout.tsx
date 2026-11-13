@@ -1,29 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
+import { I18nProvider } from "@/i18n/client";
+import { getLocale } from "@/i18n/server";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Cyrillic subset: Mongolian text must render in the same face as Latin (UI-FLOWS §12).
+const inter = Inter({ variable: "--font-inter", subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "Tuslamj Hub",
+  title: "Tuslamj",
   description: "Errands and protected payments, held by the bank until the job is done.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#ffffff",
+};
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">{children}</body>
+    <html lang={locale} className={`${inter.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col bg-bg text-ink">
+        <I18nProvider locale={locale}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

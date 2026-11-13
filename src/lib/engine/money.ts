@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG, categoryConfig, type CategoryId, type EngineConfig } from "./config";
 import { assertMoney } from "./errors";
-import type { Deal } from "./types";
+import type { Deal, ErrandDetails } from "./types";
 
 /** Integer basis-point percentage, rounded half up (inputs are integers, so this is exact enough). */
 export function bps(amount: number, basisPoints: number): number {
@@ -65,9 +65,63 @@ export function amountDue(deal: Deal): number {
     : deal.price + deal.buyerFee;
 }
 
+/** True if `atMs` falls in the night window in local (Ulaanbaatar) time. */
+export function isNight(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): boolean {
+  const hour = Math.floor((atMs / 3_600_000 + cfg.utcOffsetHours) % 24 + 24) % 24;
+  return cfg.nightStartHour > cfg.nightEndHour
+    ? hour >= cfg.nightStartHour || hour < cfg.nightEndHour
+    : hour >= cfg.nightStartHour && hour < cfg.nightEndHour;
+}
+
+/** Minimum helper fee for a task starting at `atMs` (night minimum applies 22:00–07:00 local). */
+export function minFeeAt(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  return isNight(atMs, cfg) ? Math.max(cfg.minFee, cfg.nightMinFee) : cfg.minFee;
+}
+
 /** Suggested helper fee: category base + distance, rounded to the fee step, never below the minimum. */
-export function suggestFee(category: CategoryId, km: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
+export function suggestFee(
+  category: CategoryId,
+  km: number,
+  cfg: EngineConfig = DEFAULT_CONFIG,
+  atMs?: number,
+): number {
   const distance = Number.isFinite(km) && km > 0 ? km : 0;
   const raw = categoryConfig(category).base + distance * cfg.perKm;
-  return Math.max(cfg.minFee, Math.round(raw / cfg.feeStep) * cfg.feeStep);
+  const min = atMs === undefined ? cfg.minFee : minFeeAt(atMs, cfg);
+  return Math.max(min, Math.round(raw / cfg.feeStep) * cfg.feeStep);
+}
+
+export interface QuoteLine {
+  key: "stairs" | "secondPerson";
+  amount: number;
+  /** stairs: floors carried. */
+  qty?: number;
+}
+
+export interface Quote {
+  /** Category base + distance (≥ the minimum for that time of day). */
+  base: number;
+  lines: QuoteLine[];
+  /** The system price. Instant tasks may be raised above it, never lowered. */
+  total: number;
+  /** 2 when the carry rule requires a second person. */
+  peopleRequired: 1 | 2;
+}
+
+/**
+ * System price for an Instant task (docs/rules.md §Fees, §Eligibility).
+ * Carry without a lift costs extra per floor above the first; a second person costs extra.
+ * Heavy + no lift (or unknown) + above the 2nd floor → two people are required.
+ */
+export function quoteFee(category: CategoryId, d: ErrandDetails, cfg: EngineConfig = DEFAULT_CONFIG, atMs?: number): Quote {
+  const base = suggestFee(category, d.km, cfg, atMs);
+  const lines: QuoteLine[] = [];
+  const floor = d.floor ?? 1;
+  const liftOk = d.lift === "yes";
+  if (category === "carry" && d.carryByHelper && !liftOk && floor > 1) {
+    lines.push({ key: "stairs", amount: cfg.carryPerFloor * (floor - 1), qty: floor - 1 });
+  }
+  if (d.people === 2) lines.push({ key: "secondPerson", amount: cfg.secondPersonFee });
+  const peopleRequired: 1 | 2 = category === "carry" && d.carryByHelper && d.heavy && !liftOk && floor > 2 ? 2 : 1;
+  return { base, lines, total: base + lines.reduce((a, l) => a + l.amount, 0), peopleRequired };
 }

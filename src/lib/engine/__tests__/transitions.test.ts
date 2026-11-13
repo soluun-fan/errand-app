@@ -95,7 +95,7 @@ checkTable(
     expired: [pay, (w) => w.advance(1), (w) => void w.tick()],
   },
   {
-    awaiting_payment: ["confirm_payment", "cancel"],
+    awaiting_payment: ["confirm_payment", "cancel", "expire"],
     open: ["accept", "cancel", "expire"],
     matched: ["cancel", "start"],
     in_progress: ["record_receipt", "record_handover", "finish"],

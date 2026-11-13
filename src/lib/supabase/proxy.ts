@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { MODE_COOKIE } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 const PUBLIC_PATHS = ["/login"];
@@ -36,6 +37,14 @@ export async function updateSession(request: NextRequest) {
     url.search = "";
     const redirect = NextResponse.redirect(url);
     // keep any refreshed/cleared cookies
+    for (const c of response.cookies.getAll()) redirect.cookies.set(c);
+    return redirect;
+  }
+  // Helper mode's home is the job feed (docs/ui.md tab bar). Redirect before rendering.
+  if (signedIn && path === "/" && request.cookies.get(MODE_COOKIE)?.value === "helper") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/jobs";
+    const redirect = NextResponse.redirect(url);
     for (const c of response.cookies.getAll()) redirect.cookies.set(c);
     return redirect;
   }

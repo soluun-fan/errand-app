@@ -59,7 +59,7 @@ describe("errand happy path (Now)", () => {
 
   it("only lets approved helpers in the right category accept, never the customer", () => {
     const w = new World();
-    const id = w.post({ category: "repair" });
+    const id = w.post({ category: "repair", fee: 15000 });
     w.pay(id);
     w.reject(id, { type: "accept" }, helper("h3", { helperApproved: false }), "FORBIDDEN");
     w.reject(id, { type: "accept" }, helper("h2", { categories: ["shop"] }), "FORBIDDEN");
@@ -128,6 +128,91 @@ describe("scheduled errands", () => {
         { now: T0, actor: c1 },
       ),
     ).toThrow(/future/);
+  });
+});
+
+describe("UI-FLOWS rules", () => {
+  it("an unpaid task expires after 30 minutes, with no money moved", () => {
+    const w = new World();
+    const id = w.post();
+    expect((w.get(id) as ErrandDeal).payBy).toBe(T0 + 30 * MINUTE_MS);
+    w.now += 29 * MINUTE_MS;
+    expect(w.tick()).toBe(0);
+    w.now += MINUTE_MS;
+    expect(w.tick()).toBe(1);
+    expect(w.get(id).status).toBe("expired");
+    expect(w.codes(id)).toEqual(["posted", "payment_expired"]);
+    expect(w.ledger).toEqual([]);
+    // a late bank confirmation is rejected (the provider must refund it)
+    w.reject(id, { type: "confirm_payment", providerRef: "late", amount: 11000 }, provider, "ILLEGAL_TRANSITION");
+  });
+
+  it("a paid task does not expire on the payment window", () => {
+    const w = new World();
+    const id = w.post();
+    w.pay(id);
+    w.do(id, { type: "accept" }, h1);
+    w.advance(5);
+    expect(w.tick()).toBe(0);
+    expect(w.get(id).status).toBe("matched");
+  });
+
+  it("applies the ₮6,000 night minimum to tasks starting 22:00–07:00 Ulaanbaatar time", () => {
+    const w = new World();
+    // T0 is 16:00 in Ulaanbaatar; 22:00 UB = 14:00 UTC
+    const night = Date.UTC(2026, 10, 12, 14, 0);
+    const morning = Date.UTC(2026, 10, 12, 23, 0); // 07:00 UB next day
+    const deliver = { category: "deliver" as const }; // base 5,000 = the day minimum
+    expect(() => w.post({ ...deliver, scheduledAt: night, fee: 5500 })).toThrow(/Minimum fee is ₮6000/);
+    expect(() => w.post({ ...deliver, scheduledAt: night, fee: 6000 })).not.toThrow();
+    expect(() => w.post({ ...deliver, scheduledAt: morning, fee: 5000 })).not.toThrow();
+    w.now = night + HOUR_MS; // posting "Now" at 23:00 UB
+    expect(() => w.post({ ...deliver, fee: 5000 })).toThrow(/Minimum fee is ₮6000/);
+  });
+
+  it("limits title to 40 and description to 500 characters, and keeps the pickup address", () => {
+    const w = new World();
+    expect(() => w.post({ title: "x".repeat(41) })).toThrow(/40/);
+    expect(() => w.post({ description: "x".repeat(501) })).toThrow(/500/);
+    const id = w.post({ pickupAddress: "  Nomin supermarket, Zaisan  " });
+    expect((w.get(id) as ErrandDeal).pickupAddress).toBe("Nomin supermarket, Zaisan");
+    expect((w.get(w.post()) as ErrandDeal).pickupAddress).toBeNull();
+  });
+});
+
+describe("instant price (quoteFee)", () => {
+  it("rejects a fee below the system price; raising it is fine", () => {
+    const w = new World();
+    // carry base 15,000; 5th floor, no lift, helper carries: +4 × 1,500
+    const details = { floor: 5, lift: "no" as const, carryByHelper: true };
+    expect(() => w.post({ category: "carry", fee: 20000, details })).toThrow(/Minimum fee is ₮21000/);
+    expect(() => w.post({ category: "carry", fee: 21000, details })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 30000, details })).not.toThrow();
+    // customer brings it down: no stairs add-on
+    expect(() => w.post({ category: "carry", fee: 15000, details: { ...details, carryByHelper: false } })).not.toThrow();
+  });
+
+  it("heavy item, no lift, above the 2nd floor needs 2 people (+15,000)", () => {
+    const w = new World();
+    const details = { floor: 5, lift: "no" as const, heavy: true, carryByHelper: true };
+    expect(() => w.post({ category: "carry", fee: 50000, details })).toThrow(/2 people/);
+    const id = w.post({ category: "carry", fee: 36000, details: { ...details, people: 2 } });
+    expect((w.get(id) as ErrandDeal).details).toMatchObject({ floor: 5, people: 2, heavy: true });
+    expect(() => w.post({ category: "carry", fee: 50000, details: { ...details, lift: "yes" } })).not.toThrow();
+  });
+
+  it("rejects nonsense details", () => {
+    const w = new World();
+    expect(() => w.post({ details: { floor: -1 } })).toThrow(/Floor/);
+    expect(() => w.post({ details: { km: 500 } })).toThrow(/Distance/);
+    expect(() => w.post({ details: { people: 3 as 1 } })).toThrow(/People/);
+  });
+
+  it("an instant task can be scheduled; the no-helper deadline is the scheduled time", () => {
+    const w = new World();
+    const id = w.post({ scheduledAt: T0 + 5 * HOUR_MS });
+    w.pay(id);
+    expect((w.get(id) as ErrandDeal).matchBy).toBe(T0 + 5 * HOUR_MS);
   });
 });
 

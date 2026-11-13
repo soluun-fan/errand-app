@@ -187,6 +187,45 @@ describe("engine → database round trip", () => {
     await noViolations();
   });
 
+  it("unpaid task expires after 30 min; pickup address round-trips", async () => {
+    let d = await postErrand({ pickupAddress: "Nomin supermarket", itemBudget: 0 });
+    expect(d.type === "errand" && d.pickupAddress).toBe("Nomin supermarket");
+    const later = T0 + 31 * 60_000;
+    d = await persist(d, runDue(d, later) as Transition, later);
+    expect(d.status).toBe("expired");
+    await noViolations();
+  });
+
+  it("rating: once per deal, only by the customer after release; stats update", async () => {
+    let d = await postErrand({ itemBudget: 0 });
+    d = await pay(d);
+    d = await step(d, { type: "accept" }, helper(U.h1), T0);
+    d = await step(d, { type: "start" }, helper(U.h1), T0);
+    d = await step(d, { type: "record_handover" }, helper(U.h1), T0);
+    d = await step(d, { type: "finish" }, helper(U.h1), T0);
+
+    const rate = (from: string) =>
+      as(db, "service_role", null, (tx) =>
+        tx.query(`select public.rate_deal($1, $2, 5::smallint, '{On time,Careful}', 'Great')`, [d.id, from]),
+      );
+    expect((await sqlError(rate(U.c1))).code).toBe("PT409"); // not released yet
+
+    const before = await db.query<{ completed_count: number; rating_count: number }>(
+      `select completed_count, rating_count from public.profiles where id = $1`,
+      [U.h1],
+    );
+    d = await step(d, { type: "confirm" }, customer(U.c1), T0);
+    await rate(U.c1);
+    expect((await sqlError(rate(U.c1))).message).toMatch(/duplicate key|unique/);
+    expect((await sqlError(rate(U.h1))).code).toBe("PT409"); // helper can't rate via this
+    const after = await db.query<{ completed_count: number; rating_count: number }>(
+      `select completed_count, rating_count from public.profiles where id = $1`,
+      [U.h1],
+    );
+    expect(after.rows[0].completed_count).toBe(before.rows[0].completed_count + 1);
+    expect(after.rows[0].rating_count).toBe(before.rows[0].rating_count + 1);
+  });
+
   it("helper cancel suspends the helper for 3 days", async () => {
     let d = await postErrand({ itemBudget: 0 });
     d = await pay(d);
@@ -303,8 +342,8 @@ describe("row level security", () => {
   let open: Deal;
   let unpaid: Deal;
   beforeAll(async () => {
-    unpaid = await postErrand({ title: "unpaid", category: "repair" });
-    open = await pay(await postErrand({ title: "open repair", category: "repair" }));
+    unpaid = await postErrand({ title: "unpaid", category: "repair", fee: 15000 });
+    open = await pay(await postErrand({ title: "open repair", category: "repair", fee: 15000 }));
   });
 
   const visibleDeals = (userId: string) =>

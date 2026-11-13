@@ -3,8 +3,10 @@
  * and engine objects (camelCase, epoch milliseconds). Pure — no I/O.
  */
 import type { CategoryId } from "@/lib/engine/config";
+import { DEFAULT_DETAILS } from "@/lib/engine/types";
 import type {
   Deal,
+  ErrandDetails,
   DealStatus,
   Dispute,
   DisputeOutcome,
@@ -32,7 +34,10 @@ export interface DealRow {
   category: CategoryId | null;
   mode: Mode | null;
   scheduled_at: string | null;
+  pickup_address: string | null;
   address: string | null;
+  pay_by: string | null;
+  details: Partial<ErrandDetails> | null;
   lat: number | null;
   lng: number | null;
   item_budget: number | null;
@@ -136,7 +141,10 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       category: req(row.category, "category"),
       mode: req(row.mode, "mode"),
       scheduledAt: toMs(row.scheduled_at),
+      pickupAddress: row.pickup_address ?? null,
       address: req(row.address, "address"),
+      payBy: toMs(row.pay_by ?? null),
+      details: { ...DEFAULT_DETAILS, ...(row.details ?? {}) },
       itemBudget: money(row.item_budget, "item_budget"),
       fee: money(row.fee, "fee"),
       serviceFee: money(row.service_fee, "service_fee"),
@@ -174,7 +182,10 @@ export function dealToRow(d: Deal): DealRow {
     category: null,
     mode: null,
     scheduled_at: null,
+    pickup_address: null,
     address: null,
+    pay_by: null,
+    details: {}, // column is NOT NULL; goods deals have no task details
     lat: null,
     lng: null,
     item_budget: null,
@@ -216,7 +227,10 @@ export function dealToRow(d: Deal): DealRow {
       category: d.category,
       mode: d.mode,
       scheduled_at: toIso(d.scheduledAt),
+      pickup_address: d.pickupAddress,
       address: d.address,
+      pay_by: toIso(d.payBy),
+      details: d.details,
       item_budget: d.itemBudget,
       fee: d.fee,
       service_fee: d.serviceFee,

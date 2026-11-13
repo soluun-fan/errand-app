@@ -11,7 +11,8 @@
 import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, errandSplit } from "./money";
+import { amountDue, buyerFeeFor, errandSplit, minFeeAt, quoteFee } from "./money";
+import { DEFAULT_DETAILS, type ErrandDetails } from "./types";
 import type {
   Account,
   Command,
@@ -170,34 +171,74 @@ export interface NewErrandInput {
   category: CategoryId;
   mode: Mode;
   scheduledAt?: number | null;
+  pickupAddress?: string | null;
   address: string;
   itemBudget: number;
   fee: number;
   customerId: string;
+  details?: Partial<ErrandDetails>;
+}
+
+const clean = (s: string | null | undefined, max = 200) => {
+  const v = (s ?? "").trim().slice(0, max);
+  return v === "" ? null : v;
+};
+
+function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetails {
+  const d = { ...DEFAULT_DETAILS, ...raw };
+  if (!Number.isFinite(d.km) || d.km < 0 || d.km > 100) fail("INVALID_INPUT", "Distance must be between 0 and 100 km");
+  if (d.floor !== null && (!Number.isInteger(d.floor) || d.floor < 0 || d.floor > 60)) fail("INVALID_INPUT", "Floor must be 0–60");
+  if (d.lift !== null && !["yes", "no", "unknown"].includes(d.lift)) fail("INVALID_INPUT", "Bad lift value");
+  if (d.people !== 1 && d.people !== 2) fail("INVALID_INPUT", "People must be 1 or 2");
+  return {
+    km: d.km,
+    entrance: clean(d.entrance, 20),
+    floor: d.floor,
+    unit: clean(d.unit, 20),
+    lift: d.lift,
+    note: clean(d.note, 300),
+    people: d.people,
+    carryByHelper: Boolean(d.carryByHelper),
+    heavy: Boolean(d.heavy),
+  };
 }
 
 export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig = DEFAULT_CONFIG): Transition<ErrandDeal> {
   const u = requireUser(ctx);
   if (u.id !== input.customerId) fail("FORBIDDEN", "You can only post tasks as yourself");
-  if (!input.title.trim()) fail("INVALID_INPUT", "Title is required");
+  const title = input.title.trim();
+  const description = input.description.trim();
+  if (!title) fail("INVALID_INPUT", "Title is required");
+  if (title.length > cfg.titleMax) fail("INVALID_INPUT", `Title is longer than ${cfg.titleMax} characters`);
+  if (description.length > cfg.descriptionMax) {
+    fail("INVALID_INPUT", `Description is longer than ${cfg.descriptionMax} characters`);
+  }
   if (!input.address.trim()) fail("INVALID_INPUT", "Address is required");
   assertMoney(input.fee, "fee");
   assertMoney(input.itemBudget, "itemBudget");
-  if (input.fee < cfg.minFee) fail("INVALID_INPUT", `Minimum fee is ₮${cfg.minFee}`);
-  const scheduledAt = input.mode === "schedule" ? (input.scheduledAt ?? null) : null;
+  // Timing is independent of the matching mode (docs/rules.md §Modes).
+  const scheduledAt = input.scheduledAt ?? null;
   if (scheduledAt !== null && scheduledAt <= ctx.now) fail("INVALID_INPUT", "Scheduled time must be in the future");
+  const details = normalizeDetails(input.details);
+  const quote = quoteFee(input.category, details, cfg, scheduledAt ?? ctx.now);
+  if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
+  const minFee = Math.max(minFeeAt(scheduledAt ?? ctx.now, cfg), quote.total);
+  if (input.fee < minFee) fail("INVALID_INPUT", `Minimum fee is ₮${minFee}`);
 
   const deal: ErrandDeal = {
     id: input.id,
     version: 0,
     type: "errand",
     status: "awaiting_payment",
-    title: input.title.trim(),
-    description: input.description.trim(),
+    title,
+    description,
     category: input.category,
     mode: input.mode,
     scheduledAt,
+    pickupAddress: input.pickupAddress?.trim() || null,
     address: input.address.trim(),
+    payBy: ctx.now + cfg.paymentWindowMinutes * MINUTE_MS,
+    details,
     itemBudget: input.itemBudget,
     fee: input.fee,
     serviceFee: cfg.serviceFee,
@@ -320,8 +361,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       tx.ev("paid", { amount: cmd.amount });
       if (d.type === "errand") {
         d.status = "open";
-        d.matchBy =
-          d.mode === "schedule" && d.scheduledAt !== null ? d.scheduledAt : ctx.now + d.matchWindowMinutes * MINUTE_MS;
+        d.matchBy = d.scheduledAt !== null ? d.scheduledAt : ctx.now + d.matchWindowMinutes * MINUTE_MS;
         tx.ev("helpers_notified", { mode: d.mode });
       } else {
         d.status = "held";
@@ -411,7 +451,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
     case "expire": {
       const e = asErrand(d, "expire");
       requireKind(ctx, "system", "Expiry");
-      requireStatus(e, "expire", "open");
+      requireStatus(e, "expire", "awaiting_payment", "open");
+      if (e.status === "awaiting_payment") {
+        // Never paid: nothing is held, nothing to refund.
+        if (e.payBy === null || ctx.now < e.payBy) fail("ILLEGAL_TRANSITION", "Payment window has not ended yet");
+        e.status = "expired";
+        tx.ev("payment_expired");
+        break;
+      }
       if (e.matchBy === null || ctx.now < e.matchBy) fail("ILLEGAL_TRANSITION", "Match window has not ended yet");
       refundAll(tx, "no_helper");
       e.status = "expired";

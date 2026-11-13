@@ -8,7 +8,9 @@ import {
   EngineError,
   MINUTE_MS,
   TERMINAL_STATUSES,
+  DEFAULT_DETAILS,
   amountDue,
+  quoteFee,
   apply,
   balanceOf,
   checkInvariants,
@@ -78,18 +80,21 @@ function simulate(seed: number, steps: number) {
       const id = `D${++n}`;
       if (r() < 0.7) {
         const mode = r() < 0.5 ? "now" : "schedule";
+        const category = pick(CATS);
+        const scheduledAt = mode === "schedule" && r() < 0.7 ? now + int(1, 48) * 3_600_000 : null;
+        const quote = quoteFee(category, DEFAULT_DETAILS, undefined, scheduledAt ?? now);
         record(
           createErrand(
             {
               id,
               title: "t",
               description: "",
-              category: pick(CATS),
+              category,
               mode,
-              scheduledAt: mode === "schedule" && r() < 0.7 ? now + int(1, 48) * 3_600_000 : null,
+              scheduledAt,
               address: "a",
               itemBudget: pick([0, 0, 500, 38000, int(0, 200) * 500]),
-              fee: int(10, 400) * 500,
+              fee: quote.total + int(0, 100) * 500, // the system price, sometimes raised
               customerId: c.id,
             },
             { now, actor: c },

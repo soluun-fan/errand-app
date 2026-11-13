@@ -26,6 +26,36 @@ export type DealStatus = ErrandStatus | GoodsStatus;
 export const TERMINAL_STATUSES: readonly DealStatus[] = ["released", "refunded", "cancelled", "expired"];
 
 export type Mode = "now" | "schedule";
+export type Lift = "yes" | "no" | "unknown";
+
+/** Task details that drive the system price and eligibility (docs/rules.md, DESIGN §8.2). */
+export interface ErrandDetails {
+  /** Rough distance pickup → drop-off; 0 for single-location tasks. */
+  km: number;
+  entrance: string | null;
+  floor: number | null;
+  unit: string | null;
+  lift: Lift | null;
+  /** "Ж: Орцны код, хаалганы өнгө…" */
+  note: string | null;
+  people: 1 | 2;
+  /** Carry: the helper carries it (true) or the customer brings it down (false). */
+  carryByHelper: boolean;
+  /** Carry: big / heavy item (decides the 2-person rule). */
+  heavy: boolean;
+}
+
+export const DEFAULT_DETAILS: ErrandDetails = {
+  km: 0,
+  entrance: null,
+  floor: null,
+  unit: null,
+  lift: null,
+  note: null,
+  people: 1,
+  carryByHelper: true,
+  heavy: false,
+};
 export type DisputeOutcome = "release" | "refund";
 
 export interface Offer {
@@ -67,7 +97,12 @@ export interface ErrandDeal extends DealBase {
   category: CategoryId;
   mode: Mode;
   scheduledAt: number | null;
+  /** Optional: where the helper picks something up (store, office). */
+  pickupAddress: string | null;
   address: string;
+  /** Unpaid errands expire at this time (set at posting). */
+  payBy: number | null;
+  details: ErrandDetails;
   itemBudget: number;
   fee: number;
   /** Fee terms snapshotted at posting so config changes don't alter existing deals. */

@@ -47,6 +47,19 @@ export interface EngineConfig {
   /** Suggested fee: per-km add-on and rounding step. */
   perKm: number;
   feeStep: number;
+  /** Higher minimum fee for tasks starting at night (local time, see utcOffsetHours). */
+  nightMinFee: number;
+  nightStartHour: number;
+  nightEndHour: number;
+  /** Ulaanbaatar is UTC+8 all year. */
+  utcOffsetHours: number;
+  /** An errand not paid within this window expires (nothing to refund). */
+  paymentWindowMinutes: number;
+  titleMax: number;
+  descriptionMax: number;
+  /** Carry add-ons (docs/rules.md §Fees). */
+  carryPerFloor: number;
+  secondPersonFee: number;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -63,6 +76,15 @@ export const DEFAULT_CONFIG: EngineConfig = {
   scheduleMatchWindowMinutes: 24 * 60,
   perKm: 1500,
   feeStep: 500,
+  nightMinFee: 6000,
+  nightStartHour: 22,
+  nightEndHour: 7,
+  utcOffsetHours: 8,
+  paymentWindowMinutes: 30,
+  titleMax: 40,
+  descriptionMax: 500,
+  carryPerFloor: 1500,
+  secondPersonFee: 15000,
 };
 
 export const HOUR_MS = 3_600_000;

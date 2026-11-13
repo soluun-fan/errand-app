@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, EngineError, buyerFeeFor, errandSplit, suggestFee } from "../index";
+import { DEFAULT_CONFIG, EngineError, buyerFeeFor, errandSplit, isNight, minFeeAt, suggestFee } from "../index";
 
 describe("errandSplit", () => {
   it("matches the brief's example: carry, ₮40,000 fee, no items", () => {
@@ -72,6 +72,23 @@ describe("buyerFeeFor", () => {
     expect(buyerFeeFor(100000)).toBe(1000);
     expect(buyerFeeFor(1_350_000)).toBe(13500);
     expect(buyerFeeFor(1_350_050)).toBe(13501); // rounds half up
+  });
+});
+
+describe("night minimum", () => {
+  const ub = (h: number, m = 0) => Date.UTC(2026, 10, 12, h - 8, m); // Ulaanbaatar wall time → UTC ms
+  it("is ₮6,000 from 22:00 to 06:59 Ulaanbaatar time, ₮5,000 otherwise", () => {
+    expect(minFeeAt(ub(21, 59))).toBe(5000);
+    expect(minFeeAt(ub(22, 0))).toBe(6000);
+    expect(minFeeAt(ub(23, 30))).toBe(6000);
+    expect(minFeeAt(ub(24 + 3))).toBe(6000);
+    expect(minFeeAt(ub(24 + 6, 59))).toBe(6000);
+    expect(minFeeAt(ub(24 + 7))).toBe(5000);
+    expect(isNight(ub(12))).toBe(false);
+  });
+  it("lifts the suggestion to the night minimum", () => {
+    expect(suggestFee("deliver", 0, undefined, ub(23))).toBe(6000);
+    expect(suggestFee("deliver", 0, undefined, ub(12))).toBe(5000);
   });
 });
 

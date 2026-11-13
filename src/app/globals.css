@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens (docs/ui.md). Use the generated utilities — bg-ink, text-ink-2, bg-fill,
+ * border-line, bg-held-bg text-held, rounded-card, shadow-float… — never raw colours.
+ * Light only for now.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+}
+
+@theme {
+  --color-ink: #1c1622;
+  --color-ink-2: #55505c;
+  --color-ink-3: #8e8a94; /* placeholders / disabled only: 3.4:1 is below the 4.5:1 text minimum */
+  --color-line: #e7e6ea;
+  --color-fill: #f3f3f5;
+  --color-bg: #ffffff;
+  --color-brand: #0e9f7e; /* accents only — never big areas, never the primary button */
+
+  /* status colours mean status only; text tones darkened where needed to reach 4.5:1 */
+  --color-held: #0a7a60;
+  --color-held-bg: #e7f6f1;
+  --color-warn: #b54708;
+  --color-warn-bg: #fef0e1;
+  --color-danger: #c0362c;
+  --color-danger-bg: #fdecea;
+  --color-eta: #0e7f40;
+  --color-eta-bg: #e8f7ee;
+  --color-route: #2f6fed;
+
+  --radius-input: 12px;
+  --radius-cta: 14px;
+  --radius-card: 16px;
+  --radius-tile: 18px;
+  --radius-sheet: 24px;
+
+  --shadow-float: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* press feedback (DESIGN §2.5) */
+.press {
+  transition: transform 120ms ease-out;
+}
+.press:active {
+  transform: scale(0.98);
+}
+
+@keyframes tracker-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(28 22 34 / 0.35); }
+  50% { box-shadow: 0 0 0 6px rgb(28 22 34 / 0); }
+}
+.animate-tracker {
+  animation: tracker-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+dialog[open] {
+  animation: sheet-up 250ms ease-out;
+}
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tracker, dialog[open] { animation: none; }
+  .press:active { transform: none; }
 }
