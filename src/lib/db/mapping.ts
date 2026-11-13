@@ -14,6 +14,7 @@ import type {
   GoodsDeal,
   LedgerKind,
   Mode,
+  TopUp,
   Transition,
   UserActor,
 } from "@/lib/engine/types";
@@ -51,6 +52,7 @@ export interface DealRow {
   helper_id: string | null;
   match_by: string | null;
   receipt_amount: number | null;
+  top_up: TopUpRow | null;
   handover_proof_at: string | null;
   price: number | null;
   buyer_fee: number | null;
@@ -64,6 +66,19 @@ export interface DealRow {
   check_until: string | null;
   created_at: string;
 }
+
+/** `deals.top_up` jsonb (over-budget receipt, docs/rules.md §Buy-for-me). */
+export interface TopUpRow {
+  amount: number;
+  status: TopUp["status"];
+  provider_ref: string | null;
+  at: string;
+}
+
+const topUpFromRow = (r: TopUpRow | null | undefined): TopUp | null =>
+  r ? { amount: money(r.amount, "top_up.amount"), status: r.status, providerRef: r.provider_ref, at: req(toMs(r.at), "top_up.at") } : null;
+const topUpToRow = (t: TopUp | null): TopUpRow | null =>
+  t ? { amount: t.amount, status: t.status, provider_ref: t.providerRef, at: toIso(t.at) as string } : null;
 
 export interface OfferRow {
   helper_id: string;
@@ -159,6 +174,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
         .map((o) => ({ helperId: o.helper_id, note: o.note, at: req(toMs(o.created_at), "offer.created_at") })),
       matchBy: toMs(row.match_by),
       receiptAmount: moneyOrNull(row.receipt_amount, "receipt_amount"),
+      topUp: topUpFromRow(row.top_up),
       handoverProofAt: toMs(row.handover_proof_at),
     };
     return d;
@@ -199,6 +215,7 @@ export function dealToRow(d: Deal): DealRow {
     helper_id: null,
     match_by: null,
     receipt_amount: null,
+    top_up: null,
     handover_proof_at: null,
     price: null,
     buyer_fee: null,
@@ -242,6 +259,7 @@ export function dealToRow(d: Deal): DealRow {
       helper_id: d.helperId,
       match_by: toIso(d.matchBy),
       receipt_amount: d.receiptAmount,
+      top_up: topUpToRow(d.topUp),
       handover_proof_at: toIso(d.handoverProofAt),
     };
   }

@@ -160,6 +160,25 @@ describe("engine → database round trip", () => {
     await noViolations();
   });
 
+  it("over-budget top-up: second payment grows the item budget; round trip + buffer details persist", async () => {
+    let d = await postErrand({ itemBudget: 50000, fee: 10500, details: { km: 2, roundTrip: true, budgetBuffer: true } }); // 6000 + 2 km + ½ return
+    expect(d.type === "errand" && d.itemBudget).toBe(55000);
+    d = await pay(d);
+    d = await step(d, { type: "accept" }, helper(U.h1), T0 + 60_000);
+    d = await step(d, { type: "start" }, helper(U.h1), T0 + 120_000);
+    d = await step(d, { type: "record_receipt", amount: 58000 }, helper(U.h1), T0 + 180_000);
+    expect(d.type === "errand" && d.topUp).toMatchObject({ amount: 3000, status: "pending" });
+    d = await step(d, { type: "confirm_topup", providerRef: `tu-${d.id}`, amount: 3000 }, provider, T0 + 200_000);
+    expect(d.heldAmount).toBe(58000 + 10500 + 1000);
+    d = await step(d, { type: "record_handover" }, helper(U.h1), T0 + 240_000);
+    d = await step(d, { type: "finish" }, helper(U.h1), T0 + 300_000);
+    d = await step(d, { type: "confirm" }, customer(U.c1), T0 + 360_000);
+    const bal = (acc: string) => scalar<string>(db, `select public.account_balance($1, $2)::text as v`, [acc, d.id]);
+    expect(await bal(`payable:${U.h1}`)).toBe(String(10500 - 1050 + 58000));
+    expect(await bal("hold")).toBe("0");
+    await noViolations();
+  });
+
   it("scheduled errand: offers are stored and reloaded in order", async () => {
     let d = await postErrand({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, itemBudget: 0 });
     d = await pay(d);
@@ -389,6 +408,31 @@ describe("row level security", () => {
     );
     expect(n.affectedRows).toBe(0);
     expect(await scalar<string>(db, `select name as v from public.profiles where id = $1`, [U.c1])).toBe("Solongo B.");
+  });
+
+  it("saved addresses: owners manage their own; nobody else can read or write them", async () => {
+    await as(db, "authenticated", U.c1, (tx) =>
+      tx.query(`insert into public.saved_addresses (kind, address, floor, lift) values ('home', '3-р хороо, 12-р байр', 5, 'no')`),
+    );
+    // one Home per person
+    const dup = await sqlError(
+      as(db, "authenticated", U.c1, (tx) => tx.query(`insert into public.saved_addresses (kind, address) values ('home', 'x')`)),
+    );
+    expect(dup.message).toMatch(/duplicate key/);
+    // cannot plant a row on someone else
+    const forged = await sqlError(
+      as(db, "authenticated", U.c1, (tx) =>
+        tx.query(`insert into public.saved_addresses (user_id, kind, address) values ($1, 'work', 'x')`, [U.c2]),
+      ),
+    );
+    expect(forged.message).toMatch(/row-level security/);
+    const seen = (uid: string) =>
+      as(db, "authenticated", uid, async (tx) => (await tx.query(`select address from public.saved_addresses`)).rows.length);
+    expect(await seen(U.c1)).toBe(1);
+    expect(await seen(U.c2)).toBe(0);
+    expect(await seen(U.h1)).toBe(0);
+    const del = await as(db, "authenticated", U.c2, (tx) => tx.query(`delete from public.saved_addresses`));
+    expect(del.affectedRows).toBe(0);
   });
 
   it("ledger: users see only their own accounts; Ops sees everything", async () => {

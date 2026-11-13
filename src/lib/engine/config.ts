@@ -60,6 +60,10 @@ export interface EngineConfig {
   /** Carry add-ons (docs/rules.md §Fees). */
   carryPerFloor: number;
   secondPersonFee: number;
+  /** Round trip ("Буцаж ирэх"): return leg costs this share of the distance part (5000 = 50%). */
+  roundTripBps: number;
+  /** Buy-for-me: optional extra held on top of the item budget, refunded if unused (1000 = 10%). */
+  budgetBufferBps: number;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -85,6 +89,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   descriptionMax: 500,
   carryPerFloor: 1500,
   secondPersonFee: 15000,
+  roundTripBps: 5000,
+  budgetBufferBps: 1000,
 };
 
 export const HOUR_MS = 3_600_000;

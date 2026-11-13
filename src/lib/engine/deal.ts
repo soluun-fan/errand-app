@@ -11,7 +11,7 @@
 import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, errandSplit, minFeeAt, quoteFee } from "./money";
+import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails } from "./types";
 import type {
   Account,
@@ -200,6 +200,8 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
     people: d.people,
     carryByHelper: Boolean(d.carryByHelper),
     heavy: Boolean(d.heavy),
+    roundTrip: Boolean(d.roundTrip) && d.km > 0,
+    budgetBuffer: Boolean(d.budgetBuffer),
   };
 }
 
@@ -224,6 +226,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
   const minFee = Math.max(minFeeAt(scheduledAt ?? ctx.now, cfg), quote.total);
   if (input.fee < minFee) fail("INVALID_INPUT", `Minimum fee is ₮${minFee}`);
+  if (input.itemBudget === 0) details.budgetBuffer = false;
+  // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
+  const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
 
   const deal: ErrandDeal = {
     id: input.id,
@@ -239,7 +244,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     address: input.address.trim(),
     payBy: ctx.now + cfg.paymentWindowMinutes * MINUTE_MS,
     details,
-    itemBudget: input.itemBudget,
+    itemBudget,
     fee: input.fee,
     serviceFee: cfg.serviceFee,
     commissionBps: cfg.commissionBps,
@@ -251,6 +256,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     offers: [],
     matchBy: null,
     receiptAmount: null,
+    topUp: null,
     handoverProofAt: null,
     heldAmount: 0,
     paymentRef: null,
@@ -335,6 +341,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
   // Idempotent webhook: the same provider event replayed is a no-op, whatever the deal's status now.
   if (cmd.type === "confirm_payment" && deal.paymentRef !== null && deal.paymentRef === cmd.providerRef) {
     requireKind(ctx, "provider", "Payment confirmation");
+    return noop(deal);
+  }
+  // Same for a replayed top-up webhook.
+  if (cmd.type === "confirm_topup" && deal.type === "errand" && deal.topUp?.providerRef === cmd.providerRef) {
+    requireKind(ctx, "provider", "Top-up confirmation");
     return noop(deal);
   }
   // A buyer re-opening a deal they already claimed is also a no-op.
@@ -483,6 +494,43 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       assertMoney(cmd.amount, "receipt amount");
       e.receiptAmount = cmd.amount;
       tx.ev("receipt_recorded", { amount: cmd.amount });
+      if (cmd.amount > e.itemBudget) {
+        // Over budget: ask the customer to approve and pay the difference (docs/rules.md §Buy-for-me).
+        e.topUp = { amount: cmd.amount - e.itemBudget, status: "pending", providerRef: null, at: ctx.now };
+        tx.ev("topup_requested", { amount: e.topUp.amount, receipt: cmd.amount });
+      } else if (e.topUp !== null && e.topUp.status !== "paid") {
+        // A new receipt within budget (items dropped / re-bought) replaces a pending or declined request.
+        e.topUp = null;
+      }
+      break;
+    }
+
+    case "confirm_topup": {
+      const e = asErrand(d, "confirm a top-up for");
+      requireKind(ctx, "provider", "Top-up confirmation");
+      // As with the first payment: if this throws, the caller must refund the payment via the provider.
+      requireStatus(e, "confirm a top-up for", "in_progress");
+      if (e.topUp === null || e.topUp.status !== "pending") fail("ILLEGAL_TRANSITION", "No top-up is waiting for payment");
+      assertMoney(cmd.amount, "amount");
+      if (!cmd.providerRef) fail("INVALID_INPUT", "providerRef is required");
+      const topUp = e.topUp as NonNullable<ErrandDeal["topUp"]>;
+      if (cmd.amount !== topUp.amount) fail("PAYMENT_MISMATCH", `Expected ₮${topUp.amount}, provider confirmed ₮${cmd.amount}`);
+      tx.payIn(cmd.amount, e.customerId, cmd.providerRef);
+      e.itemBudget += cmd.amount;
+      e.topUp = { ...topUp, status: "paid", providerRef: cmd.providerRef };
+      tx.ev("topup_paid", { amount: cmd.amount });
+      break;
+    }
+
+    case "decline_topup": {
+      const e = asErrand(d, "decline a top-up for");
+      requirePayer(ctx, e);
+      requireStatus(e, "decline a top-up for", "in_progress");
+      if (e.topUp === null || e.topUp.status !== "pending") fail("ILLEGAL_TRANSITION", "No top-up is waiting for an answer");
+      // The helper returns the items; nothing is reimbursed, the helper still earns the task fee.
+      e.topUp = { ...(e.topUp as NonNullable<ErrandDeal["topUp"]>), status: "declined" };
+      e.receiptAmount = null;
+      tx.ev("topup_declined");
       break;
     }
 
@@ -500,7 +548,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requireAssignedHelper(ctx, e);
       requireStatus(e, "finish", "in_progress");
       if (e.handoverProofAt === null) fail("PROOF_MISSING", "A handover photo is required before marking done");
-      if (e.itemBudget > 0 && e.receiptAmount === null) fail("PROOF_MISSING", "A receipt is required before marking done");
+      if (e.topUp?.status === "pending") fail("ILLEGAL_TRANSITION", "Waiting for the customer to approve the extra amount");
+      const itemsReturned = e.topUp?.status === "declined";
+      if (e.itemBudget > 0 && e.receiptAmount === null && !itemsReturned) {
+        fail("PROOF_MISSING", "A receipt is required before marking done");
+      }
       e.status = "check";
       e.checkUntil = ctx.now + e.checkHours * HOUR_MS;
       tx.ev("done", { checkHours: e.checkHours });

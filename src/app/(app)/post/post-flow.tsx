@@ -7,7 +7,8 @@ import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { CATEGORIES, DEFAULT_CONFIG, isNight, quoteFee, type CategoryId, type ErrandDetails, type Lift } from "@/lib/engine";
+import type { AddressKind, SavedAddress } from "@/lib/addresses";
+import { CATEGORIES, DEFAULT_CONFIG, heldItemBudget, isNight, quoteFee, type CategoryId, type ErrandDetails, type Lift } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
@@ -20,7 +21,9 @@ const BUYS: CategoryId[] = ["shop", "deliver"];
 const KM = [1, 3, 5, 10];
 
 type When = "now" | "today" | "tomorrow" | "pick";
-interface Draft {
+const KIND_ICON: Record<AddressKind, string> = { home: "🏠", work: "💼", other: "📍" };
+
+export interface Draft {
   category: CategoryId;
   title: string;
   description: string;
@@ -38,10 +41,28 @@ interface Draft {
   date: string;
   carryByHelper: boolean;
   heavy: boolean;
+  roundTrip: boolean;
   buyForMe: boolean;
   itemBudget: string;
+  budgetBuffer: boolean;
   people: 1 | 2;
   raise: number;
+  /** Save the drop-off address as Home / Work / Other when posting ("" = don't). */
+  saveAs: AddressKind | "";
+}
+
+/** The address fields a saved address fills in. */
+function fromSaved(a: SavedAddress): Partial<Draft> {
+  return {
+    address: a.address,
+    entrance: a.entrance ?? "",
+    floor: a.floor === null ? "" : String(a.floor),
+    unit: a.unit ?? "",
+    lift: a.lift,
+    note: a.note ?? "",
+    showDetails: Boolean(a.entrance || a.floor !== null || a.unit || a.lift || a.note),
+    saveAs: "",
+  };
 }
 
 const digits = (s: string) => s.replace(/[^\d]/g, "");
@@ -58,8 +79,21 @@ function startString(d: Draft, now: number): string {
  * Post a task in 3 steps (DESIGN §5.2–5.5): what → where & details → review & confirm.
  * Prices on screen come from the engine's quoteFee — the server re-runs the same function.
  */
-export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial<Draft>; defaultAddress: string; recent: string[] }) {
+export function PostFlow({
+  initial,
+  startStep = 0,
+  defaultAddress,
+  recent,
+  saved,
+}: {
+  initial: Partial<Draft>;
+  startStep?: number;
+  defaultAddress: string;
+  recent: string[];
+  saved: SavedAddress[];
+}) {
   const t = useT();
+  const home = saved.find((a) => a.kind === "home");
   const blank: Draft = {
     category: "shop",
     title: "",
@@ -78,14 +112,18 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
     date: "",
     carryByHelper: true,
     heavy: false,
+    roundTrip: false,
     buyForMe: false,
     itemBudget: "",
+    budgetBuffer: false,
     people: 1,
     raise: 0,
+    saveAs: "",
+    ...(home && !initial.address ? fromSaved(home) : {}),
     ...initial,
   };
   const [d, setD] = useState<Draft>(blank);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(startStep);
   const [now, setNow] = useState(() => Date.now());
   const [state, action] = useActionState<PostState, FormData>(postTask, {});
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -130,6 +168,8 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
     people: d.people,
     carryByHelper: isCarry ? d.carryByHelper : true,
     heavy: isCarry && d.heavy,
+    roundTrip: twoPoint && d.roundTrip,
+    budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
   };
   const quote = quoteFee(d.category, details, cfg, startsAt);
   const needTwo = quote.peopleRequired === 2;
@@ -139,8 +179,13 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
 
   const fee = quote.total + d.raise;
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
-  const total = fee + itemBudget + cfg.serviceFee;
+  // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
+  const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
+  const total = fee + heldItems + cfg.serviceFee;
   const stairs = quote.lines.find((l) => l.key === "stairs");
+  const backLeg = quoteFee(d.category, { ...details, roundTrip: true }, cfg, startsAt).lines.find((l) => l.key === "roundTrip");
+  const savedMatch = saved.find((a) => a.address === d.address.trim());
+  const savedName = (a: SavedAddress) => (a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`));
 
   let reason: string | null = null;
   if (step === 0 && (!d.title.trim() || !d.description.trim())) reason = t("task.reasonWhat");
@@ -153,11 +198,12 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
   const breakdown: MoneyRow[] = [
     { label: t("task.base", { category: t(`categoryShort.${d.category}`) }), amount: quote.base },
     ...quote.lines.map((l) => ({
-      label: l.key === "stairs" ? t("task.stairs", { n: l.qty ?? 0 }) : t("task.secondPerson"),
+      label: l.key === "stairs" ? t("task.stairs", { n: l.qty ?? 0 }) : l.key === "roundTrip" ? t("task.roundTripLine") : t("task.secondPerson"),
       amount: l.amount,
     })),
     ...(d.raise > 0 ? [{ label: t("task.raised"), amount: d.raise }] : []),
     ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
+    ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
     { label: t("money.serviceFee"), amount: cfg.serviceFee, muted: true },
   ];
 
@@ -199,6 +245,7 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
       <input type="hidden" name="fee" value={fee} />
       <input type="hidden" name="buyForMe" value={buys && d.buyForMe ? "on" : ""} />
       <input type="hidden" name="itemBudget" value={itemBudget} />
+      <input type="hidden" name="saveAs" value={savedMatch ? "" : d.saveAs} />
 
       {STEPS[step] === "what" && (
         <>
@@ -253,8 +300,13 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
               </span>
             </label>
           </div>
-          {recent.length > 0 && (
+          {(saved.length > 0 || recent.length > 0) && (
             <div className="-mx-5 -mt-2 flex gap-2 overflow-x-auto px-5">
+              {saved.map((a) => (
+                <button key={a.id} type="button" aria-pressed={savedMatch?.id === a.id} onClick={() => setD((x) => ({ ...x, ...fromSaved(a) }))} className={chipClass(savedMatch?.id === a.id)}>
+                  <span aria-hidden>{KIND_ICON[a.kind]}</span> <span className="max-w-40 truncate">{savedName(a)}</span>
+                </button>
+              ))}
               {recent.map((a) => (
                 <button key={a} type="button" onClick={() => set("address", a)} className={chipClass(false)}>
                   🕘 <span className="max-w-48 truncate">{a}</span>
@@ -293,6 +345,22 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
             <DashedAdd label={t("task.addDetails")} onClick={() => set("showDetails", true)} />
           )}
 
+          {d.address.trim() && !savedMatch && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.saveAs")}</legend>
+              <div className="flex gap-2" role="radiogroup">
+                {(["home", "work", "other"] as const).map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={d.saveAs === k} onClick={() => set("saveAs", d.saveAs === k ? "" : k)} className={chipClass(d.saveAs === k)}>
+                    <span aria-hidden>{KIND_ICON[k]}</span> {t(`task.saved.${k}`)}
+                  </button>
+                ))}
+              </div>
+              {d.saveAs !== "" && d.saveAs !== "other" && saved.some((a) => a.kind === d.saveAs) && (
+                <p className="text-sm text-ink-2">{t("task.saveReplaces", { name: t(`task.saved.${d.saveAs}`) })}</p>
+              )}
+            </fieldset>
+          )}
+
           {twoPoint && (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.distance")}</legend>
@@ -303,6 +371,13 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
                   </button>
                 ))}
               </div>
+              <ToggleRow
+                icon="↩"
+                title={t("task.roundTrip")}
+                sub={backLeg ? `${t("task.roundTripSub")} · +${fmtMoney(backLeg.amount)}` : t("task.roundTripSub")}
+                checked={d.roundTrip}
+                onChange={(v) => set("roundTrip", v)}
+              />
             </fieldset>
           )}
 
@@ -364,6 +439,16 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
                   <span className="text-sm font-normal">{t("post.itemsHelp")}</span>
                 </label>
               )}
+              {d.buyForMe && (
+                <ToggleRow
+                  icon="🧾"
+                  title={t("task.buffer")}
+                  sub={itemBudget > 0 ? t("task.bufferSub", { amount: fmtMoney(heldItemBudget(itemBudget, true, cfg) - itemBudget) }) : t("task.bufferSubEmpty")}
+                  checked={d.budgetBuffer}
+                  onChange={(v) => set("budgetBuffer", v)}
+                />
+              )}
+              {d.buyForMe && <p className="text-sm text-ink-2">{t("task.overBudgetRule")}</p>}
             </fieldset>
           )}
         </>
@@ -371,6 +456,7 @@ export function PostFlow({ initial, defaultAddress, recent }: { initial: Partial
 
       {STEPS[step] === "review" && (
         <>
+          {startStep === 2 && <Note tone="info">{t("task.repeatNote")}</Note>}
           <div className="flex flex-col gap-2 rounded-card border border-line p-4">
             <p className="text-sm text-ink-2">
               <span aria-hidden>{CATEGORY_ICON[d.category]}</span> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : start.replace("T", " ")}

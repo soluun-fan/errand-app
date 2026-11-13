@@ -38,6 +38,17 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         return { done: true };
       }
 
+      case "simulate_topup": {
+        // Same as above for the over-budget top-up (docs/rules.md §Buy-for-me).
+        if (!mockPaymentsEnabled()) return { error: t("error.generic") };
+        const deal = await loadDeal(db, dealId);
+        if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
+        if (deal.topUp?.status !== "pending") return { error: t("error.changed") };
+        const invoice = await paymentProvider().createInvoice(deal.id, deal.topUp.amount, `topup-${deal.topUp.at}`);
+        await runCommand(db, deal.id, { type: "confirm_topup", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        return { done: true };
+      }
+
       case "rate": {
         const stars = Number(form.get("stars"));
         if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: t("error.generic") };
@@ -58,6 +69,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (intent === "cancel") cmd = { type: "cancel" };
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
         else if (intent === "confirm") cmd = { type: "confirm" };
+        else if (intent === "decline_topup") cmd = { type: "decline_topup" };
         else if (intent === "dispute") {
           const reason = String(form.get("reason") ?? "");
           const note = String(form.get("note") ?? "").trim();

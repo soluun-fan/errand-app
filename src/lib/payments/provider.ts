@@ -19,7 +19,8 @@ export interface Invoice {
 
 export interface PaymentProvider {
   readonly name: "mock" | "qpay";
-  createInvoice(dealId: string, amount: number): Promise<Invoice>;
+  /** `purpose` separates a deal's first payment from later ones (an over-budget top-up). */
+  createInvoice(dealId: string, amount: number, purpose?: string): Promise<Invoice>;
   // The provider calls our webhook when paid → we verify it, then run confirm_payment.
   release(dealId: string, payouts: { to: AccountRef; amount: number }[]): Promise<void>;
   refund(dealId: string, amount: number, to: AccountRef): Promise<void>;
@@ -27,9 +28,10 @@ export interface PaymentProvider {
 
 export const mockProvider: PaymentProvider = {
   name: "mock",
-  async createInvoice(dealId, amount) {
-    // One invoice per deal: pressing "pay" twice reuses it, so the payment is booked once.
-    return { invoiceId: `mock-inv-${dealId}`, dealId, amount, qrText: `MOCK-QPAY|${dealId}|${amount}` };
+  async createInvoice(dealId, amount, purpose) {
+    // One invoice per deal + purpose: pressing "pay" twice reuses it, so the payment is booked once.
+    const invoiceId = purpose ? `mock-inv-${dealId}-${purpose}` : `mock-inv-${dealId}`;
+    return { invoiceId, dealId, amount, qrText: `MOCK-QPAY|${invoiceId}|${amount}` };
   },
   async release() {
     // Mock: money movements are recorded in our ledger only.

@@ -35,6 +35,8 @@ export const FIXTURE_STATES = [
   "open_schedule",
   "matched",
   "in_progress",
+  "topup_pending",
+  "topup_paid",
   "check",
   "disputed",
   "released",
@@ -105,6 +107,14 @@ export function buildFixture(state: FixtureState, now: number): { deal: ErrandDe
       run({ type: "accept" }, helper(FX.helper));
       run({ type: "start" }, helper(FX.helper));
       run({ type: "record_receipt", amount: 3250 }, helper(FX.helper), 15);
+      break;
+    case "topup_pending":
+    case "topup_paid":
+      pay();
+      run({ type: "accept" }, helper(FX.helper));
+      run({ type: "start" }, helper(FX.helper));
+      run({ type: "record_receipt", amount: 6800 }, helper(FX.helper), 15); // budget 5,000 → 1,800 over
+      if (state === "topup_paid") run({ type: "confirm_topup", providerRef: "fx-topup", amount: 1800 }, provider, 2);
       break;
     case "check":
       pay();

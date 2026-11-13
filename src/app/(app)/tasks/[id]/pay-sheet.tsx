@@ -23,6 +23,8 @@ export function PaySheet({
   mock,
   action,
   qr,
+  intent = "simulate_payment",
+  triggerLabel,
 }: {
   dealId: string;
   amountLabel: string;
@@ -32,6 +34,9 @@ export function PaySheet({
   mock: boolean;
   action: FormAction;
   qr: ReactNode;
+  /** "simulate_topup" for the over-budget top-up. */
+  intent?: "simulate_payment" | "simulate_topup";
+  triggerLabel?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -58,7 +63,7 @@ export function PaySheet({
   return (
     <>
       <button type="button" className={`${btn.primary} w-full`} onClick={() => setOpen(true)}>
-        {t("pay.payNow", { amount: amountLabel })}
+        {triggerLabel ?? t("pay.payNow", { amount: amountLabel })}
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title={t("pay.title", { amount: amountLabel })}>
         <p className="text-sm text-ink-2">{t("pay.sub")}</p>
@@ -69,7 +74,7 @@ export function PaySheet({
         )}
         <form action={formAction} className="relative flex flex-col gap-3">
           <input type="hidden" name="dealId" value={dealId} />
-          <input type="hidden" name="intent" value="simulate_payment" />
+          <input type="hidden" name="intent" value={intent} />
           <p className="text-sm font-semibold">{t("pay.chooseBank")}</p>
           <div className="grid grid-cols-3 gap-2">
             {BANKS.map((b) => (

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
+import { ADDRESS_KINDS, saveAddress, type AddressKind } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
 import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, DEFAULT_CONFIG, EngineError, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
@@ -78,6 +79,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       cfg,
     );
     await insertDeal(createAdminClient(), created);
+    details = created.deal.details;
   } catch (e) {
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
@@ -85,6 +87,20 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       return { error: e.message, step: 1 };
     }
     throw e;
+  }
+
+  // "Энэ хаягийг хадгалах" — after the task exists; a failed save never blocks posting.
+  const saveAs = String(form.get("saveAs") ?? "") as AddressKind;
+  if (ADDRESS_KINDS.includes(saveAs)) {
+    const x = details as ErrandDetails;
+    try {
+      await saveAddress(
+        { kind: saveAs, label: null, address, entrance: x.entrance, floor: x.floor, unit: x.unit, lift: x.lift, note: x.note },
+        viewer.profile.id,
+      );
+    } catch (e) {
+      console.error("saving address failed", e);
+    }
   }
   redirect(`/tasks/${id}?pay=1`);
 }

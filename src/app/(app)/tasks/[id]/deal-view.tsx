@@ -56,6 +56,13 @@ export function DealView(p: DealViewProps) {
     commissionBps: deal.commissionBps,
   });
   const fields = { dealId: deal.id };
+  const topUp = deal.topUp;
+  const topUpPending = deal.status === "in_progress" && topUp?.status === "pending" ? topUp : null;
+  const againLink = (cls: string) => (
+    <Link key="again" href={`/post?again=${deal.id}`} className={cls}>
+      {t("deal.postAgain")}
+    </Link>
+  );
   const cancelFeePaid = events.find((e) => e.code === "cancel_fee_paid");
   const dt = deal.details;
   const detailBits = [
@@ -190,6 +197,37 @@ export function DealView(p: DealViewProps) {
           />,
         );
         break;
+      case "in_progress":
+        if (topUpPending) {
+          primary = (
+            <PaySheet
+              dealId={deal.id}
+              amountLabel={fmtMoney(topUpPending.amount)}
+              payBy={null}
+              serverNow={serverNow}
+              defaultOpen={false}
+              mock={p.mockPay}
+              action={p.action}
+              qr={<MockQr seed={`${deal.id}-topup`} />}
+              intent="simulate_topup"
+              triggerLabel={t("deal.topUp.approve", { amount: fmtMoney(topUpPending.amount) })}
+            />
+          );
+          secondary.push(
+            <ConfirmSheet
+              key="decline"
+              action={p.action}
+              fields={{ ...fields, intent: "decline_topup" }}
+              trigger={t("deal.topUp.decline")}
+              triggerClass={btn.text}
+              title={t("deal.topUp.declineTitle", { amount: fmtMoney(topUpPending.amount) })}
+              body={t("deal.topUp.declineBody", { helper: helperName })}
+              confirmLabel={t("deal.topUp.declineConfirm")}
+              confirmClass={btn.danger}
+            />,
+          );
+        }
+        break;
       case "matched":
         secondary.push(
           <ConfirmSheet
@@ -292,16 +330,15 @@ export function DealView(p: DealViewProps) {
               </label>
             </ConfirmSheet>
           );
+          secondary.push(againLink(btn.text));
+        } else {
+          primary = againLink(`${btn.primary} w-full`);
         }
         break;
       case "refunded":
       case "cancelled":
       case "expired":
-        primary = (
-          <Link href={`/post?cat=${deal.category}&title=${encodeURIComponent(deal.title)}`} className={`${btn.primary} w-full`}>
-            {t("deal.postAgain")}
-          </Link>
-        );
+        primary = againLink(`${btn.primary} w-full`);
         break;
     }
   }
@@ -366,12 +403,45 @@ export function DealView(p: DealViewProps) {
         </section>
       )}
 
-      {deal.receiptAmount !== null && deal.itemBudget > 0 && (
+      {topUpPending && deal.receiptAmount !== null && (
+        <section className="flex flex-col gap-2 rounded-card border-2 border-warn bg-warn-bg p-4" aria-live="polite">
+          <h2 className="text-lg font-bold text-ink">{t("deal.topUp.title", { amount: fmtMoney(topUpPending.amount) })}</h2>
+          {isCustomer ? (
+            <>
+              <p className="text-[15px] text-ink">
+                {t("deal.topUp.body", {
+                  helper: helperName,
+                  receipt: fmtMoney(deal.receiptAmount),
+                  budget: fmtMoney(deal.itemBudget),
+                })}
+              </p>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[15px] tabular-nums">
+                <dt className="text-ink-2">{t("deal.topUp.receipt")}</dt>
+                <dd className="text-right">{fmtMoney(deal.receiptAmount)}</dd>
+                <dt className="text-ink-2">{t("deal.topUp.budget")}</dt>
+                <dd className="text-right">{fmtMoney(deal.itemBudget)}</dd>
+                <dt className="border-t border-warn/30 pt-1 font-semibold">{t("deal.topUp.extra")}</dt>
+                <dd className="border-t border-warn/30 pt-1 text-right font-bold">{fmtMoney(topUpPending.amount)}</dd>
+              </dl>
+            </>
+          ) : (
+            <p className="text-[15px] text-ink">{t("deal.topUp.waiting", { amount: fmtMoney(topUpPending.amount) })}</p>
+          )}
+        </section>
+      )}
+
+      {deal.receiptAmount !== null && deal.itemBudget > 0 && !topUpPending && (
         <Card>
           <p className="font-semibold">{t("deal.receipt", { amount: fmtMoney(deal.receiptAmount) })}</p>
           {deal.receiptAmount <= deal.itemBudget && (
             <p className="text-sm text-held">{t("deal.receiptWithin", { budget: fmtMoney(deal.itemBudget) })}</p>
           )}
+          {topUp?.status === "paid" && <p className="text-sm text-held">{t("deal.topUp.paid", { amount: fmtMoney(topUp.amount) })}</p>}
+        </Card>
+      )}
+      {topUp?.status === "declined" && deal.status === "in_progress" && (
+        <Card>
+          <p className="text-[15px]">{t("deal.topUp.declined")}</p>
         </Card>
       )}
 

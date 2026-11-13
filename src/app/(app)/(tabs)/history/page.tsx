@@ -33,7 +33,20 @@ export default async function HistoryPage({ searchParams }: PageProps<"/history"
       {shown.length ? (
         <div className="flex flex-col">
           {shown.map((d) => (
-            <DealCard key={d.id} deal={d} t={t} locale={locale} row />
+            <DealCard
+              key={d.id}
+              deal={d}
+              t={t}
+              locale={locale}
+              row
+              rowAction={
+                mode === "customer" && tab === "done" ? (
+                  <Link href={`/post?again=${d.id}`} className={btn.secondary}>
+                    ↻ {t("deal.postAgain")}
+                  </Link>
+                ) : undefined
+              }
+            />
           ))}
         </div>
       ) : (

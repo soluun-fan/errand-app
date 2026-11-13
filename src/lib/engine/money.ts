@@ -91,8 +91,14 @@ export function suggestFee(
   return Math.max(min, Math.round(raw / cfg.feeStep) * cfg.feeStep);
 }
 
+/** What is actually held for items: the budget, plus the optional 10% buffer. */
+export function heldItemBudget(budget: number, buffer: boolean, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  assertMoney(budget, "itemBudget");
+  return buffer && budget > 0 ? budget + bps(budget, cfg.budgetBufferBps) : budget;
+}
+
 export interface QuoteLine {
-  key: "stairs" | "secondPerson";
+  key: "stairs" | "secondPerson" | "roundTrip";
   amount: number;
   /** stairs: floors carried. */
   qty?: number;
@@ -110,12 +116,19 @@ export interface Quote {
 
 /**
  * System price for an Instant task (docs/rules.md §Fees, §Eligibility).
- * Carry without a lift costs extra per floor above the first; a second person costs extra.
+ * Carry without a lift costs extra per floor above the first; a second person costs extra;
+ * a round trip adds half the distance part.
  * Heavy + no lift (or unknown) + above the 2nd floor → two people are required.
  */
 export function quoteFee(category: CategoryId, d: ErrandDetails, cfg: EngineConfig = DEFAULT_CONFIG, atMs?: number): Quote {
   const base = suggestFee(category, d.km, cfg, atMs);
   const lines: QuoteLine[] = [];
+  const km = Number.isFinite(d.km) && d.km > 0 ? d.km : 0;
+  if (d.roundTrip && km > 0) {
+    // Return leg: a share of the distance part only, rounded to the fee step.
+    const back = Math.round(bps(km * cfg.perKm, cfg.roundTripBps) / cfg.feeStep) * cfg.feeStep;
+    if (back > 0) lines.push({ key: "roundTrip", amount: back });
+  }
   const floor = d.floor ?? 1;
   const liftOk = d.lift === "yes";
   if (category === "carry" && d.carryByHelper && !liftOk && floor > 1) {

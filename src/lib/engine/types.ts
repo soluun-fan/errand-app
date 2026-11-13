@@ -43,6 +43,10 @@ export interface ErrandDetails {
   carryByHelper: boolean;
   /** Carry: big / heavy item (decides the 2-person rule). */
   heavy: boolean;
+  /** Helper comes back to the start (e.g. take keys and return). Needs a distance. */
+  roundTrip: boolean;
+  /** Buy-for-me: customer allowed going up to 10% over the budget; the extra is held too. */
+  budgetBuffer: boolean;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -55,7 +59,21 @@ export const DEFAULT_DETAILS: ErrandDetails = {
   people: 1,
   carryByHelper: true,
   heavy: false,
+  roundTrip: false,
+  budgetBuffer: false,
 };
+
+/**
+ * Receipt over the item budget (docs/rules.md §Buy-for-me): the customer approves and pays the
+ * difference as a second held payment, or declines and the helper returns the items.
+ */
+export interface TopUp {
+  amount: number;
+  status: "pending" | "paid" | "declined";
+  /** Provider reference of the top-up payment, once paid (makes the webhook idempotent). */
+  providerRef: string | null;
+  at: number;
+}
 export type DisputeOutcome = "release" | "refund";
 
 export interface Offer {
@@ -117,6 +135,8 @@ export interface ErrandDeal extends DealBase {
   /** Deadline for finding a helper; set when payment is confirmed. */
   matchBy: number | null;
   receiptAmount: number | null;
+  /** Pending / paid / declined over-budget top-up, if the receipt ever exceeded the budget. */
+  topUp: TopUp | null;
   handoverProofAt: number | null;
 }
 
@@ -176,6 +196,8 @@ export type Command =
   | { type: "expire" }
   | { type: "start" }
   | { type: "record_receipt"; amount: number }
+  | { type: "confirm_topup"; providerRef: string; amount: number } // provider webhook for the top-up
+  | { type: "decline_topup" } // customer: don't pay more, helper returns the items
   | { type: "record_handover" }
   | { type: "finish" }
   | { type: "handover" } // goods: seller handed the item over

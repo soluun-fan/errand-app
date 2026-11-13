@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Locale, T } from "@/i18n";
 import type { ErrandDeal } from "@/lib/engine/types";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
@@ -13,17 +14,20 @@ export function DealCard({
   t,
   locale,
   row = false,
+  rowAction,
 }: {
   deal: ErrandDeal;
   offerCount?: number;
   t: T;
   locale: Locale;
   row?: boolean;
+  /** Row only: a button beside the row (e.g. "Дахин захиалах"); links can't nest inside the row link. */
+  rowAction?: ReactNode;
 }) {
   const when = deal.scheduledAt ? fmtDateTime(deal.scheduledAt, locale) : fmtDateTime(deal.createdAt, locale);
   if (row) {
-    return (
-      <Link href={`/tasks/${deal.id}`} className="press flex items-center gap-3 border-b border-line py-3 last:border-b-0">
+    const link = (
+      <Link href={`/tasks/${deal.id}`} className={`press flex items-center gap-3 py-3 ${rowAction ? "" : "border-b border-line last:border-b-0"}`}>
         <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-2xl">
           {CATEGORY_ICON[deal.category]}
         </span>
@@ -36,6 +40,13 @@ export function DealCard({
           <StatusBadge status={deal.status} t={t} />
         </span>
       </Link>
+    );
+    if (!rowAction) return link;
+    return (
+      <div className="flex flex-col border-b border-line pb-3 last:border-b-0">
+        {link}
+        <div className="flex justify-end">{rowAction}</div>
+      </div>
     );
   }
   return (
