@@ -2,7 +2,7 @@
 
 Read this first if you are a model picking up this codebase cold. It explains what the product is, how the code is put together, which rules must never break, what is built, what isn't, and where the weak spots are. Detailed rules live in `docs/*.md`; this file connects them.
 
-_State as of 2026-11-15 (after chat, calls and helper verification). Section 13 covers how code is written here._
+_State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
 ---
 
@@ -58,7 +58,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **188 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **189 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -71,6 +71,8 @@ Never break these. They are also enforced by tests and database checks.
 | `npm run typecheck` / `npm run build` | must stay clean |
 | `npx supabase db push --remote` | apply migrations to hosted DB (in agent mode it needs `--yes` **and the owner's explicit OK each time**) |
 | `npm run seed` | seed demo users (`scripts/seed.ts`) |
+| `npm run cron:local` | dev scheduler: ticks the local app every 20 s |
+| `npm run scheduler:configure -- https://<domain>` | production scheduler setup (URL + Vault secret); `-- --status` to inspect |
 
 **Env variables** (names only; values are in `.env.local`):
 - **Server-only secrets:** `SUPABASE_SECRET_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
@@ -182,7 +184,7 @@ post (free; system price; optional map pin; optional "Choose for me")
 - **Triggers** (all idempotent):
   - right after posting;
   - the customer's task screen polls every 10 s (`pokeTask`);
-  - `GET /api/cron/tick` (Bearer `CRON_SECRET`; also settles due expiries and auto-releases). **No production scheduler is wired yet.**
+  - `GET /api/cron/tick` (Bearer `CRON_SECRET`; also settles due expiries and auto-releases), called every 20 s by Supabase pg_cron once the app has a public URL (`npm run scheduler:configure`), or by `npm run cron:local` in dev. A DB lease prevents overlap; `system_heartbeats` shows the last run.
 - **SQL:** `dispatch_candidates()` and `nearby_open_deals()` compute haversine distance in plain SQL (PostGIS could replace them).
 - **Feeds for helpers:**
   - **Ойролцоо:** offers to me, my requests, nearby within radius.
@@ -220,6 +222,7 @@ Migrations, in order:
 9. `chat`: `messages.helper_id` (one conversation per task and helper), `image_path`, `flags`, `seen_at`; own-conversation RLS (Ops only when disputed); the private `chat` bucket; the Realtime publication.
 10. `calls`: `call_signals` (RLS: the two people on the call), `messages.audio_path` / `audio_seconds`, audio types in the chat bucket, Realtime.
 11. `helper_kyc`: `helper_applications` and `payout_accounts` (server-only, no client grants), the private `kyc` bucket.
+12. `scheduler`: pg_cron job `tuslamj-tick` (20 s), `private.cron_tick()` (pg_net + Vault secret), `configure_scheduler` / `scheduler_status`, `try_lease` / `release_lease`, `system_heartbeats`.
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Approved helpers can also read open tasks in their categories.
@@ -269,7 +272,7 @@ Migrations, in order:
 3. **Two-way ratings** (helpers rate customers; each side's rating hidden until both submit).
 4. **SafePay screens** (the engine exists).
 5. **Ops panel:** disputes, helper approval/KYC (ДАН), payouts.
-6. **Production scheduler** for `/api/cron/tick` (plan: Supabase pg_cron + pg_net every 15–30 s).
+6. **Deploy the app at a public https address**, then run `npm run scheduler:configure -- https://<domain>` so pg_cron starts ticking (the scheduler itself is built).
 7. **Real QPay / bank adapters** behind `PaymentProvider`, with webhook verification.
 8. **Supabase Realtime** to replace polling.
 9. **Multi-person jobs** ("keep recruiting", split payouts).

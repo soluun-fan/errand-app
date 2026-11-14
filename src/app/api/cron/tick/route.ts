@@ -1,18 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
-import { openDealIds, runDispatch } from "@/lib/dispatch/run";
-import { purgeOldSignals } from "@/lib/calls";
-import { purgeExpiredChats } from "@/lib/chat";
-import { purgeKycFiles } from "@/lib/kyc";
-import { settleDueDeals } from "@/lib/deals/queries";
+import { heartbeat, withLease } from "@/lib/scheduler";
+import { runTick } from "@/lib/tick";
 
 /**
- * Background tick (docs/rules.md §Background jobs): call every 15–60 s from a scheduler
- * (Supabase pg_cron + pg_net, or any cron) with `Authorization: Bearer $CRON_SECRET`.
- * 1. runs what is due: payment-window lapses, no-helper expiry, auto-release
- * 2. advances dispatch waves for open tasks
- * 3. deletes chats (and their photos) 90 days after a task ended
- * 4. deletes call signals after 1 h and helper ID documents 30 days after Ops decided
- * Everything here is idempotent; screens also trigger the same work lazily.
+ * Background tick, called every 20 s by Supabase pg_cron (migration 20261115020000) or by
+ * `npm run cron:local` in development, with `Authorization: Bearer $CRON_SECRET`.
+ * A database lease means overlapping calls skip instead of running twice; each run writes a
+ * heartbeat (last success / error) to `system_heartbeats`.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -20,25 +14,15 @@ export async function GET(request: Request) {
   if (!secret || got.length !== secret.length || !timingSafeEqual(Buffer.from(got), Buffer.from(secret))) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const now = Date.now();
-  const settled = await settleDueDeals(now);
-  let waves = 0;
-  for (const id of await openDealIds()) {
-    try {
-      const before = await runDispatch(id, now);
-      if (before) waves++;
-    } catch (e) {
-      console.error("dispatch failed", id, e);
-    }
+  try {
+    const run = await withLease("tick", 120, () => runTick());
+    if (!run.ran) return Response.json({ skipped: "another tick is running" });
+    await heartbeat("tick", { ok: true, result: run.result });
+    return Response.json(run.result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await heartbeat("tick", { ok: false, error: message }).catch(() => {});
+    console.error("tick failed", e);
+    return Response.json({ error: "tick failed" }, { status: 500 });
   }
-  await purgeOldSignals(now).catch((e) => console.error("signal purge failed", e));
-  const kycPurged = await purgeKycFiles(now).catch((e) => {
-    console.error("kyc purge failed", e);
-    return 0;
-  });
-  const chatsPurged = await purgeExpiredChats(now).catch((e) => {
-    console.error("chat purge failed", e);
-    return 0;
-  });
-  return Response.json({ settled, dispatched: waves, chatsPurged, kycPurged, at: new Date(now).toISOString() });
 }

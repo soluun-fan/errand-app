@@ -520,6 +520,23 @@ describe("helper verification data", () => {
   });
 });
 
+describe("scheduler lease", () => {
+  it("only one runner holds the lease until it expires or is released; clients can't touch it", async () => {
+    const lease = (n: string, secs: number) =>
+      as(db, "service_role", null, async (tx) => (await tx.query<{ v: boolean }>(`select public.try_lease($1, $2) as v`, [n, secs])).rows[0].v);
+    expect(await lease("t1", 30)).toBe(true);
+    expect(await lease("t1", 30)).toBe(false); // second runner refused
+    await as(db, "service_role", null, (tx) => tx.query(`select public.release_lease('t1')`));
+    expect(await lease("t1", 30)).toBe(true); // free again
+    expect(await lease("t2", 0)).toBe(true);
+    expect(await lease("t2", 30)).toBe(true); // a 0-second lease has already expired
+    for (const sql of [`select public.try_lease('x', 30)`, `select public.configure_scheduler('https://a.b/api/cron/tick', repeat('s', 40))`, `select * from public.system_heartbeats`]) {
+      const err = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(sql)));
+      expect(err.message, sql).toMatch(/permission denied/);
+    }
+  });
+});
+
 describe("send SMS hook (mock OTP)", () => {
   const event = (phone: string, otp: string) => JSON.stringify({ user: { phone }, sms: { otp } });
 
