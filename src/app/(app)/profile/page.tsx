@@ -110,6 +110,11 @@ export default async function ProfilePage() {
         <Segmented name="locale" value={locale} action={setLocale} options={LOCALES.map((l) => [l, t(`lang.${l}`)])} />
       </section>
 
+      {profile.role === "admin" && (
+        <Link href="/ops/helpers" className={`${btn.secondary} w-full`}>
+          🛡️ {t("ops.title")}
+        </Link>
+      )}
       <Link href="/help" className={`${btn.secondary} w-full`}>
         {t("profile.help")}
       </Link>

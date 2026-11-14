@@ -487,6 +487,39 @@ describe("call signal privacy", () => {
   });
 });
 
+describe("helper verification data", () => {
+  it("applications and bank accounts are server-only: not even the applicant can read them from a browser", async () => {
+    await as(db, "service_role", null, async (tx) => {
+      await tx.query(
+        `insert into public.helper_applications (user_id, legal_name, id_last4, birth_date, categories, consent_at)
+         values ($1, 'Solongo Bat', '1234', '1995-05-05', '{shop}', now())`,
+        [U.c2],
+      );
+      await tx.query(`insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN120005005005123456', 'Solongo Bat')`, [U.c2]);
+    });
+    for (const sql of [`select * from public.helper_applications`, `select * from public.payout_accounts`]) {
+      for (const uid of [U.c2, U.h1]) {
+        const err = await sqlError(as(db, "authenticated", uid, (tx) => tx.query(sql)));
+        expect(err.message, `${uid} ${sql}`).toMatch(/permission denied/);
+      }
+    }
+    // only one application waiting for review per person
+    const dup = await sqlError(
+      as(db, "service_role", null, (tx) =>
+        tx.query(`insert into public.helper_applications (user_id, legal_name, id_last4, categories, consent_at) values ($1, 'Solongo Bat', '1234', '{shop}', now())`, [U.c2]),
+      ),
+    );
+    expect(dup.message).toMatch(/duplicate key/);
+    const badAcct = await sqlError(
+      as(db, "service_role", null, (tx) =>
+        tx.query(`update public.payout_accounts set account_number = 'ABC123' where user_id = $1`, [U.c2]),
+      ),
+    );
+    expect(badAcct.message).toMatch(/check constraint/);
+    expect(await scalar<boolean>(db, `select public as v from storage.buckets where id = 'kyc'`)).toBe(false);
+  });
+});
+
 describe("send SMS hook (mock OTP)", () => {
   const event = (phone: string, otp: string) => JSON.stringify({ user: { phone }, sms: { otp } });
 

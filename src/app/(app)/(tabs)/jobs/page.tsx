@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusBadge } from "@/components/status-badge";
-import { Avatar, Card, SegmentedLinks, chipClass } from "@/components/ui";
+import { Avatar, Card, SegmentedLinks, btn, chipClass } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz } from "@/lib/maps";
+import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
 
 /** Open tasks as price chips on the map, at their approximate (~300 m) spot. */
@@ -206,7 +207,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     );
   }
 
-  const pending = profile.helper_status === "pending";
+  const app = await latestApplication(profile.id);
+  const pending = app?.status === "submitted";
   const chip = (state: "done" | "inReview" | "needed") => (
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -216,11 +218,13 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       {t(`helper.${state}`)}
     </span>
   );
+  const step = (done: boolean): "done" | "inReview" | "needed" => (done ? "done" : pending ? "inReview" : "needed");
   const rows: [string, "done" | "inReview" | "needed"][] = [
     [t("helper.stepPhone"), profile.phone ? "done" : "needed"],
-    [t("helper.stepDan"), profile.kyc_level >= 2 ? "done" : pending ? "inReview" : "needed"],
-    [t("helper.stepSelfie"), profile.kyc_level >= 3 ? (pending ? "inReview" : "done") : "needed"],
-    [t("helper.stepPayout"), profile.kyc_level >= 3 ? (pending ? "inReview" : "done") : "needed"],
+    [t("helper.stepDan"), step(profile.kyc_level >= 3)],
+    [t("helper.stepSelfie"), step(profile.kyc_level >= 3)],
+    [t("helper.stepRecord"), step(profile.kyc_level >= 4)],
+    [t("helper.stepPayout"), step(profile.kyc_level >= 3)],
   ];
 
   return (
@@ -237,7 +241,13 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             </li>
           ))}
         </ul>
-        {pending && <p className="text-sm text-ink-2">{t("helper.pendingBody")}</p>}
+        {app && <p className="text-sm text-ink-2">{t(`kyc.status.${app.status}`)}</p>}
+        {app?.decisionNote && <p className="text-sm text-ink-2">{t("kyc.note", { note: app.decisionNote })}</p>}
+        {!pending && (
+          <Link href="/helper/apply" className={`${btn.primary} w-full`}>
+            {app ? t("kyc.again") : t("kyc.start")}
+          </Link>
+        )}
       </Card>
       <h2 className="font-bold">{t("job.boardTitle")}</h2>
       <p className="-mt-2 text-sm text-ink-2">{t("job.boardSub")}</p>

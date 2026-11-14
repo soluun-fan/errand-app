@@ -8,6 +8,8 @@ export interface OfferPerson {
   ratingCount: number;
   completed: number;
   verified: boolean;
+  /** Criminal-record certificate checked by Ops (kyc_level 4). */
+  backgroundChecked?: boolean;
 }
 
 /** UI-FLOWS C4 offer card: name, ✓ level, ★ rating (count), jobs done, message, Choose. */
@@ -34,9 +36,10 @@ export function OfferCard({
           <p className="flex items-center gap-1.5 text-[18px] font-semibold">
             <span className="truncate">{person.name}</span>
             {person.verified && (
-              <span title={t("deal.verified")} className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">
-                ✓ ДАН
-              </span>
+              <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeVerified")}</span>
+            )}
+            {person.backgroundChecked && (
+              <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeRecord")}</span>
             )}
           </p>
           <p className="text-sm text-ink-2">

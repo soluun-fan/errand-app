@@ -51,6 +51,7 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
   ratingCount: p?.rating_count ?? 0,
   completed: p?.completed_count ?? 0,
   verified: (p?.kyc_level ?? 0) >= 3,
+  backgroundChecked: (p?.kyc_level ?? 0) >= 4,
 });
 
 /**

@@ -2,7 +2,7 @@
 
 Read this first if you are a model picking up this codebase cold. It explains what the product is, how the code is put together, which rules must never break, what is built, what isn't, and where the weak spots are. Detailed rules live in `docs/*.md`; this file connects them.
 
-_State as of 2026-11-15 (after chat and calls). Section 13 covers how code is written here._
+_State as of 2026-11-15 (after chat, calls and helper verification). Section 13 covers how code is written here._
 
 ---
 
@@ -58,7 +58,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **183 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **188 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -219,8 +219,7 @@ Migrations, in order:
 8. `proofs`: the private `proofs` storage bucket, plus `mime`, `bytes`, `sha256`, `dhash`, `flags` and `ai` on `proofs`.
 9. `chat`: `messages.helper_id` (one conversation per task and helper), `image_path`, `flags`, `seen_at`; own-conversation RLS (Ops only when disputed); the private `chat` bucket; the Realtime publication.
 10. `calls`: `call_signals` (RLS: the two people on the call), `messages.audio_path` / `audio_seconds`, audio types in the chat bucket, Realtime.
-
-All ten are applied to the hosted project.
+11. `helper_kyc`: `helper_applications` and `payout_accounts` (server-only, no client grants), the private `kyc` bucket.
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Approved helpers can also read open tasks in their categories.
@@ -259,6 +258,7 @@ All ten are applied to the hosted project.
 - Maps on both sides, live helper position, Google Maps directions.
 - **Photo/video proof:** receipt photo with its total, handover photo or video, a private bucket with signed upload and read links, sha256 + perceptual-hash reuse flags, then "Дууслаа" → check. The helper's earnings list shows finished jobs.
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
+- **Helper verification:** `/helper/apply` form (ID front/back, selfie with ID, record certificate, payout account in the same name), Ops review at `/ops/helpers`, private `kyc` bucket with 5-minute links, documents deleted 30 days after the decision, badges "✓ Баталгаажсан" / "✓ Ял шийтгэлгүй" (`lib/kyc.ts`, `lib/kyc-rules.ts`).
 - **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
 - Wallet, history and earnings read from the ledger.
 - Dev gallery.
@@ -280,7 +280,6 @@ All ten are applied to the hosted project.
     - customer limits (active tasks, unpaid balance);
     - cancellation reasons;
     - tips;
-    - helper document onboarding (ID, selfie, Ops approval);
     - "N helpers nearby" on Home;
     - route-based distance (OSRM/Valhalla);
     - a Capacitor native wrapper.
@@ -297,7 +296,7 @@ All ten are applied to the hosted project.
   - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
   - The pickup address text is shown pre-match (fine for stores, not for homes).
   - `helper_presence` holds precise live locations. Retention and deletion policy are undecided.
-- **Trust and safety:** helper KYC is a field (`kyc_level`), not a flow. There's no rate limiting on actions. Dispute evidence (proof photos, chat logs, call recordings) isn't stored yet.
+- **Trust and safety:** helper verification is a manual Ops review (no ДАН integration or automatic face match yet). There's no rate limiting on actions. Dispute evidence (proof photos, chat logs, call recordings) isn't stored yet.
 - **Unit economics:** service fee and commission are demo numbers; partner-bank and QPay fees aren't modeled.
 - **Legacy data:** deals paid at posting (the old flow) still work through special branches (`assignHelper` with `heldAmount > 0`, refunds on cancel/expire). They can be removed once no such deals exist.
 - **Testing gaps:** client interactions (maps, sheets, push, geolocation) are verified only by server-render checks and scripts, not in a real browser or on a phone.
@@ -585,6 +584,7 @@ Shell and layout:
   - `saved_addresses` (+ `lat`/`lng`).
   - `helper_presence`, `dispatch_offers`, `dispatch_state`, `push_subscriptions`.
   - `call_signals` (call handshakes; deleted after 1 h).
+  - `helper_applications`, `payout_accounts` (server-only; documents in the private `kyc` bucket).
   - `private.sms_outbox` (mock OTP).
 - **View:** `public_profiles` (safe trust-card fields only).
 - **Functions:**
@@ -594,7 +594,7 @@ Shell and layout:
   - **Access helpers:** `private.is_admin`, `private.is_participant`, `can_see_in_feed`.
   - **Dispatch:** `dispatch_candidates`, `nearby_open_deals`.
   - **Auth / OTP:** `handle_new_user` (auth trigger → profile), `send_sms_hook`, `dev_latest_sms_code`.
-- **Storage:** buckets `proofs` and `chat` (both private).
+- **Storage:** buckets `proofs`, `chat` and `kyc` (all private).
 - **Tests:** `src/lib/db/__tests__/schema.test.ts` runs every migration in PGlite and covers:
   - an engine → DB round-trip for each flow (asserting the DB copy equals the engine copy);
   - optimistic locking, illegal status jumps, ledger tampering, double booking and append-only;

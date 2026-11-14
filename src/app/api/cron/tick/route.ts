@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { openDealIds, runDispatch } from "@/lib/dispatch/run";
 import { purgeOldSignals } from "@/lib/calls";
 import { purgeExpiredChats } from "@/lib/chat";
+import { purgeKycFiles } from "@/lib/kyc";
 import { settleDueDeals } from "@/lib/deals/queries";
 
 /**
@@ -10,6 +11,7 @@ import { settleDueDeals } from "@/lib/deals/queries";
  * 1. runs what is due: payment-window lapses, no-helper expiry, auto-release
  * 2. advances dispatch waves for open tasks
  * 3. deletes chats (and their photos) 90 days after a task ended
+ * 4. deletes call signals after 1 h and helper ID documents 30 days after Ops decided
  * Everything here is idempotent; screens also trigger the same work lazily.
  */
 export async function GET(request: Request) {
@@ -30,9 +32,13 @@ export async function GET(request: Request) {
     }
   }
   await purgeOldSignals(now).catch((e) => console.error("signal purge failed", e));
+  const kycPurged = await purgeKycFiles(now).catch((e) => {
+    console.error("kyc purge failed", e);
+    return 0;
+  });
   const chatsPurged = await purgeExpiredChats(now).catch((e) => {
     console.error("chat purge failed", e);
     return 0;
   });
-  return Response.json({ settled, dispatched: waves, chatsPurged, at: new Date(now).toISOString() });
+  return Response.json({ settled, dispatched: waves, chatsPurged, kycPurged, at: new Date(now).toISOString() });
 }
