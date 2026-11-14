@@ -790,6 +790,7 @@ export const en = {
     otherNumber: "Use a different number",
     devCode: "Development mode — no SMS was sent. Your code is {code}",
     devHint: "Development mode: any number works and the code is shown on the next screen. Demo accounts: 8800 0001 customer, 8800 0011 helper, 8800 0099 Ops.",
+    notOpen: "Tuslamj is in private testing. Sign-up opens soon.",
     badPhone: "Enter an 8-digit Mongolian mobile number.",
     badCode: "The code has 6 digits.",
     wrongCode: "That code is wrong or has expired. Try again or request a new one.",

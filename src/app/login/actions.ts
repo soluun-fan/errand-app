@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
-import { devShowSmsCodes } from "@/lib/dev";
+import { loginRules } from "@/lib/dev";
 import { normalizeMnPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +12,7 @@ export type LoginState =
   | { step: "code"; phone: string; error?: string; devCode?: string };
 
 async function devCodeFor(phone: string): Promise<string | undefined> {
-  if (!devShowSmsCodes()) return undefined;
+  if (!loginRules(phone).showCode) return undefined;
   const { data, error } = await createAdminClient().rpc("dev_latest_sms_code", { p_phone: phone });
   return error || typeof data !== "string" ? undefined : data;
 }
@@ -32,12 +32,15 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
     const raw = String(formData.get("phone") ?? "");
     const phone = normalizeMnPhone(raw);
     if (!phone) return { step: "phone", phoneInput: raw, error: t("login.badPhone") };
+    // Public deployment without real SMS: only the owner's test phones (docs/deploy.md).
+    if (!loginRules(phone).allowed) return { step: "phone", phoneInput: raw, error: t("login.notOpen") };
 
     const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) return { step: "phone", phoneInput: raw, error: t("login.sendFailed") };
     return { step: "code", phone, devCode: await devCodeFor(phone) };
   }
 
+  if (!loginRules(prev.phone).allowed) return { step: "phone", error: t("login.notOpen") };
   const token = String(formData.get("code") ?? "").replace(/\s/g, "");
   if (!/^\d{6}$/.test(token)) return { ...prev, error: t("login.badCode") };
 

@@ -40,6 +40,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Every transition writes a timeline event,** plus ledger entries if money moved. Illegal transitions are rejected (engine and a DB trigger).
 - **Phone numbers are never shown** to the other party. Chat and calls stay inside the app.
 - **All user-facing strings go through i18n** (`src/i18n/mn.ts` and `en.ts`).
+- **No on-screen login codes for strangers:** a deployed site without real SMS lets only `TEST_PHONES` sign in (`lib/login-policy.ts`).
 - **Secrets live only in `.env.local`** (git-ignored). Never in code, never in git. Verified on 2026-11-13: nothing has ever leaked into history or the client bundle.
 - **Database changes only as migrations** in `supabase/migrations/`. Never use the dashboard's "autofix".
 
@@ -58,7 +59,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **189 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **192 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -72,12 +73,13 @@ Never break these. They are also enforced by tests and database checks.
 | `npx supabase db push --remote` | apply migrations to hosted DB (in agent mode it needs `--yes` **and the owner's explicit OK each time**) |
 | `npm run seed` | seed demo users (`scripts/seed.ts`) |
 | `npm run cron:local` | dev scheduler: ticks the local app every 20 s |
+| `npm run check:deploy` | pre-deploy settings check (names only, never values) |
 | `npm run scheduler:configure -- https://<domain>` | production scheduler setup (URL + Vault secret); `-- --status` to inspect |
 
 **Env variables** (names only; values are in `.env.local`):
 - **Server-only secrets:** `SUPABASE_SECRET_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
 - **Public by design** (end up in the browser): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
-- **Other:** `VAPID_SUBJECT`, `DEV_SHOW_SMS_CODES`, `PAYMENT_PROVIDER` (default `mock`).
+- **Other:** `VAPID_SUBJECT`, `DEV_SHOW_SMS_CODES`, `PAYMENT_PROVIDER` (default `mock`), `TEST_PHONES` (on a deployment without real SMS, only these numbers can sign in; `lib/login-policy.ts`), `SMS_PROVIDER` (empty until real SMS).
 - **Relay (before launch):** `TURN_URLS`, `TURN_SECRET` (server-only), for our own coturn server.
 - **Optional later:** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Google tiles and search) and a vision-model API key (AI proof checks). The owner prefers **no new third-party keys**, so choose key-free or open-source designs first.
 
@@ -272,7 +274,7 @@ Migrations, in order:
 3. **Two-way ratings** (helpers rate customers; each side's rating hidden until both submit).
 4. **SafePay screens** (the engine exists).
 5. **Ops panel:** disputes, helper approval/KYC (ДАН), payouts.
-6. **Deploy the app at a public https address**, then run `npm run scheduler:configure -- https://<domain>` so pg_cron starts ticking (the scheduler itself is built).
+6. **Deploy on Vercel** following `docs/deploy.md` (prepared: Seoul region, `TEST_PHONES` login lock, security headers, manifest and icons, `npm run check:deploy`), then `npm run scheduler:configure -- https://<domain>`.
 7. **Real QPay / bank adapters** behind `PaymentProvider`, with webhook verification.
 8. **Supabase Realtime** to replace polling.
 9. **Multi-person jobs** ("keep recruiting", split payouts).

@@ -8,6 +8,9 @@ import { runTick } from "@/lib/tick";
  * A database lease means overlapping calls skip instead of running twice; each run writes a
  * heartbeat (last success / error) to `system_heartbeats`.
  */
+/** Give a busy tick time to finish on serverless hosting (default limits can be ~10 s). */
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   const got = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";

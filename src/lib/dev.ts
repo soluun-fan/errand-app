@@ -1,7 +1,25 @@
 import "server-only";
+import { loginPolicy } from "@/lib/login-policy";
+import { normalizeMnPhone } from "@/lib/phone";
 
-/** Development only: show OTP codes on screen instead of sending SMS. Never enable where real users can reach. */
+const testPhones = () =>
+  (process.env.TEST_PHONES ?? "")
+    .split(",")
+    .map((p) => normalizeMnPhone(p.trim()))
+    .filter((p): p is string => Boolean(p));
+
+/** Sign-in rules for this environment (see lib/login-policy.ts and docs/deploy.md). */
+export function loginRules(phone: string) {
+  return loginPolicy(phone, {
+    production: process.env.NODE_ENV === "production",
+    smsLive: process.env.SMS_PROVIDER !== undefined && process.env.SMS_PROVIDER !== "" && process.env.SMS_PROVIDER !== "outbox",
+    showCodes: process.env.DEV_SHOW_SMS_CODES === "true",
+    testPhones: testPhones(),
+  });
+}
+
+/** Whether the login page should explain that codes appear on screen (dev / private testing). */
 export const devShowSmsCodes = () => process.env.DEV_SHOW_SMS_CODES === "true";
 
-/** The component gallery (/dev/ui) is available in development or when codes are shown. */
-export const devToolsEnabled = () => process.env.NODE_ENV !== "production" || devShowSmsCodes();
+/** The component gallery (/dev/components) exists only in development — never on a deployed site. */
+export const devToolsEnabled = () => process.env.NODE_ENV !== "production";

@@ -14,7 +14,8 @@
     "db:reset": "supabase db reset",
     "seed": "node --env-file=.env.local --import tsx scripts/seed.ts",
     "cron:local": "node --env-file=.env.local --import tsx scripts/cron-local.ts",
-    "scheduler:configure": "node --env-file=.env.local --import tsx scripts/configure-scheduler.ts"
+    "scheduler:configure": "node --env-file=.env.local --import tsx scripts/configure-scheduler.ts",
+    "check:deploy": "node --env-file=.env.local --import tsx scripts/check-deploy.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
