@@ -7,15 +7,36 @@ import { compressImage } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import { fmtClock } from "@/lib/format";
 import type { ChatMessage } from "@/lib/chat";
+import { decodeCallLog } from "@/lib/call-rules";
 import { prepareChatImage, sendChat } from "./actions";
+import { CallPanel } from "./call-panel";
+import { VoiceRecorder, type VoiceRecorderHandle } from "./voice-recorder";
 
 /**
  * The conversation: messages, composer and photo button. New messages arrive through Supabase
  * Realtime (RLS limits what this browser may receive) with an 8 s poll as a safety net, so a
  * dropped socket never hides a message.
  */
-export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messages: ChatMessage[]; canSend: boolean }) {
+export function ChatRoom({
+  dealId,
+  messages,
+  canSend,
+  me,
+  name,
+  canCall,
+  initialCallId,
+}: {
+  dealId: string;
+  messages: ChatMessage[];
+  canSend: boolean;
+  me: string;
+  name: string;
+  canCall: boolean;
+  initialCallId: string | null;
+}) {
   const t = useT();
+  const voice = useRef<VoiceRecorderHandle>(null);
+  const [recording, setRecording] = useState(false);
   const router = useRouter();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -76,11 +97,23 @@ export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messag
 
   return (
     <div className="flex flex-1 flex-col gap-3">
+      <CallPanel dealId={dealId} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />
       <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
         {messages.length === 0 && <li className="py-8 text-center text-[15px] text-ink-2">{t("chat.empty")}</li>}
-        {messages.map((m) => (
+        {messages.map((m) => {
+          const log = m.system ? decodeCallLog(m.text) : null;
+          if (log) {
+            const time = log.kind === "ended" ? `${Math.floor(log.seconds / 60)}:${String(log.seconds % 60).padStart(2, "0")}` : "";
+            return (
+              <li key={m.id} className="self-center rounded-full bg-fill px-3 py-1 text-sm text-ink-2">
+                {log.video ? "📹" : "📞"} {log.video ? `${t("call.log.video")} · ` : ""}
+                {t(`call.log.${log.kind}`, { time })} · {fmtClock(m.at)}
+              </li>
+            );
+          }
+          return (
           <li key={m.id} className={`flex flex-col ${m.fromMe ? "items-end" : "items-start"}`}>
             <div className={`max-w-[80%] rounded-card px-3.5 py-2 text-[16px] ${m.fromMe ? "bg-ink text-white" : "bg-fill text-ink"}`}>
               {m.imageUrl && (
@@ -88,6 +121,12 @@ export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messag
                   {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage URL */}
                   <img src={m.imageUrl} alt={t("chat.photo")} className="mb-1 max-h-64 rounded-input object-cover" />
                 </a>
+              )}
+              {m.audioUrl && (
+                <span className="flex items-center gap-2">
+                  <audio controls preload="none" src={m.audioUrl} className="h-10 max-w-56" />
+                  {m.audioSeconds && <span className="text-xs tabular-nums opacity-80">{m.audioSeconds}s</span>}
+                </span>
               )}
               {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
             </div>
@@ -97,7 +136,8 @@ export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messag
               {m.fromMe && m.seen ? ` · ${t("chat.seen")}` : ""}
             </span>
           </li>
-        ))}
+          );
+        })}
         <div ref={bottom} />
       </ol>
 
@@ -116,6 +156,9 @@ export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messag
           }}
         >
           <input ref={file} type="file" accept="image/*" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} />
+          <VoiceRecorder ref={voice} dealId={dealId} disabled={busy} onRecording={setRecording} onError={(text) => setNotice({ tone: "bad", text })} />
+          {!recording && (
+          <>
           <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
             📷
           </button>
@@ -134,6 +177,8 @@ export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messag
           <button type="submit" disabled={busy || !text.trim()} className="flex h-12 flex-none items-center justify-center rounded-full bg-ink px-4 font-semibold text-white disabled:bg-fill disabled:text-ink-3">
             {busy ? "…" : t("chat.send")}
           </button>
+          </>
+          )}
         </form>
       ) : (
         <p className="rounded-input bg-fill p-3 text-center text-sm text-ink-2">{t("chat.readOnly")}</p>

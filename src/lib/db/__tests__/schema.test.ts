@@ -455,6 +455,38 @@ describe("chat privacy", () => {
   });
 });
 
+describe("call signal privacy", () => {
+  it("only the two people on a call can read its signals; clients can't write; malformed signals are refused", async () => {
+    const d = await postErrand({ itemBudget: 0 });
+    const callId = "20000000-0000-4000-8000-000000000001";
+    await as(db, "service_role", null, (tx) =>
+      tx.query(
+        `insert into public.call_signals (deal_id, call_id, from_user_id, to_user_id, kind, sdp) values ($1, $2, $3, $4, 'offer', 'v=0 test')`,
+        [d.id, callId, U.c1, U.h1],
+      ),
+    );
+    const seen = (uid: string) =>
+      as(db, "authenticated", uid, async (tx) => (await tx.query(`select kind from public.call_signals where call_id = $1`, [callId])).rows.length);
+    expect(await seen(U.c1)).toBe(1); // caller
+    expect(await seen(U.h1)).toBe(1); // callee
+    expect(await seen(U.h2)).toBe(0);
+    expect(await seen(U.c2)).toBe(0);
+    expect(await seen(U.ops)).toBe(0);
+    const write = await sqlError(
+      as(db, "authenticated", U.c1, (tx) =>
+        tx.query(`insert into public.call_signals (deal_id, call_id, from_user_id, to_user_id, kind) values ($1, $2, $3, $4, 'hangup')`, [d.id, callId, U.c1, U.h1]),
+      ),
+    );
+    expect(write.message).toMatch(/permission denied/);
+    const bad = await sqlError(
+      as(db, "service_role", null, (tx) =>
+        tx.query(`insert into public.call_signals (deal_id, call_id, from_user_id, to_user_id, kind) values ($1, $2, $3, $4, 'offer')`, [d.id, callId, U.c1, U.h1]),
+      ),
+    );
+    expect(bad.message).toMatch(/check constraint/); // an offer without SDP
+  });
+});
+
 describe("send SMS hook (mock OTP)", () => {
   const event = (phone: string, otp: string) => JSON.stringify({ user: { phone }, sms: { otp } });
 

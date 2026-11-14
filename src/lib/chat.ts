@@ -12,8 +12,12 @@ export const CHAT_BUCKET = "chat";
 export interface ChatMessage {
   id: string;
   fromMe: boolean;
+  /** Call-log line (`call:…` code, rendered in the reader's language). */
+  system: boolean;
   text: string;
   imageUrl: string | null;
+  audioUrl: string | null;
+  audioSeconds: number | null;
   masked: boolean;
   seen: boolean;
   at: number;
@@ -44,21 +48,35 @@ export async function loadThread(dealId: string, helperId: string, viewerId: str
   const db = createAdminClient();
   const { data } = await db
     .from("messages")
-    .select("id, from_user_id, text, image_path, flags, seen_at, created_at")
+    .select("id, from_user_id, is_system, text, image_path, audio_path, audio_seconds, flags, seen_at, created_at")
     .eq("deal_id", dealId)
     .eq("helper_id", helperId)
     .order("created_at")
     .limit(500)
-    .returns<{ id: string; from_user_id: string | null; text: string; image_path: string | null; flags: string[]; seen_at: string | null; created_at: string }[]>();
+    .returns<{
+      id: string;
+      from_user_id: string | null;
+      is_system: boolean;
+      text: string;
+      image_path: string | null;
+      audio_path: string | null;
+      audio_seconds: number | null;
+      flags: string[];
+      seen_at: string | null;
+      created_at: string;
+    }[]>();
   const rows = data ?? [];
-  const paths = rows.map((r) => r.image_path).filter((p): p is string => Boolean(p));
+  const paths = rows.flatMap((r) => [r.image_path, r.audio_path]).filter((p): p is string => Boolean(p));
   const signed = paths.length ? ((await db.storage.from(CHAT_BUCKET).createSignedUrls(paths, 3600)).data ?? []) : [];
   const urlOf = new Map(signed.map((s) => [s.path, s.signedUrl]));
   return rows.map((r) => ({
     id: r.id,
     fromMe: r.from_user_id === viewerId,
+    system: r.is_system,
     text: r.text,
     imageUrl: r.image_path ? (urlOf.get(r.image_path) ?? null) : null,
+    audioUrl: r.audio_path ? (urlOf.get(r.audio_path) ?? null) : null,
+    audioSeconds: r.audio_seconds,
     masked: (r.flags ?? []).includes("contact_masked"),
     seen: r.seen_at !== null,
     at: Date.parse(r.created_at),
@@ -73,6 +91,7 @@ export async function unreadCount(dealId: string, helperId: string, viewerId: st
     .eq("deal_id", dealId)
     .eq("helper_id", helperId)
     .neq("from_user_id", viewerId)
+    .eq("is_system", false)
     .is("seen_at", null);
   return count ?? 0;
 }
@@ -93,10 +112,18 @@ export type SendResult = { ok: true; masked: boolean } | { ok: false; reason: "e
  * Stores one message after the caller checked `accessFor().canSend`. Masks contact details, applies
  * the per-minute rate limit, and flags masked messages for Ops (repeat offenders show up there).
  */
-export async function storeMessage(p: { dealId: string; helperId: string; fromUserId: string; text: string; imagePath?: string | null }): Promise<SendResult> {
+export async function storeMessage(p: {
+  dealId: string;
+  helperId: string;
+  fromUserId: string;
+  text: string;
+  imagePath?: string | null;
+  audioPath?: string | null;
+  audioSeconds?: number | null;
+}): Promise<SendResult> {
   const db = createAdminClient();
   const body = p.text.trim() ? cleanMessage(p.text) : "";
-  if (body === null || (!body && !p.imagePath)) return { ok: false, reason: "empty" };
+  if (body === null || (!body && !p.imagePath && !p.audioPath)) return { ok: false, reason: "empty" };
   const since = new Date(Date.now() - 60_000).toISOString();
   const { count } = await db
     .from("messages")
@@ -114,14 +141,22 @@ export async function storeMessage(p: { dealId: string; helperId: string; fromUs
       from_user_id: p.fromUserId,
       text,
       image_path: p.imagePath ?? null,
+      audio_path: p.audioPath ?? null,
+      audio_seconds: p.audioPath ? (p.audioSeconds ?? null) : null,
       flags: masked ? ["contact_masked"] : [],
     })
     .throwOnError();
   return { ok: true, masked };
 }
 
-export async function createChatImageSlot(dealId: string): Promise<{ path: string; token: string }> {
-  const path = `${dealId}/${crypto.randomUUID()}.jpg`;
+const AUDIO_EXT: Record<string, string> = { "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/aac": "aac" };
+export const CHAT_AUDIO_MIME = Object.keys(AUDIO_EXT);
+
+/** Upload slot for a chat photo (JPEG) or a voice clip (one of `CHAT_AUDIO_MIME`). */
+export async function createChatImageSlot(dealId: string, mime = "image/jpeg"): Promise<{ path: string; token: string }> {
+  const ext = mime === "image/jpeg" ? "jpg" : AUDIO_EXT[mime];
+  if (!ext) throw new Error("Unsupported file type");
+  const path = `${dealId}/${crypto.randomUUID()}.${ext}`;
   const { data, error } = await createAdminClient().storage.from(CHAT_BUCKET).createSignedUploadUrl(path);
   if (error || !data) throw new Error(error?.message ?? "Could not create upload URL");
   return { path, token: data.token };
@@ -150,9 +185,9 @@ export async function purgeExpiredChats(now = Date.now()): Promise<number> {
     .limit(200);
   let removed = 0;
   for (const { id } of (deals ?? []) as { id: string }[]) {
-    const { data: msgs } = await db.from("messages").select("id, image_path").eq("deal_id", id);
+    const { data: msgs } = await db.from("messages").select("id, image_path, audio_path").eq("deal_id", id);
     if (!msgs?.length) continue;
-    const paths = msgs.map((m) => m.image_path as string | null).filter((x): x is string => Boolean(x));
+    const paths = msgs.flatMap((m) => [m.image_path as string | null, m.audio_path as string | null]).filter((x): x is string => Boolean(x));
     if (paths.length) await db.storage.from(CHAT_BUCKET).remove(paths);
     await db.from("messages").delete().eq("deal_id", id);
     removed += msgs.length;

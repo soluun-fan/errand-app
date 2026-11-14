@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { openDealIds, runDispatch } from "@/lib/dispatch/run";
+import { purgeOldSignals } from "@/lib/calls";
 import { purgeExpiredChats } from "@/lib/chat";
 import { settleDueDeals } from "@/lib/deals/queries";
 
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
       console.error("dispatch failed", id, e);
     }
   }
+  await purgeOldSignals(now).catch((e) => console.error("signal purge failed", e));
   const chatsPurged = await purgeExpiredChats(now).catch((e) => {
     console.error("chat purge failed", e);
     return 0;

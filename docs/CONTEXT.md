@@ -2,7 +2,7 @@
 
 Read this first if you are a model picking up this codebase cold. It explains what the product is, how the code is put together, which rules must never break, what is built, what isn't, and where the weak spots are. Detailed rules live in `docs/*.md`; this file connects them.
 
-_State as of 2026-11-15 (after chat). Section 13 covers how code is written here._
+_State as of 2026-11-15 (after chat and calls). Section 13 covers how code is written here._
 
 ---
 
@@ -38,7 +38,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Invariant on every release:** `helperNet + refund + platform == held`. The sum of all held deals equals the bank hold balance (double-entry ledger).
 - **We never hold funds.** All money movement goes through the `PaymentProvider` interface (`src/lib/payments/provider.ts`). Only the mock exists today.
 - **Every transition writes a timeline event,** plus ledger entries if money moved. Illegal transitions are rejected (engine and a DB trigger).
-- **Phone numbers are never shown** to the other party. Chat and calls (planned) stay inside the app.
+- **Phone numbers are never shown** to the other party. Chat and calls stay inside the app.
 - **All user-facing strings go through i18n** (`src/i18n/mn.ts` and `en.ts`).
 - **Secrets live only in `.env.local`** (git-ignored). Never in code, never in git. Verified on 2026-11-13: nothing has ever leaked into history or the client bundle.
 - **Database changes only as migrations** in `supabase/migrations/`. Never use the dashboard's "autofix".
@@ -58,7 +58,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **178 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **183 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -76,6 +76,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Server-only secrets:** `SUPABASE_SECRET_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
 - **Public by design** (end up in the browser): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
 - **Other:** `VAPID_SUBJECT`, `DEV_SHOW_SMS_CODES`, `PAYMENT_PROVIDER` (default `mock`).
+- **Relay (before launch):** `TURN_URLS`, `TURN_SECRET` (server-only), for our own coturn server.
 - **Optional later:** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Google tiles and search) and a vision-model API key (AI proof checks). The owner prefers **no new third-party keys**, so choose key-free or open-source designs first.
 
 **Demo accounts** (seed): customer Solongo `97688000001`; approved helpers Bat-Erdene `97688000011` (all categories) and Nomin `97688000012`. Login is a phone OTP. In dev, the code is shown on screen, because the Supabase "Send SMS hook" writes it to a private outbox instead of sending an SMS.
@@ -217,8 +218,9 @@ Migrations, in order:
 7. `dispatch`: `posted_fee`, `offers.price`, new transitions, `apply_transition` v3 (writes fee / `pay_by`, deletes removed offers), `helper_presence`, `dispatch_offers`, `dispatch_state`, `push_subscriptions`, pins on saved addresses, the dispatch SQL functions.
 8. `proofs`: the private `proofs` storage bucket, plus `mime`, `bytes`, `sha256`, `dhash`, `flags` and `ai` on `proofs`.
 9. `chat`: `messages.helper_id` (one conversation per task and helper), `image_path`, `flags`, `seen_at`; own-conversation RLS (Ops only when disputed); the private `chat` bucket; the Realtime publication.
+10. `calls`: `call_signals` (RLS: the two people on the call), `messages.audio_path` / `audio_seconds`, audio types in the chat bucket, Realtime.
 
-All nine are applied to the hosted project.
+All ten are applied to the hosted project.
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Approved helpers can also read open tasks in their categories.
@@ -257,13 +259,12 @@ All nine are applied to the hosted project.
 - Maps on both sides, live helper position, Google Maps directions.
 - **Photo/video proof:** receipt photo with its total, handover photo or video, a private bucket with signed upload and read links, sha256 + perceptual-hash reuse flags, then "Дууслаа" → check. The helper's earnings list shows finished jobs.
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
+- **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
 - Wallet, history and earnings read from the ledger.
 - Dev gallery.
 
 **Not built yet** (rough priority):
-1. **Voice/video calls** inside the deal (chat is built, see "Built"). **Decided: key-free.**
-   - Calls: browser **WebRTC peer-to-peer**, with Supabase Realtime carrying the connection setup and public STUN servers. An open-source TURN relay (coturn) comes later if some mobile networks can't connect.
-   - Phone numbers stay hidden.
+1. **Own TURN relay before real users:** a small server running coturn; set `TURN_URLS` and `TURN_SECRET` and calls become relay-only (connect everywhere, no IP exposure). The code is ready.
 2. **AI proof checks (deferred, optional):** read receipt totals and judge "does this show the job done?". The owner doesn't want new keys, so options are a hosted vision API later, or open-source models (PaddleOCR, an open vision model) on our own server. Results go in `proofs.ai` as flags only; Ops decides.
 3. **Two-way ratings** (helpers rate customers; each side's rating hidden until both submit).
 4. **SafePay screens** (the engine exists).
@@ -583,6 +584,7 @@ Shell and layout:
   - `ledger_entries` (append-only), `timeline_events`.
   - `saved_addresses` (+ `lat`/`lng`).
   - `helper_presence`, `dispatch_offers`, `dispatch_state`, `push_subscriptions`.
+  - `call_signals` (call handshakes; deleted after 1 h).
   - `private.sms_outbox` (mock OTP).
 - **View:** `public_profiles` (safe trust-card fields only).
 - **Functions:**
