@@ -49,6 +49,14 @@ export interface ErrandDetails {
   budgetBuffer: boolean;
   /** "Choose for me": if the customer hasn't picked, the system picks the best applicant. */
   autoPick: boolean;
+  /** About how long the job takes (30-minute steps). Prices the time beyond the base. */
+  minutes: number;
+  /** The helper must bring tools. */
+  tools: boolean;
+  /** Set by the engine at posting: the recommended (system) price; 0 on older deals. */
+  quotedFee: number;
+  /** Set by the engine at posting: the highest counter-offer a helper may send; 0 on older deals. */
+  counterMax: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -64,6 +72,10 @@ export const DEFAULT_DETAILS: ErrandDetails = {
   roundTrip: false,
   budgetBuffer: false,
   autoPick: false,
+  minutes: 30,
+  tools: false,
+  quotedFee: 0,
+  counterMax: 0,
 };
 
 /**
@@ -82,7 +94,7 @@ export type DisputeOutcome = "release" | "refund";
 export interface Offer {
   helperId: string;
   note: string;
-  /** Custom-mode quote: the helper's price for the task (null = the posted fee). */
+  /** The helper's counter-offer (null = takes the customer's price). Never below it. */
   price: number | null;
   at: number;
 }

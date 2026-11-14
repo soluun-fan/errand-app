@@ -13,21 +13,21 @@ function toHeld(w: World, price = 1_350_000, checkHours = 24) {
 }
 
 describe("SafePay happy path", () => {
-  it("buyer pays price + 1% → seller hands over → buyer confirms → seller gets price", () => {
+  it("buyer pays price + flat fee → seller hands over → buyer confirms → seller gets price", () => {
     const w = new World();
     const id = toHeld(w);
     const d = w.get(id) as GoodsDeal;
     expect(d.status).toBe("held");
-    expect(d.buyerFee).toBe(13500);
-    expect(d.heldAmount).toBe(1_363_500);
+    expect(d.buyerFee).toBe(1000); // TEST_CONFIG: flat ₮1,000
+    expect(d.heldAmount).toBe(1_351_000);
 
     w.do(id, { type: "handover" }, seller);
     expect(w.get(id).status).toBe("check");
     w.do(id, { type: "confirm" }, buyer);
     expect(w.get(id).status).toBe("released");
     expect(w.bal(payable("c1"))).toBe(1_350_000);
-    expect(w.bal("platform")).toBe(13500);
-    expect(w.bal(ext("c2"))).toBe(-1_363_500);
+    expect(w.bal("platform")).toBe(1000);
+    expect(w.bal(ext("c2"))).toBe(-1_351_000);
   });
 
   it("works for a helper selling too (same engine, any user)", () => {
@@ -52,7 +52,7 @@ describe("claiming a deal by code", () => {
   it("payment before a buyer has claimed is illegal", () => {
     const w = new World();
     const id = w.sell();
-    w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 1_363_500 }, { kind: "provider" }, "ILLEGAL_TRANSITION");
+    w.reject(id, { type: "confirm_payment", providerRef: "q", amount: 1_351_000 }, { kind: "provider" }, "ILLEGAL_TRANSITION");
   });
 });
 

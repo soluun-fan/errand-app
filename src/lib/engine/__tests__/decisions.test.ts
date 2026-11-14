@@ -7,29 +7,36 @@ const c1 = customer("c1");
 const h1 = helper("h1");
 
 describe("round trip (Буцаж ирэх)", () => {
-  it("adds half the distance part, rounded to the fee step", () => {
-    // deliver base 5000 + 4 km × 1500 = 11000; return leg 50% of 6000 = 3000
+  it("adds half the whole trip's distance part, rounded to the fee step", () => {
+    // deliver 4 km: base 5000 (incl. 1 km) + 3 km × 1500 = 4500; return leg 50% of 4 × 1500 = 3000
     const q = quoteFee("deliver", { ...DEFAULT_DETAILS, km: 4, roundTrip: true });
-    expect(q.base).toBe(11000);
-    expect(q.lines).toEqual([{ key: "roundTrip", amount: 3000 }]);
-    expect(q.total).toBe(14000);
+    expect(q.lines).toEqual([
+      { key: "base", amount: 5000 },
+      { key: "distance", amount: 4500, qty: 3 },
+      { key: "roundTrip", amount: 3000 },
+    ]);
+    expect(q.total).toBe(12500);
     // 2.5 km → 3750 × 50% = 1875 → rounds to 2000
-    expect(quoteFee("deliver", { ...DEFAULT_DETAILS, km: 2.5, roundTrip: true }).lines).toEqual([{ key: "roundTrip", amount: 2000 }]);
+    expect(quoteFee("deliver", { ...DEFAULT_DETAILS, km: 2.5, roundTrip: true }).lines.find((l) => l.key === "roundTrip")).toEqual({
+      key: "roundTrip",
+      amount: 2000,
+    });
   });
 
   it("costs nothing without a distance, and the engine drops the flag", () => {
-    expect(quoteFee("queue", { ...DEFAULT_DETAILS, km: 0, roundTrip: true }).lines).toEqual([]);
+    expect(quoteFee("queue", { ...DEFAULT_DETAILS, km: 0, roundTrip: true }).lines).toEqual([{ key: "base", amount: 5000 }]);
     const w = new World();
     const id = w.post({ category: "queue", fee: 8000, itemBudget: 0, details: { km: 0, roundTrip: true } });
     expect((w.get(id) as ErrandDeal).details.roundTrip).toBe(false);
   });
 
-  it("is part of the system price: a fee below it is rejected", () => {
-    const w = new World();
-    expect(() => w.post({ category: "deliver", fee: 11000, itemBudget: 0, details: { km: 4, roundTrip: true } })).toThrow(
-      "Minimum fee is ₮14000",
-    );
-    w.post({ category: "deliver", fee: 14000, itemBudget: 0, details: { km: 4, roundTrip: true } });
+  it("is part of the recommended price, which the customer may move −20%…+30%", () => {
+    const w = new World(DEFAULT_CONFIG);
+    const trip = { category: "deliver" as const, itemBudget: 0, details: { km: 4, roundTrip: true } };
+    expect(() => w.post({ ...trip, fee: 9500 })).toThrow("Minimum fee is ₮10000"); // 12500 − 20%
+    expect(() => w.post({ ...trip, fee: 16500 })).toThrow("Maximum fee is ₮16000"); // 12500 + 30%, rounded down
+    const id = w.post({ ...trip, fee: 10000 });
+    expect((w.get(id) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, counterMax: 13000 });
   });
 });
 
@@ -45,7 +52,7 @@ describe("budget buffer (+10%)", () => {
     expect(d.itemBudget).toBe(55000);
     w.do(id, { type: "accept" }, h1);
     w.pay(id);
-    expect(w.get(id).heldAmount).toBe(55000 + 9000 + DEFAULT_CONFIG.serviceFee);
+    expect(w.get(id).heldAmount).toBe(55000 + 9000 + 1000); // TEST_CONFIG service fee
     w.do(id, { type: "start" }, h1);
     // 4% over the typed budget: inside the buffer, no top-up needed
     w.do(id, { type: "record_receipt", amount: 52000 }, h1);
@@ -144,17 +151,22 @@ describe("receipt over budget → top-up", () => {
 describe("customer chooses (applications on every task)", () => {
   const h2 = helper("h2");
 
-  it("Instant task: helpers apply at the set price, the customer picks one", () => {
-    const w = new World();
-    const id = w.post();
+  it("helpers take the price or counter once (higher, up to +30%, never lower); the customer picks", () => {
+    const w = new World(DEFAULT_CONFIG);
+    const id = w.post({ fee: 6000 }); // recommended 5000, raised; counter cap 7800 → 7500
+    expect(w.get(id)).toMatchObject({ serviceFee: 500 });
     w.do(id, { type: "apply", note: "5 min away" }, h1);
-    w.do(id, { type: "apply", note: "" }, h2);
-    w.reject(id, { type: "apply", note: "", price: 20000 }, helper("h3"), "INVALID_INPUT"); // no haggling on Instant
+    w.do(id, { type: "apply", note: "", price: 6000 }, h2); // same as the posted price = just taking it
+    expect((w.get(id) as ErrandDeal).offers.map((o) => o.price)).toEqual([null, null]);
+    w.reject(id, { type: "apply", note: "", price: 5500 }, helper("h3"), "INVALID_INPUT"); // no undercutting
+    w.reject(id, { type: "apply", note: "", price: 8000 }, helper("h3"), "INVALID_INPUT"); // above the cap
+    w.do(id, { type: "apply", note: "Heavier than it looks", price: 7500 }, helper("h3"));
     w.reject(id, { type: "choose", helperId: "h1" }, h2, "FORBIDDEN");
-    w.do(id, { type: "choose", helperId: "h2" }, c1);
-    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h2", fee: 10000 });
+    w.do(id, { type: "choose", helperId: "h3" }, c1);
+    // the service fee was fixed at posting; the helper keeps all of their price
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h3", fee: 7500, serviceFee: 500 });
     w.pay(id);
-    expect(w.get(id).status).toBe("matched");
+    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 8000 });
   });
 
   it("Instant applications lapse after 15 min; the helper may apply again", () => {

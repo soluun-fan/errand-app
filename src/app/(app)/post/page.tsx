@@ -5,6 +5,7 @@ import { CATEGORIES, DEFAULT_CONFIG, type CategoryId, type ErrandDeal } from "@/
 import { EmptyState, FlowHeader, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getControls } from "@/lib/safety";
+import { pricingConfig } from "@/lib/pricing";
 import Link from "next/link";
 import { PostFlow, type Draft } from "./post-flow";
 
@@ -37,6 +38,8 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
     itemBudget: d.itemBudget > 0 ? String(typedBudget(d)) : "",
     budgetBuffer: x.budgetBuffer,
     people: x.people,
+    minutes: x.minutes,
+    tools: x.tools,
     pin: d.location,
     autoPick: x.autoPick,
   };
@@ -66,7 +69,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       </>
     );
   }
-  const [sp, tasks, saved] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses()]);
+  const [sp, tasks, saved, cfg] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses(), pricingConfig()]);
   const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
   const title = typeof sp.title === "string" && sp.title.trim() ? sp.title.slice(0, DEFAULT_CONFIG.titleMax) : undefined;
   const recent = [...new Set(tasks.map((x) => x.deal.address))].filter((a) => !saved.some((s) => s.address === a)).slice(0, 4);
@@ -90,6 +93,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       defaultAddress={saved.find((s) => s.kind === "home")?.address ?? viewer.profile.area ?? ""}
       recent={recent}
       saved={saved}
+      cfg={cfg}
     />
   );
 }

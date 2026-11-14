@@ -1,12 +1,19 @@
 import { Card, FlowHeader } from "@/components/ui";
 import { getT } from "@/i18n/server";
-import { DEFAULT_CONFIG } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
+import { pricingConfig } from "@/lib/pricing";
 
 /** "How it works" — the plain-words explanation, with the formal terms at the end (UI-FLOWS §0.6). */
 export default async function HelpPage() {
-  const t = await getT();
-  const cfg = DEFAULT_CONFIG;
+  const [t, cfg] = await Promise.all([getT(), pricingConfig()]);
+  // "500₮ under 10,000₮ · 1,000₮ under 30,000₮ · … · 3,000₮ above" — from the live settings
+  const tiers = cfg.serviceFeeTiers
+    .map((x, i, all) =>
+      x.below !== null
+        ? t("help.tier", { fee: fmtMoney(x.fee), below: fmtMoney(x.below) })
+        : t("help.tierLast", { fee: fmtMoney(x.fee), from: fmtMoney(all[i - 1]?.below ?? 0) }),
+    )
+    .join(" · ");
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />
@@ -30,7 +37,7 @@ export default async function HelpPage() {
       <Card>
         <h2 className="font-bold">{t("help.feesTitle")}</h2>
         <p className="text-[15px]">
-          {t("help.fees", { service: fmtMoney(cfg.serviceFee), pct: cfg.commissionBps / 100, cancel: fmtMoney(cfg.cancelFee) })}
+          {t("help.fees", { tiers, cancel: fmtMoney(cfg.cancelFee) })}
         </p>
       </Card>
       <Card>

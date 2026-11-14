@@ -9,7 +9,7 @@ import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
-import { EngineError, type Command } from "@/lib/engine";
+import { EngineError, counterMaxFor, type Command } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
@@ -159,7 +159,7 @@ export async function removePush(endpoint: string): Promise<void> {
 }
 
 /**
- * Helper-side task actions: apply ("Хийж чадна", Instant) or quote (Custom) — the customer chooses —
+ * Helper-side task actions: apply (take the customer's price) or quote (counter once, higher) — the customer chooses —
  * take back an application, step back before payment, start, skip an offer.
  */
 export async function jobAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -190,7 +190,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (intent === "apply") cmd = { type: "apply", note };
     else if (intent === "quote") {
       const price = Number(String(form.get("price") ?? "").replace(/[^\d]/g, ""));
-      if (!Number.isInteger(price) || price <= 0) return { error: t("job.quoteInvalid") };
+      const current = await loadDeal(db, dealId);
+      if (!current || current.type !== "errand") return { error: t("error.changed") };
+      const cap = current.details.counterMax > 0 ? current.details.counterMax : counterMaxFor(current.postedFee);
+      if (!Number.isInteger(price) || price <= current.postedFee || price > cap) {
+        return { error: t("price.counterRange", { min: fmtMoney(current.postedFee), max: fmtMoney(cap) }) };
+      }
       cmd = { type: "apply", note, price };
     } else if (intent === "unapply") cmd = { type: "withdraw_offer" };
     else if (intent === "withdraw") cmd = { type: "cancel" };

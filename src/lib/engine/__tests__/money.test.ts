@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, EngineError, buyerFeeFor, errandSplit, isNight, minFeeAt, suggestFee } from "../index";
+import { DEFAULT_CONFIG, DEFAULT_DETAILS, EngineError, buyerFeeFor, counterMaxFor, errandSplit, isNight, minFeeAt, priceRange, quoteFee, serviceFeeFor, type ErrandDetails } from "../index";
 
 describe("errandSplit", () => {
   it("matches the brief's example: carry, ₮40,000 fee, no items", () => {
@@ -66,18 +66,22 @@ describe("errandSplit", () => {
   });
 });
 
-describe("buyerFeeFor", () => {
-  it("is 1% with a ₮1,000 floor", () => {
-    expect(buyerFeeFor(50000)).toBe(1000);
-    expect(buyerFeeFor(100000)).toBe(1000);
-    expect(buyerFeeFor(1_350_000)).toBe(13500);
-    expect(buyerFeeFor(1_350_050)).toBe(13501); // rounds half up
+describe("flat service fee (docs/decisions.md 2026-11-15 Pricing)", () => {
+  it("is a fixed amount by price step, never a percentage; SafePay uses the same steps", () => {
+    expect(serviceFeeFor(5000)).toBe(500);
+    expect(serviceFeeFor(9999)).toBe(500);
+    expect(serviceFeeFor(10000)).toBe(1000);
+    expect(serviceFeeFor(29999)).toBe(1000);
+    expect(serviceFeeFor(30000)).toBe(2000);
+    expect(serviceFeeFor(100000)).toBe(3000);
+    expect(buyerFeeFor(1_350_000)).toBe(3000);
+    expect(DEFAULT_CONFIG.commissionBps).toBe(0); // helpers keep 100%
   });
 });
 
-describe("night minimum", () => {
+describe("night", () => {
   const ub = (h: number, m = 0) => Date.UTC(2026, 10, 12, h - 8, m); // Ulaanbaatar wall time → UTC ms
-  it("is ₮6,000 from 22:00 to 06:59 Ulaanbaatar time, ₮5,000 otherwise", () => {
+  it("adds ₮1,000 from 22:00 to 06:59 Ulaanbaatar time: minimum ₮6,000 then, ₮5,000 otherwise", () => {
     expect(minFeeAt(ub(21, 59))).toBe(5000);
     expect(minFeeAt(ub(22, 0))).toBe(6000);
     expect(minFeeAt(ub(23, 30))).toBe(6000);
@@ -85,19 +89,39 @@ describe("night minimum", () => {
     expect(minFeeAt(ub(24 + 6, 59))).toBe(6000);
     expect(minFeeAt(ub(24 + 7))).toBe(5000);
     expect(isNight(ub(12))).toBe(false);
-  });
-  it("lifts the suggestion to the night minimum", () => {
-    expect(suggestFee("deliver", 0, undefined, ub(23))).toBe(6000);
-    expect(suggestFee("deliver", 0, undefined, ub(12))).toBe(5000);
+    expect(quoteFee("deliver", DEFAULT_DETAILS, undefined, ub(23)).lines).toContainEqual({ key: "night", amount: 1000 });
+    expect(quoteFee("deliver", DEFAULT_DETAILS, undefined, ub(23)).total).toBe(6000);
   });
 });
 
-describe("suggestFee", () => {
-  it("is category base + distance, rounded to ₮500, never below the minimum", () => {
-    expect(suggestFee("shop", 1.5)).toBe(8500); // 6000 + 2250 = 8250 → 8500
-    expect(suggestFee("carry", 0)).toBe(15000);
-    expect(suggestFee("deliver", 0)).toBe(DEFAULT_CONFIG.minFee);
-    expect(suggestFee("queue", -3)).toBe(8000);
-    expect(suggestFee("queue", Number.NaN)).toBe(8000);
+describe("build-up price (quoteFee)", () => {
+  const q = (category: Parameters<typeof quoteFee>[0], d: Partial<ErrandDetails>) => quoteFee(category, { ...DEFAULT_DETAILS, ...d });
+
+  it("matches the worked examples agreed with the owner", () => {
+    expect(q("shop", { km: 1 }).total).toBe(5000); // groceries 1 km, ~30 min
+    expect(q("shop", { km: 3 }).total).toBe(8000); // + 2 km × 1,500
+    expect(q("queue", { minutes: 120 }).total).toBe(14000); // + 3 × 3,000
+    expect(q("repair", { minutes: 120, tools: true }).total).toBe(16000); // wardrobe: + 9,000 + 2,000
+    // fridge to the 5th floor, no lift, 2 people, ~1 h: each 5,000 + 3,000 + 3,000 + 6,000
+    const fridge = q("carry", { minutes: 60, heavy: true, floor: 5, lift: "no", people: 2 });
+    expect(fridge.total).toBe(34000);
+    expect(fridge.peopleRequired).toBe(2);
+    expect(fridge.lines.map((l) => l.key)).toEqual(["base", "time", "heavy", "stairs", "secondPerson"]);
+  });
+
+  it("charges started half hours, ignores bad distances, never goes below the minimum", () => {
+    expect(q("other", { minutes: 90 }).lines).toContainEqual({ key: "time", amount: 6000, qty: 60 });
+    expect(q("queue", { km: -3 }).total).toBe(5000);
+    expect(q("queue", { km: Number.NaN }).total).toBe(5000);
+    expect(q("deliver", { km: 1.5 }).lines).toContainEqual({ key: "distance", amount: 1000, qty: 0.5 }); // 750 → 1,000
+  });
+
+  it("customer range and counter cap", () => {
+    const day = Date.UTC(2026, 10, 12, 4);
+    expect(priceRange(10000, day)).toEqual({ min: 8000, max: 13000 });
+    expect(priceRange(5000, day)).toEqual({ min: 5000, max: 6500 }); // never below the minimum
+    expect(priceRange(14000, day)).toEqual({ min: 11500, max: 18000 }); // 11,200 → up; 18,200 → down
+    expect(counterMaxFor(10000)).toBe(13000);
+    expect(counterMaxFor(5000)).toBe(6500);
   });
 });

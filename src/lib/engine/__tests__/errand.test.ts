@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOUR_MS, MINUTE_MS, amountDue, apply, createErrand, ext, payable, type ErrandDeal } from "../index";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, amountDue, apply, createErrand, ext, payable, type ErrandDeal } from "../index";
 import { T0, World, admin, customer, helper, provider, system } from "./helpers";
 
 const c1 = customer("c1");
@@ -227,19 +227,20 @@ describe("UI-FLOWS rules", () => {
   });
 });
 
-describe("instant price (quoteFee)", () => {
-  it("rejects a fee below the system price; raising it is fine", () => {
-    const w = new World();
-    // carry base 15,000; 5th floor, no lift, helper carries: +4 × 1,500
+describe("recommended price (quoteFee)", () => {
+  it("lets the customer move it −20%…+30%, never outside", () => {
+    const w = new World(DEFAULT_CONFIG);
+    // base 5,000; 5th floor, no lift, helper carries: +4 × 1,500 = 11,000 → 9,000…14,000
     const details = { floor: 5, lift: "no" as const, carryByHelper: true };
-    expect(() => w.post({ category: "carry", fee: 20000, details })).toThrow(/Minimum fee is ₮21000/);
-    expect(() => w.post({ category: "carry", fee: 21000, details })).not.toThrow();
-    expect(() => w.post({ category: "carry", fee: 30000, details })).not.toThrow();
-    // customer brings it down: no stairs add-on
-    expect(() => w.post({ category: "carry", fee: 15000, details: { ...details, carryByHelper: false } })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 8500, details })).toThrow(/Minimum fee is ₮9000/);
+    expect(() => w.post({ category: "carry", fee: 9000, details })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 14000, details })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 14500, details })).toThrow(/Maximum fee is ₮14000/);
+    // customer brings it down: no stairs extra
+    expect(() => w.post({ category: "carry", fee: 5000, details: { ...details, carryByHelper: false } })).not.toThrow();
   });
 
-  it("heavy item, no lift, above the 2nd floor needs 2 people (+15,000)", () => {
+  it("heavy item, no lift, above the 2nd floor needs 2 people (labour charged twice)", () => {
     const w = new World();
     const details = { floor: 5, lift: "no" as const, heavy: true, carryByHelper: true };
     expect(() => w.post({ category: "carry", fee: 50000, details })).toThrow(/2 people/);

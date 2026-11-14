@@ -122,10 +122,9 @@ Supabase Postgres: RLS (clients read only, own rows) · all writes via service r
 - `money.ts`: `quoteFee` (system price), `errandSplit` (release split), `heldItemBudget`, `minFeeAt` (night minimum), `suggestFee`.
 - `ledger.ts`: accounts `ext:<user>` (their bank), `hold` (partner bank hold), `payable:<user>` (released, awaiting withdrawal), `platform`; `checkInvariants`.
 - `schedule.ts`: `dueCommand` / `runDue` (expiry, payment lapse, auto-release).
-- `config.ts`: all numbers.
-  - Fees: min fee 5,000; service fee 1,000; commission 10%; cancel fee 3,000.
+- `config.ts`: all numbers (pricing defaults; live values come from `pricing_settings` via `lib/pricing.ts`).
+  - Pricing: build-up `quoteFee` (base 5,000 ≈ 30 min/1 km; +3,000 per 30 min, +1,500/km, heavy +3,000, stairs +1,500/floor, tools +2,000, night +1,000, 2nd person = labour again). The customer can set −20%…+30%; a helper's counter is ≤ +30%. Helpers keep 100%; the customer pays a flat service fee (500–3,000 by price step). Cancel fee 3,000.
   - Time windows: 24 h check window; 30 min no-helper deadline; 10 min to pay; instant requests lapse after 15 min; auto-pick after 3 min.
-  - Prices: per km 1,500; per floor without a lift 1,500; 2nd person 15,000; round trip +50% of the distance part; night minimum 6,000 (22:00–07:00 UB time, UTC+8).
 - Fee terms are **snapshotted** onto each deal at creation.
 
 ---
@@ -265,6 +264,11 @@ Migrations, in order:
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
 - **Helper verification:** `/helper/apply` form (ID front/back, selfie with ID, record certificate, payout account in the same name), Ops review at `/ops/helpers`, private `kyc` bucket with 5-minute links, documents deleted 30 days after the decision, badges "✓ Баталгаажсан" / "✓ Ял шийтгэлгүй" (`lib/kyc.ts`, `lib/kyc-rules.ts`).
 - **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
+- **Pricing:**
+  - Build-up recommended price with each extra shown; the customer adjusts −20%…+30% (green/orange hint).
+  - Helpers accept or counter once (≤ +30%, never lower).
+  - Helpers keep 100%; there's a flat service fee.
+  - Live settings at `/ops/pricing` with worked examples (`lib/pricing.ts`, `lib/pricing-rules.ts`).
 - **Safety controls and SOS:**
   - Ops hub `/ops`.
   - `/ops/safety`: pause new tasks, freeze money movements, caps per task / per customer per day / platform-wide / active tasks. These are enforced by DB triggers and `payin_check()` before invoices. The page also shows the audit log.

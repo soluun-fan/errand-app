@@ -6,8 +6,9 @@ import { ADDRESS_KINDS, saveAddress, type AddressKind } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
 import { runDispatch } from "@/lib/dispatch/run";
 import { insertDeal } from "@/lib/db/deals";
-import { CATEGORIES, DEFAULT_CONFIG, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
+import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
+import { pricingConfig } from "@/lib/pricing";
 import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -30,7 +31,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   const t = await getT();
-  const cfg = DEFAULT_CONFIG;
+  const cfg = await pricingConfig(); // today's prices (live Ops settings)
 
   // Safety controls (docs/decisions.md "Safety pack"); the database enforces the pause too.
   const controls = await getControls();
@@ -86,7 +87,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         title,
         description,
         category,
-        mode: "now", // Instant: system price, first to accept (Custom quotes come later — docs/decisions.md)
+        mode: "now", // helpers accept the price or counter once (docs/decisions.md 2026-11-15 "Pricing")
         scheduledAt,
         pickupAddress,
         address,
@@ -110,6 +111,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: 2 };
+      const max = /Maximum fee is ₮(\d+)/.exec(e.message);
+      if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: 2 };
       if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: 1 };
       return { error: e.message, step: 1 };
     }

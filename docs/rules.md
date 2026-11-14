@@ -12,9 +12,9 @@ Customer (post, pay, choose, confirm/dispute, rate, SafePay) · Helper (needs ap
 Filter out helpers who: aren't approved, are offline/unavailable, lack the category, lack required people/vehicle/equipment, or exceed travel time. Then: nearest by **travel time** → first to accept. No weighted scoring until ~200 completed jobs.
 Carry rule: heavy item + no lift + floor > 2 → 2 people. Vehicle needed → car-owning helpers only.
 
-## Fees (configurable)
-MIN_FEE 5,000 · SERVICE_FEE 1,000 · COMMISSION 10% · CANCEL_FEE 3,000 · CHECK window 24 h (SafePay 24 h or 3 days) · MAX_OFFERS 5 · SafePay buyerFee 1% (min 1,000).
-Add-ons (carry): +1,500/floor if helper carries without lift · 2nd person +15,000.
+## Fees (configurable; live in `pricing_settings`, /ops/pricing) — see "Pricing" under As implemented
+Build-up price: base 5,000 (≈30 min, 1 km) + 3,000 per extra 30 min + 1,500 per extra km + heavy 3,000 + stairs without lift 1,500/floor above the 1st + tools 2,000 + night (22:00–07:00) 1,000 + round trip 50% of the distance part; 2nd person = labour (base, time, heavy, stairs) again. Rounded to 500.
+Customer may set −20%…+30% of it. Helpers keep 100% (commission 0). Customer pays a flat service fee: 500 under 10,000 · 1,000 under 30,000 · 2,000 under 100,000 · 3,000 above (SafePay buyers: same steps). CANCEL_FEE 3,000 · CHECK 24 h (SafePay 24 h or 3 days) · MAX_OFFERS 5.
 
 ## Money split on errand release
 ```
@@ -25,7 +25,8 @@ refund     = itemBudget - spent
 platform   = SERVICE_FEE + commission
 held       = itemBudget + fee + SERVICE_FEE      // helperNet + refund + platform == held
 ```
-Example: fee 40,000, budget 5,000, receipt 3,250 → helper 39,250 · refund 1,750 · platform 5,000 · held 46,000.
+Example (older deals, 10% commission): fee 40,000, budget 5,000, receipt 3,250 → helper 39,250 · refund 1,750 · platform 5,000 · held 46,000.
+Deals posted since 2026-11-15 snapshot `commissionBps = 0`, so commission is 0, helperNet = fee + spent and platform = the flat service fee.
 SafePay: buyer pays price + buyerFee; seller gets price.
 
 ## Cancellation / refunds
@@ -98,4 +99,12 @@ Split sums to held on every path · no double release · illegal transitions rej
   - `incidents` (server-only): `sos` + report kinds, from either person on the task (`isParty`). One live SOS per (task, reporter) is enforced by a unique index; pressing again updates it. A report needs a kind and 10–1000 chars, max 5 an hour. The other person is never notified.
   - Ops is pushed at once; the tick re-pushes an unacknowledged SOS every 2 min for 30 min (`repingSos`, first step of the tick) and clears incident positions 30 days after resolution.
   - `ops_audit_log` is append-only.
+- **Pricing (2026-11-15):** `quoteFee` builds the recommended price line by line from effort only (time, distance, round trip, heavy, stairs, tools, night, 2nd person), so any job — even one the app doesn't recognise — gets a sensible price.
+  - The customer may move it within `priceRange` (−20%…+30%, never below the minimum: 5,000 by day, 6,000 at night). `createErrand` rejects anything outside.
+  - At posting the deal snapshots `serviceFee = serviceFeeFor(postedFee)` (fixed, even if a counter is chosen), `commissionBps = 0`, `details.quotedFee` (the recommendation, kept for learning) and `details.counterMax = counterMaxFor(postedFee)` (+30%, rounded down).
+  - Helpers `apply` at the posted price, or with `price` as a counter-offer: more than the posted price and ≤ `counterMax`; one per helper. A price equal to the posted one counts as plain acceptance. No undercutting.
+  - `choose` takes the chosen helper's price.
+  - Live settings: `pricing_settings` (one row; `/ops/pricing` with worked examples; changes are logged in `ops_audit_log`). Posting reads them via `pricingConfig()`. Engine defaults = DB defaults (tested).
+  - Older deals keep their own snapshot (10% commission, flat 1,000 fee).
+  - **Not built yet:** moving the recommendation towards real agreed prices once there is data (`quotedFee` vs `fee` are recorded for it).
 - **Persistence:** load → `apply()` → `apply_transition()` RPC with optimistic lock; DB re-checks transitions, hold balance per deal, append-only ledger. RLS: clients read only; phone / ДАН name / payout columns are server-only.

@@ -9,17 +9,18 @@ import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, DEFAULT_CONFIG, heldItemBudget, isNight, quoteFee, type CategoryId, type ErrandDetails, type Lift } from "@/lib/engine";
+import { CATEGORIES, heldItemBudget, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { postTask, type PostState } from "./actions";
 
-const cfg = DEFAULT_CONFIG;
 const STEPS = ["what", "where", "review"] as const;
 const TWO_POINT: CategoryId[] = ["shop", "deliver", "carry"];
 const BUYS: CategoryId[] = ["shop", "deliver"];
 const KM = [1, 3, 5, 10];
+/** "About how long?" choices, in minutes. */
+const DURATIONS = [30, 60, 90, 120, 180, 240, 360, 480];
 
 type When = "now" | "today" | "tomorrow" | "pick";
 const KIND_ICON: Record<AddressKind, string> = { home: "🏠", work: "💼", other: "📍" };
@@ -47,7 +48,12 @@ export interface Draft {
   itemBudget: string;
   budgetBuffer: boolean;
   people: 1 | 2;
+  /** Customer's change to the recommended price (₮, may be negative; kept inside the allowed range). */
   raise: number;
+  /** About how long (minutes); null = the category's usual. */
+  minutes: number | null;
+  /** The helper must bring tools. */
+  tools: boolean;
   /** Save the drop-off address as Home / Work / Other when posting ("" = don't). */
   saveAs: AddressKind | "";
   /** Map pin for the drop-off / task place (drives nearby dispatch). */
@@ -91,7 +97,10 @@ export function PostFlow({
   defaultAddress,
   recent,
   saved,
+  cfg,
 }: {
+  /** Today's prices (engine defaults + the live Ops settings). */
+  cfg: EngineConfig;
   initial: Partial<Draft>;
   startStep?: number;
   defaultAddress: string;
@@ -124,6 +133,8 @@ export function PostFlow({
     budgetBuffer: false,
     people: 1,
     raise: 0,
+    minutes: null,
+    tools: false,
     saveAs: "",
     pin: null,
     autoPick: true,
@@ -175,10 +186,14 @@ export function PostFlow({
     note: d.note || null,
     people: d.people,
     carryByHelper: isCarry ? d.carryByHelper : true,
-    heavy: isCarry && d.heavy,
+    heavy: d.heavy,
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
     autoPick: d.autoPick,
+    minutes: d.minutes ?? CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30,
+    tools: d.tools,
+    quotedFee: 0,
+    counterMax: 0,
   };
   const quote = quoteFee(d.category, details, cfg, startsAt);
   const needTwo = quote.peopleRequired === 2;
@@ -186,11 +201,15 @@ export function PostFlow({
     if (needTwo && d.people === 1) set("people", 2);
   }, [needTwo, d.people]);
 
-  const fee = quote.total + d.raise;
+  // Freedom, but limited (docs/decisions.md "Pricing"): recommended −20%…+30%, same function as the server.
+  const range = priceRange(quote.total, startsAt, cfg);
+  const fee = Math.min(range.max, Math.max(range.min, quote.total + d.raise));
+  const serviceFee = serviceFeeFor(fee, cfg);
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
-  const total = fee + heldItems + cfg.serviceFee;
+  const total = fee + heldItems + serviceFee;
+  const quoteFor = (people: 1 | 2) => quoteFee(d.category, { ...details, people }, cfg, startsAt).total;
   const stairs = quote.lines.find((l) => l.key === "stairs");
   const backLeg = quoteFee(d.category, { ...details, roundTrip: true }, cfg, startsAt).lines.find((l) => l.key === "roundTrip");
   const savedMatch = saved.find((a) => a.address === d.address.trim());
@@ -204,16 +223,20 @@ export function PostFlow({
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
   }
 
+  const lineLabel = (l: QuoteLine) =>
+    l.key === "time"
+      ? t("price.line.time", { min: l.qty ?? 0 })
+      : l.key === "distance"
+        ? t("price.line.distance", { km: l.qty ?? 0 })
+        : l.key === "stairs"
+          ? t("price.line.stairs", { n: l.qty ?? 0 })
+          : t(`price.line.${l.key}`);
   const breakdown: MoneyRow[] = [
-    { label: t("task.base", { category: t(`categoryShort.${d.category}`) }), amount: quote.base },
-    ...quote.lines.map((l) => ({
-      label: l.key === "stairs" ? t("task.stairs", { n: l.qty ?? 0 }) : l.key === "roundTrip" ? t("task.roundTripLine") : t("task.secondPerson"),
-      amount: l.amount,
-    })),
-    ...(d.raise > 0 ? [{ label: t("task.raised"), amount: d.raise }] : []),
+    ...quote.lines.map((l) => ({ label: lineLabel(l), amount: l.amount })),
+    ...(fee !== quote.total ? [{ label: fee > quote.total ? t("price.raised") : t("price.lowered"), amount: fee - quote.total }] : []),
     ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
     ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
-    { label: t("money.serviceFee"), amount: cfg.serviceFee, muted: true },
+    { label: t("money.serviceFee"), amount: serviceFee, muted: true },
   ];
 
   return (
@@ -420,7 +443,22 @@ export function PostFlow({
                 <input type="datetime-local" className={field} value={d.date} min={toUbLocal(now + 30 * 60_000)} onChange={(e) => set("date", e.target.value)} />
               </label>
             )}
-            {isNight(startsAt) && <Note tone="warn">{t("post.nightNote", { amount: fmtMoney(cfg.nightMinFee) })}</Note>}
+            {isNight(startsAt) && <Note tone="warn">{t("price.nightNote", { amount: fmtMoney(cfg.nightFee) })}</Note>}
+          </fieldset>
+
+          {/* Effort: what the price is built from — works for any job, even an unusual one */}
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("price.howLong")}</legend>
+            <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
+              {DURATIONS.map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={details.minutes === m} onClick={() => set("minutes", m)} className={chipClass(details.minutes === m)}>
+                  {m < 60 ? t("price.min", { n: m }) : t("price.hours", { n: m / 60 })}
+                </button>
+              ))}
+            </div>
+            <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour) })}</p>
+            <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
+            <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
           </fieldset>
 
           {isCarry && (
@@ -437,7 +475,6 @@ export function PostFlow({
                 />
                 <PriceDeltaCard selected={!d.carryByHelper} onSelect={() => set("carryByHelper", false)} icon="🚪" title={t("task.carrySelf")} sub={t("task.carrySelfSub")} delta={`+${fmtMoney(0)}`} free />
               </div>
-              <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("task.heavySub")} checked={d.heavy} onChange={(v) => set("heavy", v)} />
               {needTwo && <Note tone="warn">{t("task.needTwo")}</Note>}
             </fieldset>
           )}
@@ -493,7 +530,7 @@ export function PostFlow({
                 icon="🧍"
                 title={t("task.oneHelper")}
                 sub={needTwo ? t("task.tooHeavy") : undefined}
-                price={fmtMoney(d.people === 1 ? quote.total : quote.total - cfg.secondPersonFee)}
+                price={fmtMoney(quoteFor(1))}
               />
               <OptionCard
                 selected={d.people === 2}
@@ -501,7 +538,7 @@ export function PostFlow({
                 icon="🧍🧍"
                 title={t("task.twoHelpers")}
                 sub={t("task.twoHelpersSub")}
-                price={fmtMoney(d.people === 2 ? quote.total : quote.total + cfg.secondPersonFee)}
+                price={fmtMoney(quoteFor(2))}
               />
             </fieldset>
           )}
@@ -509,15 +546,33 @@ export function PostFlow({
           <div className="flex flex-col gap-2 rounded-card bg-fill p-4">
             <span className="text-[15px] font-medium text-ink-2">{t("task.price")}</span>
             <div className="flex items-center gap-3">
-              <button type="button" aria-label={t("task.lower")} disabled={d.raise === 0} onClick={() => set("raise", Math.max(0, d.raise - 1000))} className={`${btn.square} bg-bg disabled:text-ink-3`}>
+              <button
+                type="button"
+                aria-label={t("task.lower")}
+                disabled={fee <= range.min}
+                onClick={() => set("raise", Math.max(range.min, fee - cfg.feeStep) - quote.total)}
+                className={`${btn.square} bg-bg disabled:text-ink-3`}
+              >
                 −
               </button>
               <span className="flex-1 text-center text-[28px] font-bold tabular-nums">{fmtMoney(fee)}</span>
-              <button type="button" aria-label={t("task.raise")} onClick={() => set("raise", d.raise + 1000)} className={`${btn.square} bg-bg`}>
+              <button
+                type="button"
+                aria-label={t("task.raise")}
+                disabled={fee >= range.max}
+                onClick={() => set("raise", Math.min(range.max, fee + cfg.feeStep) - quote.total)}
+                className={`${btn.square} bg-bg disabled:text-ink-3`}
+              >
                 +
               </button>
             </div>
-            <p className="text-sm text-ink-2">{t("task.raiseHint")}</p>
+            <p className="text-sm text-ink-2">{t("price.recommended", { amount: fmtMoney(quote.total), min: fmtMoney(range.min), max: fmtMoney(range.max) })}</p>
+            {fee < quote.total ? (
+              <Note tone="warn">{t("price.belowHint")}</Note>
+            ) : (
+              <Note tone="held">{fee > quote.total ? t("price.aboveHint") : t("price.fairHint")}</Note>
+            )}
+            <p className="text-sm text-ink-2">{t("price.helperKeeps")}</p>
           </div>
 
           <details className="group">

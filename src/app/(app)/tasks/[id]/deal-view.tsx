@@ -173,12 +173,14 @@ export function DealView(p: DealViewProps) {
   /* ---------- money: where it is now ---------- */
   let money: ReactNode;
   if (["check", "disputed", "released"].includes(deal.status)) {
-    const rows: MoneyRow[] = [{ label: t("money.toHelperFee", { pct: deal.commissionBps / 100 }), amount: split.helperFeeNet }];
+    const rows: MoneyRow[] = [
+      { label: deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
+    ];
     if (deal.itemBudget > 0) {
       rows.push({ label: t("money.toHelperItems"), amount: split.spent });
       rows.push({ label: t("money.backToYou"), amount: split.refund });
     }
-    rows.push({ label: t("money.platform"), amount: split.platform, muted: true });
+    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
     money = <MoneyBreakdown rows={rows} total={{ label: t("money.totalHeld"), amount: split.held }} />;
   } else if (!["refunded", "cancelled", "expired"].includes(deal.status)) {
     const rows: MoneyRow[] = [{ label: t("money.helperFee"), amount: deal.fee }];
@@ -460,7 +462,7 @@ export function DealView(p: DealViewProps) {
                 key={o.helperId}
                 person={pp}
                 badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
-                note={[o.price !== null ? fmtMoney(o.price) : null, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note]
+                note={[o.price !== null ? t("price.asks", { amount: fmtMoney(o.price) }) : null, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note]
                   .filter(Boolean)
                   .join(" · ")}
                 t={t}
@@ -471,7 +473,12 @@ export function DealView(p: DealViewProps) {
                     trigger={t("deal.choose")}
                     triggerClass={btn.small}
                     title={t("deal.chooseTitle", { name: pp.name })}
-                    body={t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) })}
+                    body={[
+                      o.price !== null ? t("price.chooseCounter", { name: pp.name, amount: fmtMoney(o.price), posted: fmtMoney(deal.postedFee) }) : null,
+                      t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) }),
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     confirmLabel={t("deal.choose")}
                   />
                 }

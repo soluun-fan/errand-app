@@ -11,6 +11,7 @@ import {
   DEFAULT_DETAILS,
   amountDue,
   quoteFee,
+  priceRange,
   apply,
   balanceOf,
   checkInvariants,
@@ -83,6 +84,7 @@ function simulate(seed: number, steps: number) {
         const category = pick(CATS);
         const scheduledAt = mode === "schedule" && r() < 0.7 ? now + int(1, 48) * 3_600_000 : null;
         const quote = quoteFee(category, DEFAULT_DETAILS, undefined, scheduledAt ?? now);
+        const range = priceRange(quote.total, scheduledAt ?? now);
         record(
           createErrand(
             {
@@ -94,7 +96,7 @@ function simulate(seed: number, steps: number) {
               scheduledAt,
               address: "a",
               itemBudget: pick([0, 0, 500, 38000, int(0, 200) * 500]),
-              fee: quote.total + int(0, 100) * 500, // the system price, sometimes raised
+              fee: range.min + int(0, (range.max - range.min) / 500) * 500, // anywhere the customer may set
               customerId: c.id,
             },
             { now, actor: c },

@@ -2,6 +2,7 @@ import type { PGlite, Transaction } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 import { actorFromProfile, applyTransitionArgs, insertDealArgs, type ProfileRow } from "@/lib/db/mapping";
 import {
+  DEFAULT_CONFIG,
   HOUR_MS,
   amountDue,
   apply,
@@ -15,6 +16,7 @@ import {
   type Transition,
   type UserActor,
 } from "@/lib/engine";
+import { TEST_CONFIG } from "@/lib/engine/__tests__/helpers";
 import { as, createTestDb, loadDeal, rpc, sqlError } from "./pg";
 
 const U = {
@@ -89,6 +91,7 @@ async function postErrand(input: Partial<NewErrandInput> = {}, now = T0): Promis
       ...input,
     },
     { now, actor: customer(input.customerId ?? U.c1) },
+    TEST_CONFIG, // flow tests keep the demo economics (10%, ₮1,000 fee, any price)
   );
   return persist(null, t, now);
 }
@@ -616,6 +619,43 @@ describe("safety controls", () => {
       const err = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(sql)));
       expect(err.message, sql).toMatch(/permission denied/);
     }
+  });
+});
+
+describe("pricing (helpers keep 100%, flat service fee)", () => {
+  it("a task at today's prices round-trips; release pays the helper the whole price", async () => {
+    const id = dealId();
+    const t = createErrand(
+      { id, title: "Queue", description: "Hospital queue", category: "queue", mode: "now", address: "x", itemBudget: 0, fee: 14000, customerId: U.c1, details: { minutes: 120 } },
+      { now: T0, actor: customer(U.c1) },
+    );
+    let d = await persist(null, t, T0);
+    expect(d).toMatchObject({ serviceFee: 1000, commissionBps: 0 });
+    expect(d.type === "errand" && d.details).toMatchObject({ minutes: 120, quotedFee: 14000, counterMax: 18000 });
+    d = await step(d, { type: "apply", note: "", price: 16000 }, helper(U.h1), T0 + 1000);
+    d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
+    d = await pay(d, T0 + 3000);
+    expect(d.heldAmount).toBe(17000);
+    d = await step(d, { type: "start" }, helper(U.h1), T0 + 4000);
+    d = await step(d, { type: "record_handover" }, helper(U.h1), T0 + 5000);
+    d = await step(d, { type: "finish" }, helper(U.h1), T0 + 6000);
+    d = await step(d, { type: "confirm" }, customer(U.c1), T0 + 7000);
+    const bal = (acc: string) => scalar<string>(db, `select public.account_balance($1, $2)::text as v`, [acc, d.id]);
+    expect(await bal(`payable:${U.h1}`)).toBe("16000");
+    expect(await bal("platform")).toBe("1000");
+    await noViolations();
+  });
+
+  it("settings are one server-only row whose defaults match the engine", async () => {
+    const row = await as(db, "service_role", null, async (tx) => (await tx.query<Record<string, unknown>>(`select * from public.pricing_settings`)).rows);
+    expect(row).toHaveLength(1);
+    expect(row[0]).toMatchObject({ base_fee: 5000, per_half_hour: 3000, per_km: 1500, heavy_fee: 3000, tools_fee: 2000, night_fee: 1000, price_down_bps: 2000, price_up_bps: 3000 });
+    expect(row[0].service_fee_tiers).toEqual(DEFAULT_CONFIG.serviceFeeTiers);
+    const bad = await sqlError(as(db, "service_role", null, (tx) => tx.query(`update public.pricing_settings set price_down_bps = 9000`)));
+    expect(bad.message).toMatch(/check constraint/);
+    expect((await sqlError(as(db, "service_role", null, (tx) => tx.query(`delete from public.pricing_settings`)))).message).toMatch(/single row/);
+    const err = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(`select * from public.pricing_settings`)));
+    expect(err.message).toMatch(/permission denied/);
   });
 });
 

@@ -12,7 +12,7 @@ import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel }
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { errandSplit } from "@/lib/engine";
+import { counterMaxFor, errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
@@ -53,6 +53,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       ].filter((x): x is string => typeof x === "string" && x.length > 0)
     : [];
 
+  // What the price was built from, so helpers can judge it (time, heavy, tools, people)
+  const effort = [
+    dt.minutes >= 60 ? t("price.hours", { n: dt.minutes / 60 }) : t("price.min", { n: dt.minutes }),
+    dt.heavy && t("task.heavy"),
+    dt.tools && t("price.tools"),
+    dt.people === 2 && t("details.people", { n: 2 }),
+  ].filter((x): x is string => typeof x === "string" && x.length > 0);
+
   let primary: React.ReactNode = null;
   const secondary: React.ReactNode[] = [];
   let line: React.ReactNode = null;
@@ -63,39 +71,49 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       ? t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
   } else if (deal.status === "open" && !myOffer) {
-    if (deal.mode === "now") {
-      primary = (
-        <InlineAction
-          action={jobAction}
-          fields={{ ...fields, intent: "apply" }}
-          label={t("job.apply", { amount: fmtMoney(net) })}
-          className={`${btn.primary} w-full`}
-          done={<Note tone="info">{t("job.applied")}</Note>}
-        >
-          <label className={fieldLabel}>
-            {t("job.applyNote")}
-            <input name="note" maxLength={300} className={field} placeholder={t("job.applyNotePh")} />
-          </label>
-        </InlineAction>
-      );
-    } else {
-      primary = (
-        <InlineAction
+    // Accept the customer's price, or counter once — higher, up to the cap (docs/decisions.md "Pricing").
+    const cap = deal.details.counterMax > 0 ? deal.details.counterMax : counterMaxFor(deal.postedFee);
+    primary = (
+      <InlineAction
+        action={jobAction}
+        fields={{ ...fields, intent: "apply" }}
+        label={t("job.apply", { amount: fmtMoney(net) })}
+        className={`${btn.primary} w-full`}
+        done={<Note tone="info">{t("job.applied")}</Note>}
+      >
+        <label className={fieldLabel}>
+          {t("job.applyNote")}
+          <input name="note" maxLength={300} className={field} placeholder={t("job.applyNotePh")} />
+        </label>
+      </InlineAction>
+    );
+    if (cap > deal.postedFee) {
+      secondary.push(
+        <ConfirmSheet
+          key="counter"
           action={jobAction}
           fields={{ ...fields, intent: "quote" }}
-          label={t("job.quote")}
-          className={`${btn.primary} w-full`}
-          done={<Note tone="info">{t("job.quoteDone")}</Note>}
+          trigger={t("price.counter")}
+          triggerClass={btn.text}
+          title={t("price.counterTitle")}
+          body={t("price.counterBody", { amount: fmtMoney(deal.postedFee), max: fmtMoney(cap) })}
+          confirmLabel={t("price.counterSend")}
         >
           <label className={fieldLabel}>
             {t("job.quotePrice")}
-            <input name="price" inputMode="numeric" defaultValue={String(deal.postedFee)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+            <input
+              name="price"
+              inputMode="numeric"
+              defaultValue={String(Math.min(cap, deal.postedFee + 1000))}
+              className={`${field} text-[20px] font-bold tabular-nums`}
+              required
+            />
           </label>
           <label className={fieldLabel}>
-            {t("job.quoteNote")}
-            <input name="note" maxLength={300} className={field} />
+            {t("price.counterWhy")}
+            <input name="note" maxLength={300} className={field} placeholder={t("price.counterWhyPh")} />
           </label>
-        </InlineAction>
+        </ConfirmSheet>,
       );
     }
     secondary.push(<InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
@@ -180,6 +198,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </div>
         <p className="text-[28px] font-bold tabular-nums">{t("job.youEarn", { amount: fmtMoney(net) })}</p>
         {deal.itemBudget > 0 && <p className="text-[15px] text-ink-2">{t("job.plusItems", { amount: fmtMoney(deal.itemBudget) })}</p>}
+        <p className="text-[15px] text-ink-2">⏱ {effort.join(" · ")}</p>
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </Card>

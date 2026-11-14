@@ -1,6 +1,7 @@
 import { expect } from "vitest";
 import {
   CATEGORIES,
+  DEFAULT_CONFIG,
   EngineError,
   HOUR_MS,
   amountDue,
@@ -15,6 +16,7 @@ import {
   type Command,
   type Deal,
   type Effect,
+  type EngineConfig,
   type EngineErrorCode,
   type LedgerEntry,
   type NewErrandInput,
@@ -25,6 +27,20 @@ import {
 } from "../index";
 
 export const T0 = Date.UTC(2026, 10, 12, 8, 0, 0);
+
+/**
+ * Flow tests (states, ledger, refunds) keep the original demo economics — 10% commission, a flat
+ * ₮1,000 service fee, any posted price — so their worked numbers stay readable. Pricing itself is
+ * tested against DEFAULT_CONFIG in money.test.ts / pricing tests.
+ */
+export const TEST_CONFIG: EngineConfig = {
+  ...DEFAULT_CONFIG,
+  commissionBps: 1000,
+  serviceFeeTiers: [{ below: null, fee: 1000 }],
+  priceDownBps: 5000,
+  priceUpBps: 1_000_000,
+  counterUpBps: 1_000_000,
+};
 const ALL_CATS = CATEGORIES.map((c) => c.id);
 
 export const customer = (id = "c1"): UserActor => ({ kind: "user", id, role: "customer" });
@@ -42,6 +58,7 @@ export const system: Actor = { kind: "system" };
 
 /** In-memory stand-in for the DB: applies transitions and checks invariants after every step. */
 export class World {
+  constructor(readonly cfg: EngineConfig = TEST_CONFIG) {}
   now = T0;
   deals = new Map<string, Deal>();
   ledger: LedgerEntry[] = [];
@@ -85,6 +102,7 @@ export class World {
           ...input,
         },
         { now: this.now, actor: by },
+        this.cfg,
       ),
     );
     return id;
@@ -96,6 +114,7 @@ export class World {
       createGoods(
         { id, title: "iPhone 13", price: 1_350_000, checkHours: 24, sellerId: by.id, code: "7K2Q9F", ...input },
         { now: this.now, actor: by },
+        this.cfg,
       ),
     );
     return id;

@@ -11,7 +11,7 @@
 import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee } from "./money";
+import { amountDue, buyerFeeFor, counterMaxFor, errandSplit, heldItemBudget, priceRange, quoteFee, serviceFeeFor } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint } from "./types";
 import type {
   Account,
@@ -199,6 +199,9 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
   if (d.floor !== null && (!Number.isInteger(d.floor) || d.floor < 0 || d.floor > 60)) fail("INVALID_INPUT", "Floor must be 0–60");
   if (d.lift !== null && !["yes", "no", "unknown"].includes(d.lift)) fail("INVALID_INPUT", "Bad lift value");
   if (d.people !== 1 && d.people !== 2) fail("INVALID_INPUT", "People must be 1 or 2");
+  if (!Number.isInteger(d.minutes) || d.minutes < 30 || d.minutes > 480 || d.minutes % 30 !== 0) {
+    fail("INVALID_INPUT", "Duration must be 30 minutes to 8 hours, in 30-minute steps");
+  }
   return {
     km: d.km,
     entrance: clean(d.entrance, 20),
@@ -212,6 +215,11 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
     roundTrip: Boolean(d.roundTrip) && d.km > 0,
     budgetBuffer: Boolean(d.budgetBuffer),
     autoPick: Boolean(d.autoPick),
+    minutes: d.minutes,
+    tools: Boolean(d.tools),
+    // set below by createErrand, never taken from the client
+    quotedFee: 0,
+    counterMax: 0,
   };
 }
 
@@ -232,10 +240,15 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const scheduledAt = input.scheduledAt ?? null;
   if (scheduledAt !== null && scheduledAt <= ctx.now) fail("INVALID_INPUT", "Scheduled time must be in the future");
   const details = normalizeDetails(input.details);
-  const quote = quoteFee(input.category, details, cfg, scheduledAt ?? ctx.now);
+  const startsAt = scheduledAt ?? ctx.now;
+  const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
-  const minFee = Math.max(minFeeAt(scheduledAt ?? ctx.now, cfg), quote.total);
-  if (input.fee < minFee) fail("INVALID_INPUT", `Minimum fee is ₮${minFee}`);
+  // Freedom, but limited: the recommended price −20%…+30% (docs/decisions.md "Pricing").
+  const range = priceRange(quote.total, startsAt, cfg);
+  if (input.fee < range.min) fail("INVALID_INPUT", `Minimum fee is ₮${range.min}`);
+  if (input.fee > range.max) fail("INVALID_INPUT", `Maximum fee is ₮${range.max}`);
+  details.quotedFee = quote.total;
+  details.counterMax = counterMaxFor(input.fee, cfg);
   if (input.itemBudget === 0) details.budgetBuffer = false;
   // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
@@ -260,7 +273,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     itemBudget,
     fee: input.fee,
     postedFee: input.fee,
-    serviceFee: cfg.serviceFee,
+    // fixed at posting from the posted price; a counter-offer doesn't change it
+    serviceFee: serviceFeeFor(input.fee, cfg),
     commissionBps: cfg.commissionBps,
     cancelFee: cfg.cancelFee,
     maxApplicants: cfg.maxApplicants,
@@ -463,11 +477,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.offers = liveOffers(e, ctx.now); // lapsed Instant applications drop out (and may re-apply)
       if (e.offers.some((o) => o.helperId === u.id)) fail("INVALID_INPUT", "You already applied");
       if (e.offers.length >= e.maxApplicants) fail("ILLEGAL_TRANSITION", `Task already has ${e.maxApplicants} applicants`);
-      const price = cmd.price ?? null;
-      if (price !== null && e.mode === "now") fail("INVALID_INPUT", "Instant tasks have a set price; no quotes");
+      // Accept the customer's price, or counter once — higher, up to the cap; never undercut.
+      let price = cmd.price ?? null;
       if (price !== null) {
         assertMoney(price, "price");
-        if (price < DEFAULT_CONFIG.minFee) fail("INVALID_INPUT", `Minimum fee is ₮${DEFAULT_CONFIG.minFee}`);
+        const cap = e.details.counterMax > 0 ? e.details.counterMax : counterMaxFor(e.postedFee);
+        if (price === e.postedFee) price = null;
+        else if (price < e.postedFee) fail("INVALID_INPUT", "A counter-offer can't be below the customer's price");
+        else if (price > cap) fail("INVALID_INPUT", `Maximum counter-offer is ₮${cap}`);
       }
       e.offers.push({ helperId: u.id, note: cmd.note.trim().slice(0, 300), price, at: ctx.now });
       tx.ev("applied", price === null ? { helperId: u.id } : { helperId: u.id, price });

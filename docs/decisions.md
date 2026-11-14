@@ -17,6 +17,25 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 - Docs: DESIGN.md wins over UI-FLOWS.md on layout/navigation (3-tab floating bar, chat inside the deal, SafePay as a home tile, `46,000₮`).
 - **2026-11-15 — hosting: Vercel** (free tier), Seoul region next to Supabase. Private test deployment first: **only `TEST_PHONES` can sign in** while there's no real SMS provider (otherwise on-screen codes would let anyone log in as anyone); payments stay mock; security headers on; dev gallery off. Steps and the before-real-users checklist: `docs/deploy.md`.
 - **2026-11-15 — background scheduler:** Supabase's own **pg_cron + pg_net** call `/api/cron/tick` every 20 s (no outside service). The URL goes in `private.app_config` and the `CRON_SECRET` in **Supabase Vault**, both set at deploy time with `npm run scheduler:configure -- https://<domain>` (never in git); until then the job no-ops. A DB lease prevents overlapping ticks; `system_heartbeats` records the last success or error. Dev: `npm run cron:local`. **Open:** the app must be deployed at a public https address for production ticks (hosting not chosen yet).
+- **2026-11-15 — pricing: build-up price, limited freedom, helpers keep 100%:**
+  - **Research:**
+    - Haejuseyo: the customer names the price above a 5,000 / 6,000 KRW day / night floor; the helper pays a 9.9–11.9% withdrawal fee.
+    - inDrive: recommended fare, green/orange hint, drivers counter.
+    - Airtasker / TaskRabbit: time × rate for unusual jobs.
+    - Mongolia's minimum wage is 792,000₮/month (≈ 4,714₮/h), rising to 1,000,000₮ (≈ 5,952₮/h) on 2027-01-01.
+    - UB delivery: CU ≈ 5,000₮, UBEats ≈ 10,000₮ (owner's estimate).
+  - **Owner's choices:**
+    - Breaking even is fine.
+    - **No percentage cut from helpers:** "in Mongolia you rarely see places taking 10%". Instead the customer pays a small flat service fee shown upfront (500 / 1,000 / 2,000 / 3,000₮ by price step).
+    - 10,000₮/h was too high. **Instead, a build-up price:** 5,000₮ base, plus a visible line for each extra effort (time, distance, heavy, stairs, tools, night, second person).
+    - **Freedom, but limited:** the customer may move the price −20%…+30%. The +30% cap also blocks inflated "fake job" payments. Helpers accept it or counter once (≤ +30%) and never undercut, so there are no price wars.
+  - Odd jobs need no special mode: the price comes from effort answers, not from recognising the job.
+  - All numbers are live at `/ops/pricing`.
+  - **To do:**
+    - re-check the minimum before 2027 (minimum wage rises);
+    - ask QPay / the bank their per-payment cost so the service fee covers it;
+    - once there's data, nudge recommendations toward real agreed prices;
+    - maybe a "cold day" switch (+20%).
 - **2026-11-15 — safety pack, parts 1–2 (controls + SOS):**
   - **Controls (`/ops/safety`, one DB row `platform_controls`, changed without a deploy):** "pause new tasks" and "freeze money movements", plus caps: most held per task (300,000₮), most one customer pays in 24 h (600,000₮), most held platform-wide (5,000,000₮), active tasks per customer (3). Ops can change all of these.
   - **Enforced in the database:** a trigger refuses new deals while posting is paused, and a trigger on `ledger_entries` refuses every entry except `pay_in` while money is frozen (SQLSTATE `PT423`; the whole transition rolls back, so deals keep their state and due releases run after the freeze is lifted).
