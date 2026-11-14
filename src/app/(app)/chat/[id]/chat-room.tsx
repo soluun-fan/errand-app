@@ -1,0 +1,143 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useT } from "@/i18n/client";
+import { compressImage } from "@/lib/image-client";
+import { browserClient } from "@/lib/supabase/browser";
+import { fmtClock } from "@/lib/format";
+import type { ChatMessage } from "@/lib/chat";
+import { prepareChatImage, sendChat } from "./actions";
+
+/**
+ * The conversation: messages, composer and photo button. New messages arrive through Supabase
+ * Realtime (RLS limits what this browser may receive) with an 8 s poll as a safety net, so a
+ * dropped socket never hides a message.
+ */
+export function ChatRoom({ dealId, messages, canSend }: { dealId: string; messages: ChatMessage[]; canSend: boolean }) {
+  const t = useT();
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "warn" | "bad"; text: string } | null>(null);
+  const bottom = useRef<HTMLDivElement>(null);
+  const file = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [messages.length]);
+
+  useEffect(() => {
+    const sb = browserClient();
+    const channel = sb
+      .channel(`chat-${dealId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `deal_id=eq.${dealId}` }, () => router.refresh())
+      .subscribe();
+    const poll = setInterval(() => document.visibilityState === "visible" && router.refresh(), 8000);
+    return () => {
+      clearInterval(poll);
+      void sb.removeChannel(channel);
+    };
+  }, [dealId, router]);
+
+  async function send(imagePath: string | null) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await sendChat(dealId, imagePath ? "" : text, imagePath);
+      if (r.error) setNotice({ tone: "bad", text: r.error });
+      else {
+        if (!imagePath) setText("");
+        if (r.masked) setNotice({ tone: "warn", text: t("chat.maskedNote") });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPhoto(f: File | undefined) {
+    if (!f) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const { blob } = await compressImage(f);
+      const slot = await prepareChatImage(dealId, blob.size);
+      if ("error" in slot) throw new Error(slot.error);
+      const up = await browserClient().storage.from("chat").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
+      if (up.error) throw new Error(t("proof.failed"));
+      await send(slot.path);
+    } catch (e) {
+      setNotice({ tone: "bad", text: e instanceof Error && e.message ? e.message : t("proof.failed") });
+      setBusy(false);
+    } finally {
+      if (file.current) file.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
+
+      <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
+        {messages.length === 0 && <li className="py-8 text-center text-[15px] text-ink-2">{t("chat.empty")}</li>}
+        {messages.map((m) => (
+          <li key={m.id} className={`flex flex-col ${m.fromMe ? "items-end" : "items-start"}`}>
+            <div className={`max-w-[80%] rounded-card px-3.5 py-2 text-[16px] ${m.fromMe ? "bg-ink text-white" : "bg-fill text-ink"}`}>
+              {m.imageUrl && (
+                <a href={m.imageUrl} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage URL */}
+                  <img src={m.imageUrl} alt={t("chat.photo")} className="mb-1 max-h-64 rounded-input object-cover" />
+                </a>
+              )}
+              {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
+            </div>
+            <span className="mt-0.5 text-xs text-ink-2">
+              {fmtClock(m.at)}
+              {m.masked ? ` · ${t("chat.maskedTag")}` : ""}
+              {m.fromMe && m.seen ? ` · ${t("chat.seen")}` : ""}
+            </span>
+          </li>
+        ))}
+        <div ref={bottom} />
+      </ol>
+
+      {notice && (
+        <p role="alert" className={`rounded-input p-3 text-sm ${notice.tone === "warn" ? "bg-warn-bg text-warn" : "bg-danger-bg text-danger"}`}>
+          {notice.text}
+        </p>
+      )}
+
+      {canSend ? (
+        <form
+          className="sticky bottom-0 -mx-5 flex items-end gap-2 border-t border-line bg-bg/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim() && !busy) void send(null);
+          }}
+        >
+          <input ref={file} type="file" accept="image/*" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} />
+          <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
+            📷
+          </button>
+          <label className="sr-only" htmlFor="chat-text">
+            {t("chat.placeholder")}
+          </label>
+          <textarea
+            id="chat-text"
+            rows={1}
+            maxLength={1000}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t("chat.placeholder")}
+            className="max-h-32 min-h-12 flex-1 resize-none rounded-input border border-line bg-bg px-3 py-3 text-[16px] outline-none focus:border-ink"
+          />
+          <button type="submit" disabled={busy || !text.trim()} className="flex h-12 flex-none items-center justify-center rounded-full bg-ink px-4 font-semibold text-white disabled:bg-fill disabled:text-ink-3">
+            {busy ? "…" : t("chat.send")}
+          </button>
+        </form>
+      ) : (
+        <p className="rounded-input bg-fill p-3 text-center text-sm text-ink-2">{t("chat.readOnly")}</p>
+      )}
+    </div>
+  );
+}

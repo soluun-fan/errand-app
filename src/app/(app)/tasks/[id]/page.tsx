@@ -5,6 +5,7 @@ import { getViewer } from "@/lib/auth";
 import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deals/queries";
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
 import { rankApplicants } from "@/lib/dispatch/rank";
+import { accessFor, unreadCount } from "@/lib/chat";
 import { proofsFor } from "@/lib/proofs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pokeTask, taskAction } from "./actions";
@@ -32,6 +33,10 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     .maybeSingle<{ notified: number }>();
   const isCustomer = deal.customerId === viewer.profile.id;
   const ranked = isCustomer && deal.status === "open" ? await rankApplicants(deal) : [];
+  const chatAccess = await accessFor(deal, viewer.profile.id);
+  const chat = chatAccess.canRead && chatAccess.threadHelperId
+    ? { unread: await unreadCount(deal.id, chatAccess.threadHelperId, viewer.profile.id) }
+    : null;
   // The helper's live position (sent by their phone during the job; ignored if older than 10 min).
   let helperPos: { lat: number; lng: number } | null = null;
   if (isCustomer && deal.helperId && (deal.status === "matched" || deal.status === "in_progress")) {
@@ -65,6 +70,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       dispatch={dispatch}
       ranked={ranked}
       helperPos={helperPos}
+      chat={chat}
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
     />
     </>

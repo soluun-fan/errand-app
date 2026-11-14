@@ -424,6 +424,37 @@ describe("proof storage", () => {
   });
 });
 
+describe("chat privacy", () => {
+  it("each helper sees only their own conversation; customer sees theirs; strangers and clients-writing are refused", async () => {
+    const d = await postErrand({ itemBudget: 0 });
+    const msg = (helperId: string, from: string, text: string) =>
+      as(db, "service_role", null, (tx) =>
+        tx.query(`insert into public.messages (deal_id, helper_id, from_user_id, text) values ($1, $2, $3, $4)`, [d.id, helperId, from, text]),
+      );
+    await msg(U.h1, U.c1, "to first helper");
+    await msg(U.h1, U.h1, "from first helper");
+    await msg(U.h2, U.c1, "to second helper");
+    const read = (uid: string) =>
+      as(db, "authenticated", uid, async (tx) =>
+        (await tx.query<{ text: string }>(`select text from public.messages where deal_id = $1 order by created_at, text`, [d.id])).rows.map((r) => r.text),
+      );
+    expect(await read(U.c1)).toHaveLength(3); // the customer
+    expect(await read(U.h1)).toEqual(expect.arrayContaining(["to first helper", "from first helper"]));
+    expect(await read(U.h1)).not.toContain("to second helper");
+    expect(await read(U.h2)).toEqual(["to second helper"]);
+    expect(await read(U.c2)).toEqual([]); // stranger
+    expect(await read(U.ops)).toEqual([]); // Ops only when disputed
+    const write = await sqlError(
+      as(db, "authenticated", U.c1, (tx) =>
+        tx.query(`insert into public.messages (deal_id, helper_id, from_user_id, text) values ($1, $2, $3, 'x')`, [d.id, U.h1, U.c1]),
+      ),
+    );
+    expect(write.message).toMatch(/permission denied/);
+    const empty = await sqlError(msg(U.h1, U.c1, "   "));
+    expect(empty.message).toMatch(/messages_has_content/);
+  });
+});
+
 describe("send SMS hook (mock OTP)", () => {
   const event = (phone: string, otp: string) => JSON.stringify({ user: { phone }, sms: { otp } });
 

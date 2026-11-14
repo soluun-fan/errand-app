@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import { CHAT_GRACE_MS, chatAccess, cleanMessage, maskContacts, type ChatDealView } from "@/lib/chat-rules";
+
+const deal = (o: Partial<ChatDealView> = {}): ChatDealView => ({ status: "matched", customerId: "c", helperId: "h", endedAt: null, ...o });
+const NOW = 1_800_000_000_000;
+
+describe("chatAccess", () => {
+  it("opens once a helper is chosen, for exactly the customer and that helper", () => {
+    for (const status of ["awaiting_payment", "matched", "in_progress", "check", "disputed"] as const) {
+      expect(chatAccess(deal({ status }), "c", NOW)).toMatchObject({ canRead: true, canSend: true, threadHelperId: "h", counterpartId: "h" });
+      expect(chatAccess(deal({ status }), "h", NOW)).toMatchObject({ canRead: true, canSend: true, threadHelperId: "h", counterpartId: "c" });
+      expect(chatAccess(deal({ status }), "stranger", NOW).canRead).toBe(false);
+    }
+  });
+
+  it("no chat while nobody is chosen; applicants can't chat", () => {
+    expect(chatAccess(deal({ status: "open", helperId: null }), "c", NOW).canRead).toBe(false);
+    expect(chatAccess(deal({ status: "open", helperId: null }), "applicant", NOW).canRead).toBe(false);
+  });
+
+  it("a released helper keeps read-only access to their own conversation; the next helper gets a fresh one", () => {
+    const reopened = deal({ status: "matched", helperId: "h2" });
+    expect(chatAccess(reopened, "h1", NOW, true)).toMatchObject({ canRead: true, canSend: false, threadHelperId: "h1" });
+    expect(chatAccess(reopened, "h2", NOW)).toMatchObject({ canSend: true, threadHelperId: "h2" });
+    expect(chatAccess(reopened, "h1", NOW, false).canRead).toBe(false);
+  });
+
+  it("after the task ends: 24 h to send, then read-only", () => {
+    const ended = deal({ status: "released", endedAt: NOW });
+    expect(chatAccess(ended, "c", NOW + CHAT_GRACE_MS - 1).canSend).toBe(true);
+    expect(chatAccess(ended, "c", NOW + CHAT_GRACE_MS)).toMatchObject({ canRead: true, canSend: false });
+  });
+});
+
+describe("maskContacts", () => {
+  const masked = (s: string) => maskContacts(s);
+
+  it("hides Mongolian phone numbers in any common format", () => {
+    for (const s of ["99112233", "9911 2233", "9911-2233", "+976 9911 2233", "976-99-11-22-33", "(976) 88001122"]) {
+      const r = masked(`call me ${s} ok`);
+      expect(r.masked, s).toBe(true);
+      expect(r.text, s).not.toMatch(/\d{4}/);
+    }
+  });
+
+  it("hides e-mails, links and messenger handles", () => {
+    expect(masked("mail bat@gmail.com").masked).toBe(true);
+    expect(masked("see https://example.com/x").masked).toBe(true);
+    expect(masked("my page facebook.com/bat.erdene").masked).toBe(true);
+    expect(masked("telegram @baterdene88").masked).toBe(true);
+    expect(masked("fb: bat.erdene").masked).toBe(true);
+  });
+
+  it("keeps ordinary details: door codes, floors, prices, times", () => {
+    for (const s of ["Орц 2, давхар 5, тоот 54", "код 1234#", "үнэ 18,500₮", "15:30-д ирнэ", "2 литр сүү", "нийт 1 250 000₮", "2026-11-14-нд", "20261114"]) {
+      expect(masked(s), s).toEqual({ text: s, masked: false });
+    }
+  });
+});
+
+describe("cleanMessage", () => {
+  it("trims, collapses blank lines, rejects empty or too long", () => {
+    expect(cleanMessage("  hi\r\n\n\n\nthere  ")).toBe("hi\n\nthere");
+    expect(cleanMessage("   ")).toBeNull();
+    expect(cleanMessage("x".repeat(1001))).toBeNull();
+  });
+});

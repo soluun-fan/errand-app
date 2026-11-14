@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { openDealIds, runDispatch } from "@/lib/dispatch/run";
+import { purgeExpiredChats } from "@/lib/chat";
 import { settleDueDeals } from "@/lib/deals/queries";
 
 /**
@@ -7,6 +8,7 @@ import { settleDueDeals } from "@/lib/deals/queries";
  * (Supabase pg_cron + pg_net, or any cron) with `Authorization: Bearer $CRON_SECRET`.
  * 1. runs what is due: payment-window lapses, no-helper expiry, auto-release
  * 2. advances dispatch waves for open tasks
+ * 3. deletes chats (and their photos) 90 days after a task ended
  * Everything here is idempotent; screens also trigger the same work lazily.
  */
 export async function GET(request: Request) {
@@ -26,5 +28,9 @@ export async function GET(request: Request) {
       console.error("dispatch failed", id, e);
     }
   }
-  return Response.json({ settled, dispatched: waves, at: new Date(now).toISOString() });
+  const chatsPurged = await purgeExpiredChats(now).catch((e) => {
+    console.error("chat purge failed", e);
+    return 0;
+  });
+  return Response.json({ settled, dispatched: waves, chatsPurged, at: new Date(now).toISOString() });
 }

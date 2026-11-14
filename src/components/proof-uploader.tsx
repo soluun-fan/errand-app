@@ -4,38 +4,9 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { prepareProof, submitProof } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
-import { dhashFromGray, grayFromRgba } from "@/lib/proof-hash";
+import { compressImage, dhashOfBitmap, sha256Hex } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import { btn, field, fieldLabel } from "./ui";
-
-const MAX_SIDE = 1600;
-
-/** Downscale + re-encode a photo as JPEG (small uploads on mobile data; strips nothing we rely on). */
-async function compress(file: File): Promise<{ blob: Blob; bitmap: ImageBitmap }> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const blob = await new Promise<Blob>((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("encode"))), "image/jpeg", 0.82));
-  return { blob, bitmap };
-}
-
-function dhashOf(bitmap: ImageBitmap): string {
-  const c = document.createElement("canvas");
-  c.width = 9;
-  c.height = 8;
-  const ctx = c.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return "";
-  ctx.drawImage(bitmap, 0, 0, 9, 8);
-  return dhashFromGray(grayFromRgba(ctx.getImageData(0, 0, 9, 8).data));
-}
-
-async function sha256(blob: Blob): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 function position(): Promise<{ lat: number; lng: number } | null> {
   if (!("geolocation" in navigator)) return Promise.resolve(null);
@@ -74,12 +45,12 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "r
       let blob: Blob = file;
       let dhash: string | null = null;
       if (!isVideo) {
-        const c = await compress(file);
+        const c = await compressImage(file);
         blob = c.blob;
-        dhash = dhashOf(c.bitmap) || null;
+        dhash = dhashOfBitmap(c.bitmap) || null;
       }
       const mime = isVideo ? file.type : "image/jpeg";
-      const [hash, pos] = await Promise.all([sha256(blob), position()]);
+      const [hash, pos] = await Promise.all([sha256Hex(blob), position()]);
       const slot = await prepareProof(dealId, kind, mime, blob.size);
       if ("error" in slot) throw new Error(slot.error);
       const up = await browserClient().storage.from("proofs").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: mime });

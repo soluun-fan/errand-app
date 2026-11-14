@@ -41,6 +41,8 @@ export interface DealViewProps {
   helperPos?: { lat: number; lng: number } | null;
   /** Photo / video proof with signed URLs. */
   proofs?: ProofView[];
+  /** Chat entry (null when there's no conversation for this viewer). */
+  chat?: { unread: number } | null;
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -56,6 +58,16 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
  * money and details; one primary action in the sticky bar. Pure render — the gallery
  * (/dev/ui) uses it with fixture data.
  */
+/** "💬 Чат" with an unread badge. */
+export function ChatLink({ dealId, unread, t }: { dealId: string; unread: number; t: T }) {
+  return (
+    <Link href={`/chat/${dealId}`} className={`${btn.secondary} relative w-full`}>
+      💬 {t("chat.open")}
+      {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
+    </Link>
+  );
+}
+
 export function DealView(p: DealViewProps) {
   const { deal, events, people, t, locale, serverNow } = p;
   const isCustomer = deal.customerId === p.viewerId;
@@ -419,7 +431,11 @@ export function DealView(p: DealViewProps) {
       )}
 
       {deal.helperId && (
-        <OfferCard person={person(people.get(deal.helperId), helperName)} t={t} />
+        <OfferCard
+          person={person(people.get(deal.helperId), helperName)}
+          t={t}
+          action={p.chat ? <ChatLink dealId={deal.id} unread={p.chat.unread} t={t} /> : undefined}
+        />
       )}
 
       {deal.status === "open" && isCustomer && (

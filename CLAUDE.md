@@ -44,6 +44,6 @@ Next.js 16 (App Router) + TypeScript + Tailwind 4 · Supabase (Postgres, auth, s
 3. ✅ UI tokens + components page (`docs/ui.md`)
 4. ✅ Customer flow: post (free, map pin) → match → pay held (mock) → live → check → confirm/dispute → rate
 5. Helper: ✅ online + radius, wave dispatch + Web Push, nearby feed, accept/quote/withdraw/start · ⏳ proof upload (photo/video + AI checks), earnings
-6. Chat with masking + LiveKit voice/video calls · 7. Two-way ratings · 8. SafePay · 9. Ops panel · 10. Background jobs (✅ `/api/cron/tick`; scheduler TBD) · 11. MN copy review · 12. Real QPay/bank adapters
+5b. ✅ Photo/video proof · 6. Chat + key-free WebRTC voice/video calls (Supabase Realtime signaling) · 7. Two-way ratings · 8. SafePay · 9. Ops panel · 10. Background jobs (✅ `/api/cron/tick`; scheduler TBD) · 11. MN copy review · 12. Real QPay/bank adapters
 
 Keep this file short. Put new detail in the matching `docs/` file.

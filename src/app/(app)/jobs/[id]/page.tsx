@@ -16,7 +16,9 @@ import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
+import { accessFor, unreadCount } from "@/lib/chat";
 import { proofsFor } from "@/lib/proofs";
+import { ChatLink } from "../../tasks/[id]/deal-view";
 import { jobAction } from "../actions";
 
 /**
@@ -152,6 +154,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupAddress);
 
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
+  const chatAccess = await accessFor(deal, me);
+  const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
 
   return (
     <>
@@ -176,6 +180,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </Card>
 
+      {unread !== null && <ChatLink dealId={deal.id} unread={unread} t={t} />}
       {markers.length > 0 && <TaskMap markers={markers} showMe className="h-56" />}
       {exact ? (
         <a href={directions} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} w-full`}>
