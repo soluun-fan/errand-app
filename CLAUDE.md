@@ -4,6 +4,8 @@
 
 Mongolian (UB-first) errand marketplace + held payments. Customers post small physical tasks; verified helpers do them; payment is held by a partner bank until the customer confirms. **SafePay** reuses the same hold engine for buying from strangers. One deal engine powers both.
 
+**New here? Read `docs/CONTEXT.md` first** — the whole picture (product, architecture, lifecycle, dispatch, status, weak spots) on one page.
+
 ## Read only what the task needs
 | Working on | Read |
 |---|---|
