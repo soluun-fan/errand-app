@@ -399,6 +399,31 @@ describe("dispatch queries", () => {
   });
 });
 
+describe("proof storage", () => {
+  it("creates a PRIVATE bucket and stores fingerprints; only participants read proof rows", async () => {
+    expect(await scalar<boolean>(db, `select public as v from storage.buckets where id = 'proofs'`)).toBe(false);
+    const d = await step(await postErrand({ itemBudget: 0 }), { type: "accept" }, helper(U.h1), T0);
+    await as(db, "service_role", null, (tx) =>
+      tx.query(
+        `insert into public.proofs (deal_id, kind, file_path, mime, bytes, sha256, dhash, flags, uploaded_by)
+         values ($1, 'handover', $2, 'image/jpeg', 1234, $3, 'a1b2c3d4e5f60718', '{similar_photo}', $4)`,
+        [d.id, `${d.id}/handover-x.jpg`, "a".repeat(64), U.h1],
+      ),
+    );
+    const read = (uid: string) =>
+      as(db, "authenticated", uid, async (tx) => (await tx.query(`select flags from public.proofs where deal_id = $1`, [d.id])).rows);
+    expect(await read(U.c1)).toEqual([{ flags: ["similar_photo"] }]); // customer
+    expect(await read(U.h1)).toHaveLength(1); // assigned helper
+    expect(await read(U.c2)).toEqual([]); // stranger
+    const bad = await sqlError(
+      as(db, "service_role", null, (tx) =>
+        tx.query(`insert into public.proofs (deal_id, kind, sha256, uploaded_by) values ($1, 'receipt', 'nothex', $2)`, [d.id, U.h1]),
+      ),
+    );
+    expect(bad.message).toMatch(/check constraint/);
+  });
+});
+
 describe("send SMS hook (mock OTP)", () => {
   const event = (phone: string, otp: string) => JSON.stringify({ user: { phone }, sms: { otp } });
 

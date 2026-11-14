@@ -5,6 +5,7 @@ import { getViewer } from "@/lib/auth";
 import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deals/queries";
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
 import { rankApplicants } from "@/lib/dispatch/rank";
+import { proofsFor } from "@/lib/proofs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
@@ -64,6 +65,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       dispatch={dispatch}
       ranked={ranked}
       helperPos={helperPos}
+      proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
     />
     </>
   );

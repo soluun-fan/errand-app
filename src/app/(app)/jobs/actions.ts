@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { DbError, runCommand } from "@/lib/db/deals";
+import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
 import { EngineError, type Command } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
+import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -70,6 +71,82 @@ export async function trackJob(dealId: string, lat: number, lng: number): Promis
     .upsert({ user_id: viewer.profile.id, lat, lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 }
 
+/* ---------- proof upload (docs/rules.md §Proof) ---------- */
+
+async function assignedInProgress(dealId: string, helperId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(dealId)) return null;
+  const deal = await loadDeal(createAdminClient(), dealId);
+  return deal?.type === "errand" && deal.helperId === helperId && deal.status === "in_progress" ? deal : null;
+}
+
+/** Step 1: a signed upload URL for one file — only for the assigned helper of a task in progress. */
+export async function prepareProof(dealId: string, kind: ProofKind, mime: string, bytes: number): Promise<UploadSlot | { error: string }> {
+  const viewer = await helperViewer();
+  const t = await getT();
+  if (!(await assignedInProgress(dealId, viewer.profile.id))) return { error: t("error.changed") };
+  if (!(PROOF_MIME as readonly string[]).includes(mime) || (kind === "receipt" && !mime.startsWith("image/"))) return { error: t("proof.badType") };
+  if (!(bytes > 0 && bytes <= MAX_PROOF_BYTES)) return { error: t("proof.tooBig") };
+  return createUploadSlot(dealId, kind, mime);
+}
+
+export interface ProofSubmit {
+  dealId: string;
+  kind: ProofKind;
+  path: string;
+  mime: string;
+  bytes: number;
+  sha256: string | null;
+  dhash: string | null;
+  amount: number | null;
+  lat: number | null;
+  lng: number | null;
+  takenAt: number | null;
+}
+
+/** Step 2 (after the browser uploaded): record the proof, then tell the engine (receipt / handover). */
+export async function submitProof(p: ProofSubmit): Promise<{ error?: string; flags?: string[] }> {
+  const viewer = await helperViewer();
+  const t = await getT();
+  const deal = await assignedInProgress(p.dealId, viewer.profile.id);
+  if (!deal) return { error: t("error.changed") };
+  const amount = p.kind === "receipt" ? Number(p.amount) : null;
+  if (p.kind === "receipt" && !(Number.isSafeInteger(amount) && (amount as number) > 0)) return { error: t("proof.amountNeeded") };
+  const clean = (v: unknown, re: RegExp) => (typeof v === "string" && re.test(v) ? v : null);
+  try {
+    const flags = await recordProof({
+      dealId: p.dealId,
+      kind: p.kind,
+      path: String(p.path),
+      mime: String(p.mime),
+      bytes: Number(p.bytes),
+      sha256: clean(p.sha256, /^[0-9a-f]{64}$/),
+      dhash: clean(p.dhash, /^[0-9a-f]{16}$/),
+      amount,
+      lat: Number.isFinite(p.lat) ? p.lat : null,
+      lng: Number.isFinite(p.lng) ? p.lng : null,
+      takenAt: Number.isFinite(p.takenAt) ? p.takenAt : null,
+      uploadedBy: viewer.profile.id,
+    });
+    const cmd: Command = p.kind === "receipt" ? { type: "record_receipt", amount: amount as number } : { type: "record_handover" };
+    const r = await runCommand(createAdminClient(), p.dealId, cmd, viewer.actor);
+    if (r.deal.type === "errand" && r.deal.topUp?.status === "pending") {
+      await notify([r.deal.customerId], {
+        title: "push.topUpTitle",
+        body: "push.topUpBody",
+        params: { amount: fmtMoney(r.deal.topUp.amount) },
+        url: `/tasks/${p.dealId}`,
+        tag: `task-${p.dealId}`,
+      });
+    }
+    refresh();
+    return { flags };
+  } catch (e) {
+    if (e instanceof EngineError) return { error: t("error.changed") };
+    console.error("proof failed", e);
+    return { error: t("proof.failed") };
+  }
+}
+
 export async function savePush(sub: BrowserSubscription): Promise<void> {
   const viewer = await helperViewer();
   await saveSubscription(viewer.profile.id, sub, await getLocale());
@@ -117,6 +194,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     } else if (intent === "unapply") cmd = { type: "withdraw_offer" };
     else if (intent === "withdraw") cmd = { type: "cancel" };
     else if (intent === "start") cmd = { type: "start" };
+    else if (intent === "finish") cmd = { type: "finish" };
     else return { error: t("error.generic") };
 
     const { deal } = await runCommand(db, dealId, cmd, viewer.actor);
@@ -140,12 +218,22 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       });
     } else if (intent === "withdraw") {
       await runDispatch(dealId); // back to searching
+    } else if (intent === "finish") {
+      await notify([deal.customerId], {
+        title: "push.doneTitle",
+        body: "push.doneBody",
+        params: { title: deal.title, hours: deal.checkHours },
+        url: `/tasks/${dealId}`,
+        tag: `task-${dealId}`,
+      });
     }
   } catch (e) {
     if (e instanceof EngineError) {
       refresh();
       if (e.code === "FORBIDDEN") return { error: t("error.forbidden") };
       if (/Minimum fee/.test(e.message)) return { error: t("job.quoteInvalid") };
+      if (e.code === "PROOF_MISSING") return { error: t("proof.missing") };
+      if (/approve the extra/.test(e.message)) return { error: t("proof.waitTopUp") };
       if (/applicants/.test(e.message)) return { error: t("job.full") };
       return { error: intent === "apply" || intent === "quote" ? t("job.taken") : t("error.changed") };
     }

@@ -27,6 +27,15 @@ const SUPABASE_STUBS = `
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant execute on function auth.uid() to anon, authenticated, service_role;
+  -- Supabase Storage keeps buckets in storage.buckets.
+  create schema storage;
+  create table storage.buckets (
+    id text primary key,
+    name text not null,
+    public boolean default false,
+    file_size_limit bigint,
+    allowed_mime_types text[]
+  );
 `;
 
 /** Supabase's default grants for the service role, applied after migrations. */

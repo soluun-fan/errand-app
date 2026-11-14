@@ -15,6 +15,8 @@ import { CATEGORY_ICON, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/li
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { googlePlaceUrl } from "@/lib/maps";
+import { ProofGallery } from "@/components/proof-gallery";
+import type { ProofView } from "@/lib/proofs";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
 
@@ -37,6 +39,8 @@ export interface DealViewProps {
   ranked?: { helperId: string; distanceKm: number | null }[];
   /** Live helper position during the job (customer only). */
   helperPos?: { lat: number; lng: number } | null;
+  /** Photo / video proof with signed URLs. */
+  proofs?: ProofView[];
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -453,6 +457,13 @@ export function DealView(p: DealViewProps) {
               />
             );
           })}
+        </section>
+      )}
+
+      {p.proofs && p.proofs.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-bold">{t("proof.title")}</h2>
+          <ProofGallery proofs={p.proofs} t={t} />
         </section>
       )}
 

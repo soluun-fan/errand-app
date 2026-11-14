@@ -3,6 +3,8 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { Countdown } from "@/components/countdown";
 import { InlineAction } from "@/components/inline-action";
 import { JobBeacon } from "@/components/job-beacon";
+import { ProofGallery } from "@/components/proof-gallery";
+import { ProofUploader } from "@/components/proof-uploader";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
 import { StatusBadge } from "@/components/status-badge";
@@ -14,6 +16,7 @@ import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
+import { proofsFor } from "@/lib/proofs";
 import { jobAction } from "../actions";
 
 /**
@@ -115,7 +118,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     line = t("job.paidGo");
     primary = <InlineAction action={jobAction} fields={{ ...fields, intent: "start" }} label={t("job.start")} className={`${btn.primary} w-full`} />;
   } else if (mine && deal.status === "in_progress") {
-    line = t("job.inProgress");
+    const needReceipt = deal.itemBudget > 0 && deal.receiptAmount === null && deal.topUp?.status !== "declined";
+    const ready = deal.handoverProofAt !== null && !needReceipt && deal.topUp?.status !== "pending";
+    if (ready) {
+      primary = (
+        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`} />
+      );
+      line = t("proof.finishSub", { hours: deal.checkHours });
+    }
   }
   if (mine && (deal.status === "matched" || deal.status === "in_progress")) {
     secondary.push(
@@ -140,6 +150,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     ? [exact ? { ...deal.location, kind: "task", label: deal.address } : { ...fuzz(deal.location), kind: "area" }]
     : [];
   const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupAddress);
+
+  const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
 
   return (
     <>
@@ -172,6 +184,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       ) : (
         deal.location && <p className="-mt-2 text-sm text-ink-2">{t("map.approx")}</p>
       )}
+
+      {mine && deal.status === "in_progress" && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-bold">{t("proof.title")}</h2>
+          {deal.itemBudget > 0 && deal.topUp?.status !== "declined" && (
+            <ProofUploader dealId={deal.id} kind="receipt" done={deal.receiptAmount !== null} />
+          )}
+          {deal.topUp?.status === "pending" && <Note tone="warn">{t("proof.waitTopUp")}</Note>}
+          <ProofUploader dealId={deal.id} kind="handover" done={deal.handoverProofAt !== null} />
+        </section>
+      )}
+      {proofs.length > 0 && <ProofGallery proofs={proofs} t={t} showFlags={false} />}
 
       <Card>
         <p className="whitespace-pre-line text-[16px]">{deal.description}</p>

@@ -2,7 +2,7 @@
 
 Read this first if you are a model picking up this codebase cold. It explains what the product is, how the code is put together, which rules must never break, what is built, what isn't, and where the weak spots are. Detailed rules live in `docs/*.md`; this file connects them.
 
-_State as of 2026-11-14._
+_State as of 2026-11-14 (after proof upload)._
 
 ---
 
@@ -58,7 +58,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **163 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **169 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -253,11 +253,12 @@ All seven are applied to the hosted project.
 - Helper online/radius, wave dispatch, Web Push, nearby and all-tasks feeds, apply/quote/withdraw/start.
 - Customer chooses with "Choose for me".
 - Maps on both sides, live helper position, Google Maps directions.
+- **Photo/video proof:** receipt photo with its total, handover photo or video, a private bucket with signed upload and read links, sha256 + perceptual-hash reuse flags, then "Дууслаа" → check. The helper's earnings list shows finished jobs.
 - Wallet, history and earnings read from the ledger.
 - Dev gallery.
 
 **Not built yet** (rough priority):
-1. **Proof upload** (photo/video to Supabase Storage). Helpers can start but can't finish in the real app yet. Plan: PaddleOCR for receipt totals, plus a hosted vision model to flag bad proof (flags only; Ops decides).
+1. **AI proof checks:** PaddleOCR to read receipt totals versus what the helper typed, plus a hosted vision model ("does this show the job done?"). Results go in `proofs.ai` as flags only; Ops decides. Needs the owner's API key.
 2. **Chat, voice and video calls** inside the deal (LiveKit Cloud first), with phone numbers masked.
 3. **Two-way ratings** (helpers rate customers; each side's rating hidden until both submit).
 4. **SafePay screens** (the engine exists).
