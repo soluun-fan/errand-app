@@ -13,7 +13,7 @@ export default async function OpsHelpersPage() {
   const [t, locale, queue] = await Promise.all([getT(), getLocale(), reviewQueue()]);
   return (
     <>
-      <FlowHeader href="/profile" label={t("common.back")} title={t("ops.title")} />
+      <FlowHeader href="/ops" label={t("common.back")} title={t("ops.title")} />
       {queue.length === 0 ? (
         <EmptyState icon="✅" title={t("ops.empty")} />
       ) : (

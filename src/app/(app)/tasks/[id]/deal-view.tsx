@@ -43,6 +43,8 @@ export interface DealViewProps {
   proofs?: ProofView[];
   /** Chat entry (null when there's no conversation for this viewer). */
   chat?: { unread: number } | null;
+  /** SOS / report-a-problem row (client component, passed in by the page). */
+  safety?: ReactNode;
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -438,6 +440,8 @@ export function DealView(p: DealViewProps) {
           action={p.chat ? <ChatLink dealId={deal.id} unread={p.chat.unread} t={t} /> : undefined}
         />
       )}
+
+      {p.safety}
 
       {deal.status === "open" && isCustomer && (
         <section className="flex flex-col gap-2" aria-live="polite">

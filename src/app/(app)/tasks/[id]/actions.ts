@@ -13,7 +13,9 @@ import { notify } from "@/lib/push";
 import { EngineError, amountDue, type Command } from "@/lib/engine";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
+import { getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fmtMoney } from "@/lib/format";
 
 const DISPUTE_NOTE_MIN = 20;
 
@@ -36,6 +38,8 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (!mockPaymentsEnabled()) return { error: t("error.generic") };
         const deal = await loadDeal(db, dealId);
         if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
+        const blocked = await payinBlock(deal.id, viewer.profile.id, amountDue(deal));
+        if (blocked) return { error: await payinMessage(blocked, t) };
         const invoice = await paymentProvider().createInvoice(deal.id, amountDue(deal));
         const paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
         if (paid.deal.type === "errand" && paid.deal.helperId) {
@@ -60,6 +64,8 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         const deal = await loadDeal(db, dealId);
         if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
         if (deal.topUp?.status !== "pending") return { error: t("error.changed") };
+        const blocked = await payinBlock(deal.id, viewer.profile.id, deal.topUp.amount);
+        if (blocked) return { error: await payinMessage(blocked, t) };
         const invoice = await paymentProvider().createInvoice(deal.id, deal.topUp.amount, `topup-${deal.topUp.at}`);
         await runCommand(db, deal.id, { type: "confirm_topup", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
         return { done: true };
@@ -105,12 +111,23 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
       refresh();
       return { error: e.code === "FORBIDDEN" ? t("error.forbidden") : t("error.changed") };
     }
+    if (isPausedError(e)) return { error: t("safety.moneyFrozen") };
     if (e instanceof DbError) return { error: t("error.generic") };
     throw e;
   }
 
   refresh();
   return { done: true };
+}
+
+/** Why a payment can't start right now, in the customer's words. Nothing has been charged. */
+async function payinMessage(reason: PayinBlock, t: Awaited<ReturnType<typeof getT>>): Promise<string> {
+  if (reason === "payments_paused") return t("safety.paymentsPaused");
+  if (reason === "cap_total") return t("safety.capTotal");
+  const c = await getControls();
+  return reason === "cap_deal"
+    ? t("safety.capDeal", { amount: fmtMoney(c.maxDealAmount) })
+    : t("safety.capDaily", { amount: fmtMoney(c.maxCustomerDaily) });
 }
 
 /**

@@ -265,6 +265,11 @@ Migrations, in order:
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
 - **Helper verification:** `/helper/apply` form (ID front/back, selfie with ID, record certificate, payout account in the same name), Ops review at `/ops/helpers`, private `kyc` bucket with 5-minute links, documents deleted 30 days after the decision, badges "✓ Баталгаажсан" / "✓ Ял шийтгэлгүй" (`lib/kyc.ts`, `lib/kyc-rules.ts`).
 - **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
+- **Safety controls and SOS:**
+  - Ops hub `/ops`.
+  - `/ops/safety`: pause new tasks, freeze money movements, caps per task / per customer per day / platform-wide / active tasks. These are enforced by DB triggers and `payin_check()` before invoices. The page also shows the audit log.
+  - SOS on task and job screens: 102 / 103 plus an alert to Ops with position, re-pinged until acknowledged; the other person is not told.
+  - "Report a problem", reviewed in `/ops/incidents` (`lib/safety.ts`, `lib/incidents.ts`, `lib/incident-rules.ts`).
 - Wallet, history and earnings read from the ledger.
 - Dev gallery.
 
@@ -282,7 +287,7 @@ Migrations, in order:
 11. **Google Maps tiles, Places and Routes** once the owner adds a key.
 12. **Native review of the Mongolian copy.**
 13. **From the reference review** (`docs/decisions.md`, 2026-11-14):
-    - customer limits (active tasks, unpaid balance);
+    - customer limits (active tasks: done; unpaid balance: not yet);
     - cancellation reasons;
     - tips;
     - "N helpers nearby" on Home;
@@ -301,7 +306,10 @@ Migrations, in order:
   - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
   - The pickup address text is shown pre-match (fine for stores, not for homes).
   - `helper_presence` holds precise live locations. Retention and deletion policy are undecided.
-- **Trust and safety:** helper verification is a manual Ops review (no ДАН integration or automatic face match yet). There's no rate limiting on actions. Dispute evidence (proof photos, chat logs, call recordings) isn't stored yet.
+- **Trust and safety:**
+  - Helper verification is a manual Ops review (no ДАН integration or automatic face match yet).
+  - SOS reaches Ops by push only (no SMS or phone fallback), and nobody is on duty yet.
+  - Rate limits exist for chat, calls and reports, not for every action. Dispute evidence (proof photos, chat logs, call recordings) isn't stored yet.
 - **Unit economics:** service fee and commission are demo numbers; partner-bank and QPay fees aren't modeled.
 - **Legacy data:** deals paid at posting (the old flow) still work through special branches (`assignHelper` with `heldAmount > 0`, refunds on cancel/expire). They can be removed once no such deals exist.
 - **Testing gaps:** client interactions (maps, sheets, push, geolocation) are verified only by server-render checks and scripts, not in a real browser or on a phone.

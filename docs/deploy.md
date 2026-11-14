@@ -61,6 +61,8 @@ Every `git push` to `main` redeploys automatically. Changed environment variable
 - Codes on screen and sign-in are limited to `TEST_PHONES` until a real SMS provider is connected (`src/lib/login-policy.ts`). Without that limit, anyone could log in as any number.
 - Security headers: no embedding in other sites, and camera, microphone and location are allowed only for this site (`next.config.ts`).
 - The developer gallery (`/dev/components`) doesn't exist on a deployed site.
+- **Emergency switches** at `/ops/safety` (admins): pause new tasks, freeze all money movements, caps per task / per customer per day / platform-wide. They work instantly, with no redeploy, and every change is logged.
+- **SOS** on every live task: 102 / 103 and an alert to Ops with the phone's position. Turn on notifications for your admin account at **Profile → Operations** on the phone you carry.
 - Secrets are only in Vercel's encrypted settings and Supabase Vault (the scheduler secret), never in git.
 
 ## Before real users (not done yet)
@@ -71,3 +73,5 @@ Every `git push` to `main` redeploys automatically. Changed environment variable
 - [ ] Your own domain, for example `tuslamj.mn` (Vercel → Domains), then run `scheduler:configure` again with it.
 - [ ] Terms of service and a privacy policy (ID documents, location, chat retention).
 - [ ] Native review of the Mongolian text.
+- [ ] **Someone on duty for SOS** while tasks run (push on, phone charged), plus a written "what to do on an SOS" checklist. Consider an SMS fallback to Ops once the SMS provider exists.
+- [ ] Review the caps at `/ops/safety` for the beta size (defaults: 300,000₮ per task, 600,000₮ per customer per day, 5,000,000₮ held in total, 3 active tasks).

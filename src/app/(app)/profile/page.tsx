@@ -111,8 +111,8 @@ export default async function ProfilePage() {
       </section>
 
       {profile.role === "admin" && (
-        <Link href="/ops/helpers" className={`${btn.secondary} w-full`}>
-          🛡️ {t("ops.title")}
+        <Link href="/ops" className={`${btn.secondary} w-full`}>
+          🛡️ {t("opsHome.title")}
         </Link>
       )}
       <Link href="/help" className={`${btn.secondary} w-full`}>

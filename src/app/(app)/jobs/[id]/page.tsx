@@ -18,6 +18,9 @@ import { CATEGORY_ICON } from "@/lib/labels";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { proofsFor } from "@/lib/proofs";
+import { SafetyBar } from "@/components/safety-bar";
+import { SOS_STATUSES } from "@/lib/incident-rules";
+import { liveSos } from "@/lib/incidents";
 import { ChatLink } from "../../tasks/[id]/deal-view";
 import { jobAction } from "../actions";
 
@@ -156,6 +159,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
   const chatAccess = await accessFor(deal, me);
   const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
+  const sos = mine ? await liveSos(deal.id, me) : null;
 
   return (
     <>
@@ -181,6 +185,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       </Card>
 
       {unread !== null && <ChatLink dealId={deal.id} unread={unread} t={t} />}
+      {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
       {markers.length > 0 && <TaskMap markers={markers} showMe className="h-56" />}
       {exact ? (
         <a href={directions} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} w-full`}>

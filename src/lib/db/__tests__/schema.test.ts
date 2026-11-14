@@ -520,6 +520,105 @@ describe("helper verification data", () => {
   });
 });
 
+describe("safety controls", () => {
+  const controls = (sql: string) => as(db, "service_role", null, (tx) => tx.query(`update public.platform_controls set ${sql}`));
+  const reset = () =>
+    controls(`posting_paused = false, payments_paused = false, max_deal_amount = 300000, max_customer_daily = 600000, max_total_held = 5000000`);
+  const check = (deal: string, payer: string, amount: number) =>
+    as(db, "service_role", null, async (tx) =>
+      (await tx.query<{ v: string | null }>(`select public.payin_check($1, $2, $3) as v`, [deal, payer, amount])).rows[0].v,
+    );
+
+  it("payin_check: OK by default; refuses when paused or over a cap (per task, per customer per day, platform)", async () => {
+    try {
+      const d = await matched({ customerId: U.c2 });
+      expect(await check(d.id, U.c2, 48000)).toBeNull();
+      expect(await check(d.id, U.c2, 300001)).toBe("cap_deal");
+      await controls(`payments_paused = true`);
+      expect(await check(d.id, U.c2, 48000)).toBe("payments_paused");
+      await controls(`payments_paused = false, max_customer_daily = 50000`);
+      // a pay-in booked now (ledger time = now) counts towards today's limit
+      await pay(d, Date.now());
+      expect(await check(d.id, U.c2, 1000)).toBeNull();
+      expect(await check(d.id, U.c2, 3000)).toBe("cap_daily");
+      await controls(`max_customer_daily = 600000, max_total_held = 1`);
+      expect(await check(d.id, U.c2, 1000)).toBe("cap_total");
+    } finally {
+      await reset();
+    }
+  });
+
+  it("money freeze: a real pay-in is still booked, but nothing leaves the hold until it is lifted", async () => {
+    try {
+      let d = await matched();
+      await controls(`payments_paused = true`);
+      d = await pay(d, T0 + 90_000); // the bank said it arrived → recorded
+      expect(d.heldAmount).toBe(48000);
+      d = await step(d, { type: "start" }, helper(U.h1), T0 + 120_000);
+      d = await step(d, { type: "record_receipt", amount: 35500 }, helper(U.h1), T0 + 180_000);
+      d = await step(d, { type: "record_handover" }, helper(U.h1), T0 + 240_000);
+      d = await step(d, { type: "finish" }, helper(U.h1), T0 + 300_000);
+      const err = await sqlError(step(d, { type: "confirm" }, customer(U.c1), T0 + 360_000));
+      expect(err.code).toBe("PT423");
+      const still = await loadDeal(db, d.id);
+      expect(still?.status).toBe("check");
+      expect(still?.heldAmount).toBe(48000);
+      await controls(`payments_paused = false`);
+      d = await step(d, { type: "confirm" }, customer(U.c1), T0 + 360_000);
+      expect(d.status).toBe("released");
+      await noViolations();
+    } finally {
+      await reset();
+    }
+  });
+
+  it("posting pause refuses new deals at the database", async () => {
+    try {
+      await controls(`posting_paused = true`);
+      const err = await sqlError(postErrand());
+      expect(err.code).toBe("PT423");
+    } finally {
+      await reset();
+    }
+  });
+
+  it("controls, incidents and the Ops log are server-only; the log is append-only; one live SOS per person per task", async () => {
+    const d = await matched();
+    const sos = (status = "open") =>
+      as(db, "service_role", null, (tx) =>
+        tx.query(
+          `insert into public.incidents (deal_id, reporter_id, subject_id, kind, status, ops_note, resolved_at)
+           values ($1, $2, $3, 'sos', $4, $5, $6)`,
+          [d.id, U.c1, U.h1, status, status === "resolved" ? "ok" : null, status === "resolved" ? new Date().toISOString() : null],
+        ),
+      );
+    await sos();
+    expect((await sqlError(sos())).message).toMatch(/duplicate key/);
+    await as(db, "service_role", null, (tx) => tx.query(`update public.incidents set status = 'resolved', ops_note = 'Called, safe', resolved_at = now() where deal_id = $1`, [d.id]));
+    await sos(); // a new SOS after the first was resolved is fine
+    const unresolved = await sqlError(
+      as(db, "service_role", null, (tx) => tx.query(`update public.incidents set status = 'resolved' where deal_id = $1 and status = 'open'`, [d.id])),
+    );
+    expect(unresolved.message).toMatch(/resolved_has_note/);
+
+    await as(db, "service_role", null, (tx) => tx.query(`insert into public.ops_audit_log (actor_id, action, target) values ($1, 'controls.update', 'platform')`, [U.ops]));
+    for (const sql of [`update public.ops_audit_log set action = 'x'`, `delete from public.ops_audit_log`, `delete from public.platform_controls`]) {
+      const err = await sqlError(as(db, "service_role", null, (tx) => tx.query(sql)));
+      expect(err.message, sql).toMatch(/append-only|single row/);
+    }
+    for (const sql of [
+      `select * from public.platform_controls`,
+      `select * from public.incidents`,
+      `select * from public.ops_audit_log`,
+      `insert into public.incidents (deal_id, reporter_id, kind) values ('${d.id}', '${U.c1}', 'other')`,
+      `select public.payin_check('${d.id}', '${U.c1}', 1000)`,
+    ]) {
+      const err = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(sql)));
+      expect(err.message, sql).toMatch(/permission denied/);
+    }
+  });
+});
+
 describe("scheduler lease", () => {
   it("only one runner holds the lease until it expires or is released; clients can't touch it", async () => {
     const lease = (n: string, secs: number) =>

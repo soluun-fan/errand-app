@@ -6,8 +6,9 @@ import { ADDRESS_KINDS, saveAddress, type AddressKind } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
 import { runDispatch } from "@/lib/dispatch/run";
 import { insertDeal } from "@/lib/db/deals";
-import { CATEGORIES, DEFAULT_CONFIG, EngineError, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
+import { CATEGORIES, DEFAULT_CONFIG, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
+import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export interface PostState {
@@ -30,6 +31,13 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   if (!viewer) redirect("/login");
   const t = await getT();
   const cfg = DEFAULT_CONFIG;
+
+  // Safety controls (docs/decisions.md "Safety pack"); the database enforces the pause too.
+  const controls = await getControls();
+  if (controls.postingPaused) return { error: t("safety.postingPaused"), step: 2 };
+  if ((await openTaskCount(viewer.profile.id)) >= controls.maxOpenTasks) {
+    return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: 2 };
+  }
 
   const title = String(form.get("title") ?? "").trim();
   const description = String(form.get("description") ?? "").trim();
@@ -91,9 +99,14 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       { now: Date.now(), actor: viewer.actor },
       cfg,
     );
+    // what will be held when a helper is chosen — over the per-task cap it could never be paid
+    if (amountDue(created.deal) > controls.maxDealAmount) {
+      return { error: t("safety.capDeal", { amount: fmtMoney(controls.maxDealAmount) }), step: 1 };
+    }
     await insertDeal(createAdminClient(), created);
     details = created.deal.details;
   } catch (e) {
+    if (isPausedError(e)) return { error: t("safety.postingPaused"), step: 2 };
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: 2 };

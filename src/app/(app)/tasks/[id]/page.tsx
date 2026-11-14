@@ -8,6 +8,9 @@ import { rankApplicants } from "@/lib/dispatch/rank";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { proofsFor } from "@/lib/proofs";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { SafetyBar } from "@/components/safety-bar";
+import { SOS_STATUSES } from "@/lib/incident-rules";
+import { isParty, liveSos } from "@/lib/incidents";
 import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
 
@@ -49,6 +52,15 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       helperPos = { lat: pos.lat, lng: pos.lng };
     }
   }
+  // SOS + report a problem: for the two people on the task once a helper is chosen
+  const safety =
+    deal.helperId && isParty(deal, viewer.profile.id) ? (
+      <SafetyBar
+        dealId={deal.id}
+        showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)}
+        live={await liveSos(deal.id, viewer.profile.id)}
+      />
+    ) : null;
   const live = ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status);
 
   return (
@@ -71,6 +83,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       ranked={ranked}
       helperPos={helperPos}
       chat={chat}
+      safety={safety}
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
     />
     </>

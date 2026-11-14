@@ -3,6 +3,7 @@ import { purgeOldSignals } from "@/lib/calls";
 import { purgeExpiredChats } from "@/lib/chat";
 import { settleDueDeals } from "@/lib/deals/queries";
 import { openDealIds, runDispatch } from "@/lib/dispatch/run";
+import { purgeIncidentLocations, repingSos } from "@/lib/incidents";
 import { purgeKycFiles } from "@/lib/kyc";
 
 export interface TickResult {
@@ -11,6 +12,7 @@ export interface TickResult {
   failedDispatch: number;
   chatsPurged: number;
   kycPurged: number;
+  sosReminders: number;
   ms: number;
 }
 
@@ -19,10 +21,14 @@ export interface TickResult {
  * one failing task or purge never stops the rest.
  * 1. what is due: payment-window lapses, no-helper expiry, auto-release
  * 2. dispatch waves (and "Choose for me") for open tasks
- * 3. retention: call signals after 1 h, ID documents 30 days after the decision, chats 90 days after the task
+ * 3. safety: remind Ops about an SOS nobody has acknowledged yet
+ * 4. retention: call signals after 1 h, ID documents 30 days after the decision, chats 90 days
+ *    after the task, incident positions 30 days after resolution
  */
 export async function runTick(now = Date.now()): Promise<TickResult> {
   const t0 = Date.now();
+  // first: an SOS reminder must never wait behind a slow dispatch round
+  const sosReminders = await repingSos(now).catch((e) => (console.error("sos reminder failed", e), 0));
   const settled = await settleDueDeals(now);
   let dispatched = 0;
   let failedDispatch = 0;
@@ -37,5 +43,6 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   await purgeOldSignals(now).catch((e) => console.error("signal purge failed", e));
   const kycPurged = await purgeKycFiles(now).catch((e) => (console.error("kyc purge failed", e), 0));
   const chatsPurged = await purgeExpiredChats(now).catch((e) => (console.error("chat purge failed", e), 0));
-  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, ms: Date.now() - t0 };
+  await purgeIncidentLocations(now).catch((e) => console.error("incident purge failed", e));
+  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, sosReminders, ms: Date.now() - t0 };
 }

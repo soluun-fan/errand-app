@@ -2,6 +2,10 @@ import { listSavedAddresses } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
 import { getDealForViewer, listMyTasks } from "@/lib/deals/queries";
 import { CATEGORIES, DEFAULT_CONFIG, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { EmptyState, FlowHeader, btn } from "@/components/ui";
+import { getT } from "@/i18n/server";
+import { getControls } from "@/lib/safety";
+import Link from "next/link";
 import { PostFlow, type Draft } from "./post-flow";
 
 /** The typed budget, without a paid top-up or the +10% buffer. */
@@ -42,6 +46,26 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
 export default async function PostPage({ searchParams }: PageProps<"/post">) {
   const viewer = await getViewer();
   if (!viewer) return null;
+  // Ops paused new tasks (docs/decisions.md "Safety pack"): say so before anyone fills the form.
+  const controls = await getControls();
+  if (controls.postingPaused) {
+    const t = await getT();
+    return (
+      <>
+        <FlowHeader href="/" icon="✕" label={t("common.close")} />
+        <EmptyState
+          icon="⏸️"
+          title={t("safety.postingPausedTitle")}
+          body={t("safety.postingPaused")}
+          action={
+            <Link href="/history" className={btn.secondary}>
+              {t("safety.myTasks")}
+            </Link>
+          }
+        />
+      </>
+    );
+  }
   const [sp, tasks, saved] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses()]);
   const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
   const title = typeof sp.title === "string" && sp.title.trim() ? sp.title.slice(0, DEFAULT_CONFIG.titleMax) : undefined;

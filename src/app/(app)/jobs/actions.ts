@@ -6,6 +6,7 @@ import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
+import { isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
 import { EngineError, type Command } from "@/lib/engine";
@@ -237,6 +238,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (/applicants/.test(e.message)) return { error: t("job.full") };
       return { error: intent === "apply" || intent === "quote" ? t("job.taken") : t("error.changed") };
     }
+    if (isPausedError(e)) return { error: t("safety.moneyFrozen") };
     if (e instanceof DbError) return { error: t("error.changed") };
     throw e;
   }
