@@ -102,6 +102,9 @@ export const en = {
     platform: "Tuslamj · service fee + commission",
   },
   home: {
+    past: "Past tasks",
+    pastAll: "Show all {n}",
+    pastLess: "Show less",
     search: "What do you need done?",
     city: "Ulaanbaatar",
     all: "All",

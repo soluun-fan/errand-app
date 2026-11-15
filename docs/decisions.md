@@ -17,6 +17,10 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 - Docs: DESIGN.md wins over UI-FLOWS.md on layout/navigation (3-tab floating bar, chat inside the deal, SafePay as a home tile, `46,000₮`).
 - **2026-11-15 — hosting: Vercel** (free tier), Seoul region next to Supabase. Private test deployment first: **only `TEST_PHONES` can sign in** while there's no real SMS provider (otherwise on-screen codes would let anyone log in as anyone); payments stay mock; security headers on; dev gallery off. Steps and the before-real-users checklist: `docs/deploy.md`.
 - **2026-11-15 — background scheduler:** Supabase's own **pg_cron + pg_net** call `/api/cron/tick` every 20 s (no outside service). The URL goes in `private.app_config` and the `CRON_SECRET` in **Supabase Vault**, both set at deploy time with `npm run scheduler:configure -- https://<domain>` (never in git); until then the job no-ops. A DB lease prevents overlapping ticks; `system_heartbeats` records the last success or error. Dev: `npm run cron:local`. **Open:** the app must be deployed at a public https address for production ticks (hosting not chosen yet).
+- **2026-11-15 — fewer screens:**
+  - No separate History or Wallet pages. Customers have one screen (Home): active tasks, a money card (held now / refunded) when there is any, and past tasks (3 shown, "Show all" expands in place) with "Order again". No tab bar for customers.
+  - Helpers keep two tabs: Ажил · Орлого (finished jobs are already on Орлого).
+  - SafePay's tile and placeholder page are hidden until SafePay is built (the engine stays).
 - **2026-11-15 — pricing: build-up price, limited freedom, helpers keep 100%:**
   - **Research:**
     - Haejuseyo: the customer names the price above a 5,000 / 6,000 KRW day / night floor; the helper pays a 9.9–11.9% withdrawal fee.

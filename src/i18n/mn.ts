@@ -103,6 +103,9 @@ export const mn: Messages = {
     platform: "Тусламж · хураамж + шимтгэл",
   },
   home: {
+    past: "Өмнөх ажлууд",
+    pastAll: "Бүгдийг харах ({n})",
+    pastLess: "Цөөнийг харах",
     search: "Юу хийлгэх вэ?",
     city: "Улаанбаатар",
     all: "Бүгд",

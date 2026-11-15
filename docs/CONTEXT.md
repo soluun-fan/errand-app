@@ -235,7 +235,7 @@ Migrations, in order:
 ## 9. UI and conventions
 
 - **Layout:**
-  - `(app)/(tabs)` has a floating 3-tab bar. Customer tabs: Нүүр · Хэтэвч · Түүх. Helper tabs: Ажил · Орлого · Түүх.
+  - `(app)/(tabs)`: customers have one screen, Home (active tasks, money card, past tasks with "Order again"), and no tab bar. Helpers have a floating 2-tab bar: Ажил · Орлого. There are no History or Wallet pages (decisions 2026-11-15 "Fewer screens").
   - Flows (post, task, job, profile) use ✕/← headers and a sticky primary bar.
   - Mode (customer/helper) is a cookie; the proxy redirects helper-mode `/` to `/jobs`.
 - **Design tokens and components:** `src/components/ui.tsx`, `sheet.tsx` (bottom sheets, `ConfirmSheet`, `SubmitButton`), `choice.tsx`, `deal-card.tsx`, `step-tracker.tsx`, `offer-card.tsx`, `inline-action.tsx`, `auto-refresh.tsx` (polling until Realtime).
@@ -274,7 +274,7 @@ Migrations, in order:
   - `/ops/safety`: pause new tasks, freeze money movements, caps per task / per customer per day / platform-wide / active tasks. These are enforced by DB triggers and `payin_check()` before invoices. The page also shows the audit log.
   - SOS on task and job screens: 102 / 103 plus an alert to Ops with position, re-pinged until acknowledged; the other person is not told.
   - "Report a problem", reviewed in `/ops/incidents` (`lib/safety.ts`, `lib/incidents.ts`, `lib/incident-rules.ts`).
-- Wallet, history and earnings read from the ledger.
+- Home's money card and the helper's earnings read from the ledger.
 - Dev gallery.
 
 **Not built yet** (rough priority):
@@ -496,13 +496,14 @@ The DB trigger `deals_guard` → `deal_status_allowed()` repeats the allowed sta
 |---|---|---|
 | `/login` | `app/login/{page,login-form,actions}.tsx` | phone OTP (`login`, `signOut`); dev shows the code |
 | `/` | `(app)/(tabs)/page.tsx` (+ `draft-chip.tsx`) | customer Home: map, search, active tasks, tiles. Helper mode → `/jobs` (proxy redirect) |
-| `/wallet` · `/history` · `/earnings` | `(tabs)/…/page.tsx` | ledger-based money; history tabs (`?tab=active\|done\|safepay`, with "Дахин захиалах"); helper earnings plus a finished-jobs list |
+| `/earnings` | `(tabs)/earnings/page.tsx` | helper earnings plus a finished-jobs list |
 | `/jobs` | `(tabs)/jobs/{page,online-card}.tsx` | helper: online/radius/location/push card, my jobs, my requests, offers, map, `?view=all&cat=&sort=near\|new\|pay` board; unapproved helpers see a checklist plus the board |
 | `/post` | `(app)/post/{page,post-flow,actions}.tsx` | 3-step post: what → where (pin, saved addresses, details, timing, carry, buy-for-me) → review (people, raise price, breakdown, "Choose for me"). `?cat=&title=` or `?again=<id>`. Action `postTask` → `insertDeal` → `runDispatch` |
 | `/tasks/[id]` | `(app)/tasks/[id]/{page,deal-view,pay-sheet,mock-qr,actions}.tsx` | customer task screen. `taskAction` intents: `simulate_payment`, `simulate_topup`, `rate`, `cancel`, `choose`, `confirm`, `decline_topup`, `dispute`; `pokeTask(id)` is polled |
 | `/jobs/[id]` | `(app)/jobs/[id]/page.tsx` + `(app)/jobs/actions.ts` | helper job screen. `jobAction` intents: `skip`, `apply`, `quote`, `unapply`, `withdraw`, `start`, `finish` (`accept` is legacy). Also `setPresence`, `heartbeat`, `trackJob`, `prepareProof`, `submitProof`, `savePush`, `removePush` |
 | `/profile` | `(app)/profile/{page,actions}.tsx` | mode switch, language, saved addresses (`removeAddress`), sign out |
-| `/help`, `/safepay` | placeholders | |
+| `/help` | `(app)/help/page.tsx` | how it works + live fees |
+| `/ops`, `/ops/safety`, `/ops/pricing`, `/ops/incidents`, `/ops/helpers` | `(app)/ops/**` | admin hub: emergency switches and caps, live prices, SOS/incident queue, helper applications |
 | `/dev/components` | `(app)/dev/components/{page,fixtures,actions,gallery-choices}` | component gallery; `?state=<fixture>` renders `DealView` from engine-built fixtures; only when `devToolsEnabled()` |
 | `/api/cron/tick` | `app/api/cron/tick/route.ts` | Bearer `CRON_SECRET`; `settleDueDeals` + `runDispatch` for open deals |
 

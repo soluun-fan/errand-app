@@ -61,7 +61,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
           title={t("safety.postingPausedTitle")}
           body={t("safety.postingPaused")}
           action={
-            <Link href="/history" className={btn.secondary}>
+            <Link href="/" className={btn.secondary}>
               {t("safety.myTasks")}
             </Link>
           }

@@ -390,7 +390,7 @@ export function DealView(p: DealViewProps) {
 
   return (
     <>
-      <FlowHeader href="/history" label={t("common.back")} />
+      <FlowHeader href="/" label={t("common.back")} />
 
       {/* status first */}
       <Card>
