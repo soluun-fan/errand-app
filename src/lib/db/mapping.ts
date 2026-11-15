@@ -41,6 +41,8 @@ export interface DealRow {
   details: Partial<ErrandDetails> | null;
   lat: number | null;
   lng: number | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
   item_budget: number | null;
   fee: number | null;
   posted_fee: number | null;
@@ -159,6 +161,10 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       mode: req(row.mode, "mode"),
       scheduledAt: toMs(row.scheduled_at),
       pickupAddress: row.pickup_address ?? null,
+      pickupLocation:
+        row.pickup_lat !== null && row.pickup_lat !== undefined && row.pickup_lng !== null && row.pickup_lng !== undefined
+          ? { lat: Number(row.pickup_lat), lng: Number(row.pickup_lng) }
+          : null,
       address: req(row.address, "address"),
       location: row.lat !== null && row.lng !== null ? { lat: Number(row.lat), lng: Number(row.lng) } : null,
       payBy: toMs(row.pay_by ?? null),
@@ -213,6 +219,8 @@ export function dealToRow(d: Deal): DealRow {
     details: {}, // column is NOT NULL; goods deals have no task details
     lat: null,
     lng: null,
+    pickup_lat: null,
+    pickup_lng: null,
     item_budget: null,
     fee: null,
     posted_fee: null,
@@ -260,6 +268,8 @@ export function dealToRow(d: Deal): DealRow {
       details: d.details,
       lat: d.location?.lat ?? null,
       lng: d.location?.lng ?? null,
+      pickup_lat: d.pickupLocation?.lat ?? null,
+      pickup_lng: d.pickupLocation?.lng ?? null,
       item_budget: d.itemBudget,
       fee: d.fee,
       posted_fee: d.postedFee,

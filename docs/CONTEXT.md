@@ -59,7 +59,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **192 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **214 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -205,7 +205,8 @@ post (free; system price; optional map pin; optional "Choose for me")
   - After payment they see the exact pin, address, details and a directions button.
   - While a helper is matched or working, their phone sends its live position every ~30 s (`JobBeacon` → `trackJob`). Only that task's customer sees it.
 - **Push:** VAPID Web Push (`public/sw.js`, `push_subscriptions` with a per-device locale). It notifies helpers of new nearby tasks, and covers chosen, paid, new applicant, helper accepted and auto-chosen events.
-- **Planned:** owner-provided Google Maps key → Google map tiles, Places search, and Routes ETA, with MapLibre as the fallback.
+- **Pickup pin (2026-11-16):** shop / deliver / carry pin both pickup and drop-off (Pickup / Drop-off switch over the `PinMap`). With both pins the engine measures the trip (`roadKm`: straight line × 1.3) for the price; without a pickup pin the customer picks a rough km. Dispatch and feeds measure "nearby" from `helperStart` (pickup ?? task pin).
+- **Planned / optional:** address search and address-from-pin (third party: ask the owner first); Google tiles, Places and Routes ETA only if the owner adds a key, with MapLibre as the fallback.
 
 ---
 
@@ -224,6 +225,9 @@ Migrations, in order:
 10. `calls`: `call_signals` (RLS: the two people on the call), `messages.audio_path` / `audio_seconds`, audio types in the chat bucket, Realtime.
 11. `helper_kyc`: `helper_applications` and `payout_accounts` (server-only, no client grants), the private `kyc` bucket.
 12. `scheduler`: pg_cron job `tuslamj-tick` (20 s), `private.cron_tick()` (pg_net + Vault secret), `configure_scheduler` / `scheduler_status`, `try_lease` / `release_lease`, `system_heartbeats`.
+13. `safety`: `platform_controls` (pause switches, caps), `payin_check()`, the ledger freeze and posting-pause triggers, `incidents` (SOS / reports), `ops_audit_log` (append-only).
+14. `pricing`: `pricing_settings` (the live price list Ops edits).
+15. `pickup_pin`: `deals.pickup_lat/lng` (both or neither); `dispatch_candidates` and `nearby_open_deals` measure from the pickup when pinned.
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Approved helpers can also read open tasks in their categories.
@@ -287,7 +291,7 @@ Migrations, in order:
 7. **Real QPay / bank adapters** behind `PaymentProvider`, with webhook verification.
 8. **Supabase Realtime** to replace polling.
 9. **Multi-person jobs** ("keep recruiting", split payouts).
-10. **Pickup pin** (pickup is text only today).
+10. **Address search / address from pin** (pickup pin and measured distance: done 2026-11-16).
 11. **Google Maps tiles, Places and Routes** once the owner adds a key.
 12. **Native review of the Mongolian copy.**
 13. **From the reference review** (`docs/decisions.md`, 2026-11-14):
@@ -308,7 +312,8 @@ Migrations, in order:
 - **Web geolocation limits:** background tracking stops when the screen locks. Reliable live tracking and push on iOS need a PWA install or a native app.
 - **Privacy:**
   - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
-  - The pickup address text is shown pre-match (fine for stores, not for homes).
+  - The pickup address text is shown pre-match (fine for stores, not for homes). The pickup pin is fuzzed pre-match like the task pin.
+  - The fuzz is applied in the UI only: approved helpers may `select` open deals in their categories under RLS, so a technical helper could read exact `lat/lng` and `pickup_lat/lng` through the API. Fix before real users: column-level grants or a fuzzed view for the feed.
   - `helper_presence` holds precise live locations. Retention and deletion policy are undecided.
 - **Trust and safety:**
   - Helper verification is a manual Ops review (no ДАН integration or automatic face match yet).

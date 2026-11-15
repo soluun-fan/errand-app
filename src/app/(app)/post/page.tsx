@@ -41,6 +41,7 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
     minutes: x.minutes,
     tools: x.tools,
     pin: d.location,
+    pickupPin: d.pickupLocation,
     autoPick: x.autoPick,
   };
 }

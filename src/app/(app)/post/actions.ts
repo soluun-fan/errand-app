@@ -23,6 +23,18 @@ const int = (v: FormDataEntryValue | null) => {
   return s === "" ? 0 : Number(s);
 };
 
+/** A map pin from the form ({"lat","lng"} JSON); a broken pin is ignored — the address text still works. */
+function pinFrom(v: FormDataEntryValue | null): { lat: number; lng: number } | null {
+  const raw = String(v ?? "");
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as { lat?: unknown; lng?: unknown };
+    return typeof p.lat === "number" && typeof p.lng === "number" ? { lat: p.lat, lng: p.lng } : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Last step of the post flow. Re-checks everything — the client only guides. The engine
  * computes the system price from the details and rejects a fee below it.
@@ -63,16 +75,9 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     return { error: t("error.generic"), step: 1 };
   }
 
-  let location: { lat: number; lng: number } | null = null;
-  const rawPin = String(form.get("location") ?? "");
-  if (rawPin) {
-    try {
-      const p = JSON.parse(rawPin) as { lat?: unknown; lng?: unknown };
-      if (typeof p.lat === "number" && typeof p.lng === "number") location = { lat: p.lat, lng: p.lng };
-    } catch {
-      /* ignore a broken pin; the address text still works */
-    }
-  }
+  const location = pinFrom(form.get("location"));
+  // two-point tasks only (the engine ignores it otherwise); with both pins it measures the distance
+  const pickupLocation = pinFrom(form.get("pickupLocation"));
 
   const fee = int(form.get("fee"));
   const itemBudget = form.get("buyForMe") === "on" ? int(form.get("itemBudget")) : 0;
@@ -90,6 +95,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         mode: "now", // helpers accept the price or counter once (docs/decisions.md 2026-11-15 "Pricing")
         scheduledAt,
         pickupAddress,
+        pickupLocation,
         address,
         location,
         itemBudget,
@@ -114,6 +120,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       const max = /Maximum fee is ₮(\d+)/.exec(e.message);
       if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: 2 };
       if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: 1 };
+      if (/Distance must be between/.test(e.message)) return { error: t("post.reason.far"), step: 1 };
       return { error: e.message, step: 1 };
     }
     throw e;

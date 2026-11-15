@@ -12,6 +12,13 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — maps connected (pickup pin + measured distance), key-free:**
+  - Two-point tasks (shop, deliver, carry) pin **both** places: a Pickup / Drop-off switch over one map; each map opens near the other pin, which shows as a fixed marker.
+  - With both pins the **engine measures the distance** (`roadKm` = straight line × 1.3 road factor, 0.1 km) and ignores the client's number, so the price can't be gamed by a wrong km. No pickup pin (e.g. "any store nearby") → the rough 1/3/5/10 km chips as before. Over 100 km is refused.
+  - Why no router or Google: always available, no third party, no key (owner's preference). The −20%…+30% price freedom absorbs the estimate. `roadKm` can later be swapped for OSRM/Valhalla (own server) or Google Routes without UI changes.
+  - "Nearby" (dispatch waves, the nearby feed, the board, ranking, job-map chips) is measured from **where the helper starts**: the pickup if pinned, else the task pin (`helperStart`, same rule in SQL).
+  - Helpers see the pickup as a ~300 m area before matching and the exact pin after; the trip distance shows on the job ("~3.4 km pickup → drop-off"); Google Maps directions use the pickup pin as the waypoint.
+  - Not done (ask first): address search and address-from-pin (would send typed text/positions to a third party such as Photon/Nominatim), live helper ETA.
 - Supabase chosen over Prisma (auth + storage + Postgres in one; RLS). Prisma removed.
 - Mock OTP = Supabase Send SMS hook writing to a private outbox; dev screen shows the code (`DEV_SHOW_SMS_CODES`).
 - Docs: DESIGN.md wins over UI-FLOWS.md on layout/navigation (3-tab floating bar, chat inside the deal, SafePay as a home tile, `46,000₮`).

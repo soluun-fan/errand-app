@@ -3,6 +3,7 @@ import type { Viewer } from "@/lib/auth";
 import { loadDeal, runCommand } from "@/lib/db/deals";
 import { dealFromRow, type DealRow } from "@/lib/db/mapping";
 import { distanceKm } from "@/lib/dispatch/plan";
+import { helperStart } from "@/lib/maps";
 import { dueCommand, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -292,7 +293,8 @@ export async function browseOpenDeals(
   if (error) throw new Error(error.message);
   const items = (data ?? []).map((r) => {
     const deal = dealFromRow(r) as ErrandDeal;
-    return { deal, distanceKm: opts.from && deal.location ? distanceKm(opts.from, deal.location) : null };
+    const start = helperStart(deal);
+    return { deal, distanceKm: opts.from && start ? distanceKm(opts.from, start) : null };
   });
   if (opts.sort === "near") items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   if (opts.sort === "pay") items.sort((a, b) => b.deal.fee - a.deal.fee);

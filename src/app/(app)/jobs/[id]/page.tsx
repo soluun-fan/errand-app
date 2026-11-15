@@ -56,6 +56,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   // What the price was built from, so helpers can judge it (time, heavy, tools, people)
   const effort = [
     dt.minutes >= 60 ? t("price.hours", { n: dt.minutes / 60 }) : t("price.min", { n: dt.minutes }),
+    dt.km > 0 && t("job.trip", { km: dt.km.toFixed(1) }),
     dt.heavy && t("task.heavy"),
     dt.tools && t("price.tools"),
     dt.people === 2 && t("details.people", { n: 2 }),
@@ -169,10 +170,15 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   // Exact pin only for the matched helper; everyone else sees a ~300 m area (privacy).
   const onJob = mine && (deal.status === "matched" || deal.status === "in_progress");
   const exact = mine && deal.status !== "open";
-  const markers: MapMarker[] = deal.location
-    ? [exact ? { ...deal.location, kind: "task", label: deal.address } : { ...fuzz(deal.location), kind: "area" }]
-    : [];
-  const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupAddress);
+  const pickupLabel = deal.pickupAddress ?? t("map.pickup");
+  const markers: MapMarker[] = [
+    ...(deal.pickupLocation
+      ? [exact ? { ...deal.pickupLocation, kind: "pickup" as const, label: pickupLabel } : { ...fuzz(deal.pickupLocation), kind: "pickupArea" as const }]
+      : []),
+    ...(deal.location ? [exact ? { ...deal.location, kind: "task" as const, label: deal.address } : { ...fuzz(deal.location), kind: "area" as const }] : []),
+  ];
+  // the pickup pin beats its text for the Google Maps waypoint
+  const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupLocation ?? deal.pickupAddress);
 
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
   const chatAccess = await accessFor(deal, me);
@@ -211,7 +217,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           🧭 {t("map.directions")}
         </a>
       ) : (
-        deal.location && <p className="-mt-2 text-sm text-ink-2">{t("map.approx")}</p>
+        markers.length > 0 && <p className="-mt-2 text-sm text-ink-2">{t("map.approx")}</p>
       )}
 
       {mine && deal.status === "in_progress" && (

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
 import { MAP_STYLE, UB_CENTER } from "./pin-map";
 
-export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area";
+export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area" | "pickupArea";
 
 export interface MapMarker {
   lat: number;
@@ -27,6 +27,7 @@ const STYLE: Record<MarkerKind, string> = {
   job: "min-h-8 rounded-full border-2 border-white bg-ink px-2.5 text-[13px] font-bold text-white shadow-float",
   // approximate place (before a helper is matched): a soft circle, no exact point
   area: "h-24 w-24 rounded-full border-2 border-danger/60 bg-danger/15",
+  pickupArea: "h-24 w-24 rounded-full border-2 border-ink/50 bg-ink/10",
 };
 const GLYPH: Partial<Record<MarkerKind, string>> = { task: "↘", pickup: "●", helper: "🧍" };
 
@@ -109,7 +110,7 @@ export function TaskMap({
         }
         placed.current.push(new Marker({ element: el }).setLngLat([mk.lng, mk.lat]).addTo(m));
       }
-      if (all.length === 1) m.jumpTo({ center: [all[0].lng, all[0].lat], zoom: all[0].kind === "area" ? 14 : 15 });
+      if (all.length === 1) m.jumpTo({ center: [all[0].lng, all[0].lat], zoom: all[0].kind === "area" || all[0].kind === "pickupArea" ? 14 : 15 });
       else if (all.length > 1) {
         const b = new LngLatBounds();
         for (const mk of all) b.extend([mk.lng, mk.lat]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { distanceKm } from "@/lib/dispatch/plan";
-import { fuzz, googleDirectionsUrl, googlePlaceUrl } from "@/lib/maps";
+import { fuzz, googleDirectionsUrl, googlePlaceUrl, helperStart } from "@/lib/maps";
 
 describe("Google Maps links", () => {
   it("directions to a pin, optionally via a pickup (pin or text)", () => {
@@ -24,5 +24,20 @@ describe("fuzz", () => {
     expect(distanceKm(p, f)).toBeLessThan(0.3);
     expect(fuzz(f)).toEqual(f);
     expect(fuzz({ lat: 47.9187, lng: 106.9178 })).toEqual(f); // nearby homes share a cell
+  });
+});
+
+describe("helperStart", () => {
+  it("is the pickup pin when there is one, else the task pin", () => {
+    const a = { lat: 47.9, lng: 106.9 };
+    const b = { lat: 47.95, lng: 106.95 };
+    expect(helperStart({ pickupLocation: a, location: b })).toEqual(a);
+    expect(helperStart({ pickupLocation: null, location: b })).toEqual(b);
+    expect(helperStart({ location: null })).toBeNull();
+  });
+
+  it("directions use the pickup pin as the waypoint", () => {
+    const u = new URL(googleDirectionsUrl({ lat: 47.9186, lng: 106.9177 }, { lat: 47.95, lng: 106.95 }));
+    expect(u.searchParams.get("waypoints")).toBe("47.95,106.95");
   });
 });

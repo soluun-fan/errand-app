@@ -394,6 +394,25 @@ describe("dispatch queries", () => {
     expect(await feed()).not.toContain(near.id);
   });
 
+  it("stores the pickup pin and measures 'nearby' from it (the helper starts there)", async () => {
+    // drop-off at the square, pickup ~6 km north; h1 sits next to the pickup with a 2 km radius
+    const pickup = { lat: 47.9726, lng: 106.9177 };
+    await presence(U.h1, 47.9736, 106.9177, 2);
+    const d = await postErrand({ category: "shop", location: SQ, pickupLocation: pickup, fee: 15000 }); // round trip checks the columns
+    expect(d.type === "errand" && d.pickupLocation).toEqual(pickup);
+    expect(d.type === "errand" && d.details.km).toBeGreaterThan(7);
+    const c = await candidates(d.id, 2);
+    expect(c.map((r) => r.helper_id)).toEqual([U.h1]);
+    expect(c[0].distance_km).toBeLessThan(0.2);
+    const feed = await as(db, "service_role", null, async (tx) =>
+      (await tx.query<{ deal_id: string; distance_km: number }>(`select deal_id, distance_km from public.nearby_open_deals($1)`, [U.h1])).rows,
+    );
+    expect(feed.find((r) => r.deal_id === d.id)?.distance_km).toBeLessThan(0.2);
+    // half a pin is refused by the database
+    const err = await sqlError(db.query(`update public.deals set pickup_lng = null where id = $1`, [d.id]));
+    expect(err.message).toMatch(/deals_pickup_pin_pair/);
+  });
+
   it("clients can't call the dispatch queries or read other helpers' presence", async () => {
     const err = await sqlError(as(db, "authenticated", U.h1, (tx) => tx.query(`select * from public.nearby_open_deals($1)`, [U.h1])));
     expect(err.message).toMatch(/permission denied/);

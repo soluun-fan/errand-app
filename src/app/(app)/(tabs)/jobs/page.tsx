@@ -10,15 +10,16 @@ import { CATEGORIES, TERMINAL_STATUSES, errandSplit, type CategoryId, type Erran
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
-import { fuzz } from "@/lib/maps";
+import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
 
-/** Open tasks as price chips on the map, at their approximate (~300 m) spot. */
+/** Open tasks as price chips on the map, at the approximate (~300 m) spot where the helper starts. */
 function jobPins(items: JobListItem[]): MapMarker[] {
-  return items.flatMap(({ deal }) =>
-    deal.location ? [{ ...fuzz(deal.location), kind: "job" as const, label: fmtMoney(earn(deal)), href: `/jobs/${deal.id}` }] : [],
-  );
+  return items.flatMap(({ deal }) => {
+    const start = helperStart(deal);
+    return start ? [{ ...fuzz(start), kind: "job" as const, label: fmtMoney(earn(deal)), href: `/jobs/${deal.id}` }] : [];
+  });
 }
 
 const earn = (d: ErrandDeal) =>
@@ -97,7 +98,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
           ),
         )}
       </nav>
-      {items.some((i) => i.deal.location) && <TaskMap markers={jobPins(items)} showMe className="h-64" />}
+      {items.some((i) => helperStart(i.deal)) && <TaskMap markers={jobPins(items)} showMe className="h-64" />}
       {items.length === 0 ? (
         <p className="text-[15px] text-ink-2">{t("job.allEmpty")}</p>
       ) : (
@@ -188,7 +189,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <Board sp={sp} viewerId={profile.id} from={from} mine={actor.categories ?? []} t={t} locale={locale} />
         ) : (
           <section className="flex flex-col gap-2">
-            {[...offers, ...applied, ...feed].some((i) => i.deal.location) && (
+            {[...offers, ...applied, ...feed].some((i) => helperStart(i.deal)) && (
               <TaskMap markers={jobPins([...offers, ...applied, ...feed])} showMe className="h-64" />
             )}
             {feed.length === 0 ? (

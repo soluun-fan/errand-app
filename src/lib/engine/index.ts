@@ -6,3 +6,4 @@ export * from "./ledger";
 export * from "./payouts";
 export * from "./deal";
 export * from "./schedule";
+export * from "./geo";

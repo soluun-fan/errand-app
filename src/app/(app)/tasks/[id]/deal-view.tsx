@@ -420,6 +420,7 @@ export function DealView(p: DealViewProps) {
           <TaskMap
             className="h-52"
             markers={[
+              ...(deal.pickupLocation ? [{ ...deal.pickupLocation, kind: "pickup", label: deal.pickupAddress ?? t("map.pickup") } as MapMarker] : []),
               { ...deal.location, kind: "task", label: deal.address } as MapMarker,
               ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
             ]}

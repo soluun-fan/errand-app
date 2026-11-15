@@ -2,6 +2,7 @@ import "server-only";
 import { runCommand } from "@/lib/db/deals";
 import { DEFAULT_CONFIG, MINUTE_MS, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { helperStart } from "@/lib/maps";
 import { distanceKm, score } from "./plan";
 
 /** Max applications a helper may have open at once (docs/decisions.md 2026-11-13). */
@@ -31,7 +32,8 @@ export async function rankApplicants(deal: ErrandDeal, now = Date.now()): Promis
   return (profiles.data ?? [])
     .map((p) => {
       const at = pos.get(p.id as string);
-      const km = deal.location && at?.lat != null && at.lng != null ? distanceKm(deal.location, { lat: at.lat, lng: at.lng }) : null;
+      const start = helperStart(deal);
+      const km = start && at?.lat != null && at.lng != null ? distanceKm(start, { lat: at.lat, lng: at.lng }) : null;
       const mine = (offers.data ?? []).filter((o) => o.helper_id === p.id);
       return {
         helperId: p.id as string,

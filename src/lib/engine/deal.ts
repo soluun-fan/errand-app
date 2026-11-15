@@ -8,8 +8,9 @@
  *
  * Illegal transitions throw `EngineError`; they never partially apply.
  */
-import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, type CategoryId, type EngineConfig } from "./config";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
+import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, counterMaxFor, errandSplit, heldItemBudget, priceRange, quoteFee, serviceFeeFor } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint } from "./types";
@@ -172,6 +173,8 @@ export interface NewErrandInput {
   mode: Mode;
   scheduledAt?: number | null;
   pickupAddress?: string | null;
+  /** Pickup pin; with `location` the engine measures the distance itself. */
+  pickupLocation?: GeoPoint | null;
   address: string;
   location?: GeoPoint | null;
   itemBudget: number;
@@ -239,7 +242,12 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   // Timing is independent of the matching mode (docs/rules.md §Modes).
   const scheduledAt = input.scheduledAt ?? null;
   if (scheduledAt !== null && scheduledAt <= ctx.now) fail("INVALID_INPUT", "Scheduled time must be in the future");
-  const details = normalizeDetails(input.details);
+  const location = validLocation(input.location);
+  const pickupLocation = TWO_POINT_CATEGORIES.includes(input.category) ? validLocation(input.pickupLocation) : null;
+  // Both pins: the distance comes from the map, never from the client's number.
+  const details = normalizeDetails(
+    location && pickupLocation ? { ...input.details, km: roadKm(pickupLocation, location) } : input.details,
+  );
   const startsAt = scheduledAt ?? ctx.now;
   const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
@@ -267,7 +275,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     scheduledAt,
     pickupAddress: input.pickupAddress?.trim() || null,
     address: input.address.trim(),
-    location: validLocation(input.location),
+    pickupLocation,
+    location,
     payBy: null,
     details,
     itemBudget,

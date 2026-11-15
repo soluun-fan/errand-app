@@ -26,6 +26,14 @@ export function googlePlaceUrl(place: LatLng | string): string {
   return `https://www.google.com/maps/search/?${q}`;
 }
 
+/**
+ * Where a helper starts the job: the pickup when it's pinned, else the task pin. "Nearby" for
+ * dispatch, the feeds and the job map is measured from here (same rule as the SQL functions).
+ */
+export function helperStart(d: { pickupLocation?: LatLng | null; location: LatLng | null }): LatLng | null {
+  return d.pickupLocation ?? d.location;
+}
+
 /** Approximate a pin to a ~300 m grid so helpers can't see a home before they're matched. */
 export const FUZZ_METERS = 300;
 export function fuzz(p: LatLng): LatLng {

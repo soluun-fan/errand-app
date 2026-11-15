@@ -30,7 +30,7 @@ export type Lift = "yes" | "no" | "unknown";
 
 /** Task details that drive the system price and eligibility (docs/rules.md, DESIGN §8.2). */
 export interface ErrandDetails {
-  /** Rough distance pickup → drop-off; 0 for single-location tasks. */
+  /** Distance pickup → drop-off: from the two pins when both are set, else the customer's estimate; 0 for single-location tasks. */
   km: number;
   entrance: string | null;
   floor: number | null;
@@ -140,6 +140,8 @@ export interface ErrandDeal extends DealBase {
   scheduledAt: number | null;
   /** Optional: where the helper picks something up (store, office). */
   pickupAddress: string | null;
+  /** Map pin for the pickup; with `location` it sets `details.km` (fixed at posting). */
+  pickupLocation: GeoPoint | null;
   address: string;
   /** Map pin for `address`; null when the customer typed an address only. */
   location: GeoPoint | null;

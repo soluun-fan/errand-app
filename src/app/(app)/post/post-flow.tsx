@@ -9,14 +9,13 @@ import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, heldItemBudget, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { CATEGORY_ICON } from "@/lib/labels";
 import { postTask, type PostState } from "./actions";
 
 const STEPS = ["what", "where", "review"] as const;
-const TWO_POINT: CategoryId[] = ["shop", "deliver", "carry"];
 const BUYS: CategoryId[] = ["shop", "deliver"];
 const KM = [1, 3, 5, 10];
 /** "About how long?" choices, in minutes. */
@@ -58,6 +57,8 @@ export interface Draft {
   saveAs: AddressKind | "";
   /** Map pin for the drop-off / task place (drives nearby dispatch). */
   pin: Pin | null;
+  /** Two-point tasks: map pin for the pickup. With both pins the distance is measured, not guessed. */
+  pickupPin: Pin | null;
   /** "Choose for me": pick the best applicant if I haven't chosen in a few minutes. */
   autoPick: boolean;
 }
@@ -137,12 +138,15 @@ export function PostFlow({
     tools: false,
     saveAs: "",
     pin: null,
+    pickupPin: null,
     autoPick: true,
     ...(home && !initial.address ? fromSaved(home) : {}),
     ...initial,
   };
   const [d, setD] = useState<Draft>(blank);
   const [step, setStep] = useState(startStep);
+  /** Which point the map is placing (two-point tasks). */
+  const [pinTarget, setPinTarget] = useState<"pickup" | "drop">("drop");
   const [now, setNow] = useState(() => Date.now());
   const [state, action] = useActionState<PostState, FormData>(postTask, {});
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -172,13 +176,15 @@ export function PostFlow({
     return () => clearInterval(id);
   }, []);
 
-  const twoPoint = TWO_POINT.includes(d.category);
+  const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
   const isCarry = d.category === "carry";
   const buys = BUYS.includes(d.category);
   const start = startString(d, now);
   const startsAt = start ? (parseUbLocal(start) ?? now) : now;
+  // both pins → distance from the map (same function as the server); otherwise the rough chip
+  const measuredKm = twoPoint && d.pin && d.pickupPin ? roadKm(d.pickupPin, d.pin) : null;
   const details: ErrandDetails = {
-    km: twoPoint ? d.km : 0,
+    km: twoPoint ? (measuredKm ?? d.km) : 0,
     entrance: d.entrance || null,
     floor: d.floor ? Number(d.floor) : null,
     unit: d.unit || null,
@@ -279,6 +285,7 @@ export function PostFlow({
       <input type="hidden" name="itemBudget" value={itemBudget} />
       <input type="hidden" name="saveAs" value={savedMatch ? "" : d.saveAs} />
       <input type="hidden" name="location" value={d.pin ? JSON.stringify(d.pin) : ""} />
+      <input type="hidden" name="pickupLocation" value={twoPoint && d.pickupPin ? JSON.stringify(d.pickupPin) : ""} />
 
       {STEPS[step] === "what" && (
         <>
@@ -312,10 +319,53 @@ export function PostFlow({
         <>
           <section className="flex flex-col gap-2">
             <div>
-              <h2 className="text-[15px] font-semibold">{t("map.pinTitle")}</h2>
-              <p className="text-sm text-ink-2">{t("map.pinSub")}</p>
+              <h2 className="text-[15px] font-semibold">{twoPoint ? t("map.pinTitleTwo") : t("map.pinTitle")}</h2>
+              <p className="text-sm text-ink-2">{twoPoint ? t("map.pinSubTwo") : t("map.pinSub")}</p>
             </div>
-            <PinMap value={d.pin} onChange={(p) => set("pin", p)} />
+            {twoPoint && (
+              <div className="grid grid-cols-2 gap-1 rounded-full bg-fill p-1" role="radiogroup" aria-label={t("map.pinTitleTwo")}>
+                {(["pickup", "drop"] as const).map((k) => {
+                  const done = k === "pickup" ? d.pickupPin : d.pin;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={pinTarget === k}
+                      onClick={() => setPinTarget(k)}
+                      className={`min-h-11 rounded-full text-[15px] font-semibold ${pinTarget === k ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
+                    >
+                      {k === "pickup" ? "● " : "↘ "}
+                      {t(k === "pickup" ? "map.setPickup" : "map.setDrop")}
+                      {done ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {twoPoint && pinTarget === "pickup" ? (
+              <PinMap
+                key="pickup"
+                kind="pickup"
+                value={d.pickupPin}
+                start={d.pin}
+                onChange={(p) => set("pickupPin", p)}
+                other={d.pin ? { ...d.pin, kind: "drop" } : null}
+              />
+            ) : (
+              <PinMap
+                key="drop"
+                value={d.pin}
+                start={twoPoint ? d.pickupPin : null}
+                onChange={(p) => set("pin", p)}
+                other={twoPoint && d.pickupPin ? { ...d.pickupPin, kind: "pickup" } : null}
+              />
+            )}
+            {twoPoint && d.pickupPin && (
+              <button type="button" onClick={() => set("pickupPin", null)} className="self-start text-sm font-medium text-ink-2 underline underline-offset-4">
+                {t("map.clearPickup")}
+              </button>
+            )}
           </section>
           {/* RouteCard (DESIGN §4.5) */}
           <div className="rounded-card border border-line">
@@ -404,13 +454,20 @@ export function PostFlow({
           {twoPoint && (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.distance")}</legend>
-              <div className="flex gap-2" role="radiogroup">
-                {KM.map((k) => (
-                  <button key={k} type="button" role="radio" aria-checked={d.km === k} onClick={() => set("km", k)} className={chipClass(d.km === k)}>
-                    ~{k} км
-                  </button>
-                ))}
-              </div>
+              {measuredKm !== null ? (
+                <p className="rounded-input bg-fill px-4 py-3 text-[16px] font-medium">📏 {t("map.measured", { km: measuredKm.toFixed(1) })}</p>
+              ) : (
+                <>
+                  <div className="flex gap-2" role="radiogroup">
+                    {KM.map((k) => (
+                      <button key={k} type="button" role="radio" aria-checked={d.km === k} onClick={() => set("km", k)} className={chipClass(d.km === k)}>
+                        ~{k} км
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-ink-2">{t("map.noPickupPin")}</p>
+                </>
+              )}
               <ToggleRow
                 icon="↩"
                 title={t("task.roundTrip")}

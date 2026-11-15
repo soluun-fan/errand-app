@@ -25,6 +25,9 @@ export const CATEGORIES: readonly CategoryConfig[] = [
   { id: "other", items: false, minutes: 60 },
 ];
 
+/** Tasks with a pickup and a drop-off (distance and a pickup pin apply); others happen in one place. */
+export const TWO_POINT_CATEGORIES: readonly CategoryId[] = ["shop", "deliver", "carry"];
+
 /** Flat service fee by task price: the first tier whose `below` is above the price (null = any). */
 export interface FeeTier {
   below: number | null;
