@@ -751,12 +751,18 @@ describe("row level security", () => {
     expect(c2).not.toContain(open.id);
   });
 
-  it("approved helpers see open tasks in their categories; a matched task leaves the feed", async () => {
-    const h1 = await visibleDeals(U.h1); // all categories
-    expect(h1).toContain(open.id);
-    expect(h1).not.toContain(taken.id); // matched to h2 → gone from everyone else's feed
-    expect(await visibleDeals(U.h2)).not.toContain(open.id); // h2 only does shopping
-    expect(await visibleDeals(U.h2)).toContain(taken.id); // ...but sees the task they took
+  it("helpers can't read open tasks (exact pins, addresses) through the API — only tasks they took", async () => {
+    // the feed is served by server code, which shows a ~300 m area until a helper is matched
+    const applied = await step(await postErrand({ title: "applied", category: "repair", fee: 15000, location: { lat: 47.9186, lng: 106.9177 } }), { type: "apply", note: "" }, helper(U.h1), T0);
+    const h1 = await visibleDeals(U.h1); // approved, all categories
+    expect(h1).not.toContain(open.id);
+    expect(h1).not.toContain(applied.id); // applying doesn't reveal the exact pin either
+    expect(h1).not.toContain(taken.id);
+    expect(await visibleDeals(U.h2)).toContain(taken.id); // the matched helper sees their task
+    const raw = await as(db, "authenticated", U.h1, async (tx) =>
+      (await tx.query(`select lat, lng, address, pickup_lat from public.deals where id = $1`, [applied.id])).rows,
+    );
+    expect(raw).toEqual([]);
   });
 
   it("anonymous users see nothing", async () => {

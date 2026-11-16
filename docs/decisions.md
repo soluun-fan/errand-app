@@ -12,6 +12,7 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — exact pins server-only before matching:** the ~300 m fuzz was applied only in the UI, while RLS let approved helpers (feed) and applicants `select` open deals — exact pin, pickup pin, address, entrance/floor/door — straight from the API. Since the app reads deals only in server code (service role), the deals policy is now **participants or admin only** (customer, matched helper, seller/buyer, Ops). Test: a helper's own token sees no open or applied-to task.
 - **2026-11-16 — maps connected (pickup pin + measured distance), key-free:**
   - Two-point tasks (shop, deliver, carry) pin **both** places: a Pickup / Drop-off switch over one map; each map opens near the other pin, which shows as a fixed marker.
   - With both pins the **engine measures the distance** (`roadKm` = straight line × 1.3 road factor, 0.1 km) and ignores the client's number, so the price can't be gamed by a wrong km. No pickup pin (e.g. "any store nearby") → the rough 1/3/5/10 km chips as before. Over 100 km is refused.

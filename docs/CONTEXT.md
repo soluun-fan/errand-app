@@ -228,9 +228,10 @@ Migrations, in order:
 13. `safety`: `platform_controls` (pause switches, caps), `payin_check()`, the ledger freeze and posting-pause triggers, `incidents` (SOS / reports), `ops_audit_log` (append-only).
 14. `pricing`: `pricing_settings` (the live price list Ops edits).
 15. `pickup_pin`: `deals.pickup_lat/lng` (both or neither); `dispatch_candidates` and `nearby_open_deals` measure from the pickup when pinned.
+16. `private_task_pins`: the deals select policy is participants or admin only (no helper-feed / applicant clause).
 
 **RLS model:**
-- Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Approved helpers can also read open tasks in their categories.
+- Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Deals: customer, matched helper, seller/buyer, Ops — helpers can't read open tasks through the API (2026-11-16); feeds are server-rendered with the ~300 m fuzz.
 - Every write goes through server code using the service role, after the server has checked the user (and, for money and status, after the engine has).
 - Exceptions: users may update their own name and area, and write their own `saved_addresses`.
 
@@ -313,7 +314,6 @@ Migrations, in order:
 - **Privacy:**
   - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
   - The pickup address text is shown pre-match (fine for stores, not for homes). The pickup pin is fuzzed pre-match like the task pin.
-  - The fuzz is applied in the UI only: approved helpers may `select` open deals in their categories under RLS, so a technical helper could read exact `lat/lng` and `pickup_lat/lng` through the API. Fix before real users: column-level grants or a fuzzed view for the feed.
   - `helper_presence` holds precise live locations. Retention and deletion policy are undecided.
 - **Trust and safety:**
   - Helper verification is a manual Ops review (no ДАН integration or automatic face match yet).
