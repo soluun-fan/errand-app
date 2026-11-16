@@ -75,3 +75,7 @@ Every `git push` to `main` redeploys automatically. Changed environment variable
 - [ ] Native review of the Mongolian text.
 - [ ] **Someone on duty for SOS** while tasks run (push on, phone charged), plus a written "what to do on an SOS" checklist. Consider an SMS fallback to Ops once the SMS provider exists.
 - [ ] Review the caps at `/ops/safety` for the beta size (defaults: 300,000₮ per task, 600,000₮ per customer per day, 5,000,000₮ held in total, 3 active tasks).
+
+## Health check
+- `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-release and SOS reminders aren't happening.
+- `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details). Point a free uptime monitor at it after deploy so someone is alerted if it stops.

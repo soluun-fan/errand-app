@@ -13,6 +13,7 @@ import { EngineError, counterMaxFor, type Command } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
+import { LatLng, ProofKindInput, ProofSubmitInput, PushSubscriptionInput, Uuid, parseOr } from "@/lib/input";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RADII = [1, 3, 5, 10, 15, 60] as const;
@@ -47,9 +48,11 @@ export async function setPresence(form: FormData): Promise<void> {
 }
 
 /** Position heartbeat while online (the client sends it at most once a minute). */
-export async function heartbeat(lat: number, lng: number): Promise<void> {
+export async function heartbeat(rawLat: number, rawLng: number): Promise<void> {
   const viewer = await helperViewer();
-  if (!viewer.actor.helperApproved || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+  const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
+  if (!viewer.actor.helperApproved || !pos) return;
+  const { lat, lng } = pos;
   await createAdminClient()
     .from("helper_presence")
     .update({ lat, lng, updated_at: new Date().toISOString() })
@@ -61,9 +64,11 @@ export async function heartbeat(lat: number, lng: number): Promise<void> {
  * Live position during a job (matched / in progress), even if the helper went "offline" for new
  * work — the customer of that task sees where their helper is. Only the assigned helper can send.
  */
-export async function trackJob(dealId: string, lat: number, lng: number): Promise<void> {
+export async function trackJob(dealId: string, rawLat: number, rawLng: number): Promise<void> {
   const viewer = await helperViewer();
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+  const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
+  if (!pos || !parseOr(Uuid, dealId)) return;
+  const { lat, lng } = pos;
   const db = createAdminClient();
   const { data } = await db.from("deals").select("helper_id, status").eq("id", dealId).maybeSingle<{ helper_id: string | null; status: string }>();
   if (!data || data.helper_id !== viewer.profile.id || !["matched", "in_progress"].includes(data.status)) return;
@@ -81,9 +86,12 @@ async function assignedInProgress(dealId: string, helperId: string) {
 }
 
 /** Step 1: a signed upload URL for one file — only for the assigned helper of a task in progress. */
-export async function prepareProof(dealId: string, kind: ProofKind, mime: string, bytes: number): Promise<UploadSlot | { error: string }> {
+export async function prepareProof(dealId: string, rawKind: ProofKind, mime: string, bytes: number): Promise<UploadSlot | { error: string }> {
   const viewer = await helperViewer();
   const t = await getT();
+  // `kind` becomes part of the storage path: only the two known kinds, never free text
+  const kind = parseOr(ProofKindInput, rawKind);
+  if (!kind || typeof mime !== "string" || typeof bytes !== "number") return { error: t("proof.badType") };
   if (!(await assignedInProgress(dealId, viewer.profile.id))) return { error: t("error.changed") };
   if (!(PROOF_MIME as readonly string[]).includes(mime) || (kind === "receipt" && !mime.startsWith("image/"))) return { error: t("proof.badType") };
   if (!(bytes > 0 && bytes <= MAX_PROOF_BYTES)) return { error: t("proof.tooBig") };
@@ -105,9 +113,11 @@ export interface ProofSubmit {
 }
 
 /** Step 2 (after the browser uploaded): record the proof, then tell the engine (receipt / handover). */
-export async function submitProof(p: ProofSubmit): Promise<{ error?: string; flags?: string[] }> {
+export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; flags?: string[] }> {
   const viewer = await helperViewer();
   const t = await getT();
+  const p = parseOr(ProofSubmitInput, raw);
+  if (!p) return { error: t("proof.failed") };
   const deal = await assignedInProgress(p.dealId, viewer.profile.id);
   if (!deal) return { error: t("error.changed") };
   const amount = p.kind === "receipt" ? Number(p.amount) : null;
@@ -148,13 +158,16 @@ export async function submitProof(p: ProofSubmit): Promise<{ error?: string; fla
   }
 }
 
-export async function savePush(sub: BrowserSubscription): Promise<void> {
+export async function savePush(raw: BrowserSubscription): Promise<void> {
   const viewer = await helperViewer();
+  const sub = parseOr(PushSubscriptionInput, raw);
+  if (!sub) return;
   await saveSubscription(viewer.profile.id, sub, await getLocale());
 }
 
 export async function removePush(endpoint: string): Promise<void> {
   const viewer = await helperViewer();
+  if (typeof endpoint !== "string" || endpoint.length > 1000) return;
   await removeSubscription(viewer.profile.id, endpoint);
 }
 

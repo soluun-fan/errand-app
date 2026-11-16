@@ -37,7 +37,7 @@ export default async function OpsPricingPage() {
               <li key={x.key} className="flex justify-between gap-3">
                 <span>{t(`opsPricing.ex.${x.key}`)}</span>
                 <span className="text-right tabular-nums">
-                  <b>{fmtMoney(q.total)}</b>
+                  <b className="text-brand-ink">{fmtMoney(q.total)}</b>
                   <span className="block text-sm text-ink-2">
                     {fmtMoney(r.min)}–{fmtMoney(r.max)} · +{fmtMoney(serviceFeeFor(q.total, cfg))}
                   </span>

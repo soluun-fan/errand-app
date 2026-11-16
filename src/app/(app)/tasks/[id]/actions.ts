@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
+import { Uuid, parseOr } from "@/lib/input";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
 import { releaseOtherCommitments } from "@/lib/dispatch/rank";
@@ -136,7 +137,7 @@ async function payinMessage(reason: PayinBlock, t: Awaited<ReturnType<typeof get
  */
 export async function pokeTask(dealId: string): Promise<void> {
   const viewer = await getViewer();
-  if (!viewer) return;
+  if (!viewer || !parseOr(Uuid, dealId)) return;
   const deal = await getDealForViewer(dealId, viewer); // settles due commands
   if (deal?.type === "errand" && deal.customerId === viewer.profile.id && deal.status === "open") {
     await runDispatch(deal.id);

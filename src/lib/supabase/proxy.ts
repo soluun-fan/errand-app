@@ -4,7 +4,7 @@ import { MODE_COOKIE } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /** No session needed: the login page, and the cron tick (it checks CRON_SECRET itself). */
-const PUBLIC_PATHS = ["/login", "/api/cron"];
+const PUBLIC_PATHS = ["/login", "/api/cron", "/api/health"];
 
 /**
  * Refreshes the Supabase session cookie on every request and does an optimistic

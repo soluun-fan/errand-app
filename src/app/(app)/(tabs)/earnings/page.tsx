@@ -24,7 +24,7 @@ export default async function EarningsPage() {
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
           <span className="text-sm font-medium">{t("earnings.available")}</span>
-          <span className="text-[26px] font-bold tabular-nums">{fmtMoney(available)}</span>
+          <span className="text-[26px] font-bold tabular-nums text-brand-ink">{fmtMoney(available)}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-card bg-fill p-4">
           <span className="text-sm font-medium text-ink-2">{t("earnings.waiting")}</span>

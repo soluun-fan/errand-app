@@ -36,7 +36,7 @@ export function DealCard({
           <span className="block text-sm text-ink-2">{when}</span>
         </span>
         <span className="flex flex-col items-end gap-1">
-          <span className="text-[15px] font-bold tabular-nums">{fmtMoney(deal.fee + deal.itemBudget + deal.serviceFee)}</span>
+          <span className="text-[15px] font-bold tabular-nums text-brand-ink">{fmtMoney(deal.fee + deal.itemBudget + deal.serviceFee)}</span>
           <StatusBadge status={deal.status} t={t} />
         </span>
       </Link>

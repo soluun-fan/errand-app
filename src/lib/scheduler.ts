@@ -1,4 +1,5 @@
 import "server-only";
+import type { HeartbeatRow } from "@/lib/health-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -16,6 +17,17 @@ export async function withLease<T>(name: string, seconds: number, fn: () => Prom
   } finally {
     await db.rpc("release_lease", { p_name: name });
   }
+}
+
+/** The tick's heartbeat row (null before the first run). */
+export async function tickHeartbeat(): Promise<HeartbeatRow | null> {
+  const { data, error } = await createAdminClient()
+    .from("system_heartbeats")
+    .select("last_run_at, last_ok_at, last_error")
+    .eq("name", "tick")
+    .maybeSingle<HeartbeatRow>();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function heartbeat(name: string, outcome: { ok: true; result: unknown } | { ok: false; error: string }): Promise<void> {

@@ -6,6 +6,7 @@ import { getViewer } from "@/lib/auth";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { createKycSlot, latestApplication, submitApplication } from "@/lib/kyc";
 import { BANKS, KYC_DOCS, cleanLegalName, isAdult, normalizeAccount, payoutNameOk, type KycDoc } from "@/lib/kyc-rules";
+import { KycFormInput, parseOr } from "@/lib/input";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -17,6 +18,7 @@ export async function prepareKycUpload(doc: string, mime: string, bytes: number)
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   const t = await getT();
+  if (typeof doc !== "string" || typeof mime !== "string" || typeof bytes !== "number") return { error: t("kyc.errors.type") };
   if (!(KYC_DOCS as readonly string[]).includes(doc) || !MIME.includes(mime) || (mime === "application/pdf" && doc !== "record")) {
     return { error: t("kyc.errors.type") };
   }
@@ -38,10 +40,12 @@ export interface KycForm {
 }
 
 /** Validates everything again on the server, then stores the application for Ops review. */
-export async function submitKyc(f: KycForm): Promise<{ error?: string }> {
+export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   const t = await getT();
+  const f = parseOr(KycFormInput, raw);
+  if (!f) return { error: t("kyc.errors.files") };
   const legalName = cleanLegalName(String(f.legalName ?? ""));
   if (!legalName) return { error: t("kyc.errors.name") };
   if (!isAdult(String(f.birthDate ?? ""), new Date())) return { error: t("kyc.errors.age") };

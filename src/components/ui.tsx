@@ -3,17 +3,17 @@ import type { ReactNode } from "react";
 import { TONE_CLASS, type Tone } from "@/lib/labels";
 
 /**
- * Primitives (docs/ui.md). Touch targets ≥ 48 px; the primary CTA is 56 px, always `ink`.
- * One primary per screen; everything else is secondary (fill) or text.
+ * Primitives (docs/ui.md). Touch targets ≥ 48 px; the primary CTA is 56 px, orange (style B).
+ * One primary per screen; everything else is secondary (white), small (dark) or text.
  */
 const base =
   "press inline-flex items-center justify-center gap-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed";
 export const btn = {
   /** 56 px dark CTA. Disabled = fill + ink-3 (DESIGN §4.1). */
-  primary: `${base} min-h-14 rounded-cta bg-ink px-5 text-[17px] text-white disabled:bg-fill disabled:text-ink-3`,
+  primary: `${base} min-h-14 rounded-cta bg-brand px-5 text-[18px] font-bold text-white disabled:bg-fill disabled:text-ink-3`,
   /** Compact dark button for inside cards (e.g. "Сонгох"). */
   small: `${base} min-h-12 rounded-input bg-ink px-4 text-[15px] text-white disabled:bg-fill disabled:text-ink-3`,
-  secondary: `${base} min-h-12 rounded-input bg-fill px-4 text-[15px] text-ink disabled:text-ink-3`,
+  secondary: `${base} min-h-12 rounded-input border border-line bg-bg px-4 text-[15px] text-ink disabled:text-ink-3`,
   /** 56×56 square left of the CTA (back / schedule). */
   square: `${base} h-14 w-14 flex-none rounded-cta bg-fill text-xl text-ink`,
   danger: `${base} min-h-14 rounded-cta bg-danger px-5 text-[17px] text-white disabled:bg-fill disabled:text-ink-3`,
@@ -78,7 +78,7 @@ export function FlowHeader({ href, icon = "←", label, title, right }: { href: 
 export function PrimaryBar({ children, aboveTabs = false }: { children: ReactNode; aboveTabs?: boolean }) {
   return (
     <div
-      className={`sticky z-10 -mx-5 mt-auto border-t border-line bg-bg/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur ${
+      className={`sticky z-10 -mx-5 mt-auto bg-canvas/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur ${
         aboveTabs ? "bottom-24" : "bottom-0"
       }`}
     >
@@ -129,6 +129,6 @@ export function SegmentedLinks({ items, current }: { items: { key: string; href:
 /** Horizontal filter / choice chips. Selected = ink (DESIGN §4.6). */
 export function chipClass(selected: boolean) {
   return `press inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full px-4 text-[15px] font-medium ${
-    selected ? "bg-ink text-white" : "bg-fill text-ink"
+    selected ? "bg-ink text-white" : "border border-line bg-bg text-ink"
   }`;
 }

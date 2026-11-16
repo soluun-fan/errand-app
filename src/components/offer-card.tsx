@@ -29,7 +29,7 @@ export function OfferCard({
 }) {
   return (
     <div className={`flex flex-col gap-2 rounded-card border bg-bg p-4 ${badge ? "border-2 border-ink" : "border-line"}`}>
-      {badge && <span className="self-start rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-white">★ {badge}</span>}
+      {badge && <span className="self-start rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">★ {badge}</span>}
       <div className="flex items-center gap-3">
         <Avatar name={person.name} size={56} />
         <div className="min-w-0 flex-1">

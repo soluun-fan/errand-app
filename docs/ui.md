@@ -1,9 +1,11 @@
 # UI system
 
-Style follows a UB super-app users already know (`reference/`): white, near-black primary button, map + bottom sheet, price shown upfront. Copy layout and patterns only, never its logo, colours or illustrations.
+Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, white cards, **orange** for the main action and prices. Layout patterns may be borrowed from apps users know (`reference/`), never their logo, colours or illustrations.
 
 ## Tokens
-- Colours: ink `#1C1622` · ink-2 `#55505C` · ink-3 `#8E8A94` · line `#E7E6EA` · fill `#F3F3F5` · bg `#FFF` · scrim `rgba(0,0,0,.45)` · brand `#0E9F7E` (accents only) · held `#0E9F7E/#E7F6F1` · warn `#B54708/#FEF0E1` · danger `#C0362C/#FDECEA` · eta `#12A150/#E8F7EE` · route `#2F6FED`. Status colours mean status only.
+- Colours: page `canvas #F5F4F2` · cards/sheets/inputs `bg #FFF` · ink `#1C1917` · ink-2 `#57534E` · ink-3 `#8F8A85` · line `#E8E4DF` · fill `#EFECE8` · **brand orange `#EA580C`** (fills: main button with 18 px bold white text, progress, toggles, selected borders) · **brand-ink `#C2410C`** (orange text: prices, links, Copy/Directions) · brand-bg `#FFF1E8` (category tag, badges) · held `#0A7A60/#E7F6F1` · warn `#B54708/#FEF0E1` · danger `#C0362C/#FDECEA` · eta `#0E7F40/#E8F7EE` · route `#2F6FED`. Status colours mean status only; orange never means warning.
+- Money colours: headline prices (task price, your fee, total to pay, job chips' amount, earnings available) are **brand-ink**; breakdown lines stay ink; money held by the bank stays **held green**.
+- Buttons: primary = orange; secondary = white with a line border; small = near-black (e.g. Chat); chips: unselected white + border, selected near-black.
 - Type: Inter, tabular numbers. 12/14/16/18/20/28. 400/500/600/700.
 - Radius: card 16 · input 12 · tile 18 · sheet 24 · CTA 14 · chip full. Selected card = 2px ink border.
 - Spacing 4px grid, side padding 20. Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
@@ -14,6 +16,8 @@ Style follows a UB super-app users already know (`reference/`): white, near-blac
 - **B Form**: ✕/← header, cards, sticky CTA. Post steps, SafePay create, dispute, verification.
 - **C List**: tabs and lists.
 Tab bar (floating pill, roots only): customer **Нүүр · Хэтэвч · Түүх**; helper **Ажил · Орлого · Түүх**. Chat lives inside a deal. SafePay is a home tile.
+
+- **D Detail** (task / job screens, `src/components/detail.tsx`): edge-to-edge map on top (`MapHero`, ~⅓ screen, route line in `route` blue) → category tag (ink pill) + status + big title (`DetailTitle`) → plain sections split by thin lines, small grey label + big value (`DetailSection`, `DetailPair` for fee | items) → addresses in grey boxes with Хуулах / Чиглэл links (`AddressBox`) → one sticky CTA. Contact = **Call | Chat** row (`ContactRow`). Borrowed layout from a Korean errand app (2026-11-16); our colours, no illustrations.
 
 ## Components (build on /dev/components, all states)
 | Name | Key rules | Ref |

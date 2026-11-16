@@ -14,6 +14,8 @@ import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { CATEGORY_ICON, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { distanceKm } from "@/lib/dispatch/plan";
+import { callParty } from "@/lib/calls";
+import { AddressBox, DetailSection, DetailTitle, MapHero } from "@/components/detail";
 import { googlePlaceUrl } from "@/lib/maps";
 import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
@@ -62,12 +64,20 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
  * (/dev/ui) uses it with fixture data.
  */
 /** "💬 Чат" with an unread badge. */
-export function ChatLink({ dealId, unread, t }: { dealId: string; unread: number; t: T }) {
+/** Call | Chat side by side (both open the deal's chat, where the call buttons are). Call only while a call is allowed. */
+export function ContactRow({ dealId, unread, canCall, t }: { dealId: string; unread: number; canCall: boolean; t: T }) {
   return (
-    <Link href={`/chat/${dealId}`} className={`${btn.secondary} relative w-full`}>
-      💬 {t("chat.open")}
-      {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
-    </Link>
+    <div className={`grid gap-2 ${canCall ? "grid-cols-2" : "grid-cols-1"}`}>
+      {canCall && (
+        <Link href={`/chat/${dealId}`} className={`${btn.secondary} w-full`}>
+          📞 {t("call.voice")}
+        </Link>
+      )}
+      <Link href={`/chat/${dealId}`} className={`${btn.small} relative w-full`}>
+        💬 {t("chat.open")}
+        {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
+      </Link>
+    </div>
   );
 }
 
@@ -168,6 +178,10 @@ export function DealView(p: DealViewProps) {
       line = deal.paymentRef ? t("deal.line.expiredNoHelper", { amount: fmtMoney(amountDue(deal)) }) : t("deal.line.expiredUnpaid");
       break;
   }
+  const duration = deal.details.minutes >= 60 ? t("price.hours", { n: deal.details.minutes / 60 }) : t("price.min", { n: deal.details.minutes });
+  const when = deal.scheduledAt
+    ? t("job.startsAt", { time: fmtDateTime(deal.scheduledAt, locale), dur: duration })
+    : t("job.nowFor", { dur: duration });
   const waiting = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"].includes(deal.status);
 
   /* ---------- money: where it is now ---------- */
@@ -392,18 +406,40 @@ export function DealView(p: DealViewProps) {
     <>
       <FlowHeader href="/" label={t("common.back")} />
 
+      {deal.location && waiting && (
+        <MapHero
+          caption={
+            p.helperPos ? (
+              <>
+                {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })} · {t("map.helperLive")}
+              </>
+            ) : undefined
+          }
+        >
+          <TaskMap
+            rounded={false}
+            className="h-[34vh] min-h-56"
+            markers={[
+              ...(deal.pickupLocation ? [{ ...deal.pickupLocation, kind: "pickup", label: deal.pickupAddress ?? t("map.pickup") } as MapMarker] : []),
+              { ...deal.location, kind: "task", label: deal.address } as MapMarker,
+              ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
+            ]}
+            // the trip: helper → pickup → drop-off
+            route={[...(p.helperPos ? [p.helperPos] : []), ...(deal.pickupLocation ? [deal.pickupLocation] : []), deal.location]}
+          />
+        </MapHero>
+      )}
+
       {/* status first */}
-      <Card>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-ink-2">
-              <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`category.${deal.category}`)} ·{" "}
-              {deal.mode === "now" ? t("deal.now") : t("deal.scheduledFor", { when: deal.scheduledAt ? fmtDateTime(deal.scheduledAt, locale) : "" })}
-            </p>
-            <h1 className="mt-0.5 text-xl font-bold leading-snug">{deal.title}</h1>
-          </div>
-          <StatusBadge status={deal.status} t={t} />
-        </div>
+      <DetailTitle
+        tag={
+          <>
+            <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`categoryShort.${deal.category}`)}
+          </>
+        }
+        status={<StatusBadge status={deal.status} t={t} />}
+        title={deal.title}
+      >
         <StepTracker status={deal.status} events={events} t={t} />
         <div className="text-[16px] text-ink">{line}</div>
         {deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
@@ -413,36 +449,13 @@ export function DealView(p: DealViewProps) {
             {t("common.needHelp")}
           </Link>
         )}
-      </Card>
-
-      {deal.location && waiting && (
-        <section className="flex flex-col gap-2">
-          <TaskMap
-            className="h-52"
-            markers={[
-              ...(deal.pickupLocation ? [{ ...deal.pickupLocation, kind: "pickup", label: deal.pickupAddress ?? t("map.pickup") } as MapMarker] : []),
-              { ...deal.location, kind: "task", label: deal.address } as MapMarker,
-              ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
-            ]}
-            // the trip: helper → pickup → drop-off
-            route={[...(p.helperPos ? [p.helperPos] : []), ...(deal.pickupLocation ? [deal.pickupLocation] : []), deal.location]}
-          />
-          {p.helperPos ? (
-            <p className="text-sm text-ink-2">
-              {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })} · {t("map.helperLive")}
-            </p>
-          ) : null}
-          <a href={googlePlaceUrl(deal.location)} target="_blank" rel="noopener noreferrer" className="self-start text-[15px] font-medium underline underline-offset-4">
-            {t("map.openGoogle")}
-          </a>
-        </section>
-      )}
+      </DetailTitle>
 
       {deal.helperId && (
         <OfferCard
           person={person(people.get(deal.helperId), helperName)}
           t={t}
-          action={p.chat ? <ChatLink dealId={deal.id} unread={p.chat.unread} t={t} /> : undefined}
+          action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
         />
       )}
 
@@ -542,17 +555,28 @@ export function DealView(p: DealViewProps) {
 
       {money}
 
-      <Card>
-        <p className="whitespace-pre-line text-[16px]">{deal.description}</p>
-        {deal.pickupAddress && <p className="text-[15px] text-ink-2">● {t("deal.pickupAt", { place: deal.pickupAddress })}</p>}
-        <p className="text-[15px] text-ink-2">↘ {deal.address}</p>
-        {detailBits.length > 0 && <p className="text-[15px] text-ink-2">{detailBits.join(" · ")}</p>}
-        {deal.details.note && <p className="rounded-input bg-fill p-2.5 text-[15px]">{deal.details.note}</p>}
-      </Card>
+      <DetailSection label={t("job.whenLabel")}>
+        <p className="text-[18px] font-bold">{when}</p>
+      </DetailSection>
 
-      <Card>
-        <h2 className="font-bold">{t("deal.timeline")}</h2>
-        <ol className="flex flex-col gap-3">
+      <DetailSection label={t("job.placeLabel")}>
+        <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <div className="flex flex-col gap-2">
+          {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}
+          <AddressBox
+            icon="↘"
+            label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
+            address={deal.address}
+            directionsUrl={deal.location ? googlePlaceUrl(deal.location) : undefined}
+            directionsLabel={t("map.openShort")}
+          />
+        </div>
+        {detailBits.length > 0 && <p className="text-[15px] text-ink-2">{detailBits.join(" · ")}</p>}
+        {deal.details.note && <p className="rounded-input bg-fill p-3 text-[15px]">{deal.details.note}</p>}
+      </DetailSection>
+
+      <DetailSection label={t("deal.timeline")}>
+        <ol className="flex flex-col gap-3 pt-1">
           {[...events].reverse().map((e, i) => (
             <li key={i} className="flex gap-3 text-sm">
               <span className="w-24 flex-none text-ink-2 tabular-nums">{fmtDateTime(e.at, locale)}</span>
@@ -560,7 +584,7 @@ export function DealView(p: DealViewProps) {
             </li>
           ))}
         </ol>
-      </Card>
+      </DetailSection>
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>

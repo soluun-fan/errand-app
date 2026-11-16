@@ -78,7 +78,7 @@ export default async function Home() {
       </div>
 
       {/* sheet over the map */}
-      <section className="-mx-5 -mt-8 flex flex-col gap-4 rounded-t-sheet bg-bg px-5 pt-3">
+      <section className="-mx-5 -mt-8 flex flex-1 flex-col gap-4 rounded-t-sheet bg-bg px-5 pb-6 pt-3">
         <div aria-hidden className="mx-auto h-1 w-10 rounded-full bg-line" />
 
         <form action="/post" className="flex min-h-14 items-center gap-2 rounded-full border border-line bg-bg pl-4 pr-1.5 shadow-float">
@@ -112,7 +112,7 @@ export default async function Home() {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
               <span className="text-sm font-medium">🔒 {t("wallet.heldNow")}</span>
-              <span className="text-[22px] font-bold tabular-nums">{fmtMoney(heldNow)}</span>
+              <span className="text-[22px] font-bold tabular-nums text-held">{fmtMoney(heldNow)}</span>
               <span className="text-sm">{t("wallet.heldNowSub", { n: holding.length })}</span>
             </div>
             <div className="flex flex-col gap-1 rounded-card bg-fill p-4">
@@ -168,7 +168,7 @@ export default async function Home() {
         {!everCompleted && (
           <section className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-1">
             {([1, 2, 3] as const).map((n) => (
-              <div key={n} className="w-64 flex-none snap-start rounded-card border border-line p-4">
+              <div key={n} className="w-64 flex-none snap-start rounded-card border border-line bg-bg p-4">
                 <p className="font-semibold">{t(`home.explainer${n}Title`)}</p>
                 <p className="mt-1 text-[15px] text-ink-2">{t(`home.explainer${n}Body`)}</p>
               </div>

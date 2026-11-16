@@ -125,14 +125,15 @@ export function TaskMap({
       const src = m.getSource("route") as GeoJSONSource | undefined;
       if (src) src.setData(line);
       else {
-        const ink = getComputedStyle(document.documentElement).getPropertyValue("--color-ink").trim() || "#1c1622";
+        // docs/ui.md: routes use the route token (blue)
+        const color = getComputedStyle(document.documentElement).getPropertyValue("--color-route").trim() || "#2f6fed";
         m.addSource("route", { type: "geojson", data: line });
         m.addLayer({
           id: "route",
           type: "line",
           source: "route",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": ink, "line-width": 4, "line-opacity": 0.75, "line-dasharray": [1, 1.6] },
+          paint: { "line-color": color, "line-width": 4, "line-opacity": 0.75, "line-dasharray": [1, 1.6] },
         });
       }
       for (const mk of all) {

@@ -29,8 +29,8 @@ export function PriceDeltaCard({
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className={`press relative flex min-h-36 flex-col items-start gap-1.5 rounded-card p-3.5 text-left ${
-        selected ? "border-2 border-ink" : "border border-line"
+      className={`press relative flex min-h-36 flex-col items-start gap-1.5 rounded-card bg-bg p-3.5 text-left ${
+        selected ? "border-2 border-brand" : "border border-line"
       }`}
     >
       <span className="flex w-full items-start justify-between">
@@ -39,9 +39,9 @@ export function PriceDeltaCard({
         </span>
         <span
           aria-hidden
-          className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border-2 ${selected ? "border-ink" : "border-ink-3"}`}
+          className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border-2 ${selected ? "border-brand" : "border-ink-3"}`}
         >
-          {selected && <span className="h-3 w-3 rounded-full bg-ink" />}
+          {selected && <span className="h-3 w-3 rounded-full bg-brand" />}
         </span>
       </span>
       <span className="text-[17px] font-semibold leading-tight">{title}</span>
@@ -87,8 +87,8 @@ export function OptionCard({
       aria-disabled={disabled}
       disabled={disabled}
       onClick={onSelect}
-      className={`press flex w-full items-center gap-3 rounded-card p-3 text-left disabled:opacity-45 ${
-        selected ? "border-2 border-ink" : "border-2 border-transparent"
+      className={`press flex w-full items-center gap-3 rounded-card bg-bg p-3 text-left disabled:opacity-45 ${
+        selected ? "border-2 border-brand" : "border-2 border-transparent"
       }`}
     >
       <span aria-hidden className="flex h-14 w-14 flex-none items-center justify-center rounded-input bg-fill text-2xl">
@@ -100,7 +100,7 @@ export function OptionCard({
         </span>
         {sub && <span className="block text-sm text-ink-2">{sub}</span>}
       </span>
-      <span className="text-[20px] font-bold tabular-nums">{price}</span>
+      <span className="text-[20px] font-bold tabular-nums text-brand-ink">{price}</span>
     </button>
   );
 }
@@ -124,7 +124,7 @@ export function DashedAdd({ label, onClick }: { label: string; onClick: () => vo
 /** Switch row (DESIGN §4.12). */
 export function ToggleRow({ icon, title, sub, checked, onChange }: { icon: string; title: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-card border border-line p-3">
+    <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-card border border-line bg-bg p-3">
       <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-input bg-fill text-2xl">
         {icon}
       </span>
@@ -135,7 +135,7 @@ export function ToggleRow({ icon, title, sub, checked, onChange }: { icon: strin
       <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
       <span
         aria-hidden
-        className="relative h-8 w-14 flex-none rounded-full bg-line transition-colors after:absolute after:left-1 after:top-1 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-6 peer-focus-visible:outline-2 peer-focus-visible:outline-ink"
+        className="relative h-8 w-14 flex-none rounded-full bg-line transition-colors after:absolute after:left-1 after:top-1 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand peer-checked:after:translate-x-6 peer-focus-visible:outline-2 peer-focus-visible:outline-ink"
       />
     </label>
   );

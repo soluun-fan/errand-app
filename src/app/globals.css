@@ -10,13 +10,17 @@
 }
 
 @theme {
-  --color-ink: #1c1622;
-  --color-ink-2: #55505c;
-  --color-ink-3: #8e8a94; /* placeholders / disabled only: 3.4:1 is below the 4.5:1 text minimum */
-  --color-line: #e7e6ea;
-  --color-fill: #f3f3f5;
-  --color-bg: #ffffff;
-  --color-brand: #0e9f7e; /* accents only — never big areas, never the primary button */
+  /* Style B (2026-11-16): very light warm grey page, white cards, orange for the main action */
+  --color-ink: #1c1917;
+  --color-ink-2: #57534e;
+  --color-ink-3: #8f8a85; /* placeholders / disabled only: below the 4.5:1 text minimum */
+  --color-line: #e8e4df;
+  --color-fill: #efece8; /* chips, address boxes, tiles — visible on white and on the page grey */
+  --color-canvas: #f5f4f2; /* the page behind the cards */
+  --color-bg: #ffffff; /* cards, sheets, inputs */
+  --color-brand: #ea580c; /* orange fills (main button): white text on it is 18 px bold = large text, 3.6:1 */
+  --color-brand-ink: #c2410c; /* orange text and links on white or the page grey: ≥ 4.7:1 */
+  --color-brand-bg: #fff1e8; /* soft orange behind brand-ink (category tag) */
 
   /* status colours mean status only; text tones darkened where needed to reach 4.5:1 */
   --color-held: #0a7a60;
@@ -45,7 +49,7 @@
 body {
   font-family: var(--font-sans);
   font-size: 16px;
-  background: var(--color-bg);
+  background: var(--color-canvas);
   color: var(--color-ink);
 }
 
@@ -62,8 +66,8 @@ body {
 }
 
 @keyframes tracker-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(28 22 34 / 0.35); }
-  50% { box-shadow: 0 0 0 6px rgb(28 22 34 / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgb(234 88 12 / 0.35); }
+  50% { box-shadow: 0 0 0 6px rgb(234 88 12 / 0); }
 }
 .animate-tracker {
   animation: tracker-pulse 1.6s ease-in-out infinite;

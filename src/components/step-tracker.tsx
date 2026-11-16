@@ -62,15 +62,15 @@ export function StepTracker({
             {i > 0 && (
               <span
                 aria-hidden
-                className={`absolute right-1/2 top-3 -z-0 h-0.5 w-full ${i <= pos ? "bg-ink" : "bg-line"}`}
+                className={`absolute right-1/2 top-3 -z-0 h-0.5 w-full ${i <= pos ? "bg-brand" : "bg-line"}`}
               />
             )}
             <span
               className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
                 done
-                  ? "bg-ink text-white"
+                  ? "bg-brand text-white"
                   : here
-                    ? `border-2 border-ink bg-bg text-ink ${status === "disputed" ? "" : "animate-tracker"}`
+                    ? `border-2 border-brand bg-bg text-brand-ink ${status === "disputed" ? "" : "animate-tracker"}`
                     : "bg-line text-ink-3"
               }`}
             >

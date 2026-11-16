@@ -29,7 +29,7 @@ function JobRow({ item, t, locale, mine }: { item: JobListItem; t: T; now?: numb
   const d = item.deal;
   const outside = mine !== undefined && !mine.includes(d.category);
   return (
-    <Link href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line bg-bg p-3">
+    <Link href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line bg-bg bg-bg p-3">
       <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-2xl">
         {CATEGORY_ICON[d.category]}
       </span>
@@ -48,7 +48,7 @@ function JobRow({ item, t, locale, mine }: { item: JobListItem; t: T; now?: numb
           </span>
         )}
       </span>
-      <span className="flex-none text-right text-[17px] font-bold tabular-nums">{fmtMoney(earn(d))}</span>
+      <span className="flex-none text-right text-[17px] font-bold tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
     </Link>
   );
 }
@@ -149,7 +149,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.activeTitle")}</h2>
             {active.map((d) => (
-              <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line p-3">
+              <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line bg-bg p-3">
                 <span aria-hidden className="text-2xl">
                   {CATEGORY_ICON[d.category]}
                 </span>

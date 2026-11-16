@@ -9,6 +9,7 @@ import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { pricingConfig } from "@/lib/pricing";
+import { DetailsJson, PinJson, parseOr } from "@/lib/input";
 import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -22,18 +23,6 @@ const int = (v: FormDataEntryValue | null) => {
   const s = String(v ?? "").replace(/[\s,₮]/g, "");
   return s === "" ? 0 : Number(s);
 };
-
-/** A map pin from the form ({"lat","lng"} JSON); a broken pin is ignored — the address text still works. */
-function pinFrom(v: FormDataEntryValue | null): { lat: number; lng: number } | null {
-  const raw = String(v ?? "");
-  if (!raw) return null;
-  try {
-    const p = JSON.parse(raw) as { lat?: unknown; lng?: unknown };
-    return typeof p.lat === "number" && typeof p.lng === "number" ? { lat: p.lat, lng: p.lng } : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Last step of the post flow. Re-checks everything — the client only guides. The engine
@@ -68,16 +57,15 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   const scheduledAt = rawWhen ? parseUbLocal(rawWhen) : null;
   if (rawWhen && (scheduledAt === null || scheduledAt <= Date.now())) return { error: t("task.reasonTime"), step: 1 };
 
-  let details: Partial<ErrandDetails>;
-  try {
-    details = JSON.parse(String(form.get("details") ?? "{}")) as Partial<ErrandDetails>;
-  } catch {
-    return { error: t("error.generic"), step: 1 };
-  }
+  // shape only (docs/rules.md "Input validation"); the engine checks ranges and the price
+  const parsedDetails = parseOr(DetailsJson, String(form.get("details") ?? ""));
+  if (!parsedDetails) return { error: t("error.generic"), step: 1 };
+  let details: Partial<ErrandDetails> = parsedDetails;
 
-  const location = pinFrom(form.get("location"));
+  // a broken pin is ignored — the address text still works
+  const location = parseOr(PinJson, String(form.get("location") ?? ""));
   // two-point tasks only (the engine ignores it otherwise); with both pins it measures the distance
-  const pickupLocation = pinFrom(form.get("pickupLocation"));
+  const pickupLocation = parseOr(PinJson, String(form.get("pickupLocation") ?? ""));
 
   const fee = int(form.get("fee"));
   const itemBudget = form.get("buyForMe") === "on" ? int(form.get("itemBudget")) : 0;

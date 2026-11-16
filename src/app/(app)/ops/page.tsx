@@ -6,13 +6,23 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { openIncidentCounts } from "@/lib/incidents";
 import { reviewQueue } from "@/lib/kyc";
+import { fmtDuration } from "@/lib/format";
+import { tickHealth } from "@/lib/health-rules";
 import { getControls } from "@/lib/safety";
+import { tickHeartbeat } from "@/lib/scheduler";
 
 /** /ops — the operations hub (admins only; others get a 404). */
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls] = await Promise.all([getT(), reviewQueue(), openIncidentCounts(), getControls()]);
+  const [t, queue, incidents, controls, hb] = await Promise.all([getT(), reviewQueue(), openIncidentCounts(), getControls(), tickHeartbeat().catch(() => null)]);
+  const health = tickHealth(hb, Date.now());
+  const ago =
+    !("agoMs" in health) || !Number.isFinite(health.agoMs)
+      ? "—"
+      : health.agoMs < 60_000
+        ? t("opsHome.secs", { s: Math.round(health.agoMs / 1000) })
+        : fmtDuration(health.agoMs, t);
   const row = (href: string, icon: string, label: string, badge: string | null, urgent = false) => (
     <Link href={href} className="press flex items-center justify-between gap-3 border-b border-line py-4">
       <span className="font-semibold">
@@ -29,6 +39,17 @@ export default async function OpsHome() {
           {[controls.postingPaused && t("opsSafety.postingOn"), controls.paymentsPaused && t("opsSafety.paymentsOn")].filter(Boolean).join(" · ")}
         </Note>
       )}
+      {/* background jobs: expiries, auto-release, SOS reminders all depend on it */}
+      <Note tone={health.state === "ok" ? "held" : health.state === "failing" ? "warn" : "bad"}>
+        <span className="font-semibold">{t("opsHome.system")}: </span>
+        {health.state === "ok"
+          ? t("opsHome.tickOk", { ago })
+          : health.state === "never"
+            ? t("opsHome.tickNever")
+            : health.state === "stopped"
+              ? t("opsHome.tickStopped", { ago })
+              : t("opsHome.tickFailing", { ago, error: health.error.slice(0, 120) })}
+      </Note>
       <nav className="flex flex-col">
         {row(
           "/ops/incidents",

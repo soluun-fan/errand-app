@@ -21,7 +21,7 @@ export default async function HelpPage() {
       <ol className="flex flex-col gap-2">
         {(["s1", "s2", "s3"] as const).map((k, i) => (
           <li key={k} className="flex gap-3 rounded-card border border-line bg-bg p-4">
-            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-ink text-sm font-bold text-white">{i + 1}</span>
+            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-brand-bg text-sm font-bold text-brand-ink">{i + 1}</span>
             <span className="text-[15px]">{t(`help.${k}`)}</span>
           </li>
         ))}

@@ -39,7 +39,7 @@ function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | u
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-card border border-line p-3">
+    <div className="flex items-center gap-3 rounded-card border border-line bg-bg p-3">
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{t(`kyc.docs.${doc}`)}</span>
         {doc === "record" && <span className="block text-sm text-ink-2">{t("kyc.recordHelp")}</span>}

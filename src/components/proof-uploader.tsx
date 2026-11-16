@@ -79,7 +79,7 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "r
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line p-4">
+    <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
       <div>
         <p className="font-semibold">
           {kind === "receipt" ? t("proof.receiptTitle") : t("proof.handoverTitle")} {done && <span className="text-held">· {t("proof.done")}</span>}

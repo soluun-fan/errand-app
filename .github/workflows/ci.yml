@@ -1,0 +1,40 @@
+# Every push and pull request: types, tests (incl. the database migrations in PGlite) and a
+# production build must pass — a red ❌ on GitHub means "do not deploy this". See
+# docs/CONTEXT.md §13 "Definition of done".
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests (engine, money, migrations in PGlite)
+        run: npm test
+      - name: Production build
+        run: npm run build
+        env:
+          # Placeholders only: the build needs the names, never real keys (no secrets in CI).
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
+          NEXT_TELEMETRY_DISABLED: "1"

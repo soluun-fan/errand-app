@@ -20,7 +20,7 @@ export function MoneyBreakdown({ rows, total, caption }: { rows: MoneyRow[]; tot
       {total && (
         <div className="flex justify-between gap-4 border-t border-line pt-2 text-base font-bold">
           <span>{total.label}</span>
-          <span className="tabular-nums">{fmtMoney(total.amount)}</span>
+          <span className="tabular-nums text-brand-ink">{fmtMoney(total.amount)}</span>
         </div>
       )}
       {caption && <p className="text-sm text-ink-2">{caption}</p>}

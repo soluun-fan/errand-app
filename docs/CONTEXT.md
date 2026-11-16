@@ -59,7 +59,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Supabase:** Postgres, Auth (phone OTP), RLS, CLI 3.1. The hosted project is linked.
   - `@supabase/ssr` for cookies; `getClaims()` for auth.
   - The service-role ("secret key") admin client is for server code only.
-- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **214 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
+- **Tests:** **Vitest**. The database tests run the real migrations in **PGlite** (Postgres compiled to WASM, in-process), with stubs for Supabase's `auth` schema and roles (`src/lib/db/__tests__/pg.ts`). **221 tests** cover the engine, money, transitions, simulation, the DB round-trip, RLS, dispatch and maps.
 - **Other libraries:**
   - `maplibre-gl` (open-source maps on OpenFreeMap tiles)
   - `web-push` (VAPID Web Push)
@@ -419,7 +419,7 @@ There's no ESLint or Prettier config: **match the surrounding code.** That means
 - **New deal state:** add a fixture in `dev/components/fixtures.ts` so it shows in the gallery.
 
 ### Definition of done
-1. `npm test`, `npm run typecheck` and `npm run build` are all clean.
+1. `npm test`, `npm run typecheck` and `npm run build` are all clean (GitHub CI runs the same three on every push).
 2. New pure logic has unit tests; new DB objects have PGlite tests; new commands have engine tests and an updated transition table.
 3. **Verify against the real hosted DB:**
    - run `next start -p 3123` (never touch the owner's dev server on :3000);

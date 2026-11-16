@@ -74,7 +74,7 @@ export default async function ProfilePage() {
           {addresses.length === 0 ? (
             <p className="text-[15px] text-ink-2">{t("profile.addressesEmpty")}</p>
           ) : (
-            <ul className="flex flex-col rounded-card border border-line">
+            <ul className="flex flex-col rounded-card border border-line bg-bg">
               {addresses.map((a) => {
                 const label = a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`);
                 const bits = [

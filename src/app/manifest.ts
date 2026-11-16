@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Errands and protected payments in Ulaanbaatar",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#ffffff",
+    background_color: "#f5f4f2",
+    theme_color: "#f5f4f2",
     lang: "mn",
     icons: [
       { src: "/icon", sizes: "512x512", type: "image/png" },

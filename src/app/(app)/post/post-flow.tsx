@@ -368,7 +368,7 @@ export function PostFlow({
             )}
           </section>
           {/* RouteCard (DESIGN §4.5) */}
-          <div className="rounded-card border border-line">
+          <div className="rounded-card border border-line bg-bg">
             {twoPoint && (
               <label className="flex items-center gap-3 border-b border-line px-4 py-2.5">
                 <span aria-hidden className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-ink text-white">
@@ -568,7 +568,7 @@ export function PostFlow({
       {STEPS[step] === "review" && (
         <>
           {startStep === 2 && <Note tone="info">{t("task.repeatNote")}</Note>}
-          <div className="flex flex-col gap-2 rounded-card border border-line p-4">
+          <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
             <p className="text-sm text-ink-2">
               <span aria-hidden>{CATEGORY_ICON[d.category]}</span> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : start.replace("T", " ")}
             </p>
@@ -612,7 +612,7 @@ export function PostFlow({
               >
                 −
               </button>
-              <span className="flex-1 text-center text-[28px] font-bold tabular-nums">{fmtMoney(fee)}</span>
+              <span className="flex-1 text-center text-[28px] font-bold tabular-nums text-brand-ink">{fmtMoney(fee)}</span>
               <button
                 type="button"
                 aria-label={t("task.raise")}
