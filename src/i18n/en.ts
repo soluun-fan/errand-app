@@ -941,6 +941,8 @@ export const en = {
     toolsSub: "The helper brings their own tools · +{amount}",
     nightNote: "Night tasks (22:00–07:00) add {amount}.",
     recommended: "Recommended {amount} · you can set {min}–{max}",
+    estimate: "Suggested price",
+    plusItemsHeld: "+ {amount} for items, held and returned if unused",
     fairHint: "A fair price for this job.",
     aboveHint: "Above the recommended price: helpers respond faster.",
     belowHint: "Below the recommended price: fewer helpers may respond, and it may take longer.",

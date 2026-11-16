@@ -696,6 +696,19 @@ export function PostFlow({
             {state.error}
           </p>
         )}
+        {/* the price as it builds up, so a change (stairs, time, distance) is never a surprise */}
+        {STEPS[step] === "where" && (
+          <div className="flex flex-col gap-0.5 rounded-input bg-bg px-3.5 py-2.5 shadow-card" aria-live="polite">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-[13px] font-semibold text-ink-2">{t("price.estimate")}</span>
+              <b className="text-[18px] tabular-nums text-brand-ink">{fmtMoney(quote.total)}</b>
+            </span>
+            {quote.lines.length > 1 && (
+              <span className="text-[12px] leading-snug text-ink-2">{quote.lines.map((l) => `${lineLabel(l)} ${fmtMoney(l.amount)}`).join(" + ")}</span>
+            )}
+            {itemBudget > 0 && <span className="text-[12px] text-ink-2">{t("price.plusItemsHeld", { amount: fmtMoney(heldItems) })}</span>}
+          </div>
+        )}
         {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
@@ -707,7 +720,7 @@ export function PostFlow({
             <SubmitButton className={`${btn.primary} flex-1`}>{t("task.confirm", { amount: fmtMoney(total) })}</SubmitButton>
           ) : (
             <button type="button" disabled={!!reason} onClick={() => setStep(step + 1)} className={`${btn.primary} flex-1`}>
-              {STEPS[step] === "where" ? t("task.continueAmount", { amount: fmtMoney(total) }) : t("common.next")}
+              {t("common.next")}
             </button>
           )}
         </div>
