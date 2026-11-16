@@ -7,6 +7,7 @@ import { ProofGallery } from "@/components/proof-gallery";
 import { ProofUploader } from "@/components/proof-uploader";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
+import { CopyButton } from "@/components/copy-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
@@ -54,8 +55,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     : [];
 
   // What the price was built from, so helpers can judge it (time, heavy, tools, people)
+  const duration = dt.minutes >= 60 ? t("price.hours", { n: dt.minutes / 60 }) : t("price.min", { n: dt.minutes });
+  const when = deal.scheduledAt
+    ? t("job.startsAt", { time: fmtDateTime(deal.scheduledAt, locale), dur: duration })
+    : t("job.nowFor", { dur: duration });
   const effort = [
-    dt.minutes >= 60 ? t("price.hours", { n: dt.minutes / 60 }) : t("price.min", { n: dt.minutes }),
     dt.km > 0 && t("job.trip", { km: dt.km.toFixed(1) }),
     dt.heavy && t("task.heavy"),
     dt.tools && t("price.tools"),
@@ -195,23 +199,47 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm text-ink-2">
-              <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`category.${deal.category}`)} ·{" "}
-              {deal.scheduledAt ? fmtDateTime(deal.scheduledAt, locale) : t("deal.now")}
+              <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`category.${deal.category}`)}
             </p>
             <h1 className="mt-0.5 text-xl font-bold leading-snug">{deal.title}</h1>
           </div>
           <StatusBadge status={deal.status} t={t} />
         </div>
-        <p className="text-[28px] font-bold tabular-nums">{t("job.youEarn", { amount: fmtMoney(net) })}</p>
-        {deal.itemBudget > 0 && <p className="text-[15px] text-ink-2">{t("job.plusItems", { amount: fmtMoney(deal.itemBudget) })}</p>}
-        <p className="text-[15px] text-ink-2">⏱ {effort.join(" · ")}</p>
+        {/* what it pays | what to buy — side by side, so "no purchase" is said, not implied */}
+        <dl className="grid grid-cols-2 divide-x divide-line border-y border-line py-3">
+          <div className="pr-3">
+            <dt className="text-sm text-ink-2">{t("job.feeLabel")}</dt>
+            <dd className="text-[26px] font-bold tabular-nums leading-tight">{fmtMoney(net)}</dd>
+          </div>
+          <div className="pl-3">
+            <dt className="text-sm text-ink-2">{t("job.itemsLabel")}</dt>
+            {deal.itemBudget > 0 ? (
+              <dd>
+                <span className="block text-[17px] font-semibold tabular-nums">{t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}</span>
+                <span className="block text-sm text-ink-2">{t("job.itemsHow")}</span>
+              </dd>
+            ) : (
+              <dd className="text-[17px] font-semibold">{t("job.noItems")}</dd>
+            )}
+          </div>
+        </dl>
+        <p className="text-[16px] font-medium">🕘 {when}</p>
+        {effort.length > 0 && <p className="text-[15px] text-ink-2">{effort.join(" · ")}</p>}
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </Card>
 
       {unread !== null && <ChatLink dealId={deal.id} unread={unread} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
-      {markers.length > 0 && <TaskMap markers={markers} showMe className="h-56" />}
+      {markers.length > 0 && (
+        <TaskMap
+          markers={markers}
+          showMe
+          route={markers}
+          routeFromMe={deal.status === "open" || deal.status === "awaiting_payment" || onJob}
+          className="h-56"
+        />
+      )}
       {exact ? (
         <a href={directions} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} w-full`}>
           🧭 {t("map.directions")}
@@ -234,8 +262,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       <Card>
         <p className="whitespace-pre-line text-[16px]">{deal.description}</p>
-        {deal.pickupAddress && <p className="text-[15px] text-ink-2">● {t("deal.pickupAt", { place: deal.pickupAddress })}</p>}
-        {exact && <p className="text-[15px] text-ink-2">↘ {deal.address}</p>}
+        {deal.pickupAddress && (
+          <p className="flex items-center justify-between gap-2 text-[15px] text-ink-2">
+            <span className="min-w-0">● {t("deal.pickupAt", { place: deal.pickupAddress })}</span>
+            {exact && <CopyButton text={deal.pickupAddress} label={t("map.pickup")} />}
+          </p>
+        )}
+        {exact && (
+          <p className="flex items-center justify-between gap-2 text-[15px] text-ink-2">
+            <span className="min-w-0">↘ {deal.address}</span>
+            <CopyButton text={deal.address} label={deal.address} />
+          </p>
+        )}
         {bits.length > 0 && <p className="text-[15px] text-ink-2">{bits.join(" · ")}</p>}
         {mine && dt.note && <p className="rounded-input bg-fill p-2.5 text-[15px]">{dt.note}</p>}
         {!mine && <p className="text-sm text-ink-2">{t("job.addressAfterMatch")}</p>}

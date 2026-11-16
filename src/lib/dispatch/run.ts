@@ -1,6 +1,6 @@
 import "server-only";
 import { loadDeal, runCommand } from "@/lib/db/deals";
-import { autoPickAt, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -127,9 +127,10 @@ function toCandidate(r: CandidateRow): Candidate {
 
 async function notifyHelpers(deal: ErrandDeal, helperIds: string[]) {
   await notify(helperIds, {
-    title: deal.mode === "now" ? "push.newJobTitle" : "push.newRequestTitle",
-    body: "push.newJobBody",
-    params: { title: deal.title, fee: fmtMoney(deal.fee) },
+    // price first: helpers decide from it ("[7,500₮] Дэлгүүрээс хүнс авах")
+    title: "push.newJobTitle",
+    body: deal.mode === "now" ? "push.newJobBody" : "push.newRequestBody",
+    params: { title: deal.title, fee: fmtMoney(errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet) },
     url: `/jobs/${deal.id}`,
     tag: `job-${deal.id}`,
   });

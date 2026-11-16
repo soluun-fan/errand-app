@@ -1,7 +1,7 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Map as MlMap, Marker } from "maplibre-gl";
+import type { GeoJSONSource, Map as MlMap, Marker } from "maplibre-gl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
@@ -31,21 +31,42 @@ const STYLE: Record<MarkerKind, string> = {
 };
 const GLYPH: Partial<Record<MarkerKind, string>> = { task: "↘", pickup: "●", helper: "🧍" };
 
+/** Points of a route line, drawn in order (e.g. helper → pickup → drop-off). */
+export interface RoutePoint {
+  lat: number;
+  lng: number;
+}
+
+/** A straight dashed line through the points: shows the trip at a glance (not turn-by-turn). */
+function routeData(points: RoutePoint[]) {
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: { type: "LineString" as const, coordinates: points.length >= 2 ? points.map((p) => [p.lng, p.lat]) : [] },
+  };
+}
+
 /**
  * Read-only map with markers (MapLibre on open tiles). Fits all markers in view; tapping a marker
  * with `href` navigates. Used on Home, the customer's task, the helper's job and the job feed.
+ * `route` draws a line through its points; with `routeFromMe` it starts at the viewer's position.
  */
 export function TaskMap({
   markers,
   className = "h-56",
   showMe = false,
   rounded = true,
+  route = [],
+  routeFromMe = false,
 }: {
   markers: MapMarker[];
   className?: string;
   /** Also show the viewer's own position (asks the browser once). */
   showMe?: boolean;
   rounded?: boolean;
+  route?: RoutePoint[];
+  /** Start the route at the viewer's position (needs `showMe`). */
+  routeFromMe?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -55,7 +76,7 @@ export function TaskMap({
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-  const key = JSON.stringify(markers) + JSON.stringify(me);
+  const key = JSON.stringify(markers) + JSON.stringify(me) + JSON.stringify(route) + String(routeFromMe);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +120,21 @@ export function TaskMap({
       for (const p of placed.current) p.remove();
       placed.current = [];
       const all: MapMarker[] = [...markers, ...(me ? [{ ...me, kind: "me" as const }] : [])];
+      // the route line sits under the markers
+      const line = routeData([...(routeFromMe && me ? [me] : []), ...route]);
+      const src = m.getSource("route") as GeoJSONSource | undefined;
+      if (src) src.setData(line);
+      else {
+        const ink = getComputedStyle(document.documentElement).getPropertyValue("--color-ink").trim() || "#1c1622";
+        m.addSource("route", { type: "geojson", data: line });
+        m.addLayer({
+          id: "route",
+          type: "line",
+          source: "route",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": ink, "line-width": 4, "line-opacity": 0.75, "line-dasharray": [1, 1.6] },
+        });
+      }
       for (const mk of all) {
         const el = document.createElement(mk.href ? "button" : "div");
         el.className = `flex items-center justify-center ${STYLE[mk.kind]}`;

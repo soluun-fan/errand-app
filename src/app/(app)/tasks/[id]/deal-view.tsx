@@ -424,6 +424,8 @@ export function DealView(p: DealViewProps) {
               { ...deal.location, kind: "task", label: deal.address } as MapMarker,
               ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
             ]}
+            // the trip: helper → pickup → drop-off
+            route={[...(p.helperPos ? [p.helperPos] : []), ...(deal.pickupLocation ? [deal.pickupLocation] : []), deal.location]}
           />
           {p.helperPos ? (
             <p className="text-sm text-ink-2">
