@@ -17,7 +17,7 @@ export default async function HelpPage() {
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />
-      <h1 className="text-[28px] font-bold">{t("help.title")}</h1>
+      <h1 className="text-[24px] font-bold tracking-tight">{t("help.title")}</h1>
       <ol className="flex flex-col gap-2">
         {(["s1", "s2", "s3"] as const).map((k, i) => (
           <li key={k} className="flex gap-3 rounded-card border border-line bg-bg p-4">

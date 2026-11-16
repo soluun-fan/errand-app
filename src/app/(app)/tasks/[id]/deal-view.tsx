@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CategoryIcon } from "@/components/category-icon";
 import type { ReactNode } from "react";
 import { Countdown } from "@/components/countdown";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
@@ -11,7 +12,7 @@ import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
 import { amountDue, autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { CATEGORY_ICON, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
+import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { callParty } from "@/lib/calls";
@@ -404,21 +405,23 @@ export function DealView(p: DealViewProps) {
 
   return (
     <>
-      <FlowHeader href="/" label={t("common.back")} />
+      {!(deal.location && waiting) && <FlowHeader href="/" label={t("common.back")} />}
 
       {deal.location && waiting && (
         <MapHero
+          backHref="/"
+          backLabel={t("common.back")}
           caption={
             p.helperPos ? (
               <>
-                {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })} · {t("map.helperLive")}
+                {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })}
               </>
             ) : undefined
           }
         >
           <TaskMap
             rounded={false}
-            className="h-[34vh] min-h-56"
+            className="h-[44vh] min-h-64"
             markers={[
               ...(deal.pickupLocation ? [{ ...deal.pickupLocation, kind: "pickup", label: deal.pickupAddress ?? t("map.pickup") } as MapMarker] : []),
               { ...deal.location, kind: "task", label: deal.address } as MapMarker,
@@ -434,11 +437,12 @@ export function DealView(p: DealViewProps) {
       <DetailTitle
         tag={
           <>
-            <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`categoryShort.${deal.category}`)}
+            <CategoryIcon id={deal.category} size={16} /> {t(`categoryShort.${deal.category}`)}
           </>
         }
         status={<StatusBadge status={deal.status} t={t} />}
         title={deal.title}
+        overlap={Boolean(deal.location && waiting)}
       >
         <StepTracker status={deal.status} events={events} t={t} />
         <div className="text-[16px] text-ink">{line}</div>

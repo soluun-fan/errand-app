@@ -12,6 +12,7 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — full redesign** (owner: "not the biggest fan of the current look"; picked from a researched preview, asked for smaller text): Onest font (fixed: Ө/Ү were rendering in a fallback font — the cyrillic-ext subset was never loaded), Lucide icons instead of emoji, borderless rounder cards on the grey page (the body had kept a white background class), task-first Home with the main button fixed at the bottom, posting split into 4 one-question steps, task screens as map + overlapping sheet. Layout and look only; logic, money and privacy unchanged.
 - **2026-11-16 — visual style B:** owner picked "light grey + white cards + orange" from three previews (A white+orange, B, C dark buttons + orange accents). Tokens in `globals.css`; orange `#EA580C` for fills with large bold white text (AA large 3.6:1), deeper `#C2410C` for orange text and prices (≥ 4.7:1). Headline prices orange (owner's request); held money stays green; app icon orange.
 - **2026-11-16 — CI, input validation, system health** (ideas taken from another team's CLAUDE.md):
   - **CI** (`.github/workflows/ci.yml`): every push runs type check (`next typegen && tsc`), all tests (incl. migrations in PGlite) and a production build with placeholder public env — no secrets in CI.

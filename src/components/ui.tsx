@@ -1,3 +1,4 @@
+import { ArrowLeft, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TONE_CLASS, type Tone } from "@/lib/labels";
@@ -26,7 +27,7 @@ export const field =
 export const fieldLabel = "flex flex-col gap-1.5 text-[15px] font-medium text-ink-2";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`flex flex-col gap-3 rounded-card border border-line bg-bg p-4 ${className}`}>{children}</section>;
+  return <section className={`flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card ${className}`}>{children}</section>;
 }
 
 export function Note({ tone, children, className = "" }: { tone: Tone; children: ReactNode; className?: string }) {
@@ -65,10 +66,10 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 export function FlowHeader({ href, icon = "←", label, title, right }: { href: string; icon?: "←" | "✕"; label: string; title?: string; right?: ReactNode }) {
   return (
     <header className="grid min-h-14 grid-cols-[48px_1fr_48px] items-center">
-      <Link href={href} aria-label={label} className="flex h-12 w-12 items-center justify-center rounded-full text-2xl hover:bg-fill">
-        {icon}
+      <Link href={href} aria-label={label} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+        {icon === "✕" ? <X aria-hidden size={20} /> : <ArrowLeft aria-hidden size={20} />}
       </Link>
-      {title ? <h1 className="truncate text-center text-xl font-semibold">{title}</h1> : <span />}
+      {title ? <h1 className="truncate text-center text-[17px] font-bold">{title}</h1> : <span />}
       <span className="flex justify-end text-sm text-ink-2 tabular-nums">{right}</span>
     </header>
   );

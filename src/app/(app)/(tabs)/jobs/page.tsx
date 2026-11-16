@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusBadge } from "@/components/status-badge";
 import { Avatar, Card, SegmentedLinks, btn, chipClass } from "@/components/ui";
@@ -8,7 +9,6 @@ import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
 import { CATEGORIES, TERMINAL_STATUSES, errandSplit, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { CATEGORY_ICON } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
@@ -29,10 +29,8 @@ function JobRow({ item, t, locale, mine }: { item: JobListItem; t: T; now?: numb
   const d = item.deal;
   const outside = mine !== undefined && !mine.includes(d.category);
   return (
-    <Link href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line bg-bg bg-bg p-3">
-      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-2xl">
-        {CATEGORY_ICON[d.category]}
-      </span>
+    <Link href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
+      <CategoryIcon id={d.category} tile size={22} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[17px] font-semibold">{d.title}</span>
         <span className="block text-sm text-ink-2">
@@ -85,7 +83,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
         </Link>
         {CATEGORIES.map((c) => (
           <Link key={c.id} href={href({ cat: c.id })} aria-current={cat === c.id ? "page" : undefined} className={chipClass(cat === c.id)}>
-            <span aria-hidden>{CATEGORY_ICON[c.id]}</span> {t(`categoryShort.${c.id}`)}
+            <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
           </Link>
         ))}
       </nav>
@@ -117,7 +115,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
 
   const header = (
     <header className="flex items-center justify-between pt-2">
-      <h1 className="text-[28px] font-bold">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
+      <h1 className="text-[24px] font-bold tracking-tight">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
       <Link href="/profile" aria-label={t("home.profile")}>
         <Avatar name={profile.name || "?"} size={44} />
       </Link>
@@ -149,10 +147,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.activeTitle")}</h2>
             {active.map((d) => (
-              <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card border border-line bg-bg p-3">
-                <span aria-hidden className="text-2xl">
-                  {CATEGORY_ICON[d.category]}
-                </span>
+              <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
+                <CategoryIcon id={d.category} tile size={20} />
                 <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{d.title}</span>
                 <StatusBadge status={d.status} t={t} />
               </Link>

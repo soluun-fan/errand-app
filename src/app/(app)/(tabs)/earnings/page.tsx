@@ -1,10 +1,10 @@
 import { Note } from "@/components/ui";
+import { CategoryIcon } from "@/components/category-icon";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyJobs, walletEntries } from "@/lib/deals/queries";
 import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { CATEGORY_ICON } from "@/lib/labels";
 
 /** Орлого (helper) — available = released to you; waiting = your net on jobs not yet confirmed. */
 export default async function EarningsPage() {
@@ -20,7 +20,7 @@ export default async function EarningsPage() {
 
   return (
     <>
-      <h1 className="pt-2 text-[28px] font-bold">{t("earnings.title")}</h1>
+      <h1 className="pt-2 text-[24px] font-bold tracking-tight">{t("earnings.title")}</h1>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
           <span className="text-sm font-medium">{t("earnings.available")}</span>
@@ -37,9 +37,7 @@ export default async function EarningsPage() {
           <h2 className="mb-1 font-bold">{t("earnings.finished")}</h2>
           {finished.map((d) => (
             <a key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 border-b border-line py-3 last:border-b-0">
-              <span aria-hidden className="text-2xl">
-                {CATEGORY_ICON[d.category]}
-              </span>
+              <CategoryIcon id={d.category} tile size={20} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold">{d.title}</span>
                 <span className="block text-sm text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>

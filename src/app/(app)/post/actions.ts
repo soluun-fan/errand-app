@@ -15,9 +15,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export interface PostState {
   error?: string;
-  /** Step to jump back to: 0 what, 1 where & details, 2 review. */
+  /** Step to jump back to: 0 type, 1 what, 2 where & details, 3 review (post-flow STEPS). */
   step?: number;
 }
+
+/** Indexes of the post flow's steps (post-flow.tsx STEPS). */
+const STEP = { type: 0, what: 1, where: 2, review: 3 } as const;
 
 const int = (v: FormDataEntryValue | null) => {
   const s = String(v ?? "").replace(/[\s,₮]/g, "");
@@ -36,9 +39,9 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
 
   // Safety controls (docs/decisions.md "Safety pack"); the database enforces the pause too.
   const controls = await getControls();
-  if (controls.postingPaused) return { error: t("safety.postingPaused"), step: 2 };
+  if (controls.postingPaused) return { error: t("safety.postingPaused"), step: STEP.review };
   if ((await openTaskCount(viewer.profile.id)) >= controls.maxOpenTasks) {
-    return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: 2 };
+    return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: STEP.review };
   }
 
   const title = String(form.get("title") ?? "").trim();
@@ -47,19 +50,19 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   const pickupAddress = String(form.get("pickup") ?? "").trim();
   const category = String(form.get("category")) as CategoryId;
 
-  if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic"), step: 0 };
+  if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic"), step: STEP.type };
   if (!title || !description || title.length > cfg.titleMax || description.length > cfg.descriptionMax) {
-    return { error: t("task.reasonWhat"), step: 0 };
+    return { error: t("task.reasonWhat"), step: STEP.what };
   }
-  if (!address) return { error: t("task.reasonWhere"), step: 1 };
+  if (!address) return { error: t("task.reasonWhere"), step: STEP.where };
 
   const rawWhen = String(form.get("scheduledAt") ?? "");
   const scheduledAt = rawWhen ? parseUbLocal(rawWhen) : null;
-  if (rawWhen && (scheduledAt === null || scheduledAt <= Date.now())) return { error: t("task.reasonTime"), step: 1 };
+  if (rawWhen && (scheduledAt === null || scheduledAt <= Date.now())) return { error: t("task.reasonTime"), step: STEP.where };
 
   // shape only (docs/rules.md "Input validation"); the engine checks ranges and the price
   const parsedDetails = parseOr(DetailsJson, String(form.get("details") ?? ""));
-  if (!parsedDetails) return { error: t("error.generic"), step: 1 };
+  if (!parsedDetails) return { error: t("error.generic"), step: STEP.where };
   let details: Partial<ErrandDetails> = parsedDetails;
 
   // a broken pin is ignored — the address text still works
@@ -69,8 +72,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
 
   const fee = int(form.get("fee"));
   const itemBudget = form.get("buyForMe") === "on" ? int(form.get("itemBudget")) : 0;
-  if (form.get("buyForMe") === "on" && !(itemBudget > 0)) return { error: t("task.reasonBudget"), step: 1 };
-  if (!Number.isInteger(fee) || !Number.isInteger(itemBudget)) return { error: t("error.generic"), step: 2 };
+  if (form.get("buyForMe") === "on" && !(itemBudget > 0)) return { error: t("task.reasonBudget"), step: STEP.where };
+  if (!Number.isInteger(fee) || !Number.isInteger(itemBudget)) return { error: t("error.generic"), step: STEP.review };
 
   const id = crypto.randomUUID();
   try {
@@ -96,20 +99,20 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     );
     // what will be held when a helper is chosen — over the per-task cap it could never be paid
     if (amountDue(created.deal) > controls.maxDealAmount) {
-      return { error: t("safety.capDeal", { amount: fmtMoney(controls.maxDealAmount) }), step: 1 };
+      return { error: t("safety.capDeal", { amount: fmtMoney(controls.maxDealAmount) }), step: STEP.where };
     }
     await insertDeal(createAdminClient(), created);
     details = created.deal.details;
   } catch (e) {
-    if (isPausedError(e)) return { error: t("safety.postingPaused"), step: 2 };
+    if (isPausedError(e)) return { error: t("safety.postingPaused"), step: STEP.review };
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
-      if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: 2 };
+      if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: STEP.review };
       const max = /Maximum fee is ₮(\d+)/.exec(e.message);
-      if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: 2 };
-      if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: 1 };
-      if (/Distance must be between/.test(e.message)) return { error: t("post.reason.far"), step: 1 };
-      return { error: e.message, step: 1 };
+      if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: STEP.review };
+      if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: STEP.where };
+      if (/Distance must be between/.test(e.message)) return { error: t("post.reason.far"), step: STEP.where };
+      return { error: e.message, step: STEP.where };
     }
     throw e;
   }

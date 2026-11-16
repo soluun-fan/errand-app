@@ -45,7 +45,7 @@ export default async function ProfilePage() {
   return (
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
-      <h2 className="text-[28px] font-bold">{profile.name || t("profile.title")}</h2>
+      <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-ink-2">{t("mode.label")}</h2>

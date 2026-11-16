@@ -33,22 +33,24 @@
   --color-eta-bg: #e8f7ee;
   --color-route: #2f6fed;
 
-  --radius-input: 12px;
-  --radius-cta: 14px;
-  --radius-card: 16px;
-  --radius-tile: 18px;
-  --radius-sheet: 24px;
+  /* redesign 2026-11-16: rounder, borderless cards on the grey page */
+  --radius-input: 14px;
+  --radius-cta: 16px;
+  --radius-card: 20px;
+  --radius-tile: 20px;
+  --radius-sheet: 28px;
 
-  --shadow-float: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 6px 24px rgba(28, 25, 23, 0.08);
+  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04);
 }
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 15px; /* inputs stay 16 px (no iOS zoom) */
   background: var(--color-canvas);
   color: var(--color-ink);
 }

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Countdown } from "@/components/countdown";
 import { InlineAction } from "@/components/inline-action";
@@ -15,7 +16,6 @@ import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
 import { counterMaxFor, errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { CATEGORY_ICON } from "@/lib/labels";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
@@ -194,19 +194,19 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   return (
     <>
-      <FlowHeader href="/jobs" label={t("common.back")} />
+      {markers.length === 0 && <FlowHeader href="/jobs" label={t("common.back")} />}
       {onJob && <JobBeacon dealId={deal.id} />}
       {(deal.status === "open" || deal.status === "awaiting_payment") && <AutoRefresh seconds={10} />}
 
       {markers.length > 0 && (
-        <MapHero caption={exact ? undefined : t("map.approx")}>
+        <MapHero caption={exact ? undefined : t("map.approx")} backHref="/jobs" backLabel={t("common.back")}>
           <TaskMap
             markers={markers}
             showMe
             rounded={false}
             route={markers}
             routeFromMe={deal.status === "open" || deal.status === "awaiting_payment" || onJob}
-            className="h-[34vh] min-h-56"
+            className="h-[44vh] min-h-64"
           />
         </MapHero>
       )}
@@ -214,11 +214,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       <DetailTitle
         tag={
           <>
-            <span aria-hidden>{CATEGORY_ICON[deal.category]}</span> {t(`categoryShort.${deal.category}`)}
+            <CategoryIcon id={deal.category} size={16} /> {t(`categoryShort.${deal.category}`)}
           </>
         }
         status={<StatusBadge status={deal.status} t={t} />}
         title={deal.title}
+        overlap={markers.length > 0}
       >
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}

@@ -90,7 +90,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       // a fresh form per source, so client state never leaks between repeats
       key={again ? `again-${sp.again}` : "new"}
       initial={initial}
-      startStep={again ? 2 : 0}
+      startStep={again ? 3 : cat ? 1 : 0}
       defaultAddress={saved.find((s) => s.kind === "home")?.address ?? viewer.profile.area ?? ""}
       recent={recent}
       saved={saved}

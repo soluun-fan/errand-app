@@ -6,12 +6,14 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
 - Colours: page `canvas #F5F4F2` · cards/sheets/inputs `bg #FFF` · ink `#1C1917` · ink-2 `#57534E` · ink-3 `#8F8A85` · line `#E8E4DF` · fill `#EFECE8` · **brand orange `#EA580C`** (fills: main button with 18 px bold white text, progress, toggles, selected borders) · **brand-ink `#C2410C`** (orange text: prices, links, Copy/Directions) · brand-bg `#FFF1E8` (category tag, badges) · held `#0A7A60/#E7F6F1` · warn `#B54708/#FEF0E1` · danger `#C0362C/#FDECEA` · eta `#0E7F40/#E8F7EE` · route `#2F6FED`. Status colours mean status only; orange never means warning.
 - Money colours: headline prices (task price, your fee, total to pay, job chips' amount, earnings available) are **brand-ink**; breakdown lines stay ink; money held by the bank stays **held green**.
 - Buttons: primary = orange; secondary = white with a line border; small = near-black (e.g. Chat); chips: unselected white + border, selected near-black.
-- Type: Inter, tabular numbers. 12/14/16/18/20/28. 400/500/600/700.
-- Radius: card 16 · input 12 · tile 18 · sheet 24 · CTA 14 · chip full. Selected card = 2px ink border.
+- Type: **Onest** (has every Mongolian letter; load `cyrillic-ext` or Ө/Ү fall back). Body 15 px, inputs 16 px (no iOS zoom), page titles 22–24 px bold tight, card labels 13 px semibold grey. Tabular numbers for money.
+- Icons: **Lucide** (`lucide-react`), 16–22 px, stroke 2 — never emoji for UI. Category icons via `CategoryIcon` (`tile` = soft orange square).
+- Radius: input 14 · CTA 16 · card/tile 20 · sheet 28 · chip full. Cards have **no border**: white on the grey page with `shadow-card`; floating things use `shadow-float`. Selected = 2px orange border.
 - Spacing 4px grid, side padding 20. Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
 - Motion: sheets 250ms, snap 30/55/92%. Haptic on paid / matched / released. Respect reduced motion.
 
 ## Layouts
+- **Redesign 2026-11-16** (research: Toss "one decision per screen", on-demand apps "task first", bottom-anchored actions): Home = greeting → "Танд юугаар туслах вэ?" → search → live task cards (dark, orange progress) → 6 category cards with today's "from" price → money card → past tasks; the main button fixed at the bottom. Posting = 4 steps, one question each (type → what → where → review). Task screens = tall map with a floating back button, the title card overlapping it as a sheet.
 - **A Map+Sheet**: home, review, searching, live.
 - **B Form**: ✕/← header, cards, sticky CTA. Post steps, SafePay create, dispute, verification.
 - **C List**: tabs and lists.

@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Onest } from "next/font/google";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import "./globals.css";
 
-// Cyrillic subset: Mongolian text must render in the same face as Latin (UI-FLOWS §12).
-const inter = Inter({ variable: "--font-inter", subsets: ["latin", "cyrillic"] });
+// Onest has every Mongolian letter. Ө ө Ү ү live in the cyrillic-ext subset — without it they
+// fall back to another font (UI-FLOWS §12: Mongolian renders in the same face as Latin).
+const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic", "cyrillic-ext"] });
 
 export const metadata: Metadata = {
   title: "Tuslamj",
@@ -21,8 +22,8 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   return (
-    <html lang={locale} className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-bg text-ink">
+    <html lang={locale} className={`${onest.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col bg-canvas text-ink">
         <I18nProvider locale={locale}>{children}</I18nProvider>
       </body>
     </html>

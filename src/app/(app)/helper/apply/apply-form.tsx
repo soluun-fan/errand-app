@@ -1,12 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { CategoryIcon } from "@/components/category-icon";
 import { btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { CATEGORIES } from "@/lib/engine/config";
 import { compressImage } from "@/lib/image-client";
 import { BANKS, KYC_DOCS, type KycDoc } from "@/lib/kyc-rules";
-import { CATEGORY_ICON } from "@/lib/labels";
 import { browserClient } from "@/lib/supabase/browser";
 import { prepareKycUpload, submitKyc } from "./actions";
 
@@ -39,7 +39,7 @@ function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | u
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-card border border-line bg-bg p-3">
+    <div className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{t(`kyc.docs.${doc}`)}</span>
         {doc === "record" && <span className="block text-sm text-ink-2">{t("kyc.recordHelp")}</span>}
@@ -124,7 +124,7 @@ export function ApplyForm() {
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
               <button key={c.id} type="button" role="checkbox" aria-checked={categories.includes(c.id)} onClick={() => toggle(c.id)} className={chipClass(categories.includes(c.id))}>
-                <span aria-hidden>{CATEGORY_ICON[c.id]}</span> {t(`categoryShort.${c.id}`)}
+                <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
               </button>
             ))}
           </div>

@@ -1,6 +1,8 @@
 "use client";
 
+import { ArrowLeft, Info, X } from "lucide-react";
 import Link from "next/link";
+import { CategoryIcon } from "@/components/category-icon";
 import { useActionState, useEffect, useState } from "react";
 import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/choice";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
@@ -9,13 +11,13 @@ import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
-import { CATEGORY_ICON } from "@/lib/labels";
 import { postTask, type PostState } from "./actions";
 
-const STEPS = ["what", "where", "review"] as const;
+/** One decision per screen (redesign): kind of task → what exactly → where & when → review. */
+const STEPS = ["type", "what", "where", "review"] as const;
 const BUYS: CategoryId[] = ["shop", "deliver"];
 const KM = [1, 3, 5, 10];
 /** "About how long?" choices, in minutes. */
@@ -222,8 +224,8 @@ export function PostFlow({
   const savedName = (a: SavedAddress) => (a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`));
 
   let reason: string | null = null;
-  if (step === 0 && (!d.title.trim() || !d.description.trim())) reason = t("task.reasonWhat");
-  if (step === 1) {
+  if (STEPS[step] === "what" && (!d.title.trim() || !d.description.trim())) reason = t("task.reasonWhat");
+  if (STEPS[step] === "where") {
     if (!d.address.trim()) reason = t("task.reasonWhere");
     else if (d.when !== "now" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
@@ -257,19 +259,26 @@ export function PostFlow({
         }
       }}
     >
-      {/* header: ✕ on step 1, ← after; centred title; n/3 */}
-      <header className="grid min-h-14 grid-cols-[48px_1fr_48px] items-center">
-        {step === 0 ? (
-          <Link href="/" aria-label={t("task.close")} className="flex h-12 w-12 items-center justify-center rounded-full text-2xl hover:bg-fill">
-            ✕
-          </Link>
-        ) : (
-          <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className="flex h-12 w-12 items-center justify-center rounded-full text-2xl hover:bg-fill">
-            ←
-          </button>
-        )}
-        <h1 className="truncate text-center text-xl font-semibold">{t(`task.steps.${STEPS[step]}`)}</h1>
-        <span className="text-right text-sm text-ink-2 tabular-nums">{step + 1}/3</span>
+      {/* header: ✕ on the first step, ← after; n/4; a thin progress bar; the step's one question */}
+      <header className="flex flex-col gap-3 pt-1">
+        <div className="flex items-center justify-between">
+          {step === 0 ? (
+            <Link href="/" aria-label={t("task.close")} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+              <X aria-hidden size={20} />
+            </Link>
+          ) : (
+            <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+              <ArrowLeft aria-hidden size={20} />
+            </button>
+          )}
+          <span className="text-[13px] font-semibold text-ink-2 tabular-nums">
+            {step + 1} / {STEPS.length}
+          </span>
+        </div>
+        <span aria-hidden className="h-1 overflow-hidden rounded-full bg-line">
+          <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+        </span>
+        <h1 className="text-[22px] font-bold leading-tight tracking-tight">{t(`task.steps.${STEPS[step]}`)}</h1>
       </header>
 
       {/* every answer travels with the final submit */}
@@ -287,16 +296,46 @@ export function PostFlow({
       <input type="hidden" name="location" value={d.pin ? JSON.stringify(d.pin) : ""} />
       <input type="hidden" name="pickupLocation" value={twoPoint && d.pickupPin ? JSON.stringify(d.pickupPin) : ""} />
 
+      {STEPS[step] === "type" && (
+        <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
+          {CATEGORIES.map((c) => {
+            const on = d.category === c.id;
+            const from = quoteFee(c.id, { ...DEFAULT_DETAILS, minutes: c.minutes }, cfg, startsAt).total;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                // one tap answers this screen's question and moves on
+                onClick={() => {
+                  setD((x) => ({ ...x, category: c.id }));
+                  setStep(1);
+                }}
+                className={`press flex items-center gap-3 rounded-card border-2 bg-bg p-3.5 text-left shadow-card ${on ? "border-brand" : "border-transparent"}`}
+              >
+                <CategoryIcon id={c.id} tile size={22} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
+                  <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
+                </span>
+                <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{t("home.from", { amount: fmtMoney(from) })}</span>
+              </button>
+            );
+          })}
+          <p className="flex items-start gap-2 rounded-card bg-bg p-3.5 text-[13px] text-ink-2 shadow-card">
+            <Info aria-hidden size={16} className="mt-0.5 flex-none" />
+            {t("task.typeHint")}
+          </p>
+        </div>
+      )}
+
       {STEPS[step] === "what" && (
         <>
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1" role="radiogroup">
-            {CATEGORIES.map((c) => (
-              <button key={c.id} type="button" role="radio" aria-checked={d.category === c.id} onClick={() => set("category", c.id)} className={chipClass(d.category === c.id)}>
-                <span aria-hidden>{CATEGORY_ICON[c.id]}</span>
-                {t(`categoryShort.${c.id}`)}
-              </button>
-            ))}
-          </div>
+          <button type="button" onClick={() => setStep(0)} className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
+            <CategoryIcon id={d.category} size={16} />
+            {t(`categoryShort.${d.category}`)} · {t("task.change")}
+          </button>
           <label className={fieldLabel}>
             <span className="flex justify-between">
               {t("post.taskTitle")}
@@ -567,10 +606,10 @@ export function PostFlow({
 
       {STEPS[step] === "review" && (
         <>
-          {startStep === 2 && <Note tone="info">{t("task.repeatNote")}</Note>}
+          {startStep === STEPS.indexOf("review") && <Note tone="info">{t("task.repeatNote")}</Note>}
           <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
             <p className="text-sm text-ink-2">
-              <span aria-hidden>{CATEGORY_ICON[d.category]}</span> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : start.replace("T", " ")}
+              <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : start.replace("T", " ")}
             </p>
             <p className="text-[18px] font-semibold">{d.title}</p>
             {twoPoint && d.pickup && <p className="text-[15px] text-ink-2">● {d.pickup}</p>}
@@ -651,7 +690,7 @@ export function PostFlow({
         </>
       )}
 
-      <div className="sticky bottom-0 -mx-5 mt-auto flex flex-col gap-1.5 border-t border-line bg-bg/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-auto flex flex-col gap-1.5 bg-canvas/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         {state.error && (
           <p role="alert" className="text-sm text-danger">
             {state.error}
@@ -660,15 +699,15 @@ export function PostFlow({
         {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
-            <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className={btn.square}>
-              ←
+            <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className={`${btn.square} bg-bg shadow-card`}>
+              <ArrowLeft aria-hidden size={20} />
             </button>
           )}
           {STEPS[step] === "review" ? (
             <SubmitButton className={`${btn.primary} flex-1`}>{t("task.confirm", { amount: fmtMoney(total) })}</SubmitButton>
           ) : (
             <button type="button" disabled={!!reason} onClick={() => setStep(step + 1)} className={`${btn.primary} flex-1`}>
-              {step === 1 ? t("task.continueAmount", { amount: fmtMoney(total) }) : t("common.next")}
+              {STEPS[step] === "where" ? t("task.continueAmount", { amount: fmtMoney(total) }) : t("common.next")}
             </button>
           )}
         </div>

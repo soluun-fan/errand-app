@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CategoryIcon } from "@/components/category-icon";
 import { ConfirmSheet } from "@/components/sheet";
 import { Card, FlowHeader, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
@@ -7,7 +8,6 @@ import { CATEGORIES } from "@/lib/engine";
 import { fmtDateTime } from "@/lib/format";
 import { applicationForOps } from "@/lib/kyc";
 import { KYC_DOCS } from "@/lib/kyc-rules";
-import { CATEGORY_ICON } from "@/lib/labels";
 import { decideKyc } from "../actions";
 
 const CHECKS = ["name", "last4", "age", "selfie", "record", "payout"] as const;
@@ -107,7 +107,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
                 {CATEGORIES.map((c) => (
                   <label key={c.id} className="flex min-h-11 items-center gap-2 text-[15px]">
                     <input type="checkbox" name="categories" value={c.id} defaultChecked={app.categories.includes(c.id)} className="h-5 w-5 accent-ink" />
-                    <span aria-hidden>{CATEGORY_ICON[c.id]}</span> {t(`categoryShort.${c.id}`)}
+                    <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
                   </label>
                 ))}
               </div>
