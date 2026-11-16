@@ -22,6 +22,7 @@ export function OfferCard({
   action,
   badge,
   href,
+  organization,
 }: {
   person: OfferPerson;
   note?: string;
@@ -31,6 +32,7 @@ export function OfferCard({
   badge?: string;
   /** The helper's public profile (reviews, badges, jobs done). */
   href?: string;
+  organization?: { id: string; name: string };
 }) {
   return (
     <div className={`flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card ${badge ? "border-2 border-brand" : ""}`}>
@@ -58,6 +60,7 @@ export function OfferCard({
           </p>
         </div>
       </div>
+      {organization && <Link href={`/orgs/${organization.id}`} className="text-sm font-semibold text-brand-ink">{t("org.payee", { name: organization.name })}</Link>}
       {note && <p className="rounded-input bg-fill p-2.5 text-[15px] text-ink">“{note}”</p>}
       {href && (
         <Link href={href} className="flex min-h-10 items-center gap-1 self-start text-[14px] font-semibold text-brand-ink">

@@ -6,7 +6,7 @@ import { btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { QuickStart } from "@/lib/content-rules";
 import { CATEGORIES, DEFAULT_CONFIG, type CategoryId } from "@/lib/engine";
-import { deleteQuickStartAction, saveKeywordsAction, saveQuickStartAction } from "../actions";
+import { deleteQuickStartAction, saveKeywordsAction, saveQuickStartAction, setLiveAction } from "../actions";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
@@ -116,6 +116,27 @@ export function KeywordsForm({ category, words }: { category: Exclude<CategoryId
       </label>
       <Result state={state} />
       <SubmitButton className={`${btn.secondary} w-full`}>{t("opsContent.save")}</SubmitButton>
+    </form>
+  );
+}
+
+/** One kind of task switched on / off for customers (care work starts off). */
+export function LiveSwitch({ category, trust, live }: { category: CategoryId; trust: "open" | "pro" | "care"; live: boolean }) {
+  const t = useT();
+  const [state, action] = useActionState<ActionResult, FormData>(setLiveAction, {});
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
+      <input type="hidden" name="category" value={category} />
+      <input type="hidden" name="live" value={live ? "0" : "1"} />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{t(`category.${category}`)}</span>
+        <span className="block text-[12px] text-ink-2">{t(`opsContent.trust.${trust}`)}</span>
+        {state.error && <span className="block text-[12px] text-danger">{state.error}</span>}
+      </span>
+      {trust === "care" && !live && <label className="flex max-w-48 items-start gap-2 text-xs text-ink-2"><input type="checkbox" name="legalReviewed" required className="mt-1 accent-brand" />{t("specialized.legal")}</label>}
+      <SubmitButton className={`min-h-10 rounded-full px-4 text-[14px] font-bold ${live ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}>
+        {live ? t("opsContent.on") : t("opsContent.off")}
+      </SubmitButton>
     </form>
   );
 }

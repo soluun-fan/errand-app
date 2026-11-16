@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
 import type { UserActor } from "@/lib/engine";
+import { qualificationsFor } from "@/lib/qualifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,5 +34,8 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     .eq("id", sub)
     .single<ProfileRow>();
   if (error || !profile) return null;
-  return { profile, actor: actorFromProfile(profile, Date.now()) };
+  const actor = actorFromProfile(profile, Date.now());
+  // specialized work: what organisations vouch for them / which certificates Ops approved
+  if (actor.helperApproved) actor.qualified = await qualificationsFor(profile.id, profile.kyc_level);
+  return { profile, actor };
 });

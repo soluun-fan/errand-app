@@ -10,6 +10,7 @@ import { SeasonalRow } from "@/components/seasonal-row";
 import { btn } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
+import { liveCategories } from "@/lib/orgs";
 import { CATEGORIES, minFeeAt } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { popularStarts, seasonalStarts } from "@/lib/content";
@@ -41,6 +42,7 @@ export default async function Welcome() {
     popularStarts(),
     seasonalStarts(),
   ]);
+  const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
   const from = (_c: (typeof CATEGORIES)[number]) => minFeeAt(now, cfg);
@@ -126,7 +128,7 @@ export default async function Welcome() {
             <p className="mt-1 text-[15px] text-ink-2">{t("landing.catsSub")}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
-            {CATEGORIES.map((c) => (
+            {CATEGORIES.filter((c) => live.includes(c.id)).map((c) => (
               <LoginGate key={c.id} next={`/post?cat=${c.id}`} className="press flex flex-col items-center gap-2 rounded-tile bg-bg px-2 py-4 text-center shadow-card">
                 <CategoryIcon id={c.id} tile size={26} />
                 <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${c.id}`)}</span>

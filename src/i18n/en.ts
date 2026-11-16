@@ -4,6 +4,148 @@
  * pre-formatted ("₮45,000").
  */
 export const en = {
+  org: {
+    title: "Organisation",
+    newTitle: "Register an organisation",
+    newIntro: "Add your organisation, registration document and bank account. Ops checks them before workers can accept specialised jobs.",
+    name: "Organisation name",
+    namePh: "Registered legal name",
+    regNumber: "Registration number",
+    kind: "Organisation type",
+    kinds: {
+      company: "Company",
+      agency: "Care agency",
+      ngo: "NGO"
+    },
+    categories: "Services to offer",
+    description: "About your organisation",
+    descriptionPh: "Experience and services",
+    area: "Service area",
+    areaPh: "Districts or neighbourhoods",
+    careNote: "Care services start disabled. Only approved care agencies with workers whose criminal records have been checked may offer them after legal review.",
+    doc: "Registration certificate",
+    docHelp: "Photo or PDF, up to 10 MB. Only Ops can view it.",
+    payout: "Organisation bank account",
+    holder: "Account holder (registered organisation)",
+    consent: "I am authorised to represent this organisation. It is responsible for its workers and receives payment for their jobs.",
+    submit: "Send for review",
+    verified: "Organisation checked",
+    jobsDone: "{n} jobs completed",
+    workers: "Workers ({n})",
+    paidNote: "Fees, materials and any cancellation fee go to the organisation. It pays its staff.",
+    statusShort: {
+      pending: "In review",
+      approved: "Approved",
+      rejected: "Rejected",
+      suspended: "Suspended"
+    },
+    status: {
+      pending: "Your organisation is being reviewed.",
+      approved: "Your organisation is approved.",
+      rejected: "The application was rejected.",
+      suspended: "This organisation is suspended."
+    },
+    roles: {
+      owner: "Owner",
+      manager: "Manager",
+      worker: "Worker"
+    },
+    errors: {
+      invalid: "Check the details, service types and consent. Care services require a care agency.",
+      file: "Upload your document first.",
+      duplicate: "This registration number is already registered."
+    },
+    manage: {
+      title: "Manage workers",
+      phone: "Worker’s phone",
+      phoneHelp: "Use the number they registered with. They must accept the invitation on their Profile.",
+      kinds: "Services you vouch for",
+      role: "Role",
+      invite: "Invite",
+      sent: "Invitation sent.",
+      waiting: "Awaiting acceptance",
+      needsRecord: "Criminal-record check needed",
+      remove: "Remove"
+    },
+    invite: {
+      notFound: "No account found for that number.",
+      notHelper: "This person must become an approved helper first.",
+      notApproved: "The organisation must be approved first.",
+      noKinds: "Choose at least one approved service.",
+      self: "The owner’s membership cannot be changed here."
+    },
+    my: "My organisations",
+    join: "{name} invited you as {role}.",
+    accept: "Accept invitation",
+    decline: "Decline",
+    leave: "Leave organisation",
+    sent: "Registration sent. You can track its review below.",
+    via: "Through {name}",
+    payee: "Paid to {name}",
+    balance: "Released to organisation",
+    cancelledFee: "Cancelled · {fee} paid to {name}, the rest was refunded",
+    workerPay: "This job is paid to your organisation. Arrange your wages with it."
+  },
+  cert: {
+    title: "Trade certificates",
+    intro: "A checked certificate lets you take specialised jobs independently. Care work always requires an agency.",
+    needHelper: "Become an approved helper before adding certificates.",
+    becomeHelper: "Apply as a helper",
+    canTake: "Your specialised services",
+    viaOrg: "Through an organisation",
+    own: "Independent · certificate checked",
+    orgHint: "Organisation members can also qualify through their approved employer.",
+    add: "Add a certificate",
+    kind: "Service",
+    issuer: "Issued by",
+    issuerPh: "Training or licensing body",
+    number: "Certificate number (optional)",
+    expires: "Valid until (optional)",
+    doc: "Certificate photo or PDF",
+    submit: "Send for review",
+    sent: "Certificate sent for review.",
+    until: "Valid until {date}",
+    status: {
+      pending: "In review",
+      approved: "Approved",
+      rejected: "Rejected",
+      expired: "Expired"
+    },
+    errors: {
+      invalid: "Check the service, issuer, document and expiry date. Expired certificates cannot be submitted.",
+      duplicate: "A certificate for this service is already approved or in review."
+    }
+  },
+  opsOrgs: {
+    title: "Organisation reviews",
+    empty: "No organisations to review.",
+    approveFor: "Approve services",
+    note: "Review note",
+    noteNeeded: "Add a reason for this decision.",
+    approve: "Approve",
+    reject: "Reject",
+    suspend: "Suspend",
+    owner: "Owner",
+    openDoc: "Open document",
+    noDoc: "Document unavailable. Do not approve until checked.",
+    checkHint: "Check registration, authority to represent the organisation, services and the organisation’s bank account. Care approval is for agencies only.",
+    pickKinds: "Choose requested services and check the document and payout account. Care requires an agency."
+  },
+  opsCerts: {
+    title: "Certificate reviews",
+    empty: "No certificates waiting for review."
+  },
+  specialized: {
+    title: "Specialised services",
+    unavailable: "This service is not available right now. Choose another service.",
+    qualified: "An approved organisation or checked trade certificate is required.",
+    care: "You choose the caregiver yourself. Only approved agency workers with a checked criminal record may apply. Have a parent or responsible family member present at the first visit.",
+    legal: "Legal review completed for this care service",
+    legalNeeded: "Confirm the legal review before enabling care services.",
+    materials: "Materials budget",
+    check: "You have {hours} hours to check the completed work."
+  },
+
   common: {
     app: "Tuslamj",
     back: "Back",
@@ -49,6 +191,11 @@ export const en = {
     deliver: "Deliver",
     repair: "Fix",
     other: "Other",
+    plumbing: "Plumbing",
+    electrical: "Electrician",
+    cleaning: "Cleaning",
+    childcare: "Babysitting",
+    eldercare: "Elder & patient care",
     from: "from {amount}",
   },
   categoryShort: {
@@ -58,6 +205,11 @@ export const en = {
     deliver: "Fetch",
     repair: "Fix",
     other: "Other",
+    plumbing: "Plumbing",
+    electrical: "Electrical",
+    cleaning: "Cleaning",
+    childcare: "Babysitting",
+    eldercare: "Care",
     safepay: "SafePay",
   },
   categoryExample: {
@@ -67,6 +219,11 @@ export const en = {
     deliver: "Pick up a parcel and bring it home",
     repair: "Fix a dripping tap",
     other: "Describe what you need",
+    plumbing: "Replace a sink pipe, clear a blocked drain",
+    electrical: "Run a new socket or light wiring",
+    cleaning: "Deep-clean a 2-room flat",
+    childcare: "Look after a 5-year-old for 3 hours this evening",
+    eldercare: "Go with my mother to the hospital and look after her",
   },
   status: {
     awaiting_payment: "Waiting for payment",
@@ -186,6 +343,15 @@ export const en = {
     keywords: "Search words",
     keywordsHelp: "One per line. Matches the start of a word (“зөө” → “зөөх”); 2-letter words match whole words; with a space, as a phrase.",
     wordsInvalid: "Each word 2–40 characters, at most {n}.",
+    kindsTitle: "Available services",
+    kindsHelp: "Switch services on or off for new requests. Enable care only after legal review.",
+    on: "On",
+    off: "Off",
+    trust: {
+      open: "Approved helpers",
+      pro: "Organisation or checked certificate",
+      care: "Agency + criminal-record check"
+    }
   },
   web: {
     requests: "Requests",
@@ -266,7 +432,7 @@ export const en = {
     twoPeople: "2 helpers",
     onePlace: "One place",
     buys: "buys items",
-    ask: { shop: "Bring something from the store", carry: "Help me carry", queue: "Stand in a queue for me", deliver: "Pick up and deliver", repair: "Fix something small", other: "Help me with a task" },
+    ask: { shop: "Bring something from the store", carry: "Help me carry", queue: "Stand in a queue for me", deliver: "Pick up and deliver", repair: "Fix something small", other: "Help me with a task", plumbing: "I need a plumber", electrical: "I need an electrician", cleaning: "Clean my home", childcare: "Look after my child", eldercare: "I need a carer" },
     gateTitle: "Log in to continue",
     gateBody: "Log in with your phone number to post a task.",
     gateGo: "Log in with phone number",

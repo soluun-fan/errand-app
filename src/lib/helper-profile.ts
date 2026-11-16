@@ -1,5 +1,6 @@
 import "server-only";
-import type { CategoryId } from "@/lib/engine";
+import { categoryTrust, type CategoryId } from "@/lib/engine";
+import { qualificationsForMany } from "@/lib/qualifications";
 import { RATING_TAGS } from "@/lib/labels";
 import { MAX_SAVED_HELPERS, cleanBio, maskName, median, publicNote, tagCounts } from "@/lib/profile-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -47,7 +48,7 @@ function toProfile(r: PublicRow): HelperProfile {
     id: r.id,
     name: r.name?.trim() || "—",
     area: r.area?.trim() || null,
-    categories: r.categories ?? [],
+    categories: (r.categories ?? []).filter((c) => categoryTrust(c) === "open"),
     kycLevel: Number(r.kyc_level),
     rating: count > 0 ? Math.round((Number(r.rating_sum) / count) * 10) / 10 : null,
     ratingCount: count,
@@ -77,7 +78,9 @@ async function approvedHelper(id: string): Promise<{ profile: HelperProfile; sus
     .eq("id", id)
     .maybeSingle<PublicRow & { role: string; helper_status: string | null; suspended_until: string | null }>();
   if (!data || data.role !== "helper" || data.helper_status !== "approved") return null;
-  return { profile: toProfile(data), suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()) };
+  const profile = toProfile(data);
+  await enrichCategories([profile]);
+  return { profile, suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()) };
 }
 
 /** An approved helper's public profile, or null. */
@@ -166,18 +169,33 @@ export async function helperDirectory(opts: { category?: CategoryId; sort?: Help
     .select(`${PUBLIC_COLS}, suspended_until`)
     .eq("role", "helper")
     .eq("helper_status", "approved");
-  if (opts.category) q = q.contains("categories", [opts.category]);
+  if (opts.category) {
+    if (categoryTrust(opts.category) === "open") q = q.contains("categories", [opts.category]);
+    else {
+      const { data, error } = await createAdminClient().rpc("qualified_helper_ids", { p_category: opts.category });
+      if (error) throw new Error(error.message);
+      const ids = (data ?? []).map((r: { helper_id: string }) => r.helper_id);
+      if (!ids.length) return [];
+      q = q.in("id", ids);
+    }
+  }
   if (opts.ids) q = q.in("id", opts.ids.length ? opts.ids : ["00000000-0000-0000-0000-000000000000"]);
   const order = opts.sort === "jobs" ? "completed_count" : opts.sort === "new" ? "created_at" : "rating_count";
   const { data } = await q.order(order, { ascending: false }).limit(opts.limit ?? 48).returns<(PublicRow & { suspended_until: string | null })[]>();
   const now = Date.now();
   const rows = (data ?? []).filter((r) => !r.suspended_until || Date.parse(r.suspended_until) < now).map(toProfile);
+  await enrichCategories(rows);
   // "top rated": a few 5★ shouldn't beat many 4.9★ — prior of 4.5★ × 5 ratings (same as dispatch ranking)
   if (opts.sort !== "jobs" && opts.sort !== "new") {
     const score = (h: HelperProfile) => ((h.rating ?? 0) * h.ratingCount + 4.5 * 5) / (h.ratingCount + 5);
     rows.sort((a, b) => score(b) - score(a));
   }
   return rows;
+}
+
+async function enrichCategories(helpers: HelperProfile[]): Promise<void> {
+  const qualifications = await qualificationsForMany(helpers);
+  for (const h of helpers) h.categories = [...new Set([...h.categories, ...(qualifications.get(h.id) ?? []).map((q) => q.category)])];
 }
 
 export interface RecentReview extends PublicReview {

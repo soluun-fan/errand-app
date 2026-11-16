@@ -4,6 +4,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deals/queries";
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
+import { organizationNames } from "@/lib/orgs";
 import { rankApplicants } from "@/lib/dispatch/rank";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { proofsFor } from "@/lib/proofs";
@@ -81,6 +82,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       action={taskAction}
       dispatch={dispatch}
       ranked={ranked}
+      organizations={await organizationNames([deal.payeeOrgId, ...deal.offers.map((o) => o.orgId)])}
       helperPos={helperPos}
       chat={chat}
       safety={safety}

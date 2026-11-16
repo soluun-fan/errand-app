@@ -8,6 +8,7 @@ import { openIncidentCounts } from "@/lib/incidents";
 import { reviewQueue } from "@/lib/kyc";
 import { fmtDuration } from "@/lib/format";
 import { tickHealth } from "@/lib/health-rules";
+import { certificateQueue, orgQueue } from "@/lib/orgs";
 import { getControls } from "@/lib/safety";
 import { tickHeartbeat } from "@/lib/scheduler";
 
@@ -15,7 +16,16 @@ import { tickHeartbeat } from "@/lib/scheduler";
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls, hb] = await Promise.all([getT(), reviewQueue(), openIncidentCounts(), getControls(), tickHeartbeat().catch(() => null)]);
+  const [t, queue, incidents, controls, hb, orgs, certs] = await Promise.all([
+    getT(),
+    reviewQueue(),
+    openIncidentCounts(),
+    getControls(),
+    tickHeartbeat().catch(() => null),
+    orgQueue(),
+    certificateQueue(),
+  ]);
+  const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());
   const ago =
     !("agoMs" in health) || !Number.isFinite(health.agoMs)
@@ -61,6 +71,8 @@ export default async function OpsHome() {
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
+        {row("/ops/orgs", "🏢", t("opsOrgs.title"), orgsPending ? String(orgsPending) : null)}
+        {row("/ops/certificates", "📜", t("opsCerts.title"), certs.length ? String(certs.length) : null)}
         {row("/ops/content", "✏️", t("opsContent.title"), null)}
       </nav>
       {/* SOS alerts arrive as push: Ops must switch it on for the phone they carry */}

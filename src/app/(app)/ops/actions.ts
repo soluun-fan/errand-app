@@ -13,6 +13,7 @@ import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
 import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rules";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { Uuid, parseOr } from "@/lib/input";
+import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/orgs";
 
 async function requireAdmin() {
   const viewer = await getViewer();
@@ -147,6 +148,52 @@ export async function saveKeywordsAction(_prev: ActionResult, form: FormData): P
   const words = parseKeywords(String(form.get("words") ?? ""));
   if (!words) return { error: t("opsContent.wordsInvalid", { n: MAX_KEYWORDS }) };
   await saveKeywords(viewer.profile.id, category, words);
+  refresh();
+  return { done: true };
+}
+
+/* ---------- specialized work: organisations, certificates, kinds on/off ---------- */
+
+export async function decideOrgAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = parseOr(Uuid, form.get("id"));
+  const status = String(form.get("status") ?? "");
+  if (!id || !["approved", "rejected", "suspended"].includes(status)) return { error: t("error.generic") };
+  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  if (status !== "approved" && !note) return { error: t("opsOrgs.noteNeeded") };
+  const kinds = form.getAll("categories").map(String) as CategoryId[];
+  const ok = await decideOrganization(viewer.profile.id, id, status as "approved" | "rejected" | "suspended", kinds, note);
+  if (!ok) return { error: t("opsOrgs.pickKinds") };
+  refresh();
+  return { done: true };
+}
+
+export async function decideCertAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = parseOr(Uuid, form.get("id"));
+  const approve = form.get("approve") === "1";
+  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  if (!id) return { error: t("error.generic") };
+  if (!approve && !note) return { error: t("opsOrgs.noteNeeded") };
+  if (!(await decideCertificate(viewer.profile.id, id, approve, note))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+export async function setLiveAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const category = String(form.get("category") ?? "") as CategoryId;
+  if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic") };
+  const live = form.get("live") === "1";
+  const care = CATEGORIES.find((c) => c.id === category)?.trust === "care";
+  if (live && care && form.get("legalReviewed") !== "on") return { error: t("specialized.legalNeeded") };
+  await setCategoryLive(viewer.profile.id, category, live);
   refresh();
   return { done: true };
 }

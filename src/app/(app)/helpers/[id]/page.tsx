@@ -1,3 +1,4 @@
+import { orgBadges } from "@/lib/orgs";
 import { MapPin, Send, Star } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -49,6 +50,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
     </div>
   );
 
+  const organizations = (await orgBadges([p.id])).get(p.id) ?? [];
   return (
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("helperProfile.title")} />
@@ -180,6 +182,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
         )}
       </section>
 
+      {organizations.map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 font-semibold text-brand-ink shadow-card">{t("org.via", { name: o.name })}</Link>)}
       {!me && (
         <PrimaryBar>
           {/* a direct request: the post form, sent to this helper first */}

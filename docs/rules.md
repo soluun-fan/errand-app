@@ -113,3 +113,14 @@ Split sums to held on every path · no double release · illegal transitions rej
   - Older deals keep their own snapshot (10% commission, flat 1,000 fee).
   - **Not built yet:** moving the recommendation towards real agreed prices once there is data (`quotedFee` vs `fee` are recorded for it).
 - **Persistence:** load → `apply()` → `apply_transition()` RPC with optimistic lock; DB re-checks transitions, hold balance per deal, append-only ledger. RLS: clients read only; phone / ДАН name / payout columns are server-only.
+
+
+## Specialized work (2026-11-16)
+
+- `CategoryConfig.trust`: open = approved helper in the category; pro = approved organisation membership or approved, unexpired trade certificate; care = approved agency membership plus KYC level 4. An invitation alone never qualifies. All qualifying routes are retained, with organisation routes first for new offers. Certificate expiry uses the Ulaanbaatar calendar day.
+- Category availability is stored in `category_settings`, with care initially off. Ops toggles affect new posting; existing assignments retain their payment terms. The engine's trust levels cannot be edited through Ops. Care enablement requires an explicit legal-review acknowledgement recorded in the Ops audit log.
+- `Offer.orgId` records the route used to apply. `ErrandDeal.payeeOrgId` snapshots it at assignment. Fee release, material reimbursement and cancellation fees credit `payable:<orgId>` when present; otherwise `payable:<helperId>`. A worker's own earnings exclude jobs paid to an organisation. An owner/manager can view the company balance; personal/organisation bank withdrawals still await the real payment adapter.
+- `accept_counter` for care updates the offer to the agreed price and stays `open`; only the customer can then `choose`. Care cannot `accept` or auto-pick. The check window for plumbing/electrical is 72 hours.
+- SQL rechecks qualifications when a new offer is inserted and when a helper is assigned. Expiry, suspended organisations/helpers and removed members prevent new assignments. Assigned jobs retain the agreed company payee after membership changes; the recipient cannot be changed while funds are held.
+- Organisation registration and bank account insert are one transaction. Owners cannot be removed/re-invited as workers by managers. Workers must accept membership themselves. Organisation care approvals require `kind = agency`; certificates cannot cover care. Expired certificates can be replaced with a new submission.
+- Tests: `engine/__tests__/specialized.test.ts`, `db/__tests__/organizations.test.ts`, `__tests__/org-rules.test.ts` cover money paths, matching, consent states, expiry, trust rules, atomic registration and role access.

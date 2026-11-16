@@ -4,6 +4,9 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_Specialized-services update (2026-11-16): local implementation includes organisation registration/review, worker invitations, certificates, qualification-aware discovery and company payment routing. Care starts off and needs agency + background check + Ops legal-review acknowledgement. See `docs/decisions.md` “Specialized work”. The two `20261117…` migrations must be applied together, in order, before deploying the app; hosted rollout and browser verification remain pending._
+
+
 ---
 
 ## 1. The product in one minute

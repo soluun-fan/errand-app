@@ -12,10 +12,10 @@ export default async function EarningsPage() {
   if (!viewer) return null;
   const [t, locale, jobs, entries] = await Promise.all([getT(), getLocale(), listMyJobs(viewer.profile.id), walletEntries(viewer.profile.id)]);
   const net = (d: (typeof jobs)[number]) => errandSplit({ fee: d.fee, itemBudget: 0, receipt: null, serviceFee: d.serviceFee, commissionBps: d.commissionBps }).helperFeeNet;
-  const finished = jobs.filter((d) => d.status === "released");
+  const finished = jobs.filter((d) => d.status === "released" && !d.payeeOrgId);
   const available = entries.filter((e) => ["release_fee", "item_reimburse", "cancel_fee", "withdrawal"].includes(e.kind)).reduce((a, e) => a + e.amount, 0);
   const waiting = jobs
-    .filter((d) => ["matched", "in_progress", "check", "disputed"].includes(d.status))
+    .filter((d) => !d.payeeOrgId && ["matched", "in_progress", "check", "disputed"].includes(d.status))
     .reduce((a, d) => a + errandSplit({ fee: d.fee, itemBudget: 0, receipt: null, serviceFee: d.serviceFee, commissionBps: d.commissionBps }).helperFeeNet, 0);
 
   return (
@@ -32,6 +32,7 @@ export default async function EarningsPage() {
         </div>
       </div>
       <Note tone="info">{t("earnings.withdrawSoon")}</Note>
+      {jobs.some((d) => d.payeeOrgId) && <Note tone="info">{t("org.workerPay")}</Note>}
       {finished.length > 0 && (
         <section className="flex flex-col">
           <h2 className="mb-1 font-bold">{t("earnings.finished")}</h2>

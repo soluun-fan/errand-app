@@ -60,6 +60,7 @@ export interface DealRow {
   top_up: TopUpRow | null;
   price_change?: PriceChangeRow | null;
   invited_helper_id?: string | null;
+  payee_org_id?: string | null;
   invite_until?: string | null;
   invite_open_after?: boolean | null;
   handover_proof_at: string | null;
@@ -106,6 +107,7 @@ const priceChangeToRow = (p: PriceChange | null): PriceChangeRow | null =>
 
 export interface OfferRow {
   helper_id: string;
+  org_id?: string | null;
   note: string;
   price?: number | null;
   proposed_by?: "helper" | "customer" | null;
@@ -209,6 +211,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
         .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
         .map((o) => ({
           helperId: o.helper_id,
+          orgId: o.org_id ?? null,
           note: o.note,
           price: moneyOrNull(o.price ?? null, "offer.price"),
           proposedBy: o.proposed_by === "customer" ? ("customer" as const) : ("helper" as const),
@@ -218,6 +221,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       receiptAmount: moneyOrNull(row.receipt_amount, "receipt_amount"),
       topUp: topUpFromRow(row.top_up),
       priceChange: priceChangeFromRow(row.price_change),
+      payeeOrgId: row.payee_org_id ?? null,
       invite:
         row.invited_helper_id && row.invite_until
           ? { helperId: row.invited_helper_id, until: req(toMs(row.invite_until), "invite_until"), openAfter: row.invite_open_after !== false }
@@ -268,6 +272,7 @@ export function dealToRow(d: Deal): DealRow {
     top_up: null,
     price_change: null,
     invited_helper_id: null,
+    payee_org_id: null,
     invite_until: null,
     invite_open_after: true,
     handover_proof_at: null,
@@ -322,6 +327,7 @@ export function dealToRow(d: Deal): DealRow {
       top_up: topUpToRow(d.topUp),
       price_change: priceChangeToRow(d.priceChange),
       invited_helper_id: d.invite?.helperId ?? null,
+      payee_org_id: d.payeeOrgId,
       invite_until: toIso(d.invite?.until ?? null),
       invite_open_after: d.invite?.openAfter ?? true,
       handover_proof_at: toIso(d.handoverProofAt),
@@ -391,13 +397,13 @@ export function applyTransitionArgs(before: Deal, t: Transition, now: number) {
   // A re-priced offer (bargaining) is written as delete + insert of the same row.
   const changed = (o: Offer) => {
     const b = beforeOffers.get(o.helperId);
-    return b !== undefined && (b.price !== o.price || b.proposedBy !== o.proposedBy || b.at !== o.at || b.note !== o.note);
+    return b !== undefined && (b.orgId !== o.orgId || b.price !== o.price || b.proposedBy !== o.proposedBy || b.at !== o.at || b.note !== o.note);
   };
   const newOffers =
     after.type === "errand"
       ? after.offers
           .filter((o) => !beforeOffers.has(o.helperId) || changed(o))
-          .map((o) => ({ helper_id: o.helperId, note: o.note, price: o.price, proposed_by: o.proposedBy, created_at: toIso(o.at) }))
+          .map((o) => ({ helper_id: o.helperId, org_id: o.orgId, note: o.note, price: o.price, proposed_by: o.proposedBy, created_at: toIso(o.at) }))
       : [];
   // Offers dropped by the transition (helper withdrew / match lapsed unpaid), or re-priced.
   const removedOffers = [

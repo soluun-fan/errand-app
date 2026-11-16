@@ -9,6 +9,7 @@ import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { invitableHelper } from "@/lib/helper-profile";
+import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
 import { DetailsJson, PinJson, Uuid, parseOr } from "@/lib/input";
 import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
@@ -52,6 +53,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   const category = String(form.get("category")) as CategoryId;
 
   if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic"), step: STEP.type };
+  if (!(await liveCategories()).includes(category)) return { error: t("specialized.unavailable"), step: STEP.type };
   if (!title || !description || title.length > cfg.titleMax || description.length > cfg.descriptionMax) {
     return { error: t("task.reasonWhat"), step: STEP.what };
   }
@@ -117,6 +119,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     await insertDeal(createAdminClient(), created);
     details = created.deal.details;
   } catch (e) {
+    if (e instanceof Error && /this kind of task is not available/.test(e.message)) return { error: t("specialized.unavailable"), step: STEP.type };
     if (isPausedError(e)) return { error: t("safety.postingPaused"), step: STEP.review };
     if (e instanceof EngineError) {
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);

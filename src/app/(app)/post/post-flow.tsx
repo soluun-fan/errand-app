@@ -11,14 +11,13 @@ import { SubmitButton } from "@/components/sheet";
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
 
 /** One decision per screen (redesign): kind of task → what exactly → where & when → review. */
 const STEPS = ["type", "what", "where", "review"] as const;
-const BUYS: CategoryId[] = ["shop", "deliver"];
 const KM = [1, 3, 5, 10];
 /** "About how long?" choices, in minutes. */
 const DURATIONS = [30, 60, 90, 120, 180, 240, 360, 480];
@@ -109,7 +108,9 @@ export function PostFlow({
   saved,
   cfg,
   invite = null,
+  live,
 }: {
+  live: CategoryId[];
   invite?: InviteTarget | null;
   /** Today's prices (engine defaults + the live Ops settings). */
   cfg: EngineConfig;
@@ -122,7 +123,7 @@ export function PostFlow({
   const t = useT();
   const home = saved.find((a) => a.kind === "home");
   const blank: Draft = {
-    category: "shop",
+    category: (invite?.categories ?? live)[0] ?? "shop",
     title: "",
     description: "",
     pickup: "",
@@ -157,7 +158,7 @@ export function PostFlow({
   const [d, setD] = useState<Draft>(blank);
   /** Direct request: if the helper says no or doesn't answer in time, let everyone apply. */
   const [openAfter, setOpenAfter] = useState(true);
-  const kinds = invite ? CATEGORIES.filter((c) => invite.categories.includes(c.id)) : CATEGORIES;
+  const kinds = CATEGORIES.filter((c) => live.includes(c.id) && (!invite || invite.categories.includes(c.id)));
   const [step, setStep] = useState(startStep);
   /** Which point the map is placing (two-point tasks). */
   const [pinTarget, setPinTarget] = useState<"pickup" | "drop">("drop");
@@ -173,13 +174,13 @@ export function PostFlow({
       if (raw) {
         const draft = JSON.parse(raw) as Partial<Draft>;
         // a direct request keeps to the kinds of task that helper does
-        if (invite && draft.category && !invite.categories.includes(draft.category)) delete draft.category;
+        if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) delete draft.category;
         setD((x) => ({ ...x, ...draft }));
       }
     } catch {
       /* storage unavailable */
     }
-  }, [initial.title, invite]);
+  }, [initial.title, invite, live]);
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
@@ -197,7 +198,8 @@ export function PostFlow({
 
   const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
   const isCarry = d.category === "carry";
-  const buys = BUYS.includes(d.category);
+  const buys = categoryConfig(d.category).items;
+  const care = categoryTrust(d.category) === "care";
   const start = startString(d, now);
   const startsAt = start ? (parseUbLocal(start) ?? now) : now;
   // both pins → distance from the map (same function as the server); otherwise the rough chip
@@ -214,7 +216,7 @@ export function PostFlow({
     heavy: d.heavy,
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
-    autoPick: invite ? false : d.autoPick, // a direct request: the customer answers that helper themselves
+    autoPick: invite || care ? false : d.autoPick, // a direct request: the customer answers that helper themselves
     minutes: d.minutes ?? CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30,
     tools: d.tools,
     quotedFee: 0,
@@ -726,10 +728,12 @@ export function PostFlow({
               checked={openAfter}
               onChange={setOpenAfter}
             />
-          ) : (
+          ) : care ? <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p> : (
             <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub")} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
           )}
 
+          {care && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p>}
+          {categoryConfig(d.category).checkHours && <p className="text-sm text-ink-2">{t("specialized.check", { hours: categoryConfig(d.category).checkHours! })}</p>}
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
             <span aria-hidden>🔒</span>
             {t("task.heldLine")}

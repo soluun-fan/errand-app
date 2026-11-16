@@ -9,6 +9,8 @@ import { getViewer } from "@/lib/auth";
 import { getMode } from "@/lib/mode";
 import { formatMnPhone } from "@/lib/phone";
 import { setLocale, setMode } from "@/lib/prefs";
+import { myOrganizations, myInvitations, myMemberships } from "@/lib/orgs";
+import { Membership } from "./org-memberships";
 import { removeAddress } from "./actions";
 
 const KIND_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
@@ -31,11 +33,12 @@ function Segmented({ name, value, options, action }: { name: string; value: stri
   );
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: PageProps<"/profile">) {
   const viewer = await getViewer();
   if (!viewer) return null;
   const [t, locale, mode, addresses] = await Promise.all([getT(), getLocale(), getMode(), listSavedAddresses()]);
   const { profile, actor } = viewer;
+  const [orgs, invitations, memberships, sp] = await Promise.all([myOrganizations(profile.id), myInvitations(profile.id), myMemberships(profile.id), searchParams]);
   const row = (label: string, value: string) => (
     <div className="flex justify-between gap-4 text-[15px]">
       <span className="text-ink-2">{label}</span>
@@ -47,6 +50,17 @@ export default async function ProfilePage() {
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
       <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
+      {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[17px] font-bold">{t("org.my")}</h2>
+        {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
+        {orgs.map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
+          <span className="block font-semibold">{o.name}</span><span className="text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+        </Link>)}
+        {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
+        <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
+        <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>
+      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-ink-2">{t("mode.label")}</h2>

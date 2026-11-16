@@ -239,11 +239,11 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
-    } else if (intent === "quote" || intent === "reprice") {
+    } else if (intent === "quote" || intent === "reprice" || (intent === "accept_counter" && deal.status === "open")) {
       await notify([deal.customerId], {
         title: "push.quoteTitle",
         body: "push.quoteBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(cmd.type === "apply" || cmd.type === "reprice" ? (cmd.price ?? deal.fee) : deal.fee) },
+        params: { name: viewer.profile.name || "—", fee: fmtMoney(cmd.type === "apply" || cmd.type === "reprice" ? (cmd.price ?? deal.fee) : (deal.offers.find((o) => o.helperId === viewer.profile.id)?.price ?? deal.fee)) },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });

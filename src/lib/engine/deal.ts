@@ -8,7 +8,7 @@
  *
  * Illegal transitions throw `EngineError`; they never partially apply.
  */
-import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, type CategoryId, type EngineConfig } from "./config";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
@@ -107,9 +107,21 @@ function requireAssignedHelper(ctx: Ctx, d: ErrandDeal): UserActor {
 function requireEligibleHelper(ctx: Ctx, d: ErrandDeal): UserActor {
   const u = requireUser(ctx);
   if (u.role !== "helper" || !u.helperApproved) fail("FORBIDDEN", "Only approved helpers can take tasks");
-  if (!u.categories?.includes(d.category)) fail("FORBIDDEN", `Helper does not work in category "${d.category}"`);
+  const trust = categoryTrust(d.category);
+  if (trust === "open") {
+    if (!u.categories?.includes(d.category)) fail("FORBIDDEN", `Helper does not work in category "${d.category}"`);
+  } else if (!(u.qualified ?? []).some((q) => q.category === d.category && (trust === "pro" || q.orgId !== null))) {
+    // specialized work (docs/decisions.md 2026-11-16): a certificate or an organisation; care = an agency only
+    fail("FORBIDDEN", trust === "care" ? "Only workers of an approved agency with a background check can take this task" : "This kind of task needs a checked certificate or an approved organisation");
+  }
   if (u.id === d.customerId) fail("FORBIDDEN", "You cannot take your own task");
   return u;
+}
+
+/** Through whom the helper takes specialized work: the organisation that vouches for them, else themselves (null). */
+function orgFor(u: UserActor, category: CategoryId): string | null {
+  if (categoryTrust(category) === "open") return null;
+  return (u.qualified ?? []).find((q) => q.category === category && q.orgId !== null)?.orgId ?? null;
 }
 
 function asErrand(d: Deal, cmd: string): ErrandDeal {
@@ -146,7 +158,8 @@ function release(tx: Tx<Deal>, how: "confirmed" | "auto" | "ops"): void {
       commissionBps: d.commissionBps,
     });
     if (s.held !== d.heldAmount) fail("INVARIANT_BROKEN", `Errand ${d.id}: split total ${s.held} != held ${d.heldAmount}`);
-    const helper = payable(d.helperId as string);
+    // an organisation's worker: the organisation is paid (it pays its staff and answers for the work)
+    const helper = payable(d.payeeOrgId ?? (d.helperId as string));
     tx.fromHold("release_fee", s.helperFeeNet, helper);
     tx.fromHold("item_reimburse", s.spent, helper);
     tx.fromHold("budget_refund", s.refund, ext(d.customerId));
@@ -259,6 +272,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
   details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
   details.counterMax = 0;
+  // care work: the customer always chooses the person themselves
+  if (categoryTrust(input.category) === "care") details.autoPick = false;
   if (input.itemBudget === 0) details.budgetBuffer = false;
   // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
@@ -308,11 +323,12 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     topUp: null,
     priceChange: null,
     invite,
+    payeeOrgId: null,
     handoverProofAt: null,
     heldAmount: 0,
     paymentRef: null,
     providerRefs: [],
-    checkHours: cfg.errandCheckHours,
+    checkHours: categoryConfig(input.category).checkHours ?? cfg.errandCheckHours,
     checkUntil: null,
     dispute: null,
     createdAt: ctx.now,
@@ -335,8 +351,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
  * A helper is assigned: the customer now has the payment window to pay (the bank holds it).
  * Legacy deals that were paid at posting go straight to "matched".
  */
-function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number): void {
+function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number, orgId: string | null): void {
   e.helperId = helperId;
+  e.payeeOrgId = orgId;
   if (e.heldAmount > 0) {
     e.status = "matched";
     return;
@@ -361,7 +378,7 @@ export function liveOffers(e: ErrandDeal, now: number): ErrandDeal["offers"] {
 
 /** When "Choose for me" may pick (first live application + autoPickMinutes), or null. */
 export function autoPickAt(e: ErrandDeal, now: number): number | null {
-  if (!e.details.autoPick || e.status !== "open") return null;
+  if (categoryTrust(e.category) === "care" || !e.details.autoPick || e.status !== "open") return null;
   const live = liveOffers(e, now);
   if (!live.length) return null;
   return Math.min(...live.map((o) => o.at)) + DEFAULT_CONFIG.autoPickMinutes * MINUTE_MS;
@@ -384,6 +401,7 @@ function requireInvited(e: ErrandDeal, helperId: string, now: number): void {
 /** The match lapsed before payment (timeout or helper withdrew): back to searching. */
 function unassignHelper(e: ErrandDeal): void {
   e.helperId = null;
+  e.payeeOrgId = null;
   e.payBy = null;
   e.fee = e.postedFee;
   e.status = "open";
@@ -526,8 +544,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "accept", "open");
       if (e.mode !== "now") fail("ILLEGAL_TRANSITION", "Scheduled tasks take applications, not instant accepts");
+      if (categoryTrust(e.category) === "care") fail("ILLEGAL_TRANSITION", "The customer chooses who does this task");
       requireInvited(e, u.id, ctx.now);
-      assignHelper(tx, e, u.id, e.postedFee);
+      assignHelper(tx, e, u.id, e.postedFee, orgFor(u, e.category));
       tx.ev("accepted", { helperId: u.id });
       break;
     }
@@ -547,7 +566,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
         checkPrice(e, price, ctx.now);
         if (price === e.postedFee) price = null;
       }
-      e.offers.push({ helperId: u.id, note: cmd.note.trim().slice(0, 300), price, proposedBy: "helper", at: ctx.now });
+      e.offers.push({ helperId: u.id, orgId: orgFor(u, e.category), note: cmd.note.trim().slice(0, 300), price, proposedBy: "helper", at: ctx.now });
       tx.ev("applied", price === null ? { helperId: u.id } : { helperId: u.id, price });
       break;
     }
@@ -585,8 +604,19 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requireStatus(e, "accept a price on", "open");
       const offer = e.offers.find((o) => o.helperId === u.id) ?? fail("INVALID_INPUT", "No application to accept on");
       if (offer.proposedBy !== "customer" || offer.price === null) fail("ILLEGAL_TRANSITION", "The customer hasn't named a price to accept");
-      assignHelper(tx, e, u.id, offer.price as number);
-      tx.ev("chosen", { helperId: u.id, fee: e.fee, by: "helper_accepted" });
+      // Keep the organisation named in the offer, even if another membership was added later.
+      if (categoryTrust(e.category) !== "open" && !u.qualified?.some((q) => q.category === e.category && q.orgId === offer.orgId)) {
+        fail("FORBIDDEN", "The qualification used for this offer is no longer available");
+      }
+      if (categoryTrust(e.category) === "care") {
+        // A price agreement is still subject to the customer's final choice of caregiver.
+        offer.proposedBy = "helper";
+        offer.at = ctx.now;
+        tx.ev("offer_priced", { helperId: u.id, price: offer.price as number, by: "helper" });
+      } else {
+        assignHelper(tx, e, u.id, offer.price as number, offer.orgId);
+        tx.ev("chosen", { helperId: u.id, fee: e.fee, by: "helper_accepted" });
+      }
       break;
     }
 
@@ -650,7 +680,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       // The customer's own counter needs the helper's yes first (accept_counter), not a self-accept.
       if ((offer as NonNullable<typeof offer>).proposedBy === "customer") fail("ILLEGAL_TRANSITION", "Waiting for the helper to answer your price");
       const fee = (offer as NonNullable<typeof offer>).price ?? e.postedFee;
-      assignHelper(tx, e, cmd.helperId, fee);
+      // the organisation they applied through is paid (the database re-checks they still belong to it)
+      assignHelper(tx, e, cmd.helperId, fee, (offer as NonNullable<typeof offer>).orgId);
       tx.ev("chosen", { helperId: cmd.helperId, fee: e.fee, by: ctx.actor.kind === "system" ? "auto" : "customer" });
       break;
     }
@@ -678,8 +709,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           if (d.status === "matched") {
             const helperId = d.helperId as string;
             const fee = Math.min(d.cancelFee, d.heldAmount);
-            tx.fromHold("cancel_fee", fee, payable(helperId));
-            tx.ev("cancel_fee_paid", { amount: fee, helperId });
+            tx.fromHold("cancel_fee", fee, payable(d.payeeOrgId ?? helperId));
+            tx.ev("cancel_fee_paid", d.payeeOrgId ? { amount: fee, helperId, orgId: d.payeeOrgId } : { amount: fee, helperId });
           }
           refundAll(tx, "customer_cancelled");
           if (d.priceChange?.status !== "paid") d.priceChange = null;

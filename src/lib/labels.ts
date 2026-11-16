@@ -42,6 +42,11 @@ export const CATEGORY_ICON: Record<CategoryId, string> = {
   deliver: "🚚",
   repair: "🔧",
   other: "✨",
+  plumbing: "🚰",
+  electrical: "💡",
+  cleaning: "🧽",
+  childcare: "🧸",
+  eldercare: "🤝",
 };
 
 export const DISPUTE_REASONS = ["notDone", "doneBadly", "wrongItem", "damaged", "overcharged", "other"] as const;
@@ -109,7 +114,7 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
     case "released":
       return t(data.how === "auto" ? "event.released_auto" : data.how === "ops" ? "event.released_ops" : "event.released_confirmed");
     case "cancel_fee_paid":
-      return t("event.cancel_fee_paid", { amount: money("amount"), name: name(data.helperId) });
+      return t("event.cancel_fee_paid", { amount: money("amount"), name: data.orgId ? name(data.orgId) : name(data.helperId) });
     case "refunded":
       return t("event.refunded", { amount: money("amount") });
     case "cancelled":

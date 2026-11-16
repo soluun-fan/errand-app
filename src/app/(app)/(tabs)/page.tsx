@@ -13,6 +13,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyTasks, walletEntries } from "@/lib/deals/queries";
 import { fmtMoney } from "@/lib/format";
+import { liveCategories } from "@/lib/orgs";
 import { CATEGORIES, minFeeAt, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
 import { popularStarts, seasonalStarts } from "@/lib/content";
@@ -70,6 +71,7 @@ export default async function Home() {
     popularStarts(),
     seasonalStarts(),
   ]);
+  const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
   const fromPrice = (_c: CategoryId) => minFeeAt(now, cfg);
@@ -153,7 +155,7 @@ export default async function Home() {
         t("landing.catsTitle"),
         null,
         <nav aria-label={t("post.category")} className="grid grid-cols-3 gap-2.5 md:grid-cols-6 md:gap-3">
-          {CATEGORIES.map(({ id }) => (
+          {CATEGORIES.filter((c) => live.includes(c.id)).map(({ id }) => (
             <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
               <CategoryIcon id={id} tile size={20} />
               <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>

@@ -1,7 +1,8 @@
 import "server-only";
 import { runCommand } from "@/lib/db/deals";
-import { DEFAULT_CONFIG, MINUTE_MS, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { DEFAULT_CONFIG, MINUTE_MS, categoryTrust, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { qualificationsForMany } from "@/lib/qualifications";
 import { helperStart } from "@/lib/maps";
 import { distanceKm, score } from "./plan";
 
@@ -24,12 +25,19 @@ export async function rankApplicants(deal: ErrandDeal, now = Date.now()): Promis
   const db = createAdminClient();
   const since = new Date(now - 30 * 24 * 60 * MINUTE_MS).toISOString();
   const [profiles, presence, offers] = await Promise.all([
-    db.from("profiles").select("id, rating_sum, rating_count, completed_count").in("id", ids),
+    db.from("profiles").select("id, rating_sum, rating_count, completed_count, role, helper_status, suspended_until, categories, kyc_level").in("id", ids),
     db.from("helper_presence").select("user_id, lat, lng").in("user_id", ids),
     db.from("dispatch_offers").select("helper_id, status").in("helper_id", ids).gt("sent_at", since),
   ]);
+  const qualifications = categoryTrust(deal.category) === "open" ? new Map() : await qualificationsForMany((profiles.data ?? []).map((p) => ({ id: p.id as string, kycLevel: Number(p.kyc_level) })), now);
   const pos = new Map((presence.data ?? []).map((p) => [p.user_id as string, p]));
   return (profiles.data ?? [])
+    .filter((p) => {
+      if (p.role !== "helper" || p.helper_status !== "approved" || (p.suspended_until && Date.parse(p.suspended_until) > now)) return false;
+      if (categoryTrust(deal.category) === "open") return (p.categories ?? []).includes(deal.category);
+      const offer = deal.offers.find((o) => o.helperId === p.id);
+      return (qualifications.get(p.id) ?? []).some((q: { category: string; orgId: string | null }) => q.category === deal.category && q.orgId === offer?.orgId);
+    })
     .map((p) => {
       const at = pos.get(p.id as string);
       const start = helperStart(deal);

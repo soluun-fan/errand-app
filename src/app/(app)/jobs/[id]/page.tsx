@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Countdown } from "@/components/countdown";
@@ -14,7 +15,7 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { errandSplit, invitedOnly } from "@/lib/engine";
+import { categoryTrust, errandSplit, invitedOnly } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
@@ -24,6 +25,7 @@ import { SafetyBar } from "@/components/safety-bar";
 import { PriceChangeCard } from "@/components/price-change-card";
 import { SOS_STATUSES } from "@/lib/incident-rules";
 import { liveSos } from "@/lib/incidents";
+import { organizationNames } from "@/lib/orgs";
 import { ContactRow } from "../../tasks/[id]/deal-view";
 import { jobAction } from "../actions";
 
@@ -99,7 +101,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const secondary: React.ReactNode[] = [];
   let line: React.ReactNode = null;
 
-  const canTake = viewer.actor.helperApproved && (viewer.actor.categories ?? []).includes(deal.category);
+  const specialized = categoryTrust(deal.category) !== "open";
+  const qualification = viewer.actor.qualified?.find((q) => q.category === deal.category);
+  const payeeOrgId = deal.helperId ? deal.payeeOrgId : myOffer ? myOffer.orgId : qualification?.orgId ?? null;
+  const payee = payeeOrgId ? (await organizationNames([payeeOrgId])).get(payeeOrgId) : undefined;
+  const canTake = viewer.actor.helperApproved && (specialized ? Boolean(qualification) : (viewer.actor.categories ?? []).includes(deal.category));
   // Sent straight to this helper from their profile (docs/decisions.md 2026-11-16 "Direct requests")
   const invitedMe = deal.status === "open" && invitedOnly(deal, now) === me;
   const declineSheet = invitedMe && deal.invite && (
@@ -116,7 +122,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   );
   if (deal.status === "open" && !myOffer && !canTake) {
     line = viewer.actor.helperApproved
-      ? t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
+      ? specialized ? t("specialized.qualified") : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
   } else if (deal.status === "open" && !myOffer) {
     // Take the customer's price, or name your own — bargaining is open (docs/decisions.md 2026-11-16).
@@ -259,12 +265,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       </DetailTitle>
 
       {unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
+      {payee && <Note tone="info"><Link href={`/orgs/${payee.id}`} className="font-semibold underline">{t("org.payee", { name: payee.name })}</Link><br />{t("org.workerPay")}</Note>}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
       {mine && <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />}
 
       {/* what it pays | what to buy — "no purchase" is said, not implied */}
       <DetailPair
-        left={{ label: t("job.feeLabel"), value: <span className="text-[24px] font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span> }}
+        left={{ label: payee ? t("org.payee", { name: payee.name }) : t("job.feeLabel"), value: <span className="text-[24px] font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span> }}
         right={{
           label: t("job.itemsLabel"),
           value:

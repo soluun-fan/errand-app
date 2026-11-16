@@ -50,7 +50,7 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   if (!legalName) return { error: t("kyc.errors.name") };
   if (!isAdult(String(f.birthDate ?? ""), new Date())) return { error: t("kyc.errors.age") };
   if (!/^\d{4}$/.test(String(f.idLast4 ?? ""))) return { error: t("kyc.errors.last4") };
-  const ids = CATEGORIES.map((c) => c.id) as string[];
+  const ids = CATEGORIES.filter((c) => c.trust === "open").map((c) => c.id) as string[]; // specialized work: organisations / certificates
   const categories = [...new Set((f.categories ?? []).filter((c) => ids.includes(c)))] as CategoryId[];
   if (!categories.length) return { error: t("kyc.errors.categories") };
   const files = {} as Record<KycDoc, string>;

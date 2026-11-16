@@ -4,6 +4,7 @@ import type { Keywords } from "@/lib/category-guess";
 import { rankByUse, shownNow, type QuickStart, type QuickStartInput } from "@/lib/content-rules";
 import { DbError } from "@/lib/db/deals";
 import type { CategoryId } from "@/lib/engine";
+import { liveCategories } from "@/lib/orgs";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -63,8 +64,8 @@ const recentTitleUses = cache(async (): Promise<Map<string, number>> => {
 /** The popular chips: what's on now, most posted first. Empty (not an error page) if the read fails. */
 export async function popularStarts(now = Date.now(), limit = 6): Promise<QuickStart[]> {
   try {
-    const [list, uses] = await Promise.all([allQuickStarts(), recentTitleUses()]);
-    return rankByUse(shownNow(list, "popular", now), uses).slice(0, limit);
+    const [list, uses, live] = await Promise.all([allQuickStarts(), recentTitleUses(), liveCategories()]);
+    return rankByUse(shownNow(list, "popular", now).filter((q) => live.includes(q.category)), uses).slice(0, limit);
   } catch (e) {
     console.error("quick starts failed", e);
     return [];
@@ -73,7 +74,8 @@ export async function popularStarts(now = Date.now(), limit = 6): Promise<QuickS
 
 export async function seasonalStarts(now = Date.now(), limit = 8): Promise<QuickStart[]> {
   try {
-    return shownNow(await allQuickStarts(), "seasonal", now).slice(0, limit);
+    const [list, live] = await Promise.all([allQuickStarts(), liveCategories()]);
+    return shownNow(list, "seasonal", now).filter((q) => live.includes(q.category)).slice(0, limit);
   } catch (e) {
     console.error("quick starts failed", e);
     return [];

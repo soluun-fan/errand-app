@@ -122,7 +122,7 @@ export function ApplyForm() {
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("kyc.categories")}</legend>
           <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((c) => (
+            {CATEGORIES.filter((c) => c.trust === "open").map((c) => (
               <button key={c.id} type="button" role="checkbox" aria-checked={categories.includes(c.id)} onClick={() => toggle(c.id)} className={chipClass(categories.includes(c.id))}>
                 <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
               </button>

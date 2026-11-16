@@ -28,6 +28,7 @@ export interface DealViewProps {
   deal: ErrandDeal;
   events: TimelineItem[];
   people: Map<string, PublicProfile>;
+  organizations?: Map<string, { id: string; name: string }>;
   viewerId: string;
   serverNow: number;
   t: T;
@@ -86,8 +87,9 @@ export function ContactRow({ dealId, unread, canCall, t }: { dealId: string; unr
 export function DealView(p: DealViewProps) {
   const { deal, events, people, t, locale, serverNow } = p;
   const isCustomer = deal.customerId === p.viewerId;
-  const name = (uid: unknown) => (typeof uid === "string" ? (people.get(uid)?.name ?? t("deal.newHelper")) : "—");
+  const name = (uid: unknown) => (typeof uid === "string" ? (people.get(uid)?.name ?? p.organizations?.get(uid)?.name ?? t("deal.newHelper")) : "—");
   const helperName = deal.helperId ? name(deal.helperId) : "";
+  const payeeName = deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId)?.name ?? t("org.title") : helperName;
   const split = errandSplit({
     fee: deal.fee,
     itemBudget: deal.itemBudget,
@@ -98,7 +100,7 @@ export function DealView(p: DealViewProps) {
   const fields = { dealId: deal.id };
   // Live applicants, best first (the page ranks them; unranked ones keep their order).
   const rankOf = (h: string) => p.ranked?.findIndex((r) => r.helperId === h) ?? -1;
-  const applicants = [...liveOffers(deal, serverNow)].sort((a, b) => {
+  const applicants = liveOffers(deal, serverNow).filter((o) => !p.ranked || p.ranked.some((r) => r.helperId === o.helperId)).sort((a, b) => {
     const ra = rankOf(a.helperId);
     const rb = rankOf(b.helperId);
     return (ra < 0 ? 1e9 : ra) - (rb < 0 ? 1e9 : rb);
@@ -172,14 +174,14 @@ export function DealView(p: DealViewProps) {
       line = t("deal.line.disputed");
       break;
     case "released":
-      line = split.refund > 0 ? t("deal.line.releasedRefund", { amount: fmtMoney(split.refund) }) : t("deal.line.released", { helper: helperName });
+      line = split.refund > 0 ? t("deal.line.releasedRefund", { amount: fmtMoney(split.refund) }) : t("deal.line.released", { helper: payeeName });
       break;
     case "refunded":
       line = t("deal.line.refunded", { amount: fmtMoney(amountDue(deal)) });
       break;
     case "cancelled":
       line = cancelFeePaid
-        ? t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
+        ? deal.payeeOrgId ? t("org.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)), name: payeeName }) : t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
         : t("deal.line.cancelled");
       break;
     case "expired": {
@@ -206,13 +208,13 @@ export function DealView(p: DealViewProps) {
   let money: ReactNode;
   if (["check", "disputed", "released"].includes(deal.status)) {
     const rows: MoneyRow[] = [
-      { label: deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
+      { label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
     ];
     if (deal.itemBudget > 0) {
       rows.push({ label: t("money.toHelperItems"), amount: split.spent });
       rows.push({ label: t("money.backToYou"), amount: split.refund });
     }
-    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
+    rows.push({ label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
     money = <MoneyBreakdown rows={rows} total={{ label: t("money.totalHeld"), amount: split.held }} />;
   } else if (!["refunded", "cancelled", "expired"].includes(deal.status)) {
     const rows: MoneyRow[] = [{ label: t("money.helperFee"), amount: deal.fee }];
@@ -348,8 +350,8 @@ export function DealView(p: DealViewProps) {
             title={t("deal.confirmTitle")}
             body={
               split.refund > 0
-                ? t("deal.confirmBodyRefund", { helper: helperName, net: fmtMoney(split.helperNet), refund: fmtMoney(split.refund) })
-                : t("deal.confirmBody", { helper: helperName, net: fmtMoney(split.helperNet) })
+                ? t("deal.confirmBodyRefund", { helper: payeeName, net: fmtMoney(split.helperNet), refund: fmtMoney(split.refund) })
+                : t("deal.confirmBody", { helper: payeeName, net: fmtMoney(split.helperNet) })
             }
             confirmLabel={t("deal.confirmDone")}
           />
@@ -490,6 +492,7 @@ export function DealView(p: DealViewProps) {
       {deal.helperId && (
         <OfferCard
           person={person(people.get(deal.helperId), helperName)}
+          organization={deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId) : undefined}
           href={`/helpers/${deal.helperId}`}
           t={t}
           action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
@@ -548,6 +551,7 @@ export function DealView(p: DealViewProps) {
               <OfferCard
                 key={o.helperId}
                 person={pp}
+                organization={o.orgId ? p.organizations?.get(o.orgId) : undefined}
                 href={`/helpers/${o.helperId}`}
                 badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
                 note={[priceLine, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note].filter(Boolean).join(" · ")}

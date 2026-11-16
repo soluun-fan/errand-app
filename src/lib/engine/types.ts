@@ -93,6 +93,8 @@ export type DisputeOutcome = "release" | "refund";
 
 export interface Offer {
   helperId: string;
+  /** The organisation the helper applied through (specialized work); its account is paid on release. */
+  orgId: string | null;
   note: string;
   /**
    * The price on the table between this helper and the customer (null = the customer's posted
@@ -181,6 +183,11 @@ export interface ErrandDeal extends DealBase {
   priceChange: PriceChange | null;
   /** Sent straight to one helper from their profile (docs/decisions.md 2026-11-16 "Direct requests"). */
   invite: Invite | null;
+  /**
+   * Set when a helper working through an organisation is assigned (specialized work): the fee,
+   * item money and any cancel fee go to that organisation's account, not the worker's.
+   */
+  payeeOrgId: string | null;
   handoverProofAt: number | null;
 }
 
@@ -220,6 +227,17 @@ export interface UserActor {
   /** Only relevant for helpers. */
   helperApproved?: boolean;
   categories?: readonly CategoryId[];
+  /**
+   * Specialized kinds this helper may take, and through whom: `orgId` = an approved organisation
+   * vouches for them (paid to the organisation); null = their own certificate (paid to them).
+   * Worked out by the server from organisation memberships and certificates.
+   */
+  qualified?: readonly Qualification[];
+}
+
+export interface Qualification {
+  category: CategoryId;
+  orgId: string | null;
 }
 
 /** The payment provider's verified webhook. */

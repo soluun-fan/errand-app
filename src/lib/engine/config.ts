@@ -6,10 +6,35 @@
  * (`pricing_settings`, /ops/pricing); these are the defaults and what tests use.
  */
 
-export type CategoryId = "shop" | "carry" | "queue" | "deliver" | "repair" | "other";
+export type CategoryId =
+  | "shop"
+  | "carry"
+  | "queue"
+  | "deliver"
+  | "repair"
+  | "other"
+  // specialized work (docs/decisions.md 2026-11-16 "Specialized work")
+  | "plumbing"
+  | "electrical"
+  | "cleaning"
+  | "childcare"
+  | "eldercare";
+
+/**
+ * Who may take a kind of task:
+ * - "open": any approved helper who works in it
+ * - "pro":  a worker vouched for by an approved organisation, or an individual whose certificate Ops checked
+ * - "care": only workers of an approved organisation (agency) who also passed the criminal-record check;
+ *           the customer always chooses (no instant accept, no "Choose for me")
+ * A safety rule, so it lives in code; `category_settings.trust` mirrors it (a test keeps them equal).
+ */
+export type Trust = "open" | "pro" | "care";
 
 export interface CategoryConfig {
   id: CategoryId;
+  trust: Trust;
+  /** Check window after "Done" for this kind of task (a leak shows up later than a missing item). */
+  checkHours?: number;
   /** Whether the post form should default to an item budget. */
   items: boolean;
   /** How long the post form assumes the job takes until the customer says otherwise. */
@@ -17,13 +42,23 @@ export interface CategoryConfig {
 }
 
 export const CATEGORIES: readonly CategoryConfig[] = [
-  { id: "shop", items: true, minutes: 30 },
-  { id: "carry", items: false, minutes: 30 },
-  { id: "queue", items: false, minutes: 60 },
-  { id: "deliver", items: true, minutes: 30 },
-  { id: "repair", items: false, minutes: 60 },
-  { id: "other", items: false, minutes: 60 },
+  { id: "shop", trust: "open", items: true, minutes: 30 },
+  { id: "carry", trust: "open", items: false, minutes: 30 },
+  { id: "queue", trust: "open", items: false, minutes: 60 },
+  { id: "deliver", trust: "open", items: true, minutes: 30 },
+  { id: "repair", trust: "open", items: false, minutes: 60 },
+  { id: "other", trust: "open", items: false, minutes: 60 },
+  { id: "plumbing", trust: "pro", items: true, minutes: 60, checkHours: 72 },
+  { id: "electrical", trust: "pro", items: true, minutes: 60, checkHours: 72 },
+  { id: "cleaning", trust: "pro", items: false, minutes: 120 },
+  { id: "childcare", trust: "care", items: false, minutes: 180 },
+  { id: "eldercare", trust: "care", items: false, minutes: 180 },
 ];
+
+/** The everyday kinds anyone verified can do (Home's main grid, the helper sign-up form). */
+export const OPEN_CATEGORIES: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust === "open").map((c) => c.id);
+
+export const categoryTrust = (id: CategoryId): Trust => categoryConfig(id).trust;
 
 /** Tasks with a pickup and a drop-off (distance and a pickup pin apply); others happen in one place. */
 export const TWO_POINT_CATEGORIES: readonly CategoryId[] = ["shop", "deliver", "carry"];
