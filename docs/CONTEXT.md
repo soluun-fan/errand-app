@@ -500,6 +500,7 @@ The DB trigger `deals_guard` → `deal_status_allowed()` repeats the allowed sta
 | Route | File(s) | What |
 |---|---|---|
 | `/login` | `app/login/{page,login-form,actions}.tsx` | phone OTP (`login`, `signOut`); dev shows the code |
+| `/welcome` | `welcome/page.tsx` | public landing (logged-out `/` redirects here); acting opens the login sheet (`components/login-prompt.tsx`) → `/login?next=` |
 | `/` | `(app)/(tabs)/page.tsx` (+ `draft-chip.tsx`) | customer Home: map, search, active tasks, tiles. Helper mode → `/jobs` (proxy redirect) |
 | `/earnings` | `(tabs)/earnings/page.tsx` | helper earnings plus a finished-jobs list |
 | `/jobs` | `(tabs)/jobs/{page,online-card}.tsx` | helper: online/radius/location/push card, my jobs, my requests, offers, map, `?view=all&cat=&sort=near\|new\|pay` board; unapproved helpers see a checklist plus the board |

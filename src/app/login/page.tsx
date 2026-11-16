@@ -3,11 +3,13 @@ import { LOCALES } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { devShowSmsCodes } from "@/lib/dev";
+import { safeNext } from "@/lib/next-path";
 import { setLocale } from "@/lib/prefs";
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage() {
-  if (await getViewer()) redirect("/");
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const next = safeNext((await searchParams).next);
+  if (await getViewer()) redirect(next);
   const [t, locale] = await Promise.all([getT(), getLocale()]);
 
   return (
@@ -30,7 +32,7 @@ export default async function LoginPage() {
         <h1 className="text-2xl font-bold">{t("login.title")}</h1>
         <p className="text-[15px] text-ink-2">{t("login.sub")}</p>
       </div>
-      <LoginForm showDemoHint={devShowSmsCodes()} />
+      <LoginForm showDemoHint={devShowSmsCodes()} next={next} />
     </main>
   );
 }

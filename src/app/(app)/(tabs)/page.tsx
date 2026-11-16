@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Plus, RotateCcw, Search, ShieldCheck, Undo2 } from "lucide-react";
+import { ArrowRight, MapPin, Plus, RotateCcw, Search, ShieldCheck, Undo2 } from "lucide-react";
 import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
+import { RecentRequests } from "@/components/recent-requests";
 import { Avatar, PrimaryBar, btn, chipClass } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -10,7 +11,9 @@ import { listMyTasks, walletEntries } from "@/lib/deals/queries";
 import { fmtMoney } from "@/lib/format";
 import { CATEGORIES, DEFAULT_DETAILS, quoteFee, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
+import { POPULAR } from "@/lib/popular";
 import { pricingConfig } from "@/lib/pricing";
+import { onlineHelperCount, recentRequests } from "@/lib/public-snapshot";
 import { DraftChip } from "./draft-chip";
 
 const REFUND_KINDS = ["refund", "budget_refund"];
@@ -51,7 +54,7 @@ export default async function Home() {
   const repeat = [...new Map(all.filter((x) => x.deal.status === "released").map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
 
   // "from" price per category: the engine's build-up price for a usual job of that kind, today
-  const cfg = await pricingConfig();
+  const [cfg, recent, online] = await Promise.all([pricingConfig(), recentRequests(4), onlineHelperCount()]);
   const now = Date.now();
   const fromPrice = (c: CategoryId) =>
     quoteFee(c, { ...DEFAULT_DETAILS, minutes: CATEGORIES.find((x) => x.id === c)?.minutes ?? 30 }, cfg, now).total;
@@ -70,6 +73,13 @@ export default async function Home() {
         </Link>
       </header>
 
+      {/* where + how alive it is (real numbers only) */}
+      <Link href="/profile" className="flex w-fit items-center gap-1.5 rounded-full bg-bg px-3 py-1.5 text-[13px] font-medium shadow-card">
+        <MapPin aria-hidden size={14} className="text-brand-ink" />
+        {viewer.profile.area || t("home.area")}
+        {online > 0 && <span className="text-ink-2">· {t("home.online", { n: online })}</span>}
+      </Link>
+
       {/* task first: the question, then search (Enter or → starts posting with it) */}
       <h1 className="text-[24px] font-bold leading-tight tracking-tight">{t("home.hero")}</h1>
       <form action="/post" className="flex min-h-14 items-center gap-2 rounded-[18px] bg-bg pl-4 pr-1.5 shadow-float">
@@ -83,12 +93,19 @@ export default async function Home() {
         </button>
       </form>
 
-      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 empty:hidden">
+      {/* quick starts: an unfinished draft, your repeats, then popular tasks */}
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
         <DraftChip />
         {repeat.map((d) => (
           <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={chipClass(false)}>
-            <CategoryIcon id={d.category} size={16} />
+            <RotateCcw aria-hidden size={14} />
             {d.title}
+          </Link>
+        ))}
+        {POPULAR.map((p) => (
+          <Link key={p.key} href={`/post?cat=${p.cat}&title=${encodeURIComponent(t(`home.pop.${p.key}`))}`} className={chipClass(false)}>
+            <CategoryIcon id={p.cat} size={15} />
+            {t(`home.pop.${p.key}`)}
           </Link>
         ))}
       </div>
@@ -108,6 +125,8 @@ export default async function Home() {
           </Link>
         ))}
       </nav>
+
+      <RecentRequests items={recent} t={t} now={now} />
 
       {(heldNow > 0 || refunds > 0) && (
         <div className="grid grid-cols-2 gap-2.5">

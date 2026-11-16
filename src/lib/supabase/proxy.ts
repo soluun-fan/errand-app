@@ -3,8 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { MODE_COOKIE } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
-/** No session needed: the login page, and the cron tick (it checks CRON_SECRET itself). */
-const PUBLIC_PATHS = ["/login", "/api/cron", "/api/health"];
+/** No session needed: the landing page, login, the cron tick (it checks CRON_SECRET itself), health. */
+const PUBLIC_PATHS = ["/welcome", "/login", "/api/cron", "/api/health"];
 
 /**
  * Refreshes the Supabase session cookie on every request and does an optimistic
@@ -34,8 +34,9 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (!signedIn && !PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = "";
+    // visitors see the landing page; deep links go to login and come back after it
+    url.pathname = path === "/" ? "/welcome" : "/login";
+    url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
     const redirect = NextResponse.redirect(url);
     // keep any refreshed/cleared cookies
     for (const c of response.cookies.getAll()) redirect.cookies.set(c);

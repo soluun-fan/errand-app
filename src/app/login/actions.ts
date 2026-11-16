@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
 import { loginRules } from "@/lib/dev";
+import { safeNext } from "@/lib/next-path";
 import { normalizeMnPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -46,7 +47,8 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
 
   const { error } = await supabase.auth.verifyOtp({ phone: prev.phone, token, type: "sms" });
   if (error) return { ...prev, error: t("login.wrongCode") };
-  redirect("/");
+  // back to what they were starting (e.g. a task from the landing page); our own paths only
+  redirect(safeNext(formData.get("next")));
 }
 
 export async function signOut(): Promise<void> {

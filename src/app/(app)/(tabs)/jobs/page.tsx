@@ -1,3 +1,4 @@
+import { CalendarClock, MapPin } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -25,28 +26,44 @@ function jobPins(items: JobListItem[]): MapMarker[] {
 const earn = (d: ErrandDeal) =>
   errandSplit({ fee: d.fee, itemBudget: 0, receipt: null, serviceFee: d.serviceFee, commissionBps: d.commissionBps }).helperFeeNet;
 
-function JobRow({ item, t, locale, mine }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[] }) {
+/**
+ * One open request (PleaseHelp-style card): tags, title, where and when, then a line and the
+ * helper's fee big and orange — scannable in a list.
+ */
+function JobRow({ item, t, locale = "mn", mine }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[] }) {
   const d = item.deal;
   const outside = mine !== undefined && !mine.includes(d.category);
+  const full = d.offers.length >= d.maxApplicants;
+  const dur = d.details.minutes >= 60 ? t("price.hours", { n: d.details.minutes / 60 }) : t("price.min", { n: d.details.minutes });
+  const tag = "inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold";
   return (
-    <Link href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
-      <CategoryIcon id={d.category} tile size={22} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-semibold">{d.title}</span>
-        <span className="block text-sm text-ink-2">
-          {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
-          {d.itemBudget > 0 ? ` · 🛍️ ${fmtMoney(d.itemBudget)}` : ""}
-          {locale ? ` · ${fmtDateTime(d.createdAt, locale)}` : ""}
+    <Link href={`/jobs/${d.id}`} className="press flex flex-col gap-2.5 rounded-card bg-bg p-4 shadow-card">
+      <span className="flex flex-wrap gap-1.5">
+        <span className={`${tag} bg-fill text-ink-2`}>
+          <CategoryIcon id={d.category} size={13} />
+          {t(`categoryShort.${d.category}`)}
         </span>
-        {outside && <span className="mt-1 inline-block rounded-full bg-fill px-2 py-0.5 text-xs font-medium text-ink-2">{t("job.notYourCategory")}</span>}
-        {d.offers.length > 0 && (
-          <span className="mt-1 block text-sm font-medium text-ink-2">
-            {t("job.applicants", { n: d.offers.length })}
-            {d.offers.length >= d.maxApplicants ? ` · ${t("job.full")}` : ""}
-          </span>
-        )}
+        {d.status === "open" && <span className={`${tag} ${full ? "bg-fill text-ink-2" : "bg-brand-bg text-brand-ink"}`}>{full ? t("job.full") : t("job.available")}</span>}
+        {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
+        {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
-      <span className="flex-none text-right text-[17px] font-bold tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
+      <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
+      <span className="flex flex-col gap-1 text-[13px] text-ink-2">
+        <span className="flex items-center gap-1.5">
+          <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
+          {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
+          {d.details.km > 0 ? ` · ${t("job.trip", { km: d.details.km.toFixed(1) })}` : ""}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <CalendarClock aria-hidden size={14} className="flex-none" />
+          {d.scheduledAt ? fmtDateTime(d.scheduledAt, locale) : t("task.whenNow")} · {dur}
+        </span>
+        {d.offers.length > 0 && !full && <span>{t("job.applicants", { n: d.offers.length })}</span>}
+      </span>
+      <span className="flex items-baseline justify-between border-t border-line pt-2.5">
+        <span className="text-[13px] font-medium text-ink-2">{t("job.feeLabel")}</span>
+        <span className="text-[20px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
+      </span>
     </Link>
   );
 }
@@ -160,7 +177,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.myRequests")}</h2>
             {applied.map((a) => (
-              <JobRow key={a.deal.id} item={a} t={t} />
+              <JobRow key={a.deal.id} item={a} t={t} locale={locale} />
             ))}
           </section>
         )}
@@ -169,7 +186,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2" aria-live="polite">
             <h2 className="font-bold">{t("job.offersTitle")}</h2>
             {offers.map((o) => (
-              <JobRow key={o.deal.id} item={o} t={t} now={now} />
+              <JobRow key={o.deal.id} item={o} t={t} now={now} locale={locale} />
             ))}
           </section>
         )}
@@ -196,7 +213,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
                 </Link>
               </p>
             ) : (
-              feed.map((n) => <JobRow key={n.deal.id} item={n} t={t} now={now} />)
+              feed.map((n) => <JobRow key={n.deal.id} item={n} t={t} now={now} locale={locale} />)
             )}
           </section>
         )}

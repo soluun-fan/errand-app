@@ -9,13 +9,14 @@ import { login, type LoginState } from "./actions";
 
 const initial: LoginState = { step: "phone" };
 
-export function LoginForm({ showDemoHint }: { showDemoHint: boolean }) {
+export function LoginForm({ showDemoHint, next = "/" }: { showDemoHint: boolean; next?: string }) {
   const t = useT();
   const [state, action] = useActionState(login, initial);
 
   if (state.step === "code") {
     return (
       <form action={action} className="flex flex-col gap-4">
+        <input type="hidden" name="next" value={next} />
         <p className="text-[15px] text-ink-2">{t("login.sentTo", { phone: formatMnPhone(state.phone) })}</p>
         {state.devCode && (
           <Note tone="warn">
@@ -53,6 +54,7 @@ export function LoginForm({ showDemoHint }: { showDemoHint: boolean }) {
 
   return (
     <form action={action} className="flex flex-col gap-4">
+        <input type="hidden" name="next" value={next} />
       <label className={fieldLabel}>
         {t("login.phone")}
         <div className="flex items-center gap-2">
