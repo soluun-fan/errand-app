@@ -55,7 +55,7 @@ export interface ErrandDetails {
   tools: boolean;
   /** Set by the engine at posting: the recommended (system) price; 0 on older deals. */
   quotedFee: number;
-  /** Set by the engine at posting: the highest counter-offer a helper may send; 0 on older deals. */
+  /** No longer used (bargaining has no cap since 2026-11-16); kept for older deals. */
   counterMax: number;
 }
 
@@ -94,8 +94,13 @@ export type DisputeOutcome = "release" | "refund";
 export interface Offer {
   helperId: string;
   note: string;
-  /** The helper's counter-offer (null = takes the customer's price). Never below it. */
+  /**
+   * The price on the table between this helper and the customer (null = the customer's posted
+   * price). Bargaining is open both ways, any number of rounds (docs/decisions.md 2026-11-16).
+   */
   price: number | null;
+  /** Who named `price` last — the other side may accept it. "helper" when price is null. */
+  proposedBy: "helper" | "customer";
   at: number;
 }
 
@@ -220,7 +225,11 @@ export type Command =
   | { type: "confirm_payment"; providerRef: string; amount: number }
   | { type: "claim" } // goods: buyer attaches to the deal before paying
   | { type: "accept" } // errand now-mode: first helper wins
-  | { type: "apply"; note: string; price?: number } // errand schedule-mode: offer, optionally with a quote
+  | { type: "apply"; note: string; price?: number } // helper: take the posted price, or name their own
+  | { type: "reprice"; price: number } // helper: name a new price on their own offer
+  | { type: "counter"; helperId: string; price: number } // customer: answer one helper with a price
+  | { type: "accept_counter" } // helper: accept the customer's price → matched, customer pays
+  | { type: "set_price"; price: number } // customer: change the posted price while still open
   | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
   | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
   | { type: "cancel" }

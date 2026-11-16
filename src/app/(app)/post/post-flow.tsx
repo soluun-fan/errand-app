@@ -11,7 +11,7 @@ import { SubmitButton } from "@/components/sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, priceRange, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -49,8 +49,8 @@ export interface Draft {
   itemBudget: string;
   budgetBuffer: boolean;
   people: 1 | 2;
-  /** Customer's change to the recommended price (₮, may be negative; kept inside the allowed range). */
-  raise: number;
+  /** The customer's own price as typed ("" = not set yet → the minimum). We only set the floor. */
+  price: string;
   /** About how long (minutes); null = the category's usual. */
   minutes: number | null;
   /** The helper must bring tools. */
@@ -135,7 +135,7 @@ export function PostFlow({
     itemBudget: "",
     budgetBuffer: false,
     people: 1,
-    raise: 0,
+    price: "",
     minutes: null,
     tools: false,
     saveAs: "",
@@ -210,14 +210,16 @@ export function PostFlow({
   }, [needTwo, d.people]);
 
   // Freedom, but limited (docs/decisions.md "Pricing"): recommended −20%…+30%, same function as the server.
-  const range = priceRange(quote.total, startsAt, cfg);
-  const fee = Math.min(range.max, Math.max(range.min, quote.total + d.raise));
+  // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
+  const minFee = minFeeAt(startsAt, cfg);
+  const typed = Number(digits(d.price ?? ""));
+  const fee = typed > 0 ? typed : minFee;
+  const belowMin = typed > 0 && typed < minFee;
   const serviceFee = serviceFeeFor(fee, cfg);
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
   const total = fee + heldItems + serviceFee;
-  const quoteFor = (people: 1 | 2) => quoteFee(d.category, { ...details, people }, cfg, startsAt).total;
   const stairs = quote.lines.find((l) => l.key === "stairs");
   const backLeg = quoteFee(d.category, { ...details, roundTrip: true }, cfg, startsAt).lines.find((l) => l.key === "roundTrip");
   const savedMatch = saved.find((a) => a.address === d.address.trim());
@@ -230,6 +232,7 @@ export function PostFlow({
     else if (d.when !== "now" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
   }
+  if (STEPS[step] === "review" && belowMin) reason = t("post.reason.fee", { amount: fmtMoney(minFee) });
 
   const lineLabel = (l: QuoteLine) =>
     l.key === "time"
@@ -240,8 +243,7 @@ export function PostFlow({
           ? t("price.line.stairs", { n: l.qty ?? 0 })
           : t(`price.line.${l.key}`);
   const breakdown: MoneyRow[] = [
-    ...quote.lines.map((l) => ({ label: lineLabel(l), amount: l.amount })),
-    ...(fee !== quote.total ? [{ label: fee > quote.total ? t("price.raised") : t("price.lowered"), amount: fee - quote.total }] : []),
+    { label: t("price.yourPrice"), amount: fee },
     ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
     ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
     { label: t("money.serviceFee"), amount: serviceFee, muted: true },
@@ -300,7 +302,7 @@ export function PostFlow({
         <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
           {CATEGORIES.map((c) => {
             const on = d.category === c.id;
-            const from = quoteFee(c.id, { ...DEFAULT_DETAILS, minutes: c.minutes }, cfg, startsAt).total;
+            const from = minFee;
             return (
               <button
                 key={c.id}
@@ -626,7 +628,7 @@ export function PostFlow({
                 icon="🧍"
                 title={t("task.oneHelper")}
                 sub={needTwo ? t("task.tooHeavy") : undefined}
-                price={fmtMoney(quoteFor(1))}
+                price="" 
               />
               <OptionCard
                 selected={d.people === 2}
@@ -634,41 +636,51 @@ export function PostFlow({
                 icon="🧍🧍"
                 title={t("task.twoHelpers")}
                 sub={t("task.twoHelpersSub")}
-                price={fmtMoney(quoteFor(2))}
+                price="" 
               />
             </fieldset>
           )}
 
-          <div className="flex flex-col gap-2 rounded-card bg-fill p-4">
-            <span className="text-[15px] font-medium text-ink-2">{t("task.price")}</span>
-            <div className="flex items-center gap-3">
+          {/* the customer's own price — only the minimum is ours; helpers may answer with theirs */}
+          <div className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
+            <label htmlFor="price" className="text-[13px] font-semibold text-ink-2">
+              {t("price.yourPrice")}
+            </label>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 aria-label={t("task.lower")}
-                disabled={fee <= range.min}
-                onClick={() => set("raise", Math.max(range.min, fee - cfg.feeStep) - quote.total)}
-                className={`${btn.square} bg-bg disabled:text-ink-3`}
+                disabled={fee - cfg.feeStep < minFee}
+                onClick={() => set("price", String(Math.max(minFee, fee - cfg.feeStep)))}
+                className={`${btn.square} disabled:text-ink-3`}
               >
                 −
               </button>
-              <span className="flex-1 text-center text-[28px] font-bold tabular-nums text-brand-ink">{fmtMoney(fee)}</span>
-              <button
-                type="button"
-                aria-label={t("task.raise")}
-                disabled={fee >= range.max}
-                onClick={() => set("raise", Math.min(range.max, fee + cfg.feeStep) - quote.total)}
-                className={`${btn.square} bg-bg disabled:text-ink-3`}
-              >
+              <span className="relative flex-1">
+                <input
+                  id="price"
+                  inputMode="numeric"
+                  value={d.price ? Number(digits(d.price)).toLocaleString("en-US") : ""}
+                  placeholder={fmtMoney(minFee).replace("₮", "")}
+                  onChange={(e) => set("price", digits(e.target.value).slice(0, 8))}
+                  className={`${field} pr-9 text-center text-[24px] font-bold tabular-nums text-brand-ink`}
+                />
+                <span aria-hidden className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[20px] font-bold text-brand-ink">
+                  ₮
+                </span>
+              </span>
+              <button type="button" aria-label={t("task.raise")} onClick={() => set("price", String(fee + cfg.feeStep))} className={btn.square}>
                 +
               </button>
             </div>
-            <p className="text-sm text-ink-2">{t("price.recommended", { amount: fmtMoney(quote.total), min: fmtMoney(range.min), max: fmtMoney(range.max) })}</p>
-            {fee < quote.total ? (
-              <Note tone="warn">{t("price.belowHint")}</Note>
+            {belowMin ? (
+              <p role="alert" className="text-[13px] font-medium text-danger">
+                {t("post.reason.fee", { amount: fmtMoney(minFee) })}
+              </p>
             ) : (
-              <Note tone="held">{fee > quote.total ? t("price.aboveHint") : t("price.fairHint")}</Note>
+              <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee) })}</p>
             )}
-            <p className="text-sm text-ink-2">{t("price.helperKeeps")}</p>
+            <p className="text-[13px] text-ink-2">{t("price.bargainHint")}</p>
           </div>
 
           <details className="group">
@@ -696,19 +708,6 @@ export function PostFlow({
             {state.error}
           </p>
         )}
-        {/* the price as it builds up, so a change (stairs, time, distance) is never a surprise */}
-        {STEPS[step] === "where" && (
-          <div className="flex flex-col gap-0.5 rounded-input bg-bg px-3.5 py-2.5 shadow-card" aria-live="polite">
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-semibold text-ink-2">{t("price.estimate")}</span>
-              <b className="text-[18px] tabular-nums text-brand-ink">{fmtMoney(quote.total)}</b>
-            </span>
-            {quote.lines.length > 1 && (
-              <span className="text-[12px] leading-snug text-ink-2">{quote.lines.map((l) => `${lineLabel(l)} ${fmtMoney(l.amount)}`).join(" + ")}</span>
-            )}
-            {itemBudget > 0 && <span className="text-[12px] text-ink-2">{t("price.plusItemsHeld", { amount: fmtMoney(heldItems) })}</span>}
-          </div>
-        )}
         {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
@@ -717,7 +716,9 @@ export function PostFlow({
             </button>
           )}
           {STEPS[step] === "review" ? (
-            <SubmitButton className={`${btn.primary} flex-1`}>{t("task.confirm", { amount: fmtMoney(total) })}</SubmitButton>
+            <SubmitButton className={`${btn.primary} flex-1`} disabled={!!reason}>
+              {t("task.confirm", { amount: fmtMoney(total) })}
+            </SubmitButton>
           ) : (
             <button type="button" disabled={!!reason} onClick={() => setStep(step + 1)} className={`${btn.primary} flex-1`}>
               {t("common.next")}

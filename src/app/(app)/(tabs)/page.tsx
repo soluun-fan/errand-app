@@ -9,7 +9,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyTasks, walletEntries } from "@/lib/deals/queries";
 import { fmtMoney } from "@/lib/format";
-import { CATEGORIES, DEFAULT_DETAILS, quoteFee, type CategoryId } from "@/lib/engine";
+import { CATEGORIES, minFeeAt, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
 import { POPULAR } from "@/lib/popular";
 import { pricingConfig } from "@/lib/pricing";
@@ -56,8 +56,8 @@ export default async function Home() {
   // "from" price per category: the engine's build-up price for a usual job of that kind, today
   const [cfg, recent, online] = await Promise.all([pricingConfig(), recentRequests(4), onlineHelperCount()]);
   const now = Date.now();
-  const fromPrice = (c: CategoryId) =>
-    quoteFee(c, { ...DEFAULT_DETAILS, minutes: CATEGORIES.find((x) => x.id === c)?.minutes ?? 30 }, cfg, now).total;
+  // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
+  const fromPrice = (_c: CategoryId) => minFeeAt(now, cfg);
   const name = viewer.profile.name?.split(" ")[0];
 
   return (

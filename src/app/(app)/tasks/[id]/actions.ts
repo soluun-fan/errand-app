@@ -14,6 +14,7 @@ import { notify } from "@/lib/push";
 import { EngineError, amountDue, type Command } from "@/lib/engine";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
+import { parsePrice } from "@/lib/price-input";
 import { getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fmtMoney } from "@/lib/format";
@@ -91,6 +92,12 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         let cmd: Command;
         if (intent === "cancel") cmd = { type: "cancel" };
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
+        else if (intent === "counter" || intent === "set_price") {
+          // bargaining (docs/decisions.md 2026-11-16): any price ≥ the minimum, ≤ what one task may hold
+          const price = parsePrice(form.get("price"));
+          if (price === null || price > (await getControls()).maxDealAmount) return { error: t("price.invalid") };
+          cmd = intent === "counter" ? { type: "counter", helperId: String(form.get("helperId") ?? ""), price } : { type: "set_price", price };
+        }
         else if (intent === "confirm") cmd = { type: "confirm" };
         else if (intent === "decline_topup") cmd = { type: "decline_topup" };
         else if (intent === "dispute") {
@@ -105,11 +112,23 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           await notifyChosen(r.deal, false);
           await runDispatch(dealId);
         }
+        if (cmd.type === "counter" && r.deal.type === "errand") {
+          await notify([cmd.helperId], {
+            title: "push.counterTitle",
+            body: "push.counterBody",
+            params: { fee: fmtMoney(cmd.price), title: r.deal.title },
+            url: `/jobs/${dealId}`,
+            tag: `job-${dealId}`,
+          });
+        }
       }
     }
   } catch (e) {
     if (e instanceof EngineError) {
       refresh();
+      const min = /Minimum fee is ₮(\d+)/.exec(e.message);
+      if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }) };
+      if (/Waiting for the helper/.test(e.message)) return { error: t("price.waitingHelper") };
       return { error: e.code === "FORBIDDEN" ? t("error.forbidden") : t("error.changed") };
     }
     if (isPausedError(e)) return { error: t("safety.moneyFrozen") };

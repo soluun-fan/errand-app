@@ -230,6 +230,7 @@ Migrations, in order:
 15. `pickup_pin`: `deals.pickup_lat/lng` (both or neither); `dispatch_candidates` and `nearby_open_deals` measure from the pickup when pinned.
 16. `private_task_pins`: the deals select policy is participants or admin only (no helper-feed / applicant clause).
 17. `saved_helpers`: customers' ♡ list (own-list RLS, writes server-only).
+18. `bargaining`: `offers.proposed_by`, `deals.price_change`; `apply_transition` v4 (also writes `posted_fee`, `price_change`, offers' `proposed_by`).
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Deals: customer, matched helper, seller/buyer, Ops — helpers can't read open tasks through the API (2026-11-16); feeds are server-rendered with the ~300 m fuzz.

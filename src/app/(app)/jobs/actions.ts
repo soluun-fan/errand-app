@@ -6,10 +6,11 @@ import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
-import { isPausedError } from "@/lib/safety";
+import { parsePrice } from "@/lib/price-input";
+import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
-import { EngineError, counterMaxFor, type Command } from "@/lib/engine";
+import { EngineError, type Command } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
@@ -172,8 +173,9 @@ export async function removePush(endpoint: string): Promise<void> {
 }
 
 /**
- * Helper-side task actions: apply (take the customer's price) or quote (counter once, higher) — the customer chooses —
- * take back an application, step back before payment, start, skip an offer.
+ * Helper-side task actions (docs/decisions.md 2026-11-16 "Bargaining"): apply (take the customer's
+ * price) or quote (name your own), re-price your offer, accept the customer's counter-price, take
+ * back an application, step back before payment, start, finish, skip an offer.
  */
 export async function jobAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const viewer = await helperViewer();
@@ -200,17 +202,19 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     }
     let cmd: Command;
     const note = String(form.get("note") ?? "").slice(0, 300);
+    // a named price: any amount ≥ the minimum (engine), at most what one task may hold (safety cap)
+    const named = async () => {
+      const price = parsePrice(form.get("price"));
+      if (price === null) return null;
+      return price <= (await getControls()).maxDealAmount ? price : null;
+    };
     if (intent === "apply") cmd = { type: "apply", note };
-    else if (intent === "quote") {
-      const price = Number(String(form.get("price") ?? "").replace(/[^\d]/g, ""));
-      const current = await loadDeal(db, dealId);
-      if (!current || current.type !== "errand") return { error: t("error.changed") };
-      const cap = current.details.counterMax > 0 ? current.details.counterMax : counterMaxFor(current.postedFee);
-      if (!Number.isInteger(price) || price <= current.postedFee || price > cap) {
-        return { error: t("price.counterRange", { min: fmtMoney(current.postedFee), max: fmtMoney(cap) }) };
-      }
-      cmd = { type: "apply", note, price };
-    } else if (intent === "unapply") cmd = { type: "withdraw_offer" };
+    else if (intent === "quote" || intent === "reprice") {
+      const price = await named();
+      if (price === null) return { error: t("job.quoteInvalid") };
+      cmd = intent === "quote" ? { type: "apply", note, price } : { type: "reprice", price };
+    } else if (intent === "accept_counter") cmd = { type: "accept_counter" };
+    else if (intent === "unapply") cmd = { type: "withdraw_offer" };
     else if (intent === "withdraw") cmd = { type: "cancel" };
     else if (intent === "start") cmd = { type: "start" };
     else if (intent === "finish") cmd = { type: "finish" };
@@ -227,11 +231,19 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
-    } else if (intent === "quote") {
+    } else if (intent === "quote" || intent === "reprice") {
       await notify([deal.customerId], {
         title: "push.quoteTitle",
         body: "push.quoteBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(cmd.type === "apply" ? (cmd.price ?? deal.fee) : deal.fee) },
+        params: { name: viewer.profile.name || "—", fee: fmtMoney(cmd.type === "apply" || cmd.type === "reprice" ? (cmd.price ?? deal.fee) : deal.fee) },
+        url: `/tasks/${dealId}`,
+        tag: `task-${dealId}`,
+      });
+    } else if (intent === "accept_counter") {
+      await notify([deal.customerId], {
+        title: "push.counterAcceptedTitle",
+        body: "push.acceptedBody",
+        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee) },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });

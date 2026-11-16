@@ -666,8 +666,12 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
     );
     let d = await persist(null, t, T0);
     expect(d).toMatchObject({ serviceFee: 1000, commissionBps: 0 });
-    expect(d.type === "errand" && d.details).toMatchObject({ minutes: 120, quotedFee: 14000, counterMax: 18000 });
-    d = await step(d, { type: "apply", note: "", price: 16000 }, helper(U.h1), T0 + 1000);
+    expect(d.type === "errand" && d.details).toMatchObject({ minutes: 120, quotedFee: 14000, counterMax: 0 });
+    // bargaining round-trips through the database: helper asks 18,000, customer 15,000, helper 16,000
+    d = await step(d, { type: "apply", note: "", price: 18000 }, helper(U.h1), T0 + 1000);
+    d = await step(d, { type: "counter", helperId: U.h1, price: 15000 }, customer(U.c1), T0 + 1200);
+    expect(d.type === "errand" && d.offers[0]).toMatchObject({ price: 15000, proposedBy: "customer" });
+    d = await step(d, { type: "reprice", price: 16000 }, helper(U.h1), T0 + 1500);
     d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
     d = await pay(d, T0 + 3000);
     expect(d.heldAmount).toBe(17000);

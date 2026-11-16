@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, type Category
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, counterMaxFor, errandSplit, heldItemBudget, priceRange, quoteFee, serviceFeeFor } from "./money";
+import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint } from "./types";
 import type {
   Account,
@@ -251,12 +251,11 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const startsAt = scheduledAt ?? ctx.now;
   const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
-  // Freedom, but limited: the recommended price −20%…+30% (docs/decisions.md "Pricing").
-  const range = priceRange(quote.total, startsAt, cfg);
-  if (input.fee < range.min) fail("INVALID_INPUT", `Minimum fee is ₮${range.min}`);
-  if (input.fee > range.max) fail("INVALID_INPUT", `Maximum fee is ₮${range.max}`);
-  details.quotedFee = quote.total;
-  details.counterMax = counterMaxFor(input.fee, cfg);
+  // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
+  const min = minFeeAt(startsAt, cfg);
+  if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
+  details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
+  details.counterMax = 0;
   if (input.itemBudget === 0) details.budgetBuffer = false;
   // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
@@ -327,6 +326,13 @@ function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number
   e.fee = fee;
   e.status = "awaiting_payment";
   e.payBy = tx.ctx.now + DEFAULT_CONFIG.paymentWindowMinutes * MINUTE_MS;
+}
+
+/** A price either side may name: a whole tögrög amount, at least today's minimum. */
+function checkPrice(e: ErrandDeal, price: number, now: number): void {
+  assertMoney(price, "price");
+  const min = minFeeAt(e.scheduledAt ?? now);
+  if (price < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
 }
 
 /** Applications still standing: on Instant tasks they lapse after `applicationMinutes`. */
@@ -486,17 +492,68 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.offers = liveOffers(e, ctx.now); // lapsed Instant applications drop out (and may re-apply)
       if (e.offers.some((o) => o.helperId === u.id)) fail("INVALID_INPUT", "You already applied");
       if (e.offers.length >= e.maxApplicants) fail("ILLEGAL_TRANSITION", `Task already has ${e.maxApplicants} applicants`);
-      // Accept the customer's price, or counter once — higher, up to the cap; never undercut.
+      // Take the customer's price, or name your own — bargaining is open both ways (no cap).
       let price = cmd.price ?? null;
       if (price !== null) {
-        assertMoney(price, "price");
-        const cap = e.details.counterMax > 0 ? e.details.counterMax : counterMaxFor(e.postedFee);
+        checkPrice(e, price, ctx.now);
         if (price === e.postedFee) price = null;
-        else if (price < e.postedFee) fail("INVALID_INPUT", "A counter-offer can't be below the customer's price");
-        else if (price > cap) fail("INVALID_INPUT", `Maximum counter-offer is ₮${cap}`);
       }
-      e.offers.push({ helperId: u.id, note: cmd.note.trim().slice(0, 300), price, at: ctx.now });
+      e.offers.push({ helperId: u.id, note: cmd.note.trim().slice(0, 300), price, proposedBy: "helper", at: ctx.now });
       tx.ev("applied", price === null ? { helperId: u.id } : { helperId: u.id, price });
+      break;
+    }
+
+    case "reprice": {
+      const e = asErrand(d, "reprice an offer on");
+      const u = requireUser(ctx);
+      requireStatus(e, "reprice an offer on", "open");
+      const offer = e.offers.find((o) => o.helperId === u.id) ?? fail("INVALID_INPUT", "No application to change");
+      checkPrice(e, cmd.price, ctx.now);
+      offer.price = cmd.price === e.postedFee ? null : cmd.price;
+      offer.proposedBy = "helper";
+      offer.at = ctx.now; // a fresh answer keeps the application alive
+      tx.ev("offer_priced", { helperId: u.id, price: cmd.price, by: "helper" });
+      break;
+    }
+
+    case "counter": {
+      const e = asErrand(d, "answer an offer on");
+      requirePayer(ctx, e);
+      requireStatus(e, "answer an offer on", "open");
+      e.offers = liveOffers(e, ctx.now);
+      const offer = e.offers.find((o) => o.helperId === cmd.helperId) ?? fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
+      checkPrice(e, cmd.price, ctx.now);
+      offer.price = cmd.price;
+      offer.proposedBy = "customer";
+      offer.at = ctx.now;
+      tx.ev("offer_priced", { helperId: cmd.helperId, price: cmd.price, by: "customer" });
+      break;
+    }
+
+    case "accept_counter": {
+      const e = asErrand(d, "accept a price on");
+      const u = requireEligibleHelper(ctx, e);
+      requireStatus(e, "accept a price on", "open");
+      const offer = e.offers.find((o) => o.helperId === u.id) ?? fail("INVALID_INPUT", "No application to accept on");
+      if (offer.proposedBy !== "customer" || offer.price === null) fail("ILLEGAL_TRANSITION", "The customer hasn't named a price to accept");
+      assignHelper(tx, e, u.id, offer.price as number);
+      tx.ev("chosen", { helperId: u.id, fee: e.fee, by: "helper_accepted" });
+      break;
+    }
+
+    case "set_price": {
+      const e = asErrand(d, "change the price of");
+      requirePayer(ctx, e);
+      requireStatus(e, "change the price of", "open");
+      checkPrice(e, cmd.price, ctx.now);
+      if (cmd.price === e.postedFee) return noop(deal);
+      // Helpers who took the old price keep exactly what they agreed to.
+      for (const o of e.offers) if (o.price === null) o.price = e.postedFee;
+      for (const o of e.offers) if (o.price === cmd.price && o.proposedBy === "helper") o.price = null;
+      const from = e.postedFee;
+      e.postedFee = cmd.price;
+      e.fee = cmd.price;
+      tx.ev("price_changed", { from, to: cmd.price });
       break;
     }
 
@@ -512,6 +569,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.offers = liveOffers(e, ctx.now);
       const offer = e.offers.find((o) => o.helperId === cmd.helperId);
       if (!offer) fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
+      // The customer's own counter needs the helper's yes first (accept_counter), not a self-accept.
+      if ((offer as NonNullable<typeof offer>).proposedBy === "customer") fail("ILLEGAL_TRANSITION", "Waiting for the helper to answer your price");
       const fee = (offer as NonNullable<typeof offer>).price ?? e.postedFee;
       assignHelper(tx, e, cmd.helperId, fee);
       tx.ev("chosen", { helperId: cmd.helperId, fee: e.fee, by: ctx.actor.kind === "system" ? "auto" : "customer" });

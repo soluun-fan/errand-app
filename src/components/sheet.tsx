@@ -45,11 +45,11 @@ export function BottomSheet({
 }
 
 /** Disables itself while its form is submitting (double-tap protection, UI-FLOWS §14). */
-export function SubmitButton({ className, children, pendingLabel }: { className: string; children: ReactNode; pendingLabel?: string }) {
+export function SubmitButton({ className, children, pendingLabel, disabled = false }: { className: string; children: ReactNode; pendingLabel?: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
-    <button className={className} disabled={pending} aria-busy={pending}>
+    <button className={className} disabled={pending || disabled} aria-busy={pending}>
       {pending ? (pendingLabel ?? t("common.working")) : children}
     </button>
   );

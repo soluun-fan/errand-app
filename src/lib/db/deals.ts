@@ -23,7 +23,7 @@ const CONFLICT = "PT409";
 export async function loadDeal(db: SupabaseClient, id: string): Promise<Deal | null> {
   const [deal, offers, dispute] = await Promise.all([
     db.from("deals").select("*").eq("id", id).maybeSingle<DealRow>(),
-    db.from("offers").select("helper_id, note, created_at").eq("deal_id", id).order("created_at").returns<OfferRow[]>(),
+    db.from("offers").select("helper_id, note, price, proposed_by, created_at").eq("deal_id", id).order("created_at").returns<OfferRow[]>(),
     db.from("disputes").select("*").eq("deal_id", id).maybeSingle<DisputeRow>(),
   ]);
   for (const r of [deal, offers, dispute]) if (r.error) throw new DbError(r.error);

@@ -9,7 +9,7 @@ import { RecentRequests } from "@/components/recent-requests";
 import { btn } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { CATEGORIES, DEFAULT_DETAILS, quoteFee } from "@/lib/engine";
+import { CATEGORIES, minFeeAt } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { POPULAR } from "@/lib/popular";
 import { pricingConfig } from "@/lib/pricing";
@@ -31,7 +31,8 @@ export default async function Welcome() {
   if (await getViewer()) redirect("/");
   const [t, locale, cfg, recent, online, board] = await Promise.all([getT(), getLocale(), pricingConfig(), recentRequests(5), onlineHelperCount(), openRequests(8)]);
   const now = Date.now();
-  const from = (c: (typeof CATEGORIES)[number]) => quoteFee(c.id, { ...DEFAULT_DETAILS, minutes: c.minutes }, cfg, now).total;
+  // the only price that is ours is the minimum; customers name their own
+  const from = (_c: (typeof CATEGORIES)[number]) => minFeeAt(now, cfg);
   const steps = [
     { icon: PenLine, title: t("landing.s1t"), body: t("landing.s1b") },
     { icon: Hand, title: t("landing.s2t"), body: t("landing.s2b") },

@@ -38,7 +38,10 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
 
   const pickAt = autoPickAt(deal, now);
   if (pickAt !== null && now >= pickAt) {
-    const [best] = await rankApplicants(deal, now);
+    // "Choose for me" never decides a price the helper hasn't agreed to: skip offers where the
+    // customer's own counter-price is still waiting for the helper's answer.
+    const ranked = await rankApplicants(deal, now);
+    const best = ranked.find((r) => (deal as ErrandDeal).offers.find((o) => o.helperId === r.helperId)?.proposedBy !== "customer");
     if (best) {
       try {
         deal = (await runCommand(db, dealId, { type: "choose", helperId: best.helperId }, { kind: "system" })).deal as ErrandDeal;

@@ -479,35 +479,74 @@ export function DealView(p: DealViewProps) {
           {applicants.map((o, i) => {
             const pp = person(people.get(o.helperId), t("deal.newHelper"));
             const km = p.ranked?.find((r) => r.helperId === o.helperId)?.distanceKm ?? null;
+            const agreed = o.price ?? deal.postedFee; // what choosing this helper costs
+            const waiting = o.proposedBy === "customer" && o.price !== null; // my counter, their turn
+            const priceLine =
+              o.price === null
+                ? t("price.takesYours", { amount: fmtMoney(deal.postedFee) })
+                : waiting
+                  ? t("price.yourCounterWaiting", { amount: fmtMoney(o.price) })
+                  : t("price.asks", { amount: fmtMoney(o.price) });
             return (
               <OfferCard
                 key={o.helperId}
                 person={pp}
                 href={`/helpers/${o.helperId}`}
                 badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
-                note={[o.price !== null ? t("price.asks", { amount: fmtMoney(o.price) }) : null, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note]
-                  .filter(Boolean)
-                  .join(" · ")}
+                note={[priceLine, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note].filter(Boolean).join(" · ")}
                 t={t}
                 action={
-                  <ConfirmSheet
-                    action={p.action}
-                    fields={{ ...fields, intent: "choose", helperId: o.helperId }}
-                    trigger={t("deal.choose")}
-                    triggerClass={btn.small}
-                    title={t("deal.chooseTitle", { name: pp.name })}
-                    body={[
-                      o.price !== null ? t("price.chooseCounter", { name: pp.name, amount: fmtMoney(o.price), posted: fmtMoney(deal.postedFee) }) : null,
-                      t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) }),
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    confirmLabel={t("deal.choose")}
-                  />
+                  <div className="flex flex-col items-end gap-1">
+                    {!waiting && (
+                      <ConfirmSheet
+                        action={p.action}
+                        fields={{ ...fields, intent: "choose", helperId: o.helperId }}
+                        trigger={t("price.chooseAt", { amount: fmtMoney(agreed) })}
+                        triggerClass={btn.small}
+                        title={t("deal.chooseTitle", { name: pp.name })}
+                        body={[
+                          o.price !== null ? t("price.chooseCounter", { name: pp.name, amount: fmtMoney(o.price), posted: fmtMoney(deal.postedFee) }) : null,
+                          t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) }),
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        confirmLabel={t("deal.choose")}
+                      />
+                    )}
+                    <ConfirmSheet
+                      action={p.action}
+                      fields={{ ...fields, intent: "counter", helperId: o.helperId }}
+                      trigger={waiting ? t("price.changeCounter") : t("price.offerPrice")}
+                      triggerClass={`${btn.text} min-h-10 px-1 text-brand-ink`}
+                      title={t("price.offerTitle", { name: pp.name })}
+                      body={t("price.offerBody", { name: pp.name })}
+                      confirmLabel={t("price.counterSend")}
+                    >
+                      <label className={fieldLabel}>
+                        {t("job.quotePrice")}
+                        <input name="price" inputMode="numeric" defaultValue={String(agreed)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+                      </label>
+                    </ConfirmSheet>
+                  </div>
                 }
               />
             );
           })}
+          {/* change the posted price for everyone; helpers who already said yes keep their price */}
+          <ConfirmSheet
+            action={p.action}
+            fields={{ ...fields, intent: "set_price" }}
+            trigger={t("price.changePosted", { amount: fmtMoney(deal.postedFee) })}
+            triggerClass={`${btn.secondary} w-full`}
+            title={t("price.changePostedTitle")}
+            body={t("price.changePostedBody")}
+            confirmLabel={t("price.changePostedGo")}
+          >
+            <label className={fieldLabel}>
+              {t("price.yourPrice")}
+              <input name="price" inputMode="numeric" defaultValue={String(deal.postedFee)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+            </label>
+          </ConfirmSheet>
         </section>
       )}
 

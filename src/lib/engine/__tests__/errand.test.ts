@@ -228,16 +228,13 @@ describe("UI-FLOWS rules", () => {
 });
 
 describe("recommended price (quoteFee)", () => {
-  it("lets the customer move it −20%…+30%, never outside", () => {
+  it("doesn't bind the customer: any price at or above the minimum (5,000 by day, 6,000 at night)", () => {
     const w = new World(DEFAULT_CONFIG);
-    // base 5,000; 5th floor, no lift, helper carries: +4 × 1,500 = 11,000 → 9,000…14,000
+    // our estimate here is 11,000 (5th floor, no lift) — the customer may still ask 5,000 or 50,000
     const details = { floor: 5, lift: "no" as const, carryByHelper: true };
-    expect(() => w.post({ category: "carry", fee: 8500, details })).toThrow(/Minimum fee is ₮9000/);
-    expect(() => w.post({ category: "carry", fee: 9000, details })).not.toThrow();
-    expect(() => w.post({ category: "carry", fee: 14000, details })).not.toThrow();
-    expect(() => w.post({ category: "carry", fee: 14500, details })).toThrow(/Maximum fee is ₮14000/);
-    // customer brings it down: no stairs extra
-    expect(() => w.post({ category: "carry", fee: 5000, details: { ...details, carryByHelper: false } })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 4500, details })).toThrow(/Minimum fee is ₮5000/);
+    expect(() => w.post({ category: "carry", fee: 5000, details })).not.toThrow();
+    expect(() => w.post({ category: "carry", fee: 50000, details })).not.toThrow();
   });
 
   it("heavy item, no lift, above the 2nd floor needs 2 people (labour charged twice)", () => {

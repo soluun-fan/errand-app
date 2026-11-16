@@ -69,6 +69,12 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return data.price !== undefined
         ? t("event.applied_price", { name: name(data.helperId), amount: money("price") })
         : t("event.applied", { name: name(data.helperId) });
+    case "offer_priced":
+      return data.by === "customer"
+        ? t("event.offer_priced_customer", { name: name(data.helperId), amount: money("price") })
+        : t("event.offer_priced_helper", { name: name(data.helperId), amount: money("price") });
+    case "price_changed":
+      return t("event.price_changed", { amount: money("to") });
     case "accepted":
     case "chosen":
     case "payment_timeout":

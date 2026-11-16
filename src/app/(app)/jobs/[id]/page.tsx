@@ -14,7 +14,7 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { counterMaxFor, errandSplit } from "@/lib/engine";
+import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
@@ -67,6 +67,31 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     dt.people === 2 && t("details.people", { n: 2 }),
   ].filter((x): x is string => typeof x === "string" && x.length > 0);
 
+  /** "Name a different price" sheet: any amount at or above the minimum; the customer can answer. */
+  const priceSheet = (intent: "quote" | "reprice", start: number) => (
+    <ConfirmSheet
+      key={intent}
+      action={jobAction}
+      fields={{ ...fields, intent }}
+      trigger={t("price.counter")}
+      triggerClass={btn.text}
+      title={t("price.counterTitle")}
+      body={t("price.counterBodyOpen", { amount: fmtMoney(deal.postedFee) })}
+      confirmLabel={t("price.counterSend")}
+    >
+      <label className={fieldLabel}>
+        {t("job.quotePrice")}
+        <input name="price" inputMode="numeric" defaultValue={String(start)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+      </label>
+      {intent === "quote" && (
+        <label className={fieldLabel}>
+          {t("price.counterWhy")}
+          <input name="note" maxLength={300} className={field} placeholder={t("price.counterWhyPh")} />
+        </label>
+      )}
+    </ConfirmSheet>
+  );
+
   let primary: React.ReactNode = null;
   const secondary: React.ReactNode[] = [];
   let line: React.ReactNode = null;
@@ -77,8 +102,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       ? t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
   } else if (deal.status === "open" && !myOffer) {
-    // Accept the customer's price, or counter once — higher, up to the cap (docs/decisions.md "Pricing").
-    const cap = deal.details.counterMax > 0 ? deal.details.counterMax : counterMaxFor(deal.postedFee);
+    // Take the customer's price, or name your own — bargaining is open (docs/decisions.md 2026-11-16).
     primary = (
       <InlineAction
         action={jobAction}
@@ -93,38 +117,24 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </label>
       </InlineAction>
     );
-    if (cap > deal.postedFee) {
-      secondary.push(
-        <ConfirmSheet
-          key="counter"
-          action={jobAction}
-          fields={{ ...fields, intent: "quote" }}
-          trigger={t("price.counter")}
-          triggerClass={btn.text}
-          title={t("price.counterTitle")}
-          body={t("price.counterBody", { amount: fmtMoney(deal.postedFee), max: fmtMoney(cap) })}
-          confirmLabel={t("price.counterSend")}
-        >
-          <label className={fieldLabel}>
-            {t("job.quotePrice")}
-            <input
-              name="price"
-              inputMode="numeric"
-              defaultValue={String(Math.min(cap, deal.postedFee + 1000))}
-              className={`${field} text-[20px] font-bold tabular-nums`}
-              required
-            />
-          </label>
-          <label className={fieldLabel}>
-            {t("price.counterWhy")}
-            <input name="note" maxLength={300} className={field} placeholder={t("price.counterWhyPh")} />
-          </label>
-        </ConfirmSheet>,
-      );
-    }
+    secondary.push(priceSheet("quote", deal.postedFee));
     secondary.push(<InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
   } else if (deal.status === "open" && myOffer) {
-    line = myOffer.price !== null ? t("job.quoteSent", { amount: fmtMoney(myOffer.price) }) : t("job.applied");
+    if (myOffer.proposedBy === "customer" && myOffer.price !== null) {
+      // the customer answered with their price: take it (→ matched) or answer with another
+      line = t("price.customerOffers", { amount: fmtMoney(myOffer.price) });
+      primary = (
+        <InlineAction
+          action={jobAction}
+          fields={{ ...fields, intent: "accept_counter" }}
+          label={t("price.acceptAt", { amount: fmtMoney(myOffer.price) })}
+          className={`${btn.primary} w-full`}
+        />
+      );
+    } else {
+      line = myOffer.price !== null ? t("job.quoteSent", { amount: fmtMoney(myOffer.price) }) : t("job.applied");
+    }
+    secondary.push(priceSheet("reprice", myOffer.price ?? deal.postedFee));
     secondary.push(
       <InlineAction key="unapply" action={jobAction} fields={{ ...fields, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />,
     );

@@ -14,6 +14,7 @@ import type {
   GoodsDeal,
   LedgerKind,
   Mode,
+  Offer,
   TopUp,
   Transition,
   UserActor,
@@ -87,6 +88,7 @@ export interface OfferRow {
   helper_id: string;
   note: string;
   price?: number | null;
+  proposed_by?: "helper" | "customer" | null;
   created_at: string;
 }
 
@@ -185,6 +187,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
           helperId: o.helper_id,
           note: o.note,
           price: moneyOrNull(o.price ?? null, "offer.price"),
+          proposedBy: o.proposed_by === "customer" ? ("customer" as const) : ("helper" as const),
           at: req(toMs(o.created_at), "offer.created_at"),
         })),
       matchBy: toMs(row.match_by),
@@ -345,16 +348,24 @@ export interface LedgerRow {
 /** Arguments for `apply_transition()`: the diff between `before` and the engine's result. */
 export function applyTransitionArgs(before: Deal, t: Transition, now: number) {
   const after = t.deal;
-  const known = new Set(before.type === "errand" ? before.offers.map((o) => o.helperId) : []);
+  const beforeOffers = new Map(before.type === "errand" ? before.offers.map((o) => [o.helperId, o]) : []);
   const kept = new Set(after.type === "errand" ? after.offers.map((o) => o.helperId) : []);
+  // A re-priced offer (bargaining) is written as delete + insert of the same row.
+  const changed = (o: Offer) => {
+    const b = beforeOffers.get(o.helperId);
+    return b !== undefined && (b.price !== o.price || b.proposedBy !== o.proposedBy || b.at !== o.at || b.note !== o.note);
+  };
   const newOffers =
     after.type === "errand"
       ? after.offers
-          .filter((o) => !known.has(o.helperId))
-          .map((o) => ({ helper_id: o.helperId, note: o.note, price: o.price, created_at: toIso(o.at) }))
+          .filter((o) => !beforeOffers.has(o.helperId) || changed(o))
+          .map((o) => ({ helper_id: o.helperId, note: o.note, price: o.price, proposed_by: o.proposedBy, created_at: toIso(o.at) }))
       : [];
-  // Offers dropped by the transition (helper withdrew / match lapsed unpaid).
-  const removedOffers = [...known].filter((h) => !kept.has(h));
+  // Offers dropped by the transition (helper withdrew / match lapsed unpaid), or re-priced.
+  const removedOffers = [
+    ...[...beforeOffers.keys()].filter((h) => !kept.has(h)),
+    ...(after.type === "errand" ? after.offers.filter(changed).map((o) => o.helperId) : []),
+  ];
   const disputeChanged = JSON.stringify(before.dispute) !== JSON.stringify(after.dispute);
   const ledger: LedgerRow[] = t.ledger.map((l) => ({
     kind: l.kind,

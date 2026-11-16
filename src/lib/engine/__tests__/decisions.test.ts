@@ -30,13 +30,13 @@ describe("round trip (Буцаж ирэх)", () => {
     expect((w.get(id) as ErrandDeal).details.roundTrip).toBe(false);
   });
 
-  it("is part of the recommended price, which the customer may move −20%…+30%", () => {
+  it("is part of our estimate (kept for learning); the customer's price only has to meet the minimum", () => {
     const w = new World(DEFAULT_CONFIG);
     const trip = { category: "deliver" as const, itemBudget: 0, details: { km: 4, roundTrip: true } };
-    expect(() => w.post({ ...trip, fee: 9500 })).toThrow("Minimum fee is ₮10000"); // 12500 − 20%
-    expect(() => w.post({ ...trip, fee: 16500 })).toThrow("Maximum fee is ₮16000"); // 12500 + 30%, rounded down
-    const id = w.post({ ...trip, fee: 10000 });
-    expect((w.get(id) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, counterMax: 13000 });
+    expect(() => w.post({ ...trip, fee: 4500 })).toThrow("Minimum fee is ₮5000");
+    const id = w.post({ ...trip, fee: 7000 }); // below our 12,500 estimate is fine: their call
+    expect((w.get(id) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, counterMax: 0 });
+    expect(() => w.post({ ...trip, fee: 90000 })).not.toThrow(); // no upper band either
   });
 });
 
@@ -151,22 +151,47 @@ describe("receipt over budget → top-up", () => {
 describe("customer chooses (applications on every task)", () => {
   const h2 = helper("h2");
 
-  it("helpers take the price or counter once (higher, up to +30%, never lower); the customer picks", () => {
+  it("bargaining is open both ways, any number of rounds, per helper; only the minimum is fixed", () => {
     const w = new World(DEFAULT_CONFIG);
-    const id = w.post({ fee: 6000 }); // recommended 5000, raised; counter cap 7800 → 7500
+    const id = w.post({ fee: 6000 });
     expect(w.get(id)).toMatchObject({ serviceFee: 500 });
     w.do(id, { type: "apply", note: "5 min away" }, h1);
     w.do(id, { type: "apply", note: "", price: 6000 }, h2); // same as the posted price = just taking it
-    expect((w.get(id) as ErrandDeal).offers.map((o) => o.price)).toEqual([null, null]);
-    w.reject(id, { type: "apply", note: "", price: 5500 }, helper("h3"), "INVALID_INPUT"); // no undercutting
-    w.reject(id, { type: "apply", note: "", price: 8000 }, helper("h3"), "INVALID_INPUT"); // above the cap
-    w.do(id, { type: "apply", note: "Heavier than it looks", price: 7500 }, helper("h3"));
-    w.reject(id, { type: "choose", helperId: "h1" }, h2, "FORBIDDEN");
-    w.do(id, { type: "choose", helperId: "h3" }, c1);
-    // the service fee was fixed at posting; the helper keeps all of their price
-    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h3", fee: 7500, serviceFee: 500 });
+    w.do(id, { type: "apply", note: "Heavier than it looks", price: 12000 }, helper("h3")); // no cap
+    w.do(id, { type: "apply", note: "", price: 5500 }, helper("h4")); // asking less is fine too
+    w.reject(id, { type: "apply", note: "", price: 4000 }, helper("h5"), "INVALID_INPUT"); // under the minimum
+    const offer = (h: string) => (w.get(id) as ErrandDeal).offers.find((o) => o.helperId === h);
+    expect([offer("h1")?.price, offer("h2")?.price, offer("h3")?.price]).toEqual([null, null, 12000]);
+
+    // customer answers h3 with 9,000; h3 comes back with 10,000; customer offers 9,500
+    w.do(id, { type: "counter", helperId: "h3", price: 9000 }, c1);
+    expect(offer("h3")).toMatchObject({ price: 9000, proposedBy: "customer" });
+    w.reject(id, { type: "choose", helperId: "h3" }, c1, "ILLEGAL_TRANSITION"); // can't accept your own price
+    w.do(id, { type: "reprice", price: 10000 }, helper("h3"));
+    w.do(id, { type: "counter", helperId: "h3", price: 9500 }, c1);
+    w.reject(id, { type: "counter", helperId: "h3", price: 9500 }, h2, "FORBIDDEN"); // only the customer counters
+    w.reject(id, { type: "accept_counter" }, h1, "ILLEGAL_TRANSITION"); // h1 has no customer price to accept
+
+    // h3 accepts 9,500 → matched at that price; the customer pays it (service fee fixed at posting)
+    w.do(id, { type: "accept_counter" }, helper("h3"));
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h3", fee: 9500, serviceFee: 500 });
     w.pay(id);
-    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 8000 });
+    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 10000 });
+  });
+
+  it("the customer may change the posted price while open; earlier yeses keep their own price", () => {
+    const w = new World(DEFAULT_CONFIG);
+    const id = w.post({ fee: 8000 });
+    w.do(id, { type: "apply", note: "" }, h1); // took 8,000
+    w.do(id, { type: "set_price", price: 6000 }, c1);
+    expect(w.get(id)).toMatchObject({ postedFee: 6000, fee: 6000 });
+    // h1 said yes to 8,000, not 6,000 — choosing them still means 8,000
+    expect((w.get(id) as ErrandDeal).offers[0]).toMatchObject({ price: 8000, proposedBy: "helper" });
+    w.reject(id, { type: "set_price", price: 3000 }, c1, "INVALID_INPUT");
+    w.reject(id, { type: "set_price", price: 9000 }, h1, "FORBIDDEN");
+    w.do(id, { type: "apply", note: "" }, h2); // takes the new 6,000
+    w.do(id, { type: "choose", helperId: "h2" }, c1);
+    expect(w.get(id)).toMatchObject({ fee: 6000 });
   });
 
   it("Instant applications lapse after 15 min; the helper may apply again", () => {

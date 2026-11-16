@@ -43,11 +43,11 @@ describe("pickup pin at posting", () => {
     expect(d.details.quotedFee).toBe(fee);
   });
 
-  it("can't be under-priced by lying about the distance", () => {
-    // a 2.6 km job priced as if it were 0.1 km: below the allowed range once measured
+  it("records the real distance for helpers, whatever the client claims", () => {
+    // the customer names the price, but helpers see the true trip length from the pins
     const far = { lat: 47.99, lng: 106.9177 }; // ~8 km
-    const cheap = priceFor(0.1);
-    expect(() => post({ fee: cheap, location: far, pickupLocation: SQ, details: { km: 0.1 } })).toThrow(/Minimum fee/);
+    const d = post({ fee: 5000, location: far, pickupLocation: SQ, details: { km: 0.1 } });
+    expect(d.details.km).toBeGreaterThan(9);
   });
 
   it("keeps the customer's rough distance when there is no pickup pin", () => {
