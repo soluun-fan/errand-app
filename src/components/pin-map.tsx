@@ -133,7 +133,7 @@ export function PinMap({
   if (failed) return <p className="rounded-card bg-fill p-4 text-sm text-ink-2">{t("map.failed")}</p>;
   return (
     <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
-      <div ref={box} className="absolute inset-0" aria-label={t("map.pinLabel")} role="application" />
+      <div ref={box} className="absolute inset-0 h-full w-full" aria-label={t("map.pinLabel")} role="application" />
       {/* the fixed centre pin */}
       <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-4xl drop-shadow">
         {PIN_GLYPH[kind]}

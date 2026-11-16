@@ -1,17 +1,20 @@
-import { BadgeCheck, MapPin, ShieldCheck, Star } from "lucide-react";
+import { MapPin, Star } from "lucide-react";
 import { notFound } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
 import { Avatar, FlowHeader, PrimaryBar } from "@/components/ui";
-import { getLocale, getT } from "@/i18n/server";
+import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { fmtDateTime } from "@/lib/format";
 import { helperHighlights, helperProfile, helperReviews, isSaved } from "@/lib/helper-profile";
 import { Uuid, parseOr } from "@/lib/input";
 import { getMode } from "@/lib/mode";
 import { SaveButton } from "../save-button";
 
-/** "November 2026" in the viewer's language. */
-const monthYear = (ms: number, locale: string) => new Date(ms).toLocaleDateString(locale === "mn" ? "mn-MN" : "en-GB", { year: "numeric", month: "long", timeZone: "Asia/Ulaanbaatar" });
+/** Ulaanbaatar calendar date as "2026.11" (month) or "2026.11.16" (day) — short, same in both languages. */
+const ubDate = (ms: number, withDay = false) => {
+  const d = new Date(ms + 8 * 3_600_000); // UTC+8, no DST
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}.${p(d.getUTCMonth() + 1)}${withDay ? `.${p(d.getUTCDate())}` : ""}`;
+};
 
 /**
  * /helpers/[id] — a helper's public profile (UBCab-driver-card style): badges, rating, jobs done,
@@ -22,7 +25,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
   if (!viewer) return null;
   const id = parseOr(Uuid, (await params).id);
   if (!id) notFound();
-  const [t, locale, p] = await Promise.all([getT(), getLocale(), helperProfile(id)]);
+  const [t, p] = await Promise.all([getT(), helperProfile(id)]);
   if (!p) notFound();
   const me = viewer.profile.id === p.id;
   const [reviews, highlights, saved, mode] = await Promise.all([helperReviews(p.id), helperHighlights(p.id), me ? false : isSaved(viewer.profile.id, p.id), getMode()]);
@@ -45,14 +48,10 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
           <h1 className="text-[22px] font-bold tracking-tight">{p.name}</h1>
           <span className="flex flex-wrap justify-center gap-1.5">
             {p.kycLevel >= 3 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">
-                <BadgeCheck aria-hidden size={14} /> {t("kyc.badgeVerified")}
-              </span>
+              <span className="rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">{t("kyc.badgeVerified")}</span>
             )}
             {p.kycLevel >= 4 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">
-                <ShieldCheck aria-hidden size={14} /> {t("kyc.badgeRecord")}
-              </span>
+              <span className="rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">{t("kyc.badgeRecord")}</span>
             )}
           </span>
           {p.area && (
@@ -74,7 +73,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
             t("helperProfile.reviewsN", { n: p.ratingCount }),
           )}
           {stat(p.completed, t("helperProfile.jobsDone"))}
-          {stat(<span className="text-[15px]">{monthYear(p.memberSince, locale)}</span>, t("helperProfile.memberSince"))}
+          {stat(ubDate(p.memberSince), t("helperProfile.memberSince"))}
         </div>
       </section>
 
@@ -120,7 +119,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
                   </span>
                   <span className="text-[12px] text-ink-2">
                     {r.category ? `${t(`categoryShort.${r.category}`)} · ` : ""}
-                    {fmtDateTime(r.at, locale).split(" ")[0]}
+                    {ubDate(r.at, true)}
                   </span>
                 </span>
                 {r.tags.length > 0 && (

@@ -1,5 +1,5 @@
 import "server-only";
-import type { CategoryId, DealStatus } from "@/lib/engine";
+import { errandSplit, type CategoryId, type DealStatus } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -32,6 +32,48 @@ export async function recentRequests(limit = 5): Promise<PublicRequest[]> {
     .returns<{ category: CategoryId; fee: number; status: DealStatus; created_at: string }[]>();
   if (error) return [];
   return (data ?? []).map((r) => ({ category: r.category, fee: Number(r.fee), status: r.status, createdAt: Date.parse(r.created_at) }));
+}
+
+/** An open request as anyone may see it: no customer text, no place — category, trip, time, pay. */
+export interface PublicOpenRequest {
+  id: string;
+  category: CategoryId;
+  /** What the helper keeps (the posted fee; helpers keep 100%). */
+  pay: number;
+  people: 1 | 2;
+  /** Pickup → drop-off distance, 0 for one-place tasks. */
+  km: number;
+  minutes: number;
+  /** Scheduled start, or null for "now". */
+  startsAt: number | null;
+  buysItems: boolean;
+}
+
+/** Open requests waiting for a helper, newest first (the landing page's board). */
+export async function openRequests(limit = 8): Promise<PublicOpenRequest[]> {
+  const { data, error } = await createAdminClient()
+    .from("deals")
+    .select("id, category, fee, commission_bps, details, scheduled_at, item_budget")
+    .eq("type", "errand")
+    .eq("status", "open")
+    .not("title", "ilike", "[verify]%")
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<{ id: string; category: CategoryId; fee: number; commission_bps: number; details: { people?: number; km?: number; minutes?: number } | null; scheduled_at: string | null; item_budget: number }[]>();
+  if (error) return [];
+  return (data ?? []).map((r) => {
+    return {
+      id: r.id,
+      category: r.category,
+      // the engine's split, same as the job screen (CLAUDE.md: money computed by the engine only)
+      pay: errandSplit({ fee: Number(r.fee), itemBudget: 0, receipt: null, serviceFee: 0, commissionBps: Number(r.commission_bps ?? 0) }).helperFeeNet,
+      people: r.details?.people === 2 ? 2 : 1,
+      km: Number(r.details?.km ?? 0),
+      minutes: Number(r.details?.minutes ?? 30),
+      startsAt: r.scheduled_at ? Date.parse(r.scheduled_at) : null,
+      buysItems: Number(r.item_budget) > 0,
+    };
+  });
 }
 
 /** Approved helpers online right now (position seen in the last 10 minutes). */

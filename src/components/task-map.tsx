@@ -164,7 +164,7 @@ export function TaskMap({
   if (failed) return <div className={`flex items-center justify-center bg-fill p-4 text-center text-sm text-ink-2 ${className}`}>{t("map.failed")}</div>;
   return (
     <div className={`relative overflow-hidden ${rounded ? "rounded-card border border-line" : ""} ${className}`}>
-      <div ref={box} className="absolute inset-0" role="region" aria-label={t("map.label")} />
+      <div ref={box} className="absolute inset-0 h-full w-full" role="region" aria-label={t("map.label")} />
     </div>
   );
 }

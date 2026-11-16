@@ -129,7 +129,8 @@ export default async function Home() {
       <RecentRequests items={recent} t={t} now={now} />
 
       {(heldNow > 0 || refunds > 0) && (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className={`grid gap-2.5 ${heldNow > 0 && refunds > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {heldNow > 0 && (
           <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
             <span className="flex items-center gap-1.5 text-sm font-medium">
               <ShieldCheck aria-hidden size={16} /> {t("wallet.heldNow")}
@@ -137,6 +138,8 @@ export default async function Home() {
             <span className="text-[20px] font-bold tabular-nums">{fmtMoney(heldNow)}</span>
             <span className="text-[13px]">{t("wallet.heldNowSub", { n: holding.length })}</span>
           </div>
+          )}
+          {refunds > 0 && (
           <div className="flex flex-col gap-1 rounded-card bg-bg p-4 shadow-card">
             <span className="flex items-center gap-1.5 text-sm font-medium text-ink-2">
               <Undo2 aria-hidden size={16} /> {t("wallet.refunds")}
@@ -144,6 +147,7 @@ export default async function Home() {
             <span className="text-[20px] font-bold tabular-nums">{fmtMoney(refunds)}</span>
             <span className="text-[13px] text-ink-2">{t("wallet.refundsSub")}</span>
           </div>
+          )}
         </div>
       )}
 

@@ -4,15 +4,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
 import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/login-prompt";
+import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
 import { btn } from "@/components/ui";
-import { getT } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, DEFAULT_DETAILS, quoteFee } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { POPULAR } from "@/lib/popular";
 import { pricingConfig } from "@/lib/pricing";
-import { onlineHelperCount, recentRequests } from "@/lib/public-snapshot";
+import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 
 export const metadata: Metadata = {
   title: "Tuslamj — даалгаврын туслагч, банкинд хадгалагдах төлбөр",
@@ -28,7 +29,7 @@ const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
  */
 export default async function Welcome() {
   if (await getViewer()) redirect("/");
-  const [t, cfg, recent, online] = await Promise.all([getT(), pricingConfig(), recentRequests(5), onlineHelperCount()]);
+  const [t, locale, cfg, recent, online, board] = await Promise.all([getT(), getLocale(), pricingConfig(), recentRequests(5), onlineHelperCount(), openRequests(8)]);
   const now = Date.now();
   const from = (c: (typeof CATEGORIES)[number]) => quoteFee(c.id, { ...DEFAULT_DETAILS, minutes: c.minutes }, cfg, now).total;
   const steps = [
@@ -123,8 +124,26 @@ export default async function Welcome() {
           </div>
         </section>
 
+        {/* requests waiting for a helper — recruits helpers; shown only when there are some */}
+        {board.length > 0 && (
+          <section className="bg-bg py-12">
+            <div className={`${wrap} flex flex-col gap-5`}>
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.boardTitle")}</h2>
+                  <p className="mt-1 text-[15px] text-ink-2">{t("landing.boardSub")}</p>
+                </div>
+                <LoginGate next="/jobs?view=all" className="flex min-h-11 items-center gap-1 text-[15px] font-semibold text-brand-ink">
+                  {t("landing.boardAll")} →
+                </LoginGate>
+              </div>
+              <OpenBoard items={board} t={t} locale={locale} />
+            </div>
+          </section>
+        )}
+
         {/* how it works, 4 steps */}
-        <section id="how" className="scroll-mt-20 bg-bg py-12">
+        <section id="how" className="scroll-mt-20 py-12">
           <div className={`${wrap} flex flex-col gap-6`}>
             <div>
               <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.howTitle")}</h2>
@@ -132,7 +151,7 @@ export default async function Welcome() {
             </div>
             <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((s, i) => (
-                <li key={i} className="flex flex-col gap-3 rounded-card bg-canvas p-5">
+                <li key={i} className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">
                   <span className="text-[13px] font-bold text-brand-ink">{t("landing.step", { n: i + 1 })}</span>
                   <s.icon aria-hidden size={28} className="text-ink" />
                   <h3 className="text-[18px] font-bold">{s.title}</h3>

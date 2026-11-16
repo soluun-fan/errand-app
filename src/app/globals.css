@@ -55,6 +55,20 @@ body {
   color: var(--color-ink);
 }
 
+/*
+ * Fieldsets default to min-width: min-content, so a row of chips inside one pushed the whole page
+ * wider than the phone (seen on /jobs at 390 px). Let them shrink like any other block.
+ */
+fieldset {
+  min-width: 0;
+}
+
+/*
+ * MapLibre's own CSS (not in a cascade layer) sets .maplibregl-map { position: relative }, which
+ * beats Tailwind 4's layered `absolute inset-0` — the map box collapsed to 0 px tall. Map
+ * containers therefore also carry `h-full w-full` (pin-map.tsx, task-map.tsx).
+ */
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

@@ -19,7 +19,7 @@ function ago(ms: number, t: T): string {
 export function RecentRequests({ items, t, now }: { items: PublicRequest[]; t: T; now: number }) {
   return (
     <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-float">
-      <header className="flex items-baseline justify-between gap-2">
+      <header className="flex flex-col gap-0.5">
         <h2 className="flex items-center gap-2 text-[16px] font-bold">
           <span aria-hidden className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-held opacity-60 motion-reduce:hidden" />
@@ -27,7 +27,7 @@ export function RecentRequests({ items, t, now }: { items: PublicRequest[]; t: T
           </span>
           {items.length > 0 ? t("landing.liveTitle") : t("landing.liveEmptyTitle")}
         </h2>
-        {items.length > 0 && <span className="text-[12px] text-ink-2">{t("landing.liveSub")}</span>}
+        {items.length > 0 && <span className="pl-[18px] text-[12px] text-ink-2">{t("landing.liveSub")}</span>}
       </header>
       {items.length === 0 ? (
         <p className="flex items-start gap-2 text-[14px] text-ink-2">
