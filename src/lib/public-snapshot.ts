@@ -47,19 +47,28 @@ export interface PublicOpenRequest {
   /** Scheduled start, or null for "now". */
   startsAt: number | null;
   buysItems: boolean;
+  /** Only for signed-in browsing (`withTitles`); the public landing never gets the customer's words. */
+  title?: string;
 }
 
 /** Open requests waiting for a helper, newest first (the landing page's board). */
-export async function openRequests(limit = 8): Promise<PublicOpenRequest[]> {
-  const { data, error } = await createAdminClient()
+export async function openRequests(
+  limit = 8,
+  opts: { category?: CategoryId; sort?: "new" | "pay"; minPay?: number; withTitles?: boolean; excludeCustomer?: string } = {},
+): Promise<PublicOpenRequest[]> {
+  let q = createAdminClient()
     .from("deals")
-    .select("id, category, fee, commission_bps, details, scheduled_at, item_budget")
+    .select("id, title, category, fee, commission_bps, details, scheduled_at, item_budget")
     .eq("type", "errand")
     .eq("status", "open")
-    .not("title", "ilike", "[verify]%")
-    .order("created_at", { ascending: false })
+    .not("title", "ilike", "[verify]%");
+  if (opts.category) q = q.eq("category", opts.category);
+  if (opts.minPay) q = q.gte("fee", opts.minPay);
+  if (opts.excludeCustomer) q = q.neq("customer_id", opts.excludeCustomer); // your own posts aren't "to browse"
+  const { data, error } = await q
+    .order(opts.sort === "pay" ? "fee" : "created_at", { ascending: false })
     .limit(limit)
-    .returns<{ id: string; category: CategoryId; fee: number; commission_bps: number; details: { people?: number; km?: number; minutes?: number } | null; scheduled_at: string | null; item_budget: number }[]>();
+    .returns<{ id: string; title: string; category: CategoryId; fee: number; commission_bps: number; details: { people?: number; km?: number; minutes?: number } | null; scheduled_at: string | null; item_budget: number }[]>();
   if (error) return [];
   return (data ?? []).map((r) => {
     return {
@@ -72,6 +81,7 @@ export async function openRequests(limit = 8): Promise<PublicOpenRequest[]> {
       minutes: Number(r.details?.minutes ?? 30),
       startsAt: r.scheduled_at ? Date.parse(r.scheduled_at) : null,
       buysItems: Number(r.item_budget) > 0,
+      ...(opts.withTitles ? { title: r.title } : {}),
     };
   });
 }

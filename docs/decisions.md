@@ -12,6 +12,17 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — web (desktop) version + browsing both ways** (owner: "basically pleasehelp's homepage… more posts like Unegui so customers and helpers find each other by browsing"):
+  - md+: `WebNav` top bar (logo · Хүсэлтүүд · Туслагчид · (helper: Ажил, Орлого) · Тусламж · "Хүсэлт бичих" · avatar); app column `max-w-2xl`; browse pages full width via `<Wide>` (69rem, aligned with the bar). Phones unchanged (bottom button / tabs hidden on md+).
+  - Home = PleaseHelp-style: hero (greeting, big question, search, quick-start chips) + live tasks and recent requests beside it; 6 categories; seasonal row; open-requests grid; helper cards; recent reviews (≥4★ with a note, reviewer masked); money + past tasks.
+  - `/requests`: all open requests, category + newest / best paid; real titles for signed-in users (the detail page already showed them; exact places stay hidden until matched); your own posts excluded. `/helpers`: directory of approved, non-suspended helpers (category; top rated (Bayesian) / most jobs / newest; ♥ saved tab).
+  - Fixed: CSS grids without explicit columns stretched to their widest scrolling row on phones (Home was 425 px on a 390 px screen) → `grid-cols-1`.
+  - Next (needs a DB change, ask first): helper intro text + "from" price on cards; "send this helper a request".
+- **2026-11-16 — public info pages, seasonal row, search → category** (from the UBCab / Unegui / PleaseHelp references):
+  - `/help`, `/safety`, `/privacy` are public (`(info)` route group, in `PUBLIC_PATHS`). Help text updated to today's flow (free posting, own price + bargaining, pay when chosen). Safety page lists only what the code really does. **Privacy policy is a draft** (marked on the page) describing actual data and retention — a lawyer must review it, and the owner must add company/contact details. No terms-of-service page yet (needs a lawyer).
+  - Landing footer UBCab-style: columns + link cards to the three pages.
+  - Seasonal quick starts (Unegui-style): winter (Nov–Mar, UB time) snow, car start, pharmacy, dry cleaning, groceries; warm season moving, windows, bicycle, yard. On Home and the landing page.
+  - Search text → category (`guessCategory`, keyword stems, tested): "буйдан зөөх" opens posting at step 2 with "Зөөх · солих"; unsure → normal step 1.
 - **2026-11-16 — open bargaining; we only set the minimum** (owner: "not reasonable for us to decide the price… bargaining is always open between the two"). Replaces the 2026-11-15 band (−20%…+30%, one counter ≤ +30%):
   - The customer names any price ≥ the minimum (5,000₮ by day, 6,000₮ at night, live Ops setting at posting). No recommended price is shown; `quoteFee` still runs and is stored as `details.quotedFee` (for learning later — "recommendation from past data" is optional/future). Category tiles show the minimum.
   - Per helper, back and forth with no limit: `apply` (take the price or name one) → customer `counter` → helper `reprice` / `accept_counter` … `offers.proposed_by` says whose price is on the table; the other side may accept it. The customer can't "choose" their own pending counter, and "Choose for me" skips those. The customer may `set_price` while open; helpers who already said yes keep the price they agreed to.

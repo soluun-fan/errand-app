@@ -99,6 +99,84 @@ export async function helperHighlights(helperId: string): Promise<{ tag: string;
   return tagCounts((data ?? []).map((r) => r.tags ?? []), POSITIVE_TAGS, 2);
 }
 
+/* ---------- directory (browse helpers, Unegui-style) ---------- */
+
+export type HelperSort = "rating" | "jobs" | "new";
+
+/** Approved, not-suspended helpers for browsing; optionally one category or a given id list (saved). */
+export async function helperDirectory(opts: { category?: CategoryId; sort?: HelperSort; ids?: string[]; limit?: number } = {}): Promise<HelperProfile[]> {
+  let q = createAdminClient()
+    .from("profiles")
+    .select("id, name, area, categories, kyc_level, rating_sum, rating_count, completed_count, created_at, suspended_until")
+    .eq("role", "helper")
+    .eq("helper_status", "approved");
+  if (opts.category) q = q.contains("categories", [opts.category]);
+  if (opts.ids) q = q.in("id", opts.ids.length ? opts.ids : ["00000000-0000-0000-0000-000000000000"]);
+  const order = opts.sort === "jobs" ? "completed_count" : opts.sort === "new" ? "created_at" : "rating_count";
+  const { data } = await q.order(order, { ascending: false }).limit(opts.limit ?? 48).returns<
+    { id: string; name: string | null; area: string | null; categories: CategoryId[] | null; kyc_level: number; rating_sum: number; rating_count: number; completed_count: number; created_at: string; suspended_until: string | null }[]
+  >();
+  const now = Date.now();
+  const rows = (data ?? [])
+    .filter((r) => !r.suspended_until || Date.parse(r.suspended_until) < now)
+    .map((r) => {
+      const count = Number(r.rating_count);
+      return {
+        id: r.id,
+        name: r.name?.trim() || "—",
+        area: r.area?.trim() || null,
+        categories: r.categories ?? [],
+        kycLevel: Number(r.kyc_level),
+        rating: count > 0 ? Math.round((Number(r.rating_sum) / count) * 10) / 10 : null,
+        ratingCount: count,
+        completed: Number(r.completed_count),
+        memberSince: Date.parse(r.created_at),
+      };
+    });
+  // "top rated": a few 5★ shouldn't beat many 4.9★ — prior of 4.5★ × 5 ratings (same as dispatch ranking)
+  if (opts.sort !== "jobs" && opts.sort !== "new") {
+    const score = (h: HelperProfile) => ((h.rating ?? 0) * h.ratingCount + 4.5 * 5) / (h.ratingCount + 5);
+    rows.sort((a, b) => score(b) - score(a));
+  }
+  return rows;
+}
+
+export interface RecentReview extends PublicReview {
+  helperId: string;
+  helperName: string;
+}
+
+/** Latest reviews with a written note, across helpers (Home / landing "what customers say"). */
+export async function recentReviews(limit = 4): Promise<RecentReview[]> {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("ratings")
+    .select("deal_id, from_user_id, to_user_id, stars, tags, note, created_at")
+    .not("note", "is", null)
+    .gte("stars", 4)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<{ deal_id: string; from_user_id: string; to_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
+  const rows = (data ?? []).filter((r) => publicNote(r.note));
+  if (!rows.length) return [];
+  const [deals, people] = await Promise.all([
+    db.from("deals").select("id, category").in("id", rows.map((r) => r.deal_id)).returns<{ id: string; category: CategoryId | null }[]>(),
+    db.from("profiles").select("id, name").in("id", [...new Set(rows.flatMap((r) => [r.from_user_id, r.to_user_id]))]).returns<{ id: string; name: string | null }[]>(),
+  ]);
+  const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
+  const who = new Map((people.data ?? []).map((p) => [p.id, p.name]));
+  return rows.map((r) => ({
+    stars: Number(r.stars),
+    tags: (r.tags ?? []).filter((x) => (RATING_TAGS as readonly string[]).includes(x)),
+    note: publicNote(r.note),
+    reviewer: maskName(who.get(r.from_user_id)),
+    category: cat.get(r.deal_id) ?? null,
+    at: Date.parse(r.created_at),
+    helperId: r.to_user_id,
+    helperName: who.get(r.to_user_id)?.trim() || "—",
+  }));
+}
+
 /* ---------- ♡ saved helpers ---------- */
 
 export async function savedHelperIds(customerId: string): Promise<string[]> {

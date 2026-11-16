@@ -1,4 +1,4 @@
-import { BadgeCheck, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
+import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -6,6 +6,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/login-prompt";
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
+import { SeasonalRow } from "@/components/seasonal-row";
 import { btn } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -125,6 +126,19 @@ export default async function Welcome() {
           </div>
         </section>
 
+        {/* what people need this season (Unegui-style row) */}
+        <section className={`${wrap} pb-12`}>
+          <SeasonalRow
+            t={t}
+            now={now}
+            wrap={(item, card) => (
+              <LoginGate next={`/post?cat=${item.cat}&title=${encodeURIComponent(item.title)}`} className="press block h-full w-full">
+                {card}
+              </LoginGate>
+            )}
+          />
+        </section>
+
         {/* requests waiting for a helper — recruits helpers; shown only when there are some */}
         {board.length > 0 && (
           <section className="bg-bg py-12">
@@ -197,25 +211,54 @@ export default async function Welcome() {
           </div>
         </section>
 
-        {/* footer */}
-        <footer className="mt-auto bg-ink pb-28 pt-10 text-white/70">
-          <div className={`${wrap} flex flex-col gap-4 md:flex-row md:justify-between`}>
-            <div className="flex flex-col gap-2">
-              <span className="text-[20px] font-extrabold text-white">Tuslamj</span>
-              <p className="text-[14px]">{t("landing.footerAbout")}</p>
-              <p className="text-[13px]">© 2026 Tuslamj</p>
+        {/* footer (UBCab-style): what we do · help · and the trust pages as cards */}
+        <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10">
+          <div className={`${wrap} grid gap-8 md:grid-cols-[1fr_1fr_1.2fr]`}>
+            <div className="flex flex-col gap-3">
+              <span className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
+                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">T</span>
+                Tuslamj
+              </span>
+              <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>
+              <p className="text-[13px] text-ink-3">© 2026 Tuslamj</p>
             </div>
-            <nav className="flex gap-5 text-[14px]">
-              <Link href="/login" className="hover:text-white">
-                {t("landing.nav.login")}
-              </Link>
-              <Link href="/login?next=/help" className="hover:text-white">
-                {t("landing.footerHelp")}
-              </Link>
-              <a href="#helper" className="hover:text-white">
-                {t("landing.nav.helper")}
-              </a>
+            <nav className="grid grid-cols-2 gap-6 text-[14px]">
+              <div className="flex flex-col gap-2">
+                <h3 className="font-bold">{t("landing.footerServices")}</h3>
+                <LoginGate next="/post" className="text-left text-ink-2 hover:text-ink">
+                  {t("landing.nav.post")}
+                </LoginGate>
+                <LoginGate next="/jobs?view=all" className="text-left text-ink-2 hover:text-ink">
+                  {t("landing.boardAll")}
+                </LoginGate>
+                <a href="#helper" className="text-ink-2 hover:text-ink">
+                  {t("landing.nav.helper")}
+                </a>
+              </div>
+              <div className="flex flex-col gap-2">
+                <h3 className="font-bold">{t("landing.footerHelp")}</h3>
+                <a href="#how" className="text-ink-2 hover:text-ink">
+                  {t("landing.nav.how")}
+                </a>
+                <Link href="/login" className="text-ink-2 hover:text-ink">
+                  {t("landing.nav.login")}
+                </Link>
+              </div>
             </nav>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  ["/help", t("info.navHelp")],
+                  ["/safety", t("info.safetyTitle")],
+                  ["/privacy", t("info.privacyTitle")],
+                ] as const
+              ).map(([href, label]) => (
+                <Link key={href} href={href} className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-[15px] font-semibold hover:bg-canvas">
+                  {label}
+                  <ChevronRight aria-hidden size={18} />
+                </Link>
+              ))}
+            </div>
           </div>
         </footer>
 

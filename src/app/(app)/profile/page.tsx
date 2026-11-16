@@ -73,7 +73,7 @@ export default async function ProfilePage() {
       {(mode === "customer" || actor.helperApproved) && (
       <nav className="flex flex-col rounded-card bg-bg shadow-card">
         {mode === "customer" && (
-          <Link href="/helpers" className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
+          <Link href="/helpers?saved=1" className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
             <Heart aria-hidden size={18} className="text-brand-ink" />
             <span className="flex-1 font-semibold">{t("helperProfile.savedTitle")}</span>
             <ChevronRight aria-hidden size={18} className="text-ink-2" />

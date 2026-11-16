@@ -5,6 +5,7 @@ import { CATEGORIES, DEFAULT_CONFIG, type CategoryId, type ErrandDeal } from "@/
 import { EmptyState, FlowHeader, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getControls } from "@/lib/safety";
+import { guessCategory } from "@/lib/category-guess";
 import { pricingConfig } from "@/lib/pricing";
 import Link from "next/link";
 import { PostFlow, type Draft } from "./post-flow";
@@ -72,8 +73,9 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
     );
   }
   const [sp, tasks, saved, cfg] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses(), pricingConfig()]);
-  const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
   const title = typeof sp.title === "string" && sp.title.trim() ? sp.title.slice(0, DEFAULT_CONFIG.titleMax) : undefined;
+  // a category from a tile, or guessed from the search text ("буйдан зөөх" → carry); can be changed
+  const cat = (CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined) ?? guessCategory(title) ?? undefined;
   const recent = [...new Set(tasks.map((x) => x.deal.address))].filter((a) => !saved.some((s) => s.address === a)).slice(0, 4);
 
   let initial: Partial<Draft> = { ...(cat ? { category: cat } : {}), ...(title ? { title } : {}) };

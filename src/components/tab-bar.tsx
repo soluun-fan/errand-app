@@ -17,7 +17,7 @@ export function TabBar({ tabs }: { tabs: Tab[] }) {
   const active = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
 
   return (
-    <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <nav aria-label="Main" className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center md:hidden px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <ul className="pointer-events-auto grid h-16 w-full max-w-sm grid-cols-3 gap-1 rounded-full border border-line bg-bg/90 p-1.5 shadow-float backdrop-blur">
         {tabs.map((tab) => {
           const on = active(tab.href);

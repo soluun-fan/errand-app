@@ -26,6 +26,14 @@ export const field =
   "w-full min-h-14 rounded-input border border-line bg-bg px-4 py-3 text-base text-ink outline-none placeholder:text-ink-3 focus:border-ink";
 export const fieldLabel = "flex flex-col gap-1.5 text-[15px] font-medium text-ink-2";
 
+/**
+ * Lets a page use the full web width (69rem — lines up with the top bar's content) from inside the narrow app column, on md+ only.
+ * Negative side margins = (column − target) / 2, so it stays centred; phones are untouched.
+ */
+export function Wide({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`md:mx-[calc((100%-min(69rem,100vw-3rem))/2)] ${className}`}>{children}</div>;
+}
+
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card ${className}`}>{children}</section>;
 }
