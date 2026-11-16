@@ -27,8 +27,8 @@ export function QuickStartForm({ q, kind }: { q: QuickStart | null; kind: QuickS
   const [state, action] = useActionState<ActionResult, FormData>(saveQuickStartAction, {});
   const [delState, del] = useActionState<ActionResult, FormData>(deleteQuickStartAction, {});
   const months = q?.months ?? MONTHS;
-  return (
-    <div className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
+  const body = (
+    <>
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="id" value={q?.id ?? ""} />
         <input type="hidden" name="kind" value={kind} />
@@ -83,7 +83,23 @@ export function QuickStartForm({ q, kind }: { q: QuickStart | null; kind: QuickS
           <SubmitButton className={`${btn.text} w-full text-danger`}>{t("opsContent.delete")}</SubmitButton>
         </form>
       )}
-    </div>
+    </>
+  );
+  if (!q) return <div className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">{body}</div>;
+  // existing ones fold into one line (title · months · shown/hidden); tap to edit
+  return (
+    <details className="group rounded-card bg-bg shadow-card">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4">
+        <span className={`min-w-0 flex-1 truncate font-semibold ${q.active ? "" : "text-ink-3 line-through"}`}>{q.titleMn}</span>
+        <span className="flex-none text-[12px] text-ink-2 tabular-nums">
+          {q.months.length === 12 ? t("opsContent.allYear") : q.months.join(", ")} · {q.sort}
+        </span>
+        <span aria-hidden className="text-ink-2 transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="flex flex-col gap-3 border-t border-line p-4">{body}</div>
+    </details>
   );
 }
 

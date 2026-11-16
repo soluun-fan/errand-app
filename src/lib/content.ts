@@ -110,7 +110,7 @@ export async function deleteQuickStart(opsId: string, id: string): Promise<void>
 /* ---------- search words → kind of task ---------- */
 
 export const loadKeywords = cache(async (): Promise<Keywords> => {
-  const { data, error } = await createAdminClient().from("category_keywords").select("category, word").limit(2000).returns<{ category: CategoryId; word: string }[]>();
+  const { data, error } = await createAdminClient().from("category_keywords").select("category, word").order("created_at").order("word").limit(2000).returns<{ category: CategoryId; word: string }[]>();
   if (error) {
     console.error("category keywords failed", error.message);
     return {}; // no guess: the person picks the kind themselves

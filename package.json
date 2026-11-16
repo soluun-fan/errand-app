@@ -15,7 +15,8 @@
     "seed": "node --env-file=.env.local --import tsx scripts/seed.ts",
     "cron:local": "node --env-file=.env.local --import tsx scripts/cron-local.ts",
     "scheduler:configure": "node --env-file=.env.local --import tsx scripts/configure-scheduler.ts",
-    "check:deploy": "node --env-file=.env.local --import tsx scripts/check-deploy.ts"
+    "check:deploy": "node --env-file=.env.local --import tsx scripts/check-deploy.ts",
+    "e2e": "NODE_OPTIONS=--conditions=react-server playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19",

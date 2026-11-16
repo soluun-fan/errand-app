@@ -164,6 +164,7 @@ export const en = {
     priceInvalid: "The starting price must be a whole amount, at least {min}.",
   },
   opsContent: {
+    allYear: "All year",
     title: "Suggestions & search words",
     help: "Home suggestions, the seasonal row and the words that guess the kind of task from search. Changes apply at once and are logged.",
     popular: "Popular",

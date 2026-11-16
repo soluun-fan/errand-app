@@ -71,6 +71,8 @@ Never break these. They are also enforced by tests and database checks.
 | `npm test` | all tests (engine + PGlite DB) |
 | `npm run typecheck` / `npm run build` | must stay clean |
 | `npx supabase db push --remote` | apply migrations to hosted DB (in agent mode it needs `--yes` **and the owner's explicit OK each time**) |
+| `FUZZ_SEEDS=20000 SIM_SEEDS=200 npm test` | deep random walks (money, bargaining, direct requests) — before a release |
+| `E2E_ENV_FILE=… E2E_CONFIRM_PROJECT=<ref> npm run e2e` | browser tests (`e2e/`, Playwright + installed Chrome) against a real project; needs `npm run build` + seed; refuses to run unless the ref is named — meant for **staging** |
 | `npm run seed` | seed demo users (`scripts/seed.ts`) |
 | `npm run cron:local` | dev scheduler: ticks the local app every 20 s |
 | `npm run check:deploy` | pre-deploy settings check (names only, never values) |
@@ -324,7 +326,8 @@ Migrations, in order:
   - Rate limits exist for chat, calls and reports, not for every action. Dispute evidence (proof photos, chat logs, call recordings) isn't stored yet.
 - **Unit economics:** service fee and commission are demo numbers; partner-bank and QPay fees aren't modeled.
 - **Legacy data:** deals paid at posting (the old flow) still work through special branches (`assignHelper` with `heldAmount > 0`, refunds on cancel/expire). They can be removed once no such deals exist.
-- **Testing gaps:** client interactions (maps, sheets, push, geolocation) are verified only by server-render checks and scripts, not in a real browser or on a phone.
+- **Testing gaps:** browser tests (`e2e/`) now cover bargaining, direct requests, helper listings and Ops content; maps, push, geolocation, calls and real phones are still checked by hand.
+- **No staging yet:** the only hosted project is production. Plan (2026-11-16): a second free Supabase project `tuslamj-staging` (owner creates it), `.env.staging.local` (git-ignored), migrations + seed there first, `npm run e2e` against it, then production.
 
 ---
 
