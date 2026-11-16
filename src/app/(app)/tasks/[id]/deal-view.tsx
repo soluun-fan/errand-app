@@ -22,6 +22,7 @@ import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
+import { PriceChangeCard } from "@/components/price-change-card";
 
 export interface DealViewProps {
   deal: ErrandDeal;
@@ -467,6 +468,32 @@ export function DealView(p: DealViewProps) {
 
       {p.safety}
 
+      {isCustomer && (
+        <PriceChangeCard
+          deal={deal}
+          me="customer"
+          otherName={helperName}
+          action={p.action}
+          t={t}
+          pay={
+            deal.priceChange?.status === "awaiting_payment" ? (
+              <PaySheet
+                dealId={deal.id}
+                amountLabel={fmtMoney(deal.priceChange.fee - deal.fee)}
+                payBy={null}
+                serverNow={serverNow}
+                defaultOpen={false}
+                mock={p.mockPay}
+                action={p.action}
+                qr={<MockQr seed={`${deal.id}-price`} />}
+                intent="simulate_price_payment"
+                triggerLabel={t("priceChange.payButton", { amount: fmtMoney(deal.priceChange.fee - deal.fee) })}
+              />
+            ) : null
+          }
+        />
+      )}
+
       {deal.status === "open" && isCustomer && (
         <section className="flex flex-col gap-2" aria-live="polite">
           <h2 className="font-bold">{t("deal.offers", { n: applicants.length, max: deal.maxApplicants })}</h2>
@@ -496,7 +523,7 @@ export function DealView(p: DealViewProps) {
                 note={[priceLine, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note].filter(Boolean).join(" · ")}
                 t={t}
                 action={
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center justify-between gap-2">
                     {!waiting && (
                       <ConfirmSheet
                         action={p.action}

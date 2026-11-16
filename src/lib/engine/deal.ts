@@ -13,7 +13,7 @@ import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
-import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint } from "./types";
+import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type PriceChange } from "./types";
 import type {
   Account,
   Command,
@@ -293,6 +293,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     matchBy: scheduledAt ?? ctx.now + matchWindowMinutes * MINUTE_MS,
     receiptAmount: null,
     topUp: null,
+    priceChange: null,
     handoverProofAt: null,
     heldAmount: 0,
     paymentRef: null,
@@ -429,6 +430,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
   // Same for a replayed top-up webhook.
   if (cmd.type === "confirm_topup" && deal.type === "errand" && deal.topUp?.providerRef === cmd.providerRef) {
     requireKind(ctx, "provider", "Top-up confirmation");
+    return noop(deal);
+  }
+  // And for a replayed "price change paid" webhook.
+  if (cmd.type === "confirm_price" && deal.type === "errand" && deal.priceChange?.providerRef === cmd.providerRef) {
+    requireKind(ctx, "provider", "Price change confirmation");
     return noop(deal);
   }
   // A buyer re-opening a deal they already claimed is also a no-op.
@@ -604,6 +610,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
             tx.ev("cancel_fee_paid", { amount: fee, helperId });
           }
           refundAll(tx, "customer_cancelled");
+          if (d.priceChange?.status !== "paid") d.priceChange = null;
           d.status = "cancelled";
           tx.ev("cancelled", { by: "customer" });
         } else if (d.helperId !== null && u.id === d.helperId && d.status === "awaiting_payment") {
@@ -614,6 +621,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
         } else if (d.helperId !== null && u.id === d.helperId) {
           requireStatus(d, "cancel", "matched", "in_progress");
           refundAll(tx, "helper_cancelled");
+          if (d.priceChange?.status !== "paid") d.priceChange = null;
           d.status = "cancelled";
           tx.effects.push({ kind: "helper_penalty", helperId: u.id, dealId: d.id });
           tx.ev("cancelled", { by: "helper" });
@@ -712,6 +720,83 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       break;
     }
 
+    case "propose_price": {
+      const e = asErrand(d, "propose a new price for");
+      const u = requireUser(ctx);
+      const by = u.id === e.customerId ? "customer" : u.id === e.helperId ? "helper" : fail("FORBIDDEN", "Only the customer or the assigned helper can propose a price");
+      requireStatus(e, "propose a new price for", "matched", "in_progress");
+      if (e.priceChange?.status === "awaiting_payment") fail("ILLEGAL_TRANSITION", "The agreed new price is waiting for payment");
+      checkPrice(e, cmd.price, ctx.now);
+      if (cmd.price === e.fee) fail("INVALID_INPUT", "That is already the price");
+      // a new proposal from either side replaces the last one (it's an answer, too)
+      e.priceChange = { fee: cmd.price, from: e.fee, by, status: "proposed", providerRef: null, at: ctx.now };
+      tx.ev("price_proposed", { price: cmd.price, by });
+      break;
+    }
+
+    case "answer_price": {
+      const e = asErrand(d, "answer a price on");
+      const u = requireUser(ctx);
+      requireStatus(e, "answer a price on", "matched", "in_progress");
+      const pc = e.priceChange;
+      if (!pc || pc.status !== "proposed") fail("ILLEGAL_TRANSITION", "No price proposal to answer");
+      const proposal = pc as PriceChange;
+      const other = proposal.by === "customer" ? e.helperId : e.customerId;
+      if (u.id !== other) fail("FORBIDDEN", "Only the other side can answer this price");
+      if (!cmd.accept) {
+        e.priceChange = null;
+        tx.ev("price_declined", { price: proposal.fee });
+        break;
+      }
+      const diff = proposal.fee - e.fee;
+      if (diff < 0) {
+        // lower: the difference goes back to the customer straight from the hold
+        tx.fromHold("refund", -diff, ext(e.customerId));
+        e.fee = proposal.fee;
+        e.priceChange = null;
+        tx.ev("price_agreed", { from: proposal.from, to: proposal.fee, refund: -diff });
+      } else {
+        // higher: it counts once the customer has paid the difference (held like the rest)
+        e.priceChange = { ...proposal, status: "awaiting_payment" };
+        tx.ev("price_agreed_pay", { from: proposal.from, to: proposal.fee, amount: diff });
+      }
+      break;
+    }
+
+    case "withdraw_price": {
+      const e = asErrand(d, "withdraw a price on");
+      const u = requireUser(ctx);
+      if (u.id !== e.customerId && u.id !== e.helperId) fail("FORBIDDEN", "Only the customer or the assigned helper can do this");
+      const pc = e.priceChange;
+      if (!pc || pc.status === "paid") fail("ILLEGAL_TRANSITION", "Nothing to withdraw");
+      // a proposal: only its author takes it back; an accepted increase not paid yet: either side may drop it
+      if ((pc as PriceChange).status === "proposed" && (pc as PriceChange).by !== (u.id === e.customerId ? "customer" : "helper")) {
+        fail("FORBIDDEN", "Answer the other side's proposal instead");
+      }
+      e.priceChange = null;
+      tx.ev("price_withdrawn");
+      break;
+    }
+
+    case "confirm_price": {
+      const e = asErrand(d, "confirm a price change for");
+      requireKind(ctx, "provider", "Price change confirmation");
+      // as with the first payment: if this throws, the caller must refund the payment via the provider
+      requireStatus(e, "confirm a price change for", "matched", "in_progress");
+      const pc = e.priceChange;
+      if (!pc || pc.status !== "awaiting_payment") fail("ILLEGAL_TRANSITION", "No agreed price is waiting for payment");
+      const change = pc as PriceChange;
+      assertMoney(cmd.amount, "amount");
+      if (!cmd.providerRef) fail("INVALID_INPUT", "providerRef is required");
+      const due = change.fee - e.fee;
+      if (cmd.amount !== due) fail("PAYMENT_MISMATCH", `Expected ₮${due}, provider confirmed ₮${cmd.amount}`);
+      tx.payIn(cmd.amount, e.customerId, cmd.providerRef);
+      e.fee = change.fee;
+      e.priceChange = { ...change, status: "paid", providerRef: cmd.providerRef };
+      tx.ev("price_paid", { amount: cmd.amount, to: change.fee });
+      break;
+    }
+
     case "record_handover": {
       const e = asErrand(d, "record handover for");
       requireAssignedHelper(ctx, e);
@@ -727,6 +812,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requireStatus(e, "finish", "in_progress");
       if (e.handoverProofAt === null) fail("PROOF_MISSING", "A handover photo is required before marking done");
       if (e.topUp?.status === "pending") fail("ILLEGAL_TRANSITION", "Waiting for the customer to approve the extra amount");
+      if (e.priceChange?.status === "awaiting_payment") fail("ILLEGAL_TRANSITION", "Waiting for the customer to pay the agreed new price");
+      if (e.priceChange?.status === "proposed") e.priceChange = null; // an unanswered proposal lapses at "done"
       const itemsReturned = e.topUp?.status === "declined";
       if (e.itemBudget > 0 && e.receiptAmount === null && !itemsReturned) {
         fail("PROOF_MISSING", "A receipt is required before marking done");

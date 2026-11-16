@@ -35,7 +35,7 @@ export function PaySheet({
   action: FormAction;
   qr: ReactNode;
   /** "simulate_topup" for the over-budget top-up. */
-  intent?: "simulate_payment" | "simulate_topup";
+  intent?: "simulate_payment" | "simulate_topup" | "simulate_price_payment";
   triggerLabel?: string;
 }) {
   const t = useT();

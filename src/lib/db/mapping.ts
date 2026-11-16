@@ -15,6 +15,7 @@ import type {
   LedgerKind,
   Mode,
   Offer,
+  PriceChange,
   TopUp,
   Transition,
   UserActor,
@@ -57,6 +58,7 @@ export interface DealRow {
   match_by: string | null;
   receipt_amount: number | null;
   top_up: TopUpRow | null;
+  price_change?: PriceChangeRow | null;
   handover_proof_at: string | null;
   price: number | null;
   buyer_fee: number | null;
@@ -83,6 +85,20 @@ const topUpFromRow = (r: TopUpRow | null | undefined): TopUp | null =>
   r ? { amount: money(r.amount, "top_up.amount"), status: r.status, providerRef: r.provider_ref, at: req(toMs(r.at), "top_up.at") } : null;
 const topUpToRow = (t: TopUp | null): TopUpRow | null =>
   t ? { amount: t.amount, status: t.status, provider_ref: t.providerRef, at: toIso(t.at) as string } : null;
+
+export interface PriceChangeRow {
+  fee: number;
+  from: number;
+  by: "customer" | "helper";
+  status: "proposed" | "awaiting_payment" | "paid";
+  provider_ref: string | null;
+  at: string;
+}
+
+const priceChangeFromRow = (r: PriceChangeRow | null | undefined): PriceChange | null =>
+  r ? { fee: Number(r.fee), from: Number(r.from), by: r.by, status: r.status, providerRef: r.provider_ref ?? null, at: req(toMs(r.at), "price_change.at") } : null;
+const priceChangeToRow = (p: PriceChange | null): PriceChangeRow | null =>
+  p ? { fee: p.fee, from: p.from, by: p.by, status: p.status, provider_ref: p.providerRef, at: toIso(p.at) as string } : null;
 
 export interface OfferRow {
   helper_id: string;
@@ -193,6 +209,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       matchBy: toMs(row.match_by),
       receiptAmount: moneyOrNull(row.receipt_amount, "receipt_amount"),
       topUp: topUpFromRow(row.top_up),
+      priceChange: priceChangeFromRow(row.price_change),
       handoverProofAt: toMs(row.handover_proof_at),
     };
     return d;
@@ -237,6 +254,7 @@ export function dealToRow(d: Deal): DealRow {
     match_by: null,
     receipt_amount: null,
     top_up: null,
+    price_change: null,
     handover_proof_at: null,
     price: null,
     buyer_fee: null,
@@ -286,6 +304,7 @@ export function dealToRow(d: Deal): DealRow {
       match_by: toIso(d.matchBy),
       receipt_amount: d.receiptAmount,
       top_up: topUpToRow(d.topUp),
+      price_change: priceChangeToRow(d.priceChange),
       handover_proof_at: toIso(d.handoverProofAt),
     };
   }

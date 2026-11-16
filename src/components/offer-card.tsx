@@ -35,18 +35,17 @@ export function OfferCard({
   return (
     <div className={`flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card ${badge ? "border-2 border-brand" : ""}`}>
       {badge && <span className="self-start rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">★ {badge}</span>}
+      {/* who: name gets the full width; badges wrap under it */}
       <div className="flex items-center gap-3">
-        <Avatar name={person.name} size={56} />
+        <Avatar name={person.name} size={52} />
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[18px] font-semibold">
-            <span className="truncate">{person.name}</span>
-            {person.verified && (
-              <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeVerified")}</span>
-            )}
-            {person.backgroundChecked && (
-              <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeRecord")}</span>
-            )}
-          </p>
+          <p className="truncate text-[17px] font-semibold">{person.name}</p>
+          {(person.verified || person.backgroundChecked) && (
+            <p className="mt-0.5 flex flex-wrap gap-1">
+              {person.verified && <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeVerified")}</span>}
+              {person.backgroundChecked && <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeRecord")}</span>}
+            </p>
+          )}
           <p className="text-sm text-ink-2">
             {person.rating !== null ? (
               <>
@@ -58,7 +57,6 @@ export function OfferCard({
             · {t("deal.tasks", { n: person.completed })}
           </p>
         </div>
-        {action}
       </div>
       {note && <p className="rounded-input bg-fill p-2.5 text-[15px] text-ink">“{note}”</p>}
       {href && (
@@ -66,6 +64,8 @@ export function OfferCard({
           {t("helperProfile.viewProfile")} <ChevronRight aria-hidden size={16} />
         </Link>
       )}
+      {/* actions on their own row, so buttons never squeeze the name */}
+      {action && <div className="border-t border-line pt-3 [&>*]:w-full">{action}</div>}
     </div>
   );
 }

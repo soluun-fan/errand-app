@@ -7,6 +7,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { parsePrice } from "@/lib/price-input";
+import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
@@ -214,6 +215,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (price === null) return { error: t("job.quoteInvalid") };
       cmd = intent === "quote" ? { type: "apply", note, price } : { type: "reprice", price };
     } else if (intent === "accept_counter") cmd = { type: "accept_counter" };
+    else if (intent === "propose_price") {
+      const price = await named();
+      if (price === null) return { error: t("job.quoteInvalid") };
+      cmd = { type: "propose_price", price };
+    } else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
+    else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
     else if (intent === "unapply") cmd = { type: "withdraw_offer" };
     else if (intent === "withdraw") cmd = { type: "cancel" };
     else if (intent === "start") cmd = { type: "start" };
@@ -239,6 +246,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
+    } else if (cmd.type === "propose_price" || cmd.type === "answer_price") {
+      await notifyPriceChange(deal, cmd, viewer.profile.name || "—", deal.customerId, `/tasks/${dealId}`);
     } else if (intent === "accept_counter") {
       await notify([deal.customerId], {
         title: "push.counterAcceptedTitle",

@@ -685,6 +685,30 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
     await noViolations();
   });
 
+  it("a price change after matching round-trips: refund when lower, extra pay-in when higher", async () => {
+    let d = await persist(
+      null,
+      createErrand(
+        { id: dealId(), title: "Move", description: "Boxes", category: "carry", mode: "now", address: "x", itemBudget: 0, fee: 10000, customerId: U.c1 },
+        { now: T0, actor: customer(U.c1) },
+      ),
+      T0,
+    );
+    d = await step(d, { type: "apply", note: "" }, helper(U.h1), T0 + 1000);
+    d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
+    d = await pay(d, T0 + 3000);
+    d = await step(d, { type: "propose_price", price: 8000 }, helper(U.h1), T0 + 4000);
+    expect(d.type === "errand" && d.priceChange).toMatchObject({ fee: 8000, by: "helper", status: "proposed" });
+    d = await step(d, { type: "answer_price", accept: true }, customer(U.c1), T0 + 5000);
+    expect(d).toMatchObject({ fee: 8000, heldAmount: 9000 });
+    d = await step(d, { type: "propose_price", price: 12000 }, customer(U.c1), T0 + 6000);
+    d = await step(d, { type: "answer_price", accept: true }, helper(U.h1), T0 + 7000);
+    d = await step(d, { type: "confirm_price", providerRef: `pc-${d.id}`, amount: 4000 }, provider, T0 + 8000);
+    expect(d).toMatchObject({ fee: 12000, heldAmount: 13000 });
+    expect(d.type === "errand" && d.priceChange).toMatchObject({ status: "paid", providerRef: `pc-${d.id}` });
+    await noViolations(); // ledger hold == held_amount, sums intact
+  });
+
   it("settings are one server-only row whose defaults match the engine", async () => {
     const row = await as(db, "service_role", null, async (tx) => (await tx.query<Record<string, unknown>>(`select * from public.pricing_settings`)).rows);
     expect(row).toHaveLength(1);

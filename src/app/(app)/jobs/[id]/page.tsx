@@ -21,6 +21,7 @@ import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { SafetyBar } from "@/components/safety-bar";
+import { PriceChangeCard } from "@/components/price-change-card";
 import { SOS_STATUSES } from "@/lib/incident-rules";
 import { liveSos } from "@/lib/incidents";
 import { ContactRow } from "../../tasks/[id]/deal-view";
@@ -42,7 +43,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const myOffer = deal.offers.find((o) => o.helperId === me);
   const customer = (await publicProfiles([deal.customerId])).get(deal.customerId);
   const now = Date.now();
-  const net = errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet;
+  // while bargaining, the price on the table between this helper and the customer
+  const onTable = deal.status === "open" && myOffer?.price != null ? myOffer.price : deal.fee;
+  const net = errandSplit({ fee: onTable, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet;
   const fields = { dealId: deal.id };
   const dt = deal.details;
   const bits = mine
@@ -237,6 +240,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
+      {mine && <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />}
 
       {/* what it pays | what to buy — "no purchase" is said, not implied */}
       <DetailPair

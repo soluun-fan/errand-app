@@ -172,6 +172,8 @@ export interface ErrandDeal extends DealBase {
   receiptAmount: number | null;
   /** Pending / paid / declined over-budget top-up, if the receipt ever exceeded the budget. */
   topUp: TopUp | null;
+  /** A price change after matching (proposed by either side, accepted by the other). */
+  priceChange: PriceChange | null;
   handoverProofAt: number | null;
 }
 
@@ -219,6 +221,22 @@ export interface Ctx {
   actor: Actor;
 }
 
+/**
+ * Changing the price after a helper is chosen and paid (docs/decisions.md 2026-11-16): one side
+ * proposes `fee`, the other accepts or declines. Lower → the difference is refunded at once;
+ * higher → the customer pays the difference (held like the rest) before it counts.
+ */
+export interface PriceChange {
+  fee: number;
+  /** The helper's fee when it was proposed. */
+  from: number;
+  by: "customer" | "helper";
+  status: "proposed" | "awaiting_payment" | "paid";
+  /** Set when the extra was paid (makes the webhook idempotent). */
+  providerRef: string | null;
+  at: number;
+}
+
 /* ---------- commands ---------- */
 
 export type Command =
@@ -230,6 +248,10 @@ export type Command =
   | { type: "counter"; helperId: string; price: number } // customer: answer one helper with a price
   | { type: "accept_counter" } // helper: accept the customer's price → matched, customer pays
   | { type: "set_price"; price: number } // customer: change the posted price while still open
+  | { type: "propose_price"; price: number } // after matching: customer or helper proposes a new fee
+  | { type: "answer_price"; accept: boolean } // the other side accepts or declines it
+  | { type: "withdraw_price" } // drop a proposal (or an accepted increase not paid yet)
+  | { type: "confirm_price"; providerRef: string; amount: number } // provider webhook: the extra was paid
   | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
   | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
   | { type: "cancel" }

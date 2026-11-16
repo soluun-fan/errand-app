@@ -14,6 +14,7 @@ import { notify } from "@/lib/push";
 import { EngineError, amountDue, type Command } from "@/lib/engine";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
+import { notifyPriceChange } from "@/lib/price-notify";
 import { parsePrice } from "@/lib/price-input";
 import { getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -73,6 +74,30 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         return { done: true };
       }
 
+      case "simulate_price_payment": {
+        // The agreed higher price after matching: the customer pays the difference (mock bank).
+        if (!mockPaymentsEnabled()) return { error: t("error.generic") };
+        const deal = await loadDeal(db, dealId);
+        if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
+        const pc = deal.priceChange;
+        if (!pc || pc.status !== "awaiting_payment") return { error: t("error.changed") };
+        const diff = pc.fee - deal.fee;
+        const blocked = await payinBlock(deal.id, viewer.profile.id, diff);
+        if (blocked) return { error: await payinMessage(blocked, t) };
+        const invoice = await paymentProvider().createInvoice(deal.id, diff, `price-${pc.at}`);
+        const r = await runCommand(db, deal.id, { type: "confirm_price", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        if (r.deal.type === "errand" && r.deal.helperId) {
+          await notify([r.deal.helperId], {
+            title: "push.pricePaidTitle",
+            body: "push.pricePaidBody",
+            params: { fee: fmtMoney(r.deal.fee), title: r.deal.title },
+            url: `/jobs/${deal.id}`,
+            tag: `job-${deal.id}`,
+          });
+        }
+        return { done: true };
+      }
+
       case "rate": {
         const stars = Number(form.get("stars"));
         if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: t("error.generic") };
@@ -92,11 +117,18 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         let cmd: Command;
         if (intent === "cancel") cmd = { type: "cancel" };
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
-        else if (intent === "counter" || intent === "set_price") {
+        else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
+        else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
+        else if (intent === "counter" || intent === "set_price" || intent === "propose_price") {
           // bargaining (docs/decisions.md 2026-11-16): any price ≥ the minimum, ≤ what one task may hold
           const price = parsePrice(form.get("price"));
           if (price === null || price > (await getControls()).maxDealAmount) return { error: t("price.invalid") };
-          cmd = intent === "counter" ? { type: "counter", helperId: String(form.get("helperId") ?? ""), price } : { type: "set_price", price };
+          cmd =
+            intent === "counter"
+              ? { type: "counter", helperId: String(form.get("helperId") ?? ""), price }
+              : intent === "set_price"
+                ? { type: "set_price", price }
+                : { type: "propose_price", price };
         }
         else if (intent === "confirm") cmd = { type: "confirm" };
         else if (intent === "decline_topup") cmd = { type: "decline_topup" };
@@ -111,6 +143,9 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (cmd.type === "choose" && r.deal.type === "errand") {
           await notifyChosen(r.deal, false);
           await runDispatch(dealId);
+        }
+        if ((cmd.type === "propose_price" || cmd.type === "answer_price") && r.deal.type === "errand" && r.deal.helperId) {
+          await notifyPriceChange(r.deal, cmd, viewer.profile.name || "—", r.deal.helperId, `/jobs/${dealId}`);
         }
         if (cmd.type === "counter" && r.deal.type === "errand") {
           await notify([cmd.helperId], {

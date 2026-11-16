@@ -75,6 +75,17 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
         : t("event.offer_priced_helper", { name: name(data.helperId), amount: money("price") });
     case "price_changed":
       return t("event.price_changed", { amount: money("to") });
+    case "price_proposed":
+      return t("event.price_proposed", { amount: money("price") });
+    case "price_agreed":
+      return t("event.price_agreed", { from: money("from"), to: money("to") });
+    case "price_agreed_pay":
+      return t("event.price_agreed_pay", { to: money("to"), amount: money("amount") });
+    case "price_paid":
+      return t("event.price_paid", { to: money("to") });
+    case "price_declined":
+    case "price_withdrawn":
+      return t(`event.${code}`);
     case "accepted":
     case "chosen":
     case "payment_timeout":
