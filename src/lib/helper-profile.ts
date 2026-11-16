@@ -1,0 +1,135 @@
+import "server-only";
+import type { CategoryId } from "@/lib/engine";
+import { RATING_TAGS } from "@/lib/labels";
+import { MAX_SAVED_HELPERS, maskName, publicNote, tagCounts } from "@/lib/profile-rules";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+/**
+ * Public helper profiles (docs/decisions.md 2026-11-16): what a customer may see before choosing —
+ * display name, badges, rating, jobs done, member since, categories, area (as the helper typed it),
+ * reviews with the reviewer masked. Never phone, legal name, payout account or position.
+ */
+export interface HelperProfile {
+  id: string;
+  name: string;
+  area: string | null;
+  categories: CategoryId[];
+  kycLevel: number;
+  rating: number | null;
+  ratingCount: number;
+  completed: number;
+  memberSince: number;
+}
+
+export interface PublicReview {
+  stars: number;
+  tags: string[];
+  note: string | null;
+  reviewer: string;
+  category: CategoryId | null;
+  at: number;
+}
+
+/** POSITIVE tags make the profile's highlights; every tag still shows on its own review. */
+export const POSITIVE_TAGS = ["onTime", "careful", "friendly", "communication"] as const;
+
+export async function helperProfile(id: string): Promise<HelperProfile | null> {
+  const { data } = await createAdminClient()
+    .from("profiles")
+    .select("id, name, area, categories, kyc_level, role, helper_status, rating_sum, rating_count, completed_count, created_at")
+    .eq("id", id)
+    .maybeSingle<{
+      id: string;
+      name: string | null;
+      area: string | null;
+      categories: CategoryId[] | null;
+      kyc_level: number;
+      role: string;
+      helper_status: string | null;
+      rating_sum: number;
+      rating_count: number;
+      completed_count: number;
+      created_at: string;
+    }>();
+  if (!data || data.role !== "helper" || data.helper_status !== "approved") return null;
+  const count = Number(data.rating_count);
+  return {
+    id: data.id,
+    name: data.name?.trim() || "—",
+    area: data.area?.trim() || null,
+    categories: data.categories ?? [],
+    kycLevel: Number(data.kyc_level),
+    rating: count > 0 ? Math.round((Number(data.rating_sum) / count) * 10) / 10 : null,
+    ratingCount: count,
+    completed: Number(data.completed_count),
+    memberSince: Date.parse(data.created_at),
+  };
+}
+
+export async function helperReviews(helperId: string, limit = 20): Promise<PublicReview[]> {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("ratings")
+    .select("deal_id, from_user_id, stars, tags, note, created_at")
+    .eq("to_user_id", helperId)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+    .returns<{ deal_id: string; from_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+  const [deals, people] = await Promise.all([
+    db.from("deals").select("id, category").in("id", [...new Set(rows.map((r) => r.deal_id))]).returns<{ id: string; category: CategoryId | null }[]>(),
+    db.from("profiles").select("id, name").in("id", [...new Set(rows.map((r) => r.from_user_id))]).returns<{ id: string; name: string | null }[]>(),
+  ]);
+  const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
+  const who = new Map((people.data ?? []).map((p) => [p.id, p.name]));
+  return rows.map((r) => ({
+    stars: Number(r.stars),
+    tags: (r.tags ?? []).filter((x) => (RATING_TAGS as readonly string[]).includes(x)),
+    note: publicNote(r.note),
+    reviewer: maskName(who.get(r.from_user_id)),
+    category: cat.get(r.deal_id) ?? null,
+    at: Date.parse(r.created_at),
+  }));
+}
+
+/** Highlights: positive tags given at least twice, most frequent first. */
+export async function helperHighlights(helperId: string): Promise<{ tag: string; n: number }[]> {
+  const { data } = await createAdminClient().from("ratings").select("tags").eq("to_user_id", helperId).limit(500).returns<{ tags: string[] | null }[]>();
+  return tagCounts((data ?? []).map((r) => r.tags ?? []), POSITIVE_TAGS, 2);
+}
+
+/* ---------- ♡ saved helpers ---------- */
+
+export async function savedHelperIds(customerId: string): Promise<string[]> {
+  const { data } = await createAdminClient()
+    .from("saved_helpers")
+    .select("helper_id")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false })
+    .limit(MAX_SAVED_HELPERS)
+    .returns<{ helper_id: string }[]>();
+  return (data ?? []).map((r) => r.helper_id);
+}
+
+export async function isSaved(customerId: string, helperId: string): Promise<boolean> {
+  const { count } = await createAdminClient()
+    .from("saved_helpers")
+    .select("helper_id", { count: "exact", head: true })
+    .eq("customer_id", customerId)
+    .eq("helper_id", helperId);
+  return (count ?? 0) > 0;
+}
+
+/** Save or un-save. Only approved helpers can be saved; at most MAX_SAVED_HELPERS. */
+export async function setSaved(customerId: string, helperId: string, on: boolean): Promise<"ok" | "full" | "notHelper"> {
+  const db = createAdminClient();
+  if (!on) {
+    await db.from("saved_helpers").delete().eq("customer_id", customerId).eq("helper_id", helperId).throwOnError();
+    return "ok";
+  }
+  if (customerId === helperId || !(await helperProfile(helperId))) return "notHelper";
+  if ((await savedHelperIds(customerId)).length >= MAX_SAVED_HELPERS) return "full";
+  await db.from("saved_helpers").upsert({ customer_id: customerId, helper_id: helperId }, { onConflict: "customer_id,helper_id", ignoreDuplicates: true }).throwOnError();
+  return "ok";
+}

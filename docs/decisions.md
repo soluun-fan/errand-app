@@ -12,6 +12,11 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — helper profiles, ♡ saved helpers, public reviews:**
+  - `/helpers/[id]` (signed-in users; approved helpers only): display name, ✓ badges (kyc 3/4), ★ average + count, jobs done, member since, categories, area as typed, highlights (positive tags given ≥ 2×), last 20 reviews. **Never** phone, legal name, payout account or position.
+  - Reviews = the existing customer ratings (stars, tags, note). Reviewer shown as first letter + `***`; notes trimmed to 300 chars with phones/links/handles masked (`maskContacts`). The rating sheet now says the review is public with the name hidden.
+  - ♡ `saved_helpers` (migration `20261116020000`): own-list RLS, writes server-only, max 100, no saving yourself. `/helpers` lists them (Profile → "My helpers"). Applicant and matched-helper cards link to the profile.
+  - Not yet: "request this helper again" (direct offer to one helper), customer mini-profile for helpers, two-way ratings.
 - **2026-11-16 — landing page, login sheet, PleaseHelp-style patterns** (owner liked pleasehelp.co.kr; layouts borrowed, never their characters/colours/brand):
   - Logged-out `/` → `/welcome` (public): hero with search + popular starts, real "recent requests" (category, price, status, time only — no titles, places or people; `[verify]` test tasks hidden), categories with today's "from" price, 4 steps, "Why Tuslamj" cards (UBCab-style two-tone heading), become-a-helper, footer, fixed dark CTA bar. Stats band left out until the numbers are real. Company details in the footer: **owner to provide** (legal name, registration, contact).
   - Acting while logged out opens a login sheet → `/login?next=…`; `safeNext` allows only our own paths (tested). Deep links redirect to login with `next`.

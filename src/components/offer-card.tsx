@@ -1,3 +1,5 @@
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { T } from "@/i18n";
 import { Avatar } from "./ui";
@@ -19,6 +21,7 @@ export function OfferCard({
   t,
   action,
   badge,
+  href,
 }: {
   person: OfferPerson;
   note?: string;
@@ -26,9 +29,11 @@ export function OfferCard({
   action?: ReactNode;
   /** e.g. "Санал болгосон" on the best-ranked applicant. */
   badge?: string;
+  /** The helper's public profile (reviews, badges, jobs done). */
+  href?: string;
 }) {
   return (
-    <div className={`flex flex-col gap-2 rounded-card border bg-bg p-4 ${badge ? "border-2 border-ink" : "border-line"}`}>
+    <div className={`flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card ${badge ? "border-2 border-brand" : ""}`}>
       {badge && <span className="self-start rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">★ {badge}</span>}
       <div className="flex items-center gap-3">
         <Avatar name={person.name} size={56} />
@@ -56,6 +61,11 @@ export function OfferCard({
         {action}
       </div>
       {note && <p className="rounded-input bg-fill p-2.5 text-[15px] text-ink">“{note}”</p>}
+      {href && (
+        <Link href={href} className="flex min-h-10 items-center gap-1 self-start text-[14px] font-semibold text-brand-ink">
+          {t("helperProfile.viewProfile")} <ChevronRight aria-hidden size={16} />
+        </Link>
+      )}
     </div>
   );
 }

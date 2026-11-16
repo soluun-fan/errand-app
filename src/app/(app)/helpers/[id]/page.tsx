@@ -1,0 +1,150 @@
+import { BadgeCheck, MapPin, ShieldCheck, Star } from "lucide-react";
+import { notFound } from "next/navigation";
+import { CategoryIcon } from "@/components/category-icon";
+import { Avatar, FlowHeader, PrimaryBar } from "@/components/ui";
+import { getLocale, getT } from "@/i18n/server";
+import { getViewer } from "@/lib/auth";
+import { fmtDateTime } from "@/lib/format";
+import { helperHighlights, helperProfile, helperReviews, isSaved } from "@/lib/helper-profile";
+import { Uuid, parseOr } from "@/lib/input";
+import { getMode } from "@/lib/mode";
+import { SaveButton } from "../save-button";
+
+/** "November 2026" in the viewer's language. */
+const monthYear = (ms: number, locale: string) => new Date(ms).toLocaleDateString(locale === "mn" ? "mn-MN" : "en-GB", { year: "numeric", month: "long", timeZone: "Asia/Ulaanbaatar" });
+
+/**
+ * /helpers/[id] — a helper's public profile (UBCab-driver-card style): badges, rating, jobs done,
+ * member since, what they do, highlights and reviews (reviewer masked). Approved helpers only.
+ */
+export default async function HelperProfilePage({ params }: PageProps<"/helpers/[id]">) {
+  const viewer = await getViewer();
+  if (!viewer) return null;
+  const id = parseOr(Uuid, (await params).id);
+  if (!id) notFound();
+  const [t, locale, p] = await Promise.all([getT(), getLocale(), helperProfile(id)]);
+  if (!p) notFound();
+  const me = viewer.profile.id === p.id;
+  const [reviews, highlights, saved, mode] = await Promise.all([helperReviews(p.id), helperHighlights(p.id), me ? false : isSaved(viewer.profile.id, p.id), getMode()]);
+
+  const stat = (value: React.ReactNode, label: string) => (
+    <div className="flex flex-col items-center gap-0.5 px-2 text-center">
+      <span className="text-[18px] font-bold tabular-nums">{value}</span>
+      <span className="text-[12px] text-ink-2">{label}</span>
+    </div>
+  );
+
+  return (
+    <>
+      <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("helperProfile.title")} />
+      {me && <p className="rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">{t("helperProfile.yours")}</p>}
+
+      <section className="flex flex-col items-center gap-3 rounded-card bg-bg p-5 text-center shadow-card">
+        <Avatar name={p.name} size={76} />
+        <div className="flex flex-col items-center gap-1.5">
+          <h1 className="text-[22px] font-bold tracking-tight">{p.name}</h1>
+          <span className="flex flex-wrap justify-center gap-1.5">
+            {p.kycLevel >= 3 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">
+                <BadgeCheck aria-hidden size={14} /> {t("kyc.badgeVerified")}
+              </span>
+            )}
+            {p.kycLevel >= 4 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">
+                <ShieldCheck aria-hidden size={14} /> {t("kyc.badgeRecord")}
+              </span>
+            )}
+          </span>
+          {p.area && (
+            <span className="flex items-center gap-1 text-[13px] text-ink-2">
+              <MapPin aria-hidden size={14} /> {p.area}
+            </span>
+          )}
+        </div>
+        <div className="grid w-full grid-cols-3 divide-x divide-line border-t border-line pt-3">
+          {stat(
+            p.rating !== null ? (
+              <span className="inline-flex items-center gap-1">
+                <Star aria-hidden size={16} className="fill-brand text-brand" />
+                {p.rating.toFixed(1)}
+              </span>
+            ) : (
+              "—"
+            ),
+            t("helperProfile.reviewsN", { n: p.ratingCount }),
+          )}
+          {stat(p.completed, t("helperProfile.jobsDone"))}
+          {stat(<span className="text-[15px]">{monthYear(p.memberSince, locale)}</span>, t("helperProfile.memberSince"))}
+        </div>
+      </section>
+
+      {highlights.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
+          <h2 className="text-[13px] font-semibold text-ink-2">{t("helperProfile.highlights")}</h2>
+          <div className="flex flex-wrap gap-2">
+            {highlights.map((h) => (
+              <span key={h.tag} className="rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
+                {t(`rating.tags.${h.tag as "onTime"}`)} · {h.n}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {p.categories.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
+          <h2 className="text-[13px] font-semibold text-ink-2">{t("helperProfile.does")}</h2>
+          <div className="flex flex-wrap gap-2">
+            {p.categories.map((c) => (
+              <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[13px] font-medium">
+                <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-[17px] font-bold">{t("helperProfile.reviewsTitle", { n: p.ratingCount })}</h2>
+        {reviews.length === 0 ? (
+          <p className="rounded-card bg-bg p-4 text-[14px] text-ink-2 shadow-card">{t("helperProfile.noReviews")}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {reviews.map((r, i) => (
+              <li key={i} className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-0.5" aria-label={t("helperProfile.stars", { n: r.stars })}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} aria-hidden size={15} className={s <= r.stars ? "fill-brand text-brand" : "text-line"} />
+                    ))}
+                  </span>
+                  <span className="text-[12px] text-ink-2">
+                    {r.category ? `${t(`categoryShort.${r.category}`)} · ` : ""}
+                    {fmtDateTime(r.at, locale).split(" ")[0]}
+                  </span>
+                </span>
+                {r.tags.length > 0 && (
+                  <span className="flex flex-wrap gap-1.5">
+                    {r.tags.map((tag) => (
+                      <span key={tag} className="rounded-full bg-fill px-2 py-0.5 text-[12px] font-medium text-ink-2">
+                        {t(`rating.tags.${tag as "onTime"}`)}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                {r.note && <p className="text-[15px] leading-relaxed">{r.note}</p>}
+                <span className="text-[12px] font-medium text-ink-2">{r.reviewer}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {!me && (
+        <PrimaryBar>
+          <SaveButton helperId={p.id} saved={saved} t={t} />
+        </PrimaryBar>
+      )}
+    </>
+  );
+}

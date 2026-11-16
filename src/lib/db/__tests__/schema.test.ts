@@ -509,6 +509,22 @@ describe("call signal privacy", () => {
   });
 });
 
+describe("saved helpers (♡)", () => {
+  it("each customer reads only their own list; clients can't write it; no saving yourself", async () => {
+    await as(db, "service_role", null, (tx) =>
+      tx.query(`insert into public.saved_helpers (customer_id, helper_id) values ($1, $2), ($3, $2)`, [U.c1, U.h1, U.c2]),
+    );
+    const mine = await as(db, "authenticated", U.c1, async (tx) => (await tx.query<{ helper_id: string }>(`select helper_id from public.saved_helpers`)).rows);
+    expect(mine).toEqual([{ helper_id: U.h1 }]); // c2's row stays invisible to c1
+    const write = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(`insert into public.saved_helpers (customer_id, helper_id) values ($1, $2)`, [U.c1, U.h2])));
+    expect(write.message).toMatch(/permission denied/);
+    const self = await sqlError(db.query(`insert into public.saved_helpers (customer_id, helper_id) values ($1, $1)`, [U.h1]));
+    expect(self.message).toMatch(/saved_helpers_not_self/);
+    const anon = await sqlError(as(db, "anon", null, (tx) => tx.query(`select * from public.saved_helpers`)));
+    expect(anon.message).toMatch(/permission denied/);
+  });
+});
+
 describe("helper verification data", () => {
   it("applications and bank accounts are server-only: not even the applicant can read them from a browser", async () => {
     await as(db, "service_role", null, async (tx) => {

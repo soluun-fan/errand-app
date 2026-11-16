@@ -229,6 +229,7 @@ Migrations, in order:
 14. `pricing`: `pricing_settings` (the live price list Ops edits).
 15. `pickup_pin`: `deals.pickup_lat/lng` (both or neither); `dispatch_candidates` and `nearby_open_deals` measure from the pickup when pinned.
 16. `private_task_pins`: the deals select policy is participants or admin only (no helper-feed / applicant clause).
+17. `saved_helpers`: customers' ♡ list (own-list RLS, writes server-only).
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Deals: customer, matched helper, seller/buyer, Ops — helpers can't read open tasks through the API (2026-11-16); feeds are server-rendered with the ~300 m fuzz.
@@ -500,6 +501,7 @@ The DB trigger `deals_guard` → `deal_status_allowed()` repeats the allowed sta
 | Route | File(s) | What |
 |---|---|---|
 | `/login` | `app/login/{page,login-form,actions}.tsx` | phone OTP (`login`, `signOut`); dev shows the code |
+| `/helpers`, `/helpers/[id]` | `(app)/helpers/…` | ♡ saved helpers; a helper's public profile (badges, ★, jobs, reviews masked) |
 | `/welcome` | `welcome/page.tsx` | public landing (logged-out `/` redirects here); acting opens the login sheet (`components/login-prompt.tsx`) → `/login?next=` |
 | `/` | `(app)/(tabs)/page.tsx` (+ `draft-chip.tsx`) | customer Home: map, search, active tasks, tiles. Helper mode → `/jobs` (proxy redirect) |
 | `/earnings` | `(tabs)/earnings/page.tsx` | helper earnings plus a finished-jobs list |

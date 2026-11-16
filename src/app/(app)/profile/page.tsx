@@ -1,3 +1,4 @@
+import { ChevronRight, Heart, UserRound } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 import { Card, FlowHeader, btn } from "@/components/ui";
@@ -67,6 +68,26 @@ export default async function ProfilePage() {
         {profile.role === "helper" &&
           row(t("profile.helperStatus"), actor.helperApproved ? t("profile.helperApproved") : t(`helper.${profile.helper_status === "pending" ? "inReview" : "needed"}`))}
       </Card>
+
+      {/* people: my saved helpers (customer) · my public profile (approved helper) */}
+      {(mode === "customer" || actor.helperApproved) && (
+      <nav className="flex flex-col rounded-card bg-bg shadow-card">
+        {mode === "customer" && (
+          <Link href="/helpers" className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
+            <Heart aria-hidden size={18} className="text-brand-ink" />
+            <span className="flex-1 font-semibold">{t("helperProfile.savedTitle")}</span>
+            <ChevronRight aria-hidden size={18} className="text-ink-2" />
+          </Link>
+        )}
+        {actor.helperApproved && (
+          <Link href={`/helpers/${profile.id}`} className="press flex min-h-14 items-center gap-3 px-4">
+            <UserRound aria-hidden size={18} className="text-brand-ink" />
+            <span className="flex-1 font-semibold">{t("helperProfile.title")}</span>
+            <ChevronRight aria-hidden size={18} className="text-ink-2" />
+          </Link>
+        )}
+      </nav>
+      )}
 
       {mode === "customer" && (
         <section className="flex flex-col gap-2">

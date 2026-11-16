@@ -388,6 +388,7 @@ export function DealView(p: DealViewProps) {
                 {t("rating.note")}
                 <textarea name="note" maxLength={500} rows={2} className={field} />
               </label>
+              <p className="text-[13px] text-ink-2">{t("helperProfile.reviewPublic")}</p>
             </ConfirmSheet>
           );
           secondary.push(againLink(btn.text));
@@ -458,6 +459,7 @@ export function DealView(p: DealViewProps) {
       {deal.helperId && (
         <OfferCard
           person={person(people.get(deal.helperId), helperName)}
+          href={`/helpers/${deal.helperId}`}
           t={t}
           action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
         />
@@ -481,6 +483,7 @@ export function DealView(p: DealViewProps) {
               <OfferCard
                 key={o.helperId}
                 person={pp}
+                href={`/helpers/${o.helperId}`}
                 badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
                 note={[o.price !== null ? t("price.asks", { amount: fmtMoney(o.price) }) : null, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note]
                   .filter(Boolean)
