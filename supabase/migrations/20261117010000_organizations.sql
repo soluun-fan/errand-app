@@ -449,7 +449,9 @@ grant execute on function private.helper_can_take(uuid, public.category, timesta
 create function public.qualified_helper_ids(p_category public.category)
 returns table (helper_id uuid)
 language sql stable set search_path = '' as $$
-  select p.id from public.profiles p where private.helper_can_take(p.id, p_category);
+  -- approved helpers only, so the qualification check runs over helpers, not every customer
+  select p.id from public.profiles p
+  where p.role = 'helper' and p.helper_status = 'approved' and private.helper_can_take(p.id, p_category);
 $$;
 revoke all on function public.qualified_helper_ids(public.category) from public, anon, authenticated;
 grant execute on function public.qualified_helper_ids(public.category) to service_role;

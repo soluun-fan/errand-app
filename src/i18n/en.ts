@@ -82,6 +82,7 @@ export const en = {
     sent: "Registration sent. You can track its review below.",
     via: "Through {name}",
     payee: "Paid to {name}",
+    payeeItems: "{name} · materials (by receipt)",
     balance: "Released to organisation",
     cancelledFee: "Cancelled · {fee} paid to {name}, the rest was refunded",
     workerPay: "This job is paid to your organisation. Arrange your wages with it."

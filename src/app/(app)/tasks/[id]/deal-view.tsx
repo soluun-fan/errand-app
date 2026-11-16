@@ -211,10 +211,11 @@ export function DealView(p: DealViewProps) {
       { label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
     ];
     if (deal.itemBudget > 0) {
-      rows.push({ label: t("money.toHelperItems"), amount: split.spent });
+      rows.push({ label: deal.payeeOrgId ? t("org.payeeItems", { name: payeeName }) : t("money.toHelperItems"), amount: split.spent });
       rows.push({ label: t("money.backToYou"), amount: split.refund });
     }
-    rows.push({ label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
+    // the platform's fee is never the organisation's money, whoever did the job
+    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
     money = <MoneyBreakdown rows={rows} total={{ label: t("money.totalHeld"), amount: split.held }} />;
   } else if (!["refunded", "cancelled", "expired"].includes(deal.status)) {
     const rows: MoneyRow[] = [{ label: t("money.helperFee"), amount: deal.fee }];

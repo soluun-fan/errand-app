@@ -19,6 +19,7 @@ import {
   createGoods,
   ext,
   generateDealCode,
+  categoryTrust,
   invitedOnly,
   runDue,
   type Actor,
@@ -44,7 +45,7 @@ function rng(seed: number) {
   };
 }
 
-const CATS: CategoryId[] = ["shop", "carry", "queue", "deliver", "repair", "other"];
+const CATS: CategoryId[] = ["shop", "carry", "queue", "deliver", "repair", "other", "plumbing", "cleaning", "childcare"];
 
 function simulate(seed: number, steps: number) {
   const r = rng(seed);
@@ -58,6 +59,9 @@ function simulate(seed: number, steps: number) {
     helper("h1"),
     helper("h2", { categories: ["shop", "deliver", "queue"] }),
     helper("h3", { helperApproved: false }),
+    // specialized work: an agency worker (paid to the agency) and a certified plumber (paid to himself)
+    helper("h4", { qualified: [{ category: "plumbing", orgId: "org1" }, { category: "childcare", orgId: "org1" }, { category: "cleaning", orgId: "org1" }] }),
+    helper("h5", { qualified: [{ category: "plumbing", orgId: null }] }),
     admin(),
     provider,
     { kind: "system" },
@@ -105,7 +109,7 @@ function simulate(seed: number, steps: number) {
               fee: r() < 0.5 ? range.min + int(0, (range.max - range.min) / 500) * 500 : range.min + int(0, 60) * 500,
               customerId: c.id,
               // some go straight to one helper first (direct requests)
-              invite: r() < 0.25 ? { helperId: pick(["h1", "h2", "h3"]), openAfter: r() < 0.5 } : null,
+              invite: r() < 0.25 ? { helperId: pick(["h1", "h2", "h3", "h4", "h5"]), openAfter: r() < 0.5 } : null,
             },
             { now, actor: c },
           ),
@@ -140,7 +144,8 @@ function simulate(seed: number, steps: number) {
       { type: "claim" },
       { type: "accept" },
       { type: "apply", note: "" },
-      { type: "choose", helperId: pick(["h1", "h2", "h3"]) },
+      // usually someone who actually applied, so matches (and organisation payouts) happen
+      { type: "choose", helperId: deal.type === "errand" && deal.offers.length && r() < 0.8 ? pick(deal.offers).helperId : pick(["h1", "h2", "h3", "h4", "h5"]) },
       { type: "cancel" },
       { type: "expire" },
       { type: "start" },
@@ -154,7 +159,7 @@ function simulate(seed: number, steps: number) {
       { type: "auto_release" },
       // bargaining and price changes
       { type: "apply", note: "", price: int(10, 60) * 500 },
-      { type: "counter", helperId: pick(["h1", "h2", "h3"]), price: int(10, 60) * 500 },
+      { type: "counter", helperId: pick(["h1", "h2", "h3", "h4", "h5"]), price: int(10, 60) * 500 },
       { type: "reprice", price: int(10, 60) * 500 },
       { type: "accept_counter" },
       { type: "set_price", price: int(10, 60) * 500 },
@@ -181,13 +186,15 @@ function simulate(seed: number, steps: number) {
           : pick(cmds);
     // 70% of the time pick the actor who could legitimately send this command, so long
     // happy paths actually complete; otherwise a random actor to exercise rejections.
+    const specialized = deal.type === "errand" && categoryTrust(deal.category) !== "open";
     const payer = deal.type === "errand" ? deal.customerId : deal.buyerId;
     const worker = deal.type === "errand" ? deal.helperId : deal.sellerId;
     const plausible: Partial<Record<Command["type"], Actor | undefined>> = {
       confirm_payment: provider,
       claim: pick(users.slice(0, 3)),
-      accept: pick(users.slice(3, 6)),
-      apply: pick(users.slice(3, 6)),
+      // specialized tasks: usually the qualified workers (h4 agency, h5 certified), so their paths run
+      accept: specialized ? pick(users.slice(6, 8)) : pick(users.slice(3, 8)),
+      apply: specialized ? pick(users.slice(6, 8)) : pick(users.slice(3, 8)),
       choose: byId(payer),
       cancel: byId(r() < 0.5 ? payer : worker),
       expire: { kind: "system" },
@@ -201,10 +208,10 @@ function simulate(seed: number, steps: number) {
       resolve: admin(),
       auto_release: { kind: "system" },
       counter: byId(payer),
-      reprice: pick(users.slice(3, 6)),
-      accept_counter: pick(users.slice(3, 6)),
+      reprice: pick(users.slice(3, 8)),
+      accept_counter: pick(users.slice(3, 8)),
       set_price: byId(payer),
-      withdraw_offer: pick(users.slice(3, 6)),
+      withdraw_offer: pick(users.slice(3, 8)),
       propose_price: byId(r() < 0.5 ? payer : worker),
       answer_price: byId(pc ? (pc.by === "customer" ? worker : payer) : payer), // the other side answers
       withdraw_price: byId(r() < 0.5 ? payer : worker),
@@ -269,6 +276,11 @@ describe("random simulation", () => {
           expect(payerNet + cancelFee).toBe(0);
         }
         if (d.status === "released") expect(payerNet).toBeLessThan(0);
+        // an organisation's job pays the organisation, never the worker personally
+        if (d.type === "errand" && d.payeeOrgId && d.helperId) {
+          expect(mine.some((e) => e.to === `payable:${d.helperId}`), `deal ${d.id} paid the worker`).toBe(false);
+          payeeSeen++;
+        }
       }
       for (const d of deals) reached.add(d.status);
     });
@@ -277,8 +289,10 @@ describe("random simulation", () => {
   // Guards against the walk becoming too random to be meaningful.
   const reached = new Set<string>();
   let invitesSeen = 0;
+  let payeeSeen = 0;
   it("across all seeds, exercises bargaining and direct requests", () => {
-    expect(invitesSeen).toBeGreaterThan(0); // steps taken while a direct request stood were checked
+    expect(invitesSeen).toBeGreaterThan(0);
+    expect(payeeSeen).toBeGreaterThan(0); // organisation jobs really happened // steps taken while a direct request stood were checked
     // (price changes after matching get their own walk in price-change-fuzz.test.ts)
     for (const code of ["offer_priced", "price_changed", "invite_sent", "invite_declined", "invite_opened"]) {
       expect(seenEvents, code).toContain(code);
