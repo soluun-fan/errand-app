@@ -32,3 +32,24 @@ export function tagCounts(lists: readonly (readonly string[])[], allowed: readon
 
 /** Most saved helpers one customer may keep (keeps the list useful and the table small). */
 export const MAX_SAVED_HELPERS = 100;
+
+/** A helper's own introduction on their profile (docs/decisions.md 2026-11-16 "Direct requests"). */
+export const BIO_MAX = 500;
+
+/**
+ * The intro as stored and shown: whitespace tidied, ≤ BIO_MAX, phones / links / handles masked
+ * (contact goes through the app). Empty → null.
+ */
+export function cleanBio(raw: string | null | undefined): { bio: string | null; masked: boolean } {
+  const t = (raw ?? "").replace(/\r\n?/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (!t) return { bio: null, masked: false };
+  const { text, masked } = maskContacts(t.slice(0, BIO_MAX));
+  return { bio: text, masked };
+}
+
+/** Middle value (lower middle for an even count), or null for fewer than `min` values. Prices stay whole tögrög. */
+export function median(values: readonly number[], min = 1): number | null {
+  if (values.length < min || values.length === 0) return null;
+  const s = [...values].sort((a, b) => a - b);
+  return s[Math.floor((s.length - 1) / 2)];
+}

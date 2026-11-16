@@ -8,7 +8,7 @@ import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
-import { CATEGORIES, TERMINAL_STATUSES, errandSplit, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz, helperStart } from "@/lib/maps";
@@ -30,7 +30,7 @@ const earn = (d: ErrandDeal) =>
  * One open request (PleaseHelp-style card): tags, title, where and when, then a line and the
  * helper's fee big and orange — scannable in a list.
  */
-function JobRow({ item, t, locale = "mn", mine }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[] }) {
+function JobRow({ item, t, now = 0, locale = "mn", mine }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[] }) {
   const d = item.deal;
   const outside = mine !== undefined && !mine.includes(d.category);
   const full = d.offers.length >= d.maxApplicants;
@@ -43,7 +43,11 @@ function JobRow({ item, t, locale = "mn", mine }: { item: JobListItem; t: T; now
           <CategoryIcon id={d.category} size={13} />
           {t(`categoryShort.${d.category}`)}
         </span>
-        {d.status === "open" && <span className={`${tag} ${full ? "bg-fill text-ink-2" : "bg-brand-bg text-brand-ink"}`}>{full ? t("job.full") : t("job.available")}</span>}
+        {d.status === "open" && d.invite && invitedOnly(d, now) !== null ? (
+          <span className={`${tag} bg-brand text-white`}>{t("invite.badge")}</span>
+        ) : (
+          d.status === "open" && <span className={`${tag} ${full ? "bg-fill text-ink-2" : "bg-brand-bg text-brand-ink"}`}>{full ? t("job.full") : t("job.available")}</span>
+        )}
         {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
@@ -177,7 +181,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.myRequests")}</h2>
             {applied.map((a) => (
-              <JobRow key={a.deal.id} item={a} t={t} locale={locale} />
+              <JobRow key={a.deal.id} item={a} t={t} now={now} locale={locale} />
             ))}
           </section>
         )}

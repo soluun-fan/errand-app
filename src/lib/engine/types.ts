@@ -130,6 +130,11 @@ interface DealBase {
   heldAmount: number;
   /** Provider reference of the pay-in; used to make the webhook idempotent. */
   paymentRef: string | null;
+  /**
+   * Every provider reference booked on this deal (pay-in, top-up, each price change). A webhook
+   * replayed with any of them is a no-op, even after later payments replaced the latest ref.
+   */
+  providerRefs: string[];
   /** Check window length, snapshotted at creation. */
   checkHours: number;
   checkUntil: number | null;
@@ -174,7 +179,20 @@ export interface ErrandDeal extends DealBase {
   topUp: TopUp | null;
   /** A price change after matching (proposed by either side, accepted by the other). */
   priceChange: PriceChange | null;
+  /** Sent straight to one helper from their profile (docs/decisions.md 2026-11-16 "Direct requests"). */
+  invite: Invite | null;
   handoverProofAt: number | null;
+}
+
+/**
+ * A direct request: only `helperId` may apply while it stands. It stands until `until` when
+ * `openAfter` (then every helper may apply), or for the task's whole life when not (declining
+ * then ends the task). Nothing is held while a task is open, so ending it moves no money.
+ */
+export interface Invite {
+  helperId: string;
+  until: number;
+  openAfter: boolean;
 }
 
 export interface GoodsDeal extends DealBase {
@@ -252,6 +270,8 @@ export type Command =
   | { type: "answer_price"; accept: boolean } // the other side accepts or declines it
   | { type: "withdraw_price" } // drop a proposal (or an accepted increase not paid yet)
   | { type: "confirm_price"; providerRef: string; amount: number } // provider webhook: the extra was paid
+  | { type: "decline_invite" } // the invited helper says no (opens the task, or ends it)
+  | { type: "open_to_all" } // customer: stop waiting for the invited helper, let everyone apply
   | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
   | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
   | { type: "cancel" }

@@ -4,7 +4,7 @@ import { loadDeal, runCommand } from "@/lib/db/deals";
 import { dealFromRow, type DealRow } from "@/lib/db/mapping";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { helperStart } from "@/lib/maps";
-import { dueCommand, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
+import { dueCommand, invitedOnly, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM = { kind: "system" } as const;
@@ -267,7 +267,9 @@ export async function getJobForHelper(id: string, viewer: Viewer): Promise<Erran
   const settled = (await settle(deal)) as ErrandDeal;
   if (canView(settled, viewer)) return settled;
   // Open tasks are on the public board ("Бүх ажил"); accepting still needs an approved helper in that category.
-  return settled.status === "open" && settled.customerId !== viewer.profile.id ? settled : null;
+  // A task sent to one helper first is only theirs to see while that stands.
+  const only = invitedOnly(settled, Date.now());
+  return settled.status === "open" && settled.customerId !== viewer.profile.id && (only === null || only === viewer.profile.id) ? settled : null;
 }
 
 export type BoardSort = "near" | "new" | "pay";
@@ -291,8 +293,12 @@ export async function browseOpenDeals(
   if (opts.category) q = q.eq("category", opts.category);
   const { data, error } = await q.returns<DealRow[]>();
   if (error) throw new Error(error.message);
-  const items = (data ?? []).map((r) => {
+  const now = Date.now();
+  const items = (data ?? []).flatMap((r) => {
     const deal = dealFromRow(r) as ErrandDeal;
+    const only = invitedOnly(deal, now);
+    return only === null || only === viewerId ? [deal] : []; // sent to another helper first
+  }).map((deal) => {
     const start = helperStart(deal);
     return { deal, distanceKm: opts.from && start ? distanceKm(opts.from, start) : null };
   });

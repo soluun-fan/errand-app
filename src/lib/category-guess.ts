@@ -3,26 +3,32 @@ import type { CategoryId } from "@/lib/engine";
 /**
  * Guess the kind of task from what someone typed in search ("буйдан зөөх" → carry), so posting
  * can skip the "what kind?" step (PleaseHelp-style "related task"). Pure and tested; when unsure
- * it returns null and the person picks. Word stems, Mongolian first, a few English.
+ * it returns null and the person picks. The words live in the `category_keywords` table (Ops
+ * edits them at /ops/content); `loadKeywords()` in content.ts reads them.
+ *
+ * A word matches the start of a typed word ("зөө" → "зөөх"); words of 1–2 letters must match a
+ * whole word ("эм" is medicine, not "эмээ"); words with a space match as a phrase.
  */
-const WORDS: Record<Exclude<CategoryId, "other">, readonly string[]> = {
-  carry: ["зөө", "нүү", "буйдан", "диван", "хөргөгч", "тавилга", "шүүгээ", "ор ", "угаалгын машин", "ачаа", "өргө", "move", "sofa", "fridge", "furniture", "carry"],
-  queue: ["дараалал", "зогсо", "бүртгүүл", "паспорт", "үнэмлэх", "дугаар ав", "queue", "line up"],
-  repair: ["засах", "засвар", "цорго", "гэрэл", "чийдэн", "угсар", "суурилуул", "залгах", "өлгө", "fix", "repair", "assemble", "install", "tap", "light"],
-  deliver: ["хүргэ", "илгээмж", "бичиг баримт", "баримт бичиг", "аваад", "авчирч өг", "шуудан", "deliver", "parcel", "document"],
-  shop: ["дэлгүүр", "хүнс", "сүү", "талх", "супермаркет", "номин", "emart", "имарт", "худалдаж", "авчр", "эм ", "эмийн сан", "grocer", "shop", "buy", "pharmacy"],
-};
+export type Keywords = Partial<Record<CategoryId, readonly string[]>>;
 
 /** Order matters on ties: the more specific kinds first (a "deliver documents" isn't shopping). */
-const ORDER = ["carry", "queue", "repair", "deliver", "shop"] as const;
+const ORDER: readonly CategoryId[] = ["carry", "queue", "repair", "deliver", "shop"];
 
-export function guessCategory(text: string | null | undefined): CategoryId | null {
-  const s = ` ${(text ?? "").toLowerCase().replace(/\s+/g, " ").trim()} `;
-  if (s.trim().length < 3) return null;
+export function guessCategory(text: string | null | undefined, keywords: Keywords): CategoryId | null {
+  const s = (text ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (s.length < 3) return null;
+  const words = s.split(" ");
+  const padded = ` ${s} `;
+  const hit = (k: string) => {
+    const w = k.toLowerCase().trim();
+    if (!w) return false;
+    if (w.includes(" ")) return padded.includes(` ${w}`);
+    return w.length <= 2 ? words.includes(w) : words.some((x) => x.startsWith(w));
+  };
   let best: CategoryId | null = null;
   let bestHits = 0;
   for (const cat of ORDER) {
-    const hits = WORDS[cat].filter((w) => s.includes(w)).length;
+    const hits = (keywords[cat] ?? []).filter(hit).length;
     if (hits > bestHits) {
       best = cat;
       bestHits = hits;

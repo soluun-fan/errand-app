@@ -1,12 +1,16 @@
-import { MapPin, Star } from "lucide-react";
+import { MapPin, Send, Star } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
-import { Avatar, FlowHeader, PrimaryBar } from "@/components/ui";
+import { Avatar, FlowHeader, PrimaryBar, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { helperHighlights, helperProfile, helperReviews, isSaved } from "@/lib/helper-profile";
+import { fmtMoney } from "@/lib/format";
+import { helperHighlights, helperProfile, helperReviews, invitableHelper, isSaved, typicalPrice } from "@/lib/helper-profile";
 import { Uuid, parseOr } from "@/lib/input";
 import { getMode } from "@/lib/mode";
+import { getPricing } from "@/lib/pricing";
+import { ListingEditor } from "../listing-editor";
 import { SaveButton } from "../save-button";
 
 /** Ulaanbaatar calendar date as "2026.11" (month) or "2026.11.16" (day) — short, same in both languages. */
@@ -28,7 +32,15 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
   const [t, p] = await Promise.all([getT(), helperProfile(id)]);
   if (!p) notFound();
   const me = viewer.profile.id === p.id;
-  const [reviews, highlights, saved, mode] = await Promise.all([helperReviews(p.id), helperHighlights(p.id), me ? false : isSaved(viewer.profile.id, p.id), getMode()]);
+  const [reviews, highlights, saved, mode, typical, invitable, pricing] = await Promise.all([
+    helperReviews(p.id),
+    helperHighlights(p.id),
+    me ? false : isSaved(viewer.profile.id, p.id),
+    getMode(),
+    typicalPrice(p.id),
+    me ? null : invitableHelper(p.id),
+    me ? getPricing() : null,
+  ]);
 
   const stat = (value: React.ReactNode, label: string) => (
     <div className="flex flex-col items-center gap-0.5 px-2 text-center">
@@ -76,6 +88,35 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
           {stat(ubDate(p.memberSince), t("helperProfile.memberSince"))}
         </div>
       </section>
+
+      {/* the helper's own words and price, then what their finished jobs actually paid */}
+      {(p.bio || p.fromPrice || typical || me) && (
+        <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
+          <h2 className="text-[13px] font-semibold text-ink-2">{t("listing.about")}</h2>
+          {p.bio ? (
+            <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.bio}</p>
+          ) : (
+            me && <p className="text-[14px] text-ink-2">{t("listing.emptyMine")}</p>
+          )}
+          {(p.fromPrice || typical) && (
+            <dl className="grid grid-cols-2 gap-2 border-t border-line pt-3">
+              {p.fromPrice && (
+                <div className="flex flex-col">
+                  <dt className="text-[12px] text-ink-2">{t("listing.fromPriceShown")}</dt>
+                  <dd className="text-[18px] font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(p.fromPrice) })}</dd>
+                </div>
+              )}
+              {typical && (
+                <div className="flex flex-col">
+                  <dt className="text-[12px] text-ink-2">{t("listing.typical", { n: typical.jobs })}</dt>
+                  <dd className="text-[18px] font-bold tabular-nums">{fmtMoney(typical.median)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+          {me && pricing && <ListingEditor bio={p.bio} fromPrice={p.fromPrice} minPrice={pricing.baseFee} />}
+        </section>
+      )}
 
       {highlights.length > 0 && (
         <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
@@ -141,7 +182,13 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
 
       {!me && (
         <PrimaryBar>
-          <SaveButton helperId={p.id} saved={saved} t={t} />
+          {/* a direct request: the post form, sent to this helper first */}
+          {invitable && invitable.categories.length > 0 && (
+            <Link href={`/post?helper=${p.id}`} className={`${btn.primary} w-full`}>
+              <Send aria-hidden size={18} /> {t("invite.send")}
+            </Link>
+          )}
+          <SaveButton helperId={p.id} saved={saved} t={t} quiet={Boolean(invitable)} />
         </PrimaryBar>
       )}
     </>

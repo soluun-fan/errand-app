@@ -12,6 +12,15 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-16 — Direct requests + helper listings** (owner approved step 4: "less hardcode and more usage of backend and database"):
+  - **Helper listing:** `profiles.bio` (≤ 500, phones/links/handles masked on save) and optional `profiles.from_price` (≥ today's base fee). Shown on the helper card and profile, next to **"typical price"** = the median fee of their last 30 released jobs (only with ≥ 3 jobs; computed from deals, not typed).
+  - **Direct request:** "Хүсэлт илгээх" on a helper's profile opens the post flow at `/post?helper=<id>` (kinds limited to what they do; "Choose for me" off). The engine enforces it (`deal.invite`, `invitedOnly`): only that helper may apply while it stands. Customer chooses at posting:
+    - *open to others if they can't* (default): exclusive for 15 min (Instant) / 3 h (booked later), never past the match deadline; then the normal waves start.
+    - *only this helper*: exclusive for the task's whole life; if they decline, the task ends (`expired`; nothing is held while open).
+    - Helper: "Боломжгүй" (`decline_invite`, no penalty). Customer: "Бүх туслагчдад нээх" (`open_to_all`).
+  - **Safety nets:** the DB refuses an invite to anyone but an approved helper doing that kind of task (`private.check_invite`) or to yourself; `nearby_open_deals`, the "Бүх ажил" board, the public board and the job page hide the task from other helpers while it stands. Only the invited helper is pushed, once.
+  - **From the database, not the code:** popular chips and the seasonal row are `quick_starts` (titles mn/en, months 1–12, order, on/off); "popular" is ranked by how often each title was posted in the last 30 days. The search words that guess the kind of task are `category_keywords` (prefix match; ≤ 2 letters = whole word; with a space = phrase). Ops edits both at **/ops/content** (logged). `popular.ts` and the `home.pop/sea/season` strings are gone.
+  - Still in code on purpose: the six categories (engine rules depend on them), dispatch waves, invite windows (`EngineConfig`). Candidates for Ops settings later.
 - **2026-11-16 — web (desktop) version + browsing both ways** (owner: "basically pleasehelp's homepage… more posts like Unegui so customers and helpers find each other by browsing"):
   - md+: `WebNav` top bar (logo · Хүсэлтүүд · Туслагчид · (helper: Ажил, Орлого) · Тусламж · "Хүсэлт бичих" · avatar); app column `max-w-2xl`; browse pages full width via `<Wide>` (69rem, aligned with the bar). Phones unchanged (bottom button / tabs hidden on md+).
   - Home = PleaseHelp-style: hero (greeting, big question, search, quick-start chips) + live tasks and recent requests beside it; 6 categories; seasonal row; open-requests grid; helper cards; recent reviews (≥4★ with a note, reviewer masked); money + past tasks.

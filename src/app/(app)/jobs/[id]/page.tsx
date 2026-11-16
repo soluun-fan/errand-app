@@ -14,7 +14,7 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { errandSplit } from "@/lib/engine";
+import { errandSplit, invitedOnly } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
@@ -100,6 +100,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   let line: React.ReactNode = null;
 
   const canTake = viewer.actor.helperApproved && (viewer.actor.categories ?? []).includes(deal.category);
+  // Sent straight to this helper from their profile (docs/decisions.md 2026-11-16 "Direct requests")
+  const invitedMe = deal.status === "open" && invitedOnly(deal, now) === me;
+  const declineSheet = invitedMe && deal.invite && (
+    <ConfirmSheet
+      key="decline"
+      action={jobAction}
+      fields={{ ...fields, intent: "decline_invite" }}
+      trigger={t("invite.decline")}
+      triggerClass={btn.text}
+      title={t("invite.declineTitle")}
+      body={deal.invite.openAfter ? t("invite.declineOpenBody") : t("invite.declineEndBody")}
+      confirmLabel={t("invite.declineConfirm")}
+    />
+  );
   if (deal.status === "open" && !myOffer && !canTake) {
     line = viewer.actor.helperApproved
       ? t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
@@ -121,7 +135,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       </InlineAction>
     );
     secondary.push(priceSheet("quote", deal.postedFee));
-    secondary.push(<InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
+    secondary.push(declineSheet || <InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
   } else if (deal.status === "open" && myOffer) {
     if (myOffer.proposedBy === "customer" && myOffer.price !== null) {
       // the customer answered with their price: take it (→ matched) or answer with another
@@ -139,7 +153,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     }
     secondary.push(priceSheet("reprice", myOffer.price ?? deal.postedFee));
     secondary.push(
-      <InlineAction key="unapply" action={jobAction} fields={{ ...fields, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />,
+      declineSheet || <InlineAction key="unapply" action={jobAction} fields={{ ...fields, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />,
     );
   } else if (mine && deal.status === "awaiting_payment") {
     line = deal.payBy ? <Countdown until={deal.payBy} serverNow={now} template={t("job.waitingPay")} /> : null;
@@ -234,6 +248,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         title={deal.title}
         overlap={markers.length > 0}
       >
+        {invitedMe && deal.invite && (
+          <Note tone="info">
+            {t("invite.toYou", { name: customer?.name ?? t("deal.customer") })}{" "}
+            {deal.invite.openAfter ? <Countdown until={deal.invite.until} serverNow={now} template={t("invite.toYouUntil")} /> : t("invite.toYouOnly")}
+          </Note>
+        )}
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </DetailTitle>

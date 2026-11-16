@@ -1,6 +1,7 @@
 import { Heart, MapPin, Star } from "lucide-react";
 import Link from "next/link";
 import type { T } from "@/i18n";
+import { fmtMoney } from "@/lib/format";
 import type { HelperProfile } from "@/lib/helper-profile";
 import { CategoryIcon } from "./category-icon";
 import { Avatar } from "./ui";
@@ -28,7 +29,11 @@ export function HelperCard({ h, t, saved = false }: { h: HelperProfile; t: T; sa
         </span>
         {saved && <Heart aria-label={t("helperProfile.saved")} size={18} className="flex-none fill-current text-brand-ink" />}
       </span>
+      {h.bio && <span className="line-clamp-2 text-[13px] leading-snug text-ink-2">{h.bio}</span>}
       <span className="flex flex-wrap gap-1.5">
+        {h.fromPrice && (
+          <span className="rounded-[8px] bg-brand-bg px-2 py-1 text-[12px] font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(h.fromPrice) })}</span>
+        )}
         {h.kycLevel >= 3 && <span className="rounded-[8px] bg-held-bg px-2 py-1 text-[12px] font-semibold text-held">{t("kyc.badgeVerified")}</span>}
         {h.kycLevel >= 4 && <span className="rounded-[8px] bg-held-bg px-2 py-1 text-[12px] font-semibold text-held">{t("kyc.badgeRecord")}</span>}
       </span>

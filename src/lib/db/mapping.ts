@@ -59,6 +59,9 @@ export interface DealRow {
   receipt_amount: number | null;
   top_up: TopUpRow | null;
   price_change?: PriceChangeRow | null;
+  invited_helper_id?: string | null;
+  invite_until?: string | null;
+  invite_open_after?: boolean | null;
   handover_proof_at: string | null;
   price: number | null;
   buyer_fee: number | null;
@@ -68,6 +71,7 @@ export interface DealRow {
   handed_over_at: string | null;
   held_amount: number;
   payment_ref: string | null;
+  provider_refs?: string[] | null;
   check_hours: number;
   check_until: string | null;
   created_at: string;
@@ -165,6 +169,10 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
     description: row.description,
     heldAmount: money(row.held_amount, "held_amount"),
     paymentRef: row.payment_ref,
+    // older rows (before the column) → rebuilt from the refs the row still has
+    providerRefs:
+      row.provider_refs ??
+      [row.payment_ref, row.top_up?.provider_ref ?? null, row.price_change?.provider_ref ?? null].filter((x): x is string => typeof x === "string"),
     checkHours: row.check_hours,
     checkUntil: toMs(row.check_until),
     dispute: dispute ? disputeFromRow(dispute) : null,
@@ -210,6 +218,10 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
       receiptAmount: moneyOrNull(row.receipt_amount, "receipt_amount"),
       topUp: topUpFromRow(row.top_up),
       priceChange: priceChangeFromRow(row.price_change),
+      invite:
+        row.invited_helper_id && row.invite_until
+          ? { helperId: row.invited_helper_id, until: req(toMs(row.invite_until), "invite_until"), openAfter: row.invite_open_after !== false }
+          : null,
       handoverProofAt: toMs(row.handover_proof_at),
     };
     return d;
@@ -255,6 +267,9 @@ export function dealToRow(d: Deal): DealRow {
     receipt_amount: null,
     top_up: null,
     price_change: null,
+    invited_helper_id: null,
+    invite_until: null,
+    invite_open_after: true,
     handover_proof_at: null,
     price: null,
     buyer_fee: null,
@@ -272,6 +287,7 @@ export function dealToRow(d: Deal): DealRow {
     description: d.description,
     held_amount: d.heldAmount,
     payment_ref: d.paymentRef,
+    provider_refs: d.providerRefs,
     check_hours: d.checkHours,
     check_until: toIso(d.checkUntil),
     created_at: toIso(d.createdAt) as string,
@@ -305,6 +321,9 @@ export function dealToRow(d: Deal): DealRow {
       receipt_amount: d.receiptAmount,
       top_up: topUpToRow(d.topUp),
       price_change: priceChangeToRow(d.priceChange),
+      invited_helper_id: d.invite?.helperId ?? null,
+      invite_until: toIso(d.invite?.until ?? null),
+      invite_open_after: d.invite?.openAfter ?? true,
       handover_proof_at: toIso(d.handoverProofAt),
     };
   }

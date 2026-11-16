@@ -65,6 +65,12 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return t("event.paid", { amount: money("amount") });
     case "helpers_notified":
       return t(data.mode === "now" ? "event.helpers_notified_now" : "event.helpers_notified_schedule");
+    case "invite_sent":
+      return t(data.open ? "event.invite_sent_open" : "event.invite_sent_only", { name: name(data.helperId) });
+    case "invite_declined":
+      return t(data.open ? "event.invite_declined_open" : "event.invite_declined_end", { name: name(data.helperId) });
+    case "invite_opened":
+      return t("event.invite_opened");
     case "applied":
       return data.price !== undefined
         ? t("event.applied_price", { name: name(data.helperId), amount: money("price") })

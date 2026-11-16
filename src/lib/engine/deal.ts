@@ -13,7 +13,7 @@ import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
-import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type PriceChange } from "./types";
+import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange } from "./types";
 import type {
   Account,
   Command,
@@ -49,6 +49,7 @@ class Tx<D extends Deal> {
 
   payIn(amount: number, payerId: string, providerRef: string): void {
     this.d.heldAmount += amount;
+    this.d.providerRefs = [...this.d.providerRefs, providerRef];
     this.ledger.push({ dealId: this.d.id, kind: "pay_in", amount, from: ext(payerId), to: "hold", providerRef, at: this.ctx.now });
   }
 
@@ -181,6 +182,8 @@ export interface NewErrandInput {
   fee: number;
   customerId: string;
   details?: Partial<ErrandDetails>;
+  /** Send it to one helper first (from their profile). The app checks they are approved and do this kind of task. */
+  invite?: { helperId: string; openAfter: boolean } | null;
 }
 
 /** Rough Mongolia bounding box: catches swapped lat/lng and junk pins. */
@@ -261,6 +264,16 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
 
   const matchWindowMinutes = input.mode === "now" ? cfg.nowMatchWindowMinutes : cfg.scheduleMatchWindowMinutes;
+  const matchBy = scheduledAt ?? ctx.now + matchWindowMinutes * MINUTE_MS;
+  let invite: Invite | null = null;
+  if (input.invite) {
+    const helperId = input.invite.helperId.trim();
+    if (!helperId) fail("INVALID_INPUT", "Invited helper is required");
+    if (helperId === input.customerId) fail("INVALID_INPUT", "You cannot send a request to yourself");
+    const openAfter = Boolean(input.invite.openAfter);
+    const minutes = scheduledAt === null ? cfg.inviteMinutes : cfg.inviteMinutesScheduled;
+    invite = { helperId, openAfter, until: openAfter ? Math.min(matchBy, ctx.now + minutes * MINUTE_MS) : matchBy };
+  }
   // Posting is free: the task goes straight to helpers; the customer pays once someone is matched.
   const deal: ErrandDeal = {
     id: input.id,
@@ -290,13 +303,15 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     customerId: input.customerId,
     helperId: null,
     offers: [],
-    matchBy: scheduledAt ?? ctx.now + matchWindowMinutes * MINUTE_MS,
+    matchBy,
     receiptAmount: null,
     topUp: null,
     priceChange: null,
+    invite,
     handoverProofAt: null,
     heldAmount: 0,
     paymentRef: null,
+    providerRefs: [],
     checkHours: cfg.errandCheckHours,
     checkUntil: null,
     dispute: null,
@@ -306,7 +321,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     deal,
     events: [
       { dealId: deal.id, code: "posted", data: { amountDue: amountDue(deal) }, at: ctx.now },
-      { dealId: deal.id, code: "helpers_notified", data: { mode: deal.mode }, at: ctx.now },
+      invite
+        ? { dealId: deal.id, code: "invite_sent", data: { helperId: invite.helperId, open: invite.openAfter ? 1 : 0 }, at: ctx.now }
+        : { dealId: deal.id, code: "helpers_notified", data: { mode: deal.mode }, at: ctx.now },
     ],
     ledger: [],
     effects: [],
@@ -348,6 +365,20 @@ export function autoPickAt(e: ErrandDeal, now: number): number | null {
   const live = liveOffers(e, now);
   if (!live.length) return null;
   return Math.min(...live.map((o) => o.at)) + DEFAULT_CONFIG.autoPickMinutes * MINUTE_MS;
+}
+
+/**
+ * Who alone may apply right now because of a direct request, or null when anyone may. A request
+ * that may open stops being exclusive at `invite.until`; one that may not stays exclusive.
+ */
+export function invitedOnly(e: ErrandDeal, now: number): string | null {
+  if (!e.invite) return null;
+  return !e.invite.openAfter || now < e.invite.until ? e.invite.helperId : null;
+}
+
+function requireInvited(e: ErrandDeal, helperId: string, now: number): void {
+  const only = invitedOnly(e, now);
+  if (only !== null && only !== helperId) fail("FORBIDDEN", "This task was sent to one helper first");
 }
 
 /** The match lapsed before payment (timeout or helper withdrew): back to searching. */
@@ -398,6 +429,7 @@ export function createGoods(input: NewGoodsInput, ctx: Ctx, cfg: EngineConfig = 
     handedOverAt: null,
     heldAmount: 0,
     paymentRef: null,
+    providerRefs: [],
     checkHours: input.checkHours,
     checkUntil: null,
     dispute: null,
@@ -435,6 +467,15 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
   // And for a replayed "price change paid" webhook.
   if (cmd.type === "confirm_price" && deal.type === "errand" && deal.priceChange?.providerRef === cmd.providerRef) {
     requireKind(ctx, "provider", "Price change confirmation");
+    return noop(deal);
+  }
+  // Any payment webhook whose reference this deal already booked (e.g. an earlier price change's
+  // extra payment replayed after a newer one was agreed) is a duplicate, never a second pay-in.
+  if (
+    (cmd.type === "confirm_payment" || cmd.type === "confirm_topup" || cmd.type === "confirm_price") &&
+    (deal.providerRefs ?? []).includes(cmd.providerRef)
+  ) {
+    requireKind(ctx, "provider", "Payment confirmation");
     return noop(deal);
   }
   // A buyer re-opening a deal they already claimed is also a no-op.
@@ -485,6 +526,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "accept", "open");
       if (e.mode !== "now") fail("ILLEGAL_TRANSITION", "Scheduled tasks take applications, not instant accepts");
+      requireInvited(e, u.id, ctx.now);
       assignHelper(tx, e, u.id, e.postedFee);
       tx.ev("accepted", { helperId: u.id });
       break;
@@ -494,6 +536,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const e = asErrand(d, "apply");
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "apply to", "open");
+      requireInvited(e, u.id, ctx.now);
       // Both kinds take applications and the customer chooses (docs/decisions.md 2026-11-13).
       e.offers = liveOffers(e, ctx.now); // lapsed Instant applications drop out (and may re-apply)
       if (e.offers.some((o) => o.helperId === u.id)) fail("INVALID_INPUT", "You already applied");
@@ -560,6 +603,35 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.postedFee = cmd.price;
       e.fee = cmd.price;
       tx.ev("price_changed", { from, to: cmd.price });
+      break;
+    }
+
+    case "decline_invite": {
+      const e = asErrand(d, "decline a request on");
+      const u = requireUser(ctx);
+      requireStatus(e, "decline a request on", "open");
+      if (!e.invite || e.invite.helperId !== u.id || invitedOnly(e, ctx.now) === null) fail("FORBIDDEN", "There is no request to you waiting on this task");
+      const inv = e.invite as Invite;
+      e.offers = e.offers.filter((o) => o.helperId !== u.id);
+      if (inv.openAfter) {
+        inv.until = ctx.now; // everyone may apply from now on
+        tx.ev("invite_declined", { helperId: u.id, open: 1 });
+      } else {
+        e.status = "expired"; // the customer wanted only this helper; nothing is held while open
+        tx.ev("invite_declined", { helperId: u.id, open: 0 });
+      }
+      break;
+    }
+
+    case "open_to_all": {
+      const e = asErrand(d, "open");
+      requirePayer(ctx, e);
+      requireStatus(e, "open", "open");
+      if (invitedOnly(e, ctx.now) === null) return noop(deal);
+      const inv = e.invite as Invite;
+      inv.openAfter = true;
+      inv.until = ctx.now;
+      tx.ev("invite_opened", { helperId: inv.helperId });
       break;
     }
 

@@ -119,6 +119,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
         else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
         else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
+        else if (intent === "open_to_all") cmd = { type: "open_to_all" };
         else if (intent === "counter" || intent === "set_price" || intent === "propose_price") {
           // bargaining (docs/decisions.md 2026-11-16): any price ≥ the minimum, ≤ what one task may hold
           const price = parsePrice(form.get("price"));
@@ -144,6 +145,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           await notifyChosen(r.deal, false);
           await runDispatch(dealId);
         }
+        if (cmd.type === "open_to_all") await runDispatch(dealId); // the first wave goes out now
         if ((cmd.type === "propose_price" || cmd.type === "answer_price") && r.deal.type === "errand" && r.deal.helperId) {
           await notifyPriceChange(r.deal, cmd, viewer.profile.name || "—", r.deal.helperId, `/jobs/${dealId}`);
         }

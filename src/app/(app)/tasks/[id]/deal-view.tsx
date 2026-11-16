@@ -10,7 +10,7 @@ import { StepTracker } from "@/components/step-tracker";
 import { Card, FlowHeader, HeldBadge, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { amountDue, autoPickAt, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
@@ -130,7 +130,13 @@ export function DealView(p: DealViewProps) {
       ) : null;
       break;
     case "open":
-      line = (
+      line = invitedOnly(deal, serverNow) !== null && deal.invite ? (
+        // a direct request: waiting on the one helper the customer picked
+        <>
+          {t("invite.waiting", { name: name(deal.invite.helperId) })}{" "}
+          {deal.invite.openAfter && <Countdown until={deal.invite.until} serverNow={serverNow} template={t("invite.opensIn")} />}
+        </>
+      ) : (
         <>
           {deal.mode === "now"
             ? deal.offers.length > 0
@@ -176,9 +182,19 @@ export function DealView(p: DealViewProps) {
         ? t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
         : t("deal.line.cancelled");
       break;
-    case "expired":
-      line = deal.paymentRef ? t("deal.line.expiredNoHelper", { amount: fmtMoney(amountDue(deal)) }) : t("deal.line.expiredUnpaid");
+    case "expired": {
+      // say why it ended: refunded (old paid-at-posting deals), the one invited helper said no,
+      // the match wasn't paid in time, or simply nobody took it
+      const declined = events.find((e) => e.code === "invite_declined");
+      line = deal.paymentRef
+        ? t("deal.line.expiredNoHelper", { amount: fmtMoney(amountDue(deal)) })
+        : declined
+          ? t("deal.line.expiredDeclined", { name: name(declined.data.helperId) })
+          : events.some((e) => e.code === "payment_expired")
+            ? t("deal.line.expiredUnpaid")
+            : t("deal.line.expiredNobody");
       break;
+    }
   }
   const duration = deal.details.minutes >= 60 ? t("price.hours", { n: deal.details.minutes / 60 }) : t("price.min", { n: deal.details.minutes });
   const when = deal.scheduledAt
@@ -244,6 +260,20 @@ export function DealView(p: DealViewProps) {
         );
         break;
       case "open":
+        if (invitedOnly(deal, serverNow) !== null) {
+          secondary.push(
+            <ConfirmSheet
+              key="open_to_all"
+              action={p.action}
+              fields={{ ...fields, intent: "open_to_all" }}
+              trigger={t("invite.openNow")}
+              triggerClass={btn.text}
+              title={t("invite.openNowTitle")}
+              body={t("invite.openNowBody")}
+              confirmLabel={t("invite.openNow")}
+            />,
+          );
+        }
         secondary.push(
           <ConfirmSheet
             key="cancel"

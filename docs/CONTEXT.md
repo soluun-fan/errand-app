@@ -231,6 +231,7 @@ Migrations, in order:
 16. `private_task_pins`: the deals select policy is participants or admin only (no helper-feed / applicant clause).
 17. `saved_helpers`: customers' ♡ list (own-list RLS, writes server-only).
 18. `bargaining`: `offers.proposed_by`, `deals.price_change`; `apply_transition` v4 (also writes `posted_fee`, `price_change`, offers' `proposed_by`).
+19. `listings_direct_requests`: `profiles.bio` / `from_price` (public read); `deals.invited_helper_id` / `invite_until` / `invite_open_after` + `private.check_invite` trigger; `deals.provider_refs` (every booked payment ref, replay-safe); `apply_transition` v5; `nearby_open_deals` hides others' direct requests; `quick_starts` and `category_keywords` (server-only, Ops edits at /ops/content).
 
 **RLS model:**
 - Clients (`authenticated`) only **read**, and only their own rows or rows they participate in. Deals: customer, matched helper, seller/buyer, Ops — helpers can't read open tasks through the API (2026-11-16); feeds are server-rendered with the ~300 m fuzz.

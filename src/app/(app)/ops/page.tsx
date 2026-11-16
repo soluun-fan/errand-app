@@ -61,6 +61,7 @@ export default async function OpsHome() {
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
+        {row("/ops/content", "✏️", t("opsContent.title"), null)}
       </nav>
       {/* SOS alerts arrive as push: Ops must switch it on for the phone they carry */}
       <section className="flex flex-col gap-2">

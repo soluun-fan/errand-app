@@ -902,3 +902,85 @@ describe("row level security", () => {
     expect(err.message).toMatch(/permission denied/);
   });
 });
+
+describe("listings and direct requests (20261116040000)", () => {
+  const feed = (uid: string) =>
+    as(db, "service_role", null, async (tx) =>
+      (await tx.query<{ deal_id: string }>(`select deal_id from public.nearby_open_deals($1)`, [uid])).rows.map((r) => r.deal_id),
+    );
+
+  it("a direct request round-trips; only the invited helper sees it in the feed until it opens", async () => {
+    await db.query(
+      `insert into public.helper_presence (user_id, online, lat, lng, radius_km, updated_at) values ($1, true, 47.9186, 106.9177, 10, now()), ($2, true, 47.9186, 106.9177, 10, now())
+       on conflict (user_id) do update set online = true, lat = excluded.lat, lng = excluded.lng, radius_km = 10, updated_at = now()`,
+      [U.h1, U.h2],
+    );
+    const now = Date.now();
+    const d = await postErrand({ category: "shop", location: { lat: 47.92, lng: 106.92 }, invite: { helperId: U.h2, openAfter: true } }, now);
+    expect(d.type === "errand" && d.invite).toMatchObject({ helperId: U.h2, openAfter: true });
+    expect(await feed(U.h2)).toContain(d.id);
+    expect(await feed(U.h1)).not.toContain(d.id);
+    // h2 says no → the request ends and the task opens to everyone (apply_transition writes invite_until)
+    const opened = await step(d, { type: "decline_invite" }, helper(U.h2, ["shop"]), now);
+    expect(opened.status).toBe("open");
+    expect(await feed(U.h1)).toContain(d.id);
+
+    const only = await postErrand({ category: "shop", invite: { helperId: U.h2, openAfter: false } }, now);
+    expect(await feed(U.h1)).not.toContain(only.id);
+    const ended = await step(only, { type: "decline_invite" }, helper(U.h2, ["shop"]), now);
+    expect(ended.status).toBe("expired");
+  });
+
+  it("the database refuses a request to someone who isn't an approved helper for that kind of task, or to yourself", async () => {
+    const t = (helperId: string, category: NewErrandInput["category"]) =>
+      createErrand(
+        { id: dealId(), title: "T", description: "D", category, mode: "now", address: "A", itemBudget: 0, fee: 9000, customerId: U.c1, invite: { helperId, openAfter: true } },
+        { now: T0, actor: customer(U.c1) },
+        TEST_CONFIG,
+      );
+    for (const bad of [t(U.c2, "shop"), t(U.h2, "repair")]) {
+      const err = await sqlError(as(db, "service_role", null, (tx) => rpc(tx, "insert_deal", insertDealArgs(bad))));
+      expect(err.message).toMatch(/invited helper must be an approved helper/);
+    }
+    const mine = await postErrand({ category: "shop" });
+    const self = await sqlError(db.query(`update public.deals set invited_helper_id = customer_id, invite_until = now() where id = $1`, [mine.id]));
+    expect(self.message).toMatch(/deals_invite_not_self/);
+  });
+
+  it("intro and 'from' price are public trust-card fields that only the server writes", async () => {
+    const bio = await sqlError(db.query(`update public.profiles set bio = repeat('x', 501) where id = $1`, [U.h1]));
+    expect(bio.message).toMatch(/profiles_bio_check/);
+    const price = await sqlError(db.query(`update public.profiles set from_price = 500 where id = $1`, [U.h1]));
+    expect(price.message).toMatch(/profiles_from_price_check/);
+    await db.query(`update public.profiles set bio = 'Машинтай', from_price = 8000 where id = $1`, [U.h1]);
+    const seen = await as(db, "authenticated", U.c1, (tx) => tx.query(`select bio, from_price from public.profiles where id = $1`, [U.h1]));
+    expect(seen.rows).toEqual([{ bio: "Машинтай", from_price: 8000 }]);
+    const write = await sqlError(as(db, "authenticated", U.h1, (tx) => tx.query(`update public.profiles set bio = 'x' where id = $1`, [U.h1])));
+    expect(write.message).toMatch(/permission denied/);
+  });
+
+  it("quick starts and search words are seeded, checked, and server-only", async () => {
+    const pop = await scalar<number>(db, `select count(*)::int as v from public.quick_starts where kind = 'popular' and active`);
+    const winter = await scalar<number>(db, `select count(*)::int as v from public.quick_starts where kind = 'seasonal' and 11 = any (months)`);
+    expect(pop).toBe(5);
+    expect(winter).toBe(5);
+    const words = await db.query<{ category: string; word: string }>(`select category, word from public.category_keywords`);
+    const byCat: Record<string, string[]> = {};
+    for (const r of words.rows) (byCat[r.category] ??= []).push(r.word);
+    const { guessCategory } = await import("@/lib/category-guess");
+    expect(guessCategory("Буйдан зөөх", byCat)).toBe("carry");
+    expect(guessCategory("Бичиг баримт хүргэх", byCat)).toBe("deliver");
+    expect(guessCategory("эм авах", byCat)).toBe("shop");
+
+    const month = await sqlError(db.query(`insert into public.quick_starts (kind, category, title_mn, title_en, months) values ('seasonal', 'shop', 'Тест', 'Test', '{13}')`));
+    expect(month.message).toMatch(/quick_starts_months_check/);
+    const upper = await sqlError(db.query(`insert into public.category_keywords (category, word) values ('shop', 'Талх')`));
+    expect(upper.message).toMatch(/category_keywords_word_check/);
+    for (const table of ["quick_starts", "category_keywords"]) {
+      for (const role of ["authenticated", "anon"] as const) {
+        const err = await sqlError(as(db, role, role === "anon" ? null : U.c1, (tx) => tx.query(`select * from public.${table}`)));
+        expect(err.message, `${role} ${table}`).toMatch(/permission denied/);
+      }
+    }
+  });
+});

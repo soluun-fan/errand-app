@@ -6,9 +6,12 @@ import { EmptyState, FlowHeader, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getControls } from "@/lib/safety";
 import { guessCategory } from "@/lib/category-guess";
+import { loadKeywords } from "@/lib/content";
+import { invitableHelper } from "@/lib/helper-profile";
+import { Uuid, parseOr } from "@/lib/input";
 import { pricingConfig } from "@/lib/pricing";
 import Link from "next/link";
-import { PostFlow, type Draft } from "./post-flow";
+import { PostFlow, type Draft, type InviteTarget } from "./post-flow";
 
 /** The typed budget, without a paid top-up or the +10% buffer. */
 function typedBudget(d: ErrandDeal): number {
@@ -72,10 +75,35 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       </>
     );
   }
-  const [sp, tasks, saved, cfg] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses(), pricingConfig()]);
+  const [sp, tasks, saved, cfg, keywords] = await Promise.all([searchParams, listMyTasks(viewer.profile.id), listSavedAddresses(), pricingConfig(), loadKeywords()]);
   const title = typeof sp.title === "string" && sp.title.trim() ? sp.title.slice(0, DEFAULT_CONFIG.titleMax) : undefined;
+  // /post?helper=<id>: a direct request to the helper whose profile this came from
+  const helperId = typeof sp.helper === "string" ? parseOr(Uuid, sp.helper) : null;
+  const h = helperId && helperId !== viewer.profile.id ? await invitableHelper(helperId) : null;
+  const invite: InviteTarget | null = h && h.categories.length ? { id: h.id, name: h.name, categories: h.categories } : null;
+  // Asked for one helper who can't take requests now: say so — never quietly post to everyone instead.
+  if (typeof sp.helper === "string" && !invite) {
+    const t = await getT();
+    return (
+      <>
+        <FlowHeader href={helperId ? `/helpers/${helperId}` : "/helpers"} icon="✕" label={t("common.close")} />
+        <EmptyState
+          icon="🙅"
+          title={t("invite.unavailableTitle")}
+          body={t("invite.unavailable")}
+          action={
+            <Link href="/post" className={btn.secondary}>
+              {t("invite.postToAll")}
+            </Link>
+          }
+        />
+      </>
+    );
+  }
   // a category from a tile, or guessed from the search text ("буйдан зөөх" → carry); can be changed
-  const cat = (CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined) ?? guessCategory(title) ?? undefined;
+  let cat = (CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined) ?? guessCategory(title, keywords) ?? undefined;
+  if (invite && cat && !invite.categories.includes(cat)) cat = undefined;
+  if (invite && !cat && invite.categories.length === 1) cat = invite.categories[0];
   const recent = [...new Set(tasks.map((x) => x.deal.address))].filter((a) => !saved.some((s) => s.address === a)).slice(0, 4);
 
   let initial: Partial<Draft> = { ...(cat ? { category: cat } : {}), ...(title ? { title } : {}) };
@@ -91,13 +119,14 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
   return (
     <PostFlow
       // a fresh form per source, so client state never leaks between repeats
-      key={again ? `again-${sp.again}` : "new"}
+      key={again ? `again-${sp.again}` : invite ? `invite-${invite.id}` : "new"}
       initial={initial}
       startStep={again ? 3 : cat ? 1 : 0}
       defaultAddress={saved.find((s) => s.kind === "home")?.address ?? viewer.profile.area ?? ""}
       recent={recent}
       saved={saved}
       cfg={cfg}
+      invite={invite}
     />
   );
 }

@@ -8,8 +8,9 @@ import { runDispatch } from "@/lib/dispatch/run";
 import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
+import { invitableHelper } from "@/lib/helper-profile";
 import { pricingConfig } from "@/lib/pricing";
-import { DetailsJson, PinJson, parseOr } from "@/lib/input";
+import { DetailsJson, PinJson, Uuid, parseOr } from "@/lib/input";
 import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -75,6 +76,17 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   if (form.get("buyForMe") === "on" && !(itemBudget > 0)) return { error: t("task.reasonBudget"), step: STEP.where };
   if (!Number.isInteger(fee) || !Number.isInteger(itemBudget)) return { error: t("error.generic"), step: STEP.review };
 
+  // Sent to one helper first (from their profile): they must be approved, not suspended, and do this kind of task.
+  let invite: { helperId: string; openAfter: boolean } | null = null;
+  const invited = String(form.get("invite") ?? "");
+  if (invited) {
+    const helperId = parseOr(Uuid, invited);
+    const h = helperId ? await invitableHelper(helperId) : null;
+    if (!h || h.id === viewer.profile.id) return { error: t("invite.unavailable"), step: STEP.review };
+    if (!h.categories.includes(category)) return { error: t("invite.notThisKind", { name: h.name }), step: STEP.type };
+    invite = { helperId: h.id, openAfter: form.get("inviteOpenAfter") === "on" };
+  }
+
   const id = crypto.randomUUID();
   try {
     const created = createErrand(
@@ -93,6 +105,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         fee,
         customerId: viewer.profile.id,
         details,
+        invite,
       },
       { now: Date.now(), actor: viewer.actor },
       cfg,

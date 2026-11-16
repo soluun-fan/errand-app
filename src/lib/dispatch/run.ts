@@ -1,6 +1,6 @@
 import "server-only";
 import { loadDeal, runCommand } from "@/lib/db/deals";
-import { autoPickAt, errandSplit, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { autoPickAt, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -61,6 +61,29 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
   if (deal.status !== "open") {
     await closeOffers(dealId, deal.helperId);
     return state ? { wave: state.wave, notified: state.notified } : null;
+  }
+
+  // A direct request (docs/decisions.md 2026-11-16): only the invited helper hears about it while it
+  // stands; the waves start once it opens (declined, timed out, or the customer opened it).
+  const only = invitedOnly(deal, now);
+  if (only !== null) {
+    const { data: fresh } = await db
+      .from("dispatch_offers")
+      .upsert(
+        {
+          deal_id: dealId,
+          helper_id: only,
+          wave: 0,
+          distance_km: null,
+          score: 1,
+          sent_at: new Date(now).toISOString(),
+          expires_at: new Date(deal.matchBy ?? now + 30 * 60_000).toISOString(),
+        },
+        { onConflict: "deal_id,helper_id", ignoreDuplicates: true },
+      )
+      .select("helper_id"); // only a newly inserted row comes back → notify exactly once
+    if (fresh?.length) await notifyInvited(deal, only);
+    return { wave: state?.wave ?? -1, notified: state?.notified ?? 0 };
   }
 
   let wave = state?.wave ?? -1;
@@ -133,6 +156,16 @@ async function notifyHelpers(deal: ErrandDeal, helperIds: string[]) {
     // price first: helpers decide from it ("[7,500₮] Дэлгүүрээс хүнс авах")
     title: "push.newJobTitle",
     body: deal.mode === "now" ? "push.newJobBody" : "push.newRequestBody",
+    params: { title: deal.title, fee: fmtMoney(errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet) },
+    url: `/jobs/${deal.id}`,
+    tag: `job-${deal.id}`,
+  });
+}
+
+async function notifyInvited(deal: ErrandDeal, helperId: string) {
+  await notify([helperId], {
+    title: "push.newJobTitle",
+    body: "push.inviteBody",
     params: { title: deal.title, fee: fmtMoney(errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet) },
     url: `/jobs/${deal.id}`,
     tag: `job-${deal.id}`,

@@ -222,6 +222,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     } else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
     else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
     else if (intent === "unapply") cmd = { type: "withdraw_offer" };
+    else if (intent === "decline_invite") cmd = { type: "decline_invite" };
     else if (intent === "withdraw") cmd = { type: "cancel" };
     else if (intent === "start") cmd = { type: "start" };
     else if (intent === "finish") cmd = { type: "finish" };
@@ -258,6 +259,17 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       });
     } else if (intent === "withdraw") {
       await runDispatch(dealId); // back to searching
+    } else if (intent === "decline_invite") {
+      await db.from("dispatch_offers").update({ status: "declined" }).eq("deal_id", dealId).eq("helper_id", viewer.profile.id);
+      const opened = deal.status === "open";
+      await notify([deal.customerId], {
+        title: "push.inviteDeclinedTitle",
+        body: opened ? "push.inviteDeclinedOpenBody" : "push.inviteDeclinedEndBody",
+        params: { name: viewer.profile.name || "—", title: deal.title },
+        url: `/tasks/${dealId}`,
+        tag: `task-${dealId}`,
+      });
+      if (opened) await runDispatch(dealId); // the first wave goes out now
     } else if (intent === "finish") {
       await notify([deal.customerId], {
         title: "push.doneTitle",

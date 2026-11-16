@@ -90,6 +90,10 @@ export interface EngineConfig {
   applicationMinutes: number;
   /** "Choose for me": the system picks the best applicant this long after the first one applied. */
   autoPickMinutes: number;
+  /** Direct request that may open to everyone: how long the invited helper has it to themselves. */
+  inviteMinutes: number;
+  /** …the same for a task booked for later (more time to answer). */
+  inviteMinutesScheduled: number;
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -130,6 +134,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   budgetBufferBps: 1000,
   applicationMinutes: 15,
   autoPickMinutes: 3,
+  inviteMinutes: 15,
+  inviteMinutesScheduled: 180,
 };
 
 export const HOUR_MS = 3_600_000;

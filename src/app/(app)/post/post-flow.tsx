@@ -8,7 +8,7 @@ import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/c
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { PinMap, type Pin } from "@/components/pin-map";
 import { SubmitButton } from "@/components/sheet";
-import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
+import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
 import { CATEGORIES, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
@@ -94,6 +94,13 @@ function startString(d: Draft, now: number): string {
  * Post a task in 3 steps (DESIGN §5.2–5.5): what → where & details → review & confirm.
  * Prices on screen come from the engine's quoteFee — the server re-runs the same function.
  */
+/** A direct request: the helper it goes to first (from their profile). */
+export interface InviteTarget {
+  id: string;
+  name: string;
+  categories: CategoryId[];
+}
+
 export function PostFlow({
   initial,
   startStep = 0,
@@ -101,7 +108,9 @@ export function PostFlow({
   recent,
   saved,
   cfg,
+  invite = null,
 }: {
+  invite?: InviteTarget | null;
   /** Today's prices (engine defaults + the live Ops settings). */
   cfg: EngineConfig;
   initial: Partial<Draft>;
@@ -146,6 +155,9 @@ export function PostFlow({
     ...initial,
   };
   const [d, setD] = useState<Draft>(blank);
+  /** Direct request: if the helper says no or doesn't answer in time, let everyone apply. */
+  const [openAfter, setOpenAfter] = useState(true);
+  const kinds = invite ? CATEGORIES.filter((c) => invite.categories.includes(c.id)) : CATEGORIES;
   const [step, setStep] = useState(startStep);
   /** Which point the map is placing (two-point tasks). */
   const [pinTarget, setPinTarget] = useState<"pickup" | "drop">("drop");
@@ -158,11 +170,16 @@ export function PostFlow({
     if (initial.title) return;
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) setD((x) => ({ ...x, ...(JSON.parse(raw) as Partial<Draft>) }));
+      if (raw) {
+        const draft = JSON.parse(raw) as Partial<Draft>;
+        // a direct request keeps to the kinds of task that helper does
+        if (invite && draft.category && !invite.categories.includes(draft.category)) delete draft.category;
+        setD((x) => ({ ...x, ...draft }));
+      }
     } catch {
       /* storage unavailable */
     }
-  }, [initial.title]);
+  }, [initial.title, invite]);
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
@@ -197,7 +214,7 @@ export function PostFlow({
     heavy: d.heavy,
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
-    autoPick: d.autoPick,
+    autoPick: invite ? false : d.autoPick, // a direct request: the customer answers that helper themselves
     minutes: d.minutes ?? CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30,
     tools: d.tools,
     quotedFee: 0,
@@ -281,6 +298,12 @@ export function PostFlow({
           <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
         </span>
         <h1 className="text-[22px] font-bold leading-tight tracking-tight">{t(`task.steps.${STEPS[step]}`)}</h1>
+        {invite && (
+          <p className="flex items-center gap-2.5 rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">
+            <Avatar name={invite.name} size={32} />
+            <span className="min-w-0 flex-1">{t("invite.banner", { name: invite.name })}</span>
+          </p>
+        )}
       </header>
 
       {/* every answer travels with the final submit */}
@@ -297,10 +320,12 @@ export function PostFlow({
       <input type="hidden" name="saveAs" value={savedMatch ? "" : d.saveAs} />
       <input type="hidden" name="location" value={d.pin ? JSON.stringify(d.pin) : ""} />
       <input type="hidden" name="pickupLocation" value={twoPoint && d.pickupPin ? JSON.stringify(d.pickupPin) : ""} />
+      <input type="hidden" name="invite" value={invite?.id ?? ""} />
+      <input type="hidden" name="inviteOpenAfter" value={invite && openAfter ? "on" : ""} />
 
       {STEPS[step] === "type" && (
         <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
-          {CATEGORIES.map((c) => {
+          {kinds.map((c) => {
             const on = d.category === c.id;
             const from = minFee;
             return (
@@ -693,7 +718,17 @@ export function PostFlow({
             <MoneyBreakdown rows={breakdown} total={{ label: t("money.totalHeld"), amount: total }} caption={itemBudget > 0 ? t("money.itemBudgetNote") : undefined} />
           </details>
 
-          <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub")} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
+          {invite ? (
+            <ToggleRow
+              icon="👥"
+              title={t("invite.openAfter", { name: invite.name })}
+              sub={t("invite.openAfterSub", { minutes: d.when === "now" ? cfg.inviteMinutes : cfg.inviteMinutesScheduled })}
+              checked={openAfter}
+              onChange={setOpenAfter}
+            />
+          ) : (
+            <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub")} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
+          )}
 
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
             <span aria-hidden>🔒</span>

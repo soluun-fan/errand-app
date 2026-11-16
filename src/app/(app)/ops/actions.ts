@@ -9,6 +9,10 @@ import { acknowledgeIncident, resolveIncident } from "@/lib/incidents";
 import { updatePricing, type PricingSettings } from "@/lib/pricing";
 import { cleanTiers, percentToBps, wholeAmount } from "@/lib/pricing-rules";
 import { updateControls } from "@/lib/safety";
+import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
+import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rules";
+import { CATEGORIES, type CategoryId } from "@/lib/engine";
+import { Uuid, parseOr } from "@/lib/input";
 
 async function requireAdmin() {
   const viewer = await getViewer();
@@ -95,6 +99,54 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     return { error: t("opsPricing.invalid") };
   }
   await updatePricing(viewer.profile.id, next as PricingSettings);
+  refresh();
+  return { done: true };
+}
+
+/* ---------- /ops/content: quick starts and search words (no deploy needed) ---------- */
+
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+export async function saveQuickStartAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const parsed = QuickStartInput.safeParse({
+    id: String(form.get("id") ?? "") || null,
+    kind: form.get("kind"),
+    category: form.get("category"),
+    titleMn: String(form.get("titleMn") ?? ""),
+    titleEn: String(form.get("titleEn") ?? ""),
+    months: MONTHS.filter((m) => form.get(`m${m}`) === "on"),
+    sort: Number(form.get("sort") ?? 0),
+    active: form.get("active") === "on",
+  });
+  if (!parsed.success) return { error: t("opsContent.invalid") };
+  await saveQuickStart(viewer.profile.id, parsed.data);
+  refresh();
+  return { done: true };
+}
+
+export async function deleteQuickStartAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = parseOr(Uuid, form.get("id"));
+  if (!id) return { error: t("error.generic") };
+  await deleteQuickStart(viewer.profile.id, id);
+  refresh();
+  return { done: true };
+}
+
+export async function saveKeywordsAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const category = String(form.get("category") ?? "") as CategoryId;
+  if (category === "other" || !CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic") };
+  const words = parseKeywords(String(form.get("words") ?? ""));
+  if (!words) return { error: t("opsContent.wordsInvalid", { n: MAX_KEYWORDS }) };
+  await saveKeywords(viewer.profile.id, category, words);
   refresh();
   return { done: true };
 }

@@ -12,7 +12,8 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, minFeeAt } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
-import { POPULAR } from "@/lib/popular";
+import { popularStarts, seasonalStarts } from "@/lib/content";
+import { qsTitle } from "@/lib/content-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 
@@ -30,7 +31,16 @@ const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
  */
 export default async function Welcome() {
   if (await getViewer()) redirect("/");
-  const [t, locale, cfg, recent, online, board] = await Promise.all([getT(), getLocale(), pricingConfig(), recentRequests(5), onlineHelperCount(), openRequests(8)]);
+  const [t, locale, cfg, recent, online, board, popular, seasonal] = await Promise.all([
+    getT(),
+    getLocale(),
+    pricingConfig(),
+    recentRequests(5),
+    onlineHelperCount(),
+    openRequests(8),
+    popularStarts(),
+    seasonalStarts(),
+  ]);
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
   const from = (_c: (typeof CATEGORIES)[number]) => minFeeAt(now, cfg);
@@ -93,14 +103,14 @@ export default async function Welcome() {
               <LandingSearch />
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[13px] font-semibold text-ink-2">{t("landing.popular")}</span>
-                {POPULAR.map((p) => (
+                {popular.map((p) => (
                   <LoginGate
-                    key={p.key}
-                    next={`/post?cat=${p.cat}&title=${encodeURIComponent(t(`home.pop.${p.key}`))}`}
+                    key={p.id}
+                    next={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`}
                     className="press flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-bg px-3.5 text-[14px] font-medium"
                   >
-                    <CategoryIcon id={p.cat} size={15} />
-                    {t(`home.pop.${p.key}`)}
+                    <CategoryIcon id={p.category} size={15} />
+                    {qsTitle(p, locale)}
                   </LoginGate>
                 ))}
               </div>
@@ -130,7 +140,8 @@ export default async function Welcome() {
         <section className={`${wrap} pb-12`}>
           <SeasonalRow
             t={t}
-            now={now}
+            locale={locale}
+            items={seasonal}
             wrap={(item, card) => (
               <LoginGate next={`/post?cat=${item.cat}&title=${encodeURIComponent(item.title)}`} className="press block h-full w-full">
                 {card}

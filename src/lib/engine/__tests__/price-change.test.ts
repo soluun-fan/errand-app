@@ -80,3 +80,21 @@ describe("price change after matching (docs/decisions.md 2026-11-16)", () => {
     expect(second.w.get(second.id)).toMatchObject({ status: "cancelled", heldAmount: 0, priceChange: null });
   });
 });
+
+describe("replayed payment webhooks across several price changes", () => {
+  it("an earlier price change's payment replayed later is a duplicate, never a second pay-in", () => {
+    const { w, id } = matched();
+    w.do(id, { type: "propose_price", price: 12000 }, h1);
+    w.do(id, { type: "answer_price", accept: true }, c1);
+    w.do(id, { type: "confirm_price", providerRef: "pc-1", amount: 2000 }, provider);
+    w.do(id, { type: "propose_price", price: 14000 }, h1); // a second increase, same size
+    w.do(id, { type: "answer_price", accept: true }, c1);
+    const replay = w.do(id, { type: "confirm_price", providerRef: "pc-1", amount: 2000 }, provider);
+    expect(replay.duplicate).toBe(true);
+    expect(w.get(id)).toMatchObject({ fee: 12000, heldAmount: 13000 });
+    // the first payment's ref can't pay for it either
+    expect(w.do(id, { type: "confirm_price", providerRef: `qpay-${id}`, amount: 2000 }, provider).duplicate).toBe(true);
+    w.do(id, { type: "confirm_price", providerRef: "pc-2", amount: 2000 }, provider);
+    expect(w.get(id)).toMatchObject({ fee: 14000, heldAmount: 15000, providerRefs: [`qpay-${id}`, "pc-1", "pc-2"] });
+  });
+});

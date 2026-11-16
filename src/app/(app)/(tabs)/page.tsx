@@ -15,7 +15,8 @@ import { listMyTasks, walletEntries } from "@/lib/deals/queries";
 import { fmtMoney } from "@/lib/format";
 import { CATEGORIES, minFeeAt, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
-import { POPULAR } from "@/lib/popular";
+import { popularStarts, seasonalStarts } from "@/lib/content";
+import { qsTitle } from "@/lib/content-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 import { helperDirectory, recentReviews } from "@/lib/helper-profile";
@@ -59,13 +60,15 @@ export default async function Home() {
   const repeat = [...new Map(all.filter((x) => x.deal.status === "released").map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
 
   // "from" price per category: the engine's build-up price for a usual job of that kind, today
-  const [cfg, recent, online, board, helpers, reviews] = await Promise.all([
+  const [cfg, recent, online, board, helpers, reviews, popular, seasonal] = await Promise.all([
     pricingConfig(),
     recentRequests(4),
     onlineHelperCount(),
     openRequests(8, { withTitles: true, excludeCustomer: viewer.profile.id }),
     helperDirectory({ limit: 6 }).then((h) => h.filter((x) => x.id !== viewer.profile.id).slice(0, 3)),
     recentReviews(4),
+    popularStarts(),
+    seasonalStarts(),
   ]);
   const now = Date.now();
   // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
@@ -129,10 +132,10 @@ export default async function Home() {
                 {d.title}
               </Link>
             ))}
-            {POPULAR.map((p) => (
-              <Link key={p.key} href={`/post?cat=${p.cat}&title=${encodeURIComponent(t(`home.pop.${p.key}`))}`} className={chipClass(false)}>
-                <CategoryIcon id={p.cat} size={15} />
-                {t(`home.pop.${p.key}`)}
+            {popular.map((p) => (
+              <Link key={p.id} href={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`} className={chipClass(false)}>
+                <CategoryIcon id={p.category} size={15} />
+                {qsTitle(p, locale)}
               </Link>
             ))}
           </div>
@@ -162,7 +165,8 @@ export default async function Home() {
 
       <SeasonalRow
         t={t}
-        now={now}
+        locale={locale}
+        items={seasonal}
         wrap={(item, card) => (
           <Link href={`/post?cat=${item.cat}&title=${encodeURIComponent(item.title)}`} className="press block h-full">
             {card}

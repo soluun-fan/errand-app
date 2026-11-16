@@ -19,6 +19,7 @@ import {
   createGoods,
   ext,
   generateDealCode,
+  invitedOnly,
   runDue,
   type Actor,
   type CategoryId,
@@ -28,6 +29,8 @@ import {
   type Transition,
 } from "../index";
 import { T0, admin, customer, helper, provider } from "./helpers";
+
+const seenEvents = new Set<string>();
 
 /** Small deterministic PRNG (mulberry32) so failures are reproducible. */
 function rng(seed: number) {
@@ -65,10 +68,12 @@ function simulate(seed: number, steps: number) {
   const ledger: LedgerEntry[] = [];
   let n = 0;
   let applied = 0;
+  let invitesChecked = 0;
 
   const record = (t: Transition) => {
     deals.set(t.deal.id, t.deal);
     ledger.push(...t.ledger);
+    for (const e of t.events) seenEvents.add(e.code);
     applied++;
   };
 
@@ -96,8 +101,11 @@ function simulate(seed: number, steps: number) {
               scheduledAt,
               address: "a",
               itemBudget: pick([0, 0, 500, 38000, int(0, 200) * 500]),
-              fee: range.min + int(0, (range.max - range.min) / 500) * 500, // anywhere the customer may set
+              // the customer names any price ≥ the minimum (bargaining has no upper cap)
+              fee: r() < 0.5 ? range.min + int(0, (range.max - range.min) / 500) * 500 : range.min + int(0, 60) * 500,
               customerId: c.id,
+              // some go straight to one helper first (direct requests)
+              invite: r() < 0.25 ? { helperId: pick(["h1", "h2", "h3"]), openAfter: r() < 0.5 } : null,
             },
             { now, actor: c },
           ),
@@ -123,7 +131,9 @@ function simulate(seed: number, steps: number) {
 
     const all = [...deals.values()];
     const active = all.filter((d) => !TERMINAL_STATUSES.includes(d.status));
-    const deal = pick(active.length && r() < 0.9 ? active : all);
+    // tasks mid-job are rare in a random walk; visit them often so price changes run to the end
+    const working = active.filter((d) => d.status === "matched" || d.status === "in_progress");
+    const deal = working.length && r() < 0.3 ? pick(working) : pick(active.length && r() < 0.9 ? active : all);
     const byId = (id: string | null) => users.find((u) => u.kind === "user" && u.id === id);
     const cmds: Command[] = [
       { type: "confirm_payment", providerRef: r() < 0.3 ? `ref-${deal.id}` : `ref-${int(0, 1e6)}`, amount: r() < 0.9 ? amountDue(deal) : 1 },
@@ -142,8 +152,33 @@ function simulate(seed: number, steps: number) {
       { type: "dispute", reason: "x" },
       { type: "resolve", outcome: pick(["release", "refund"] as const) },
       { type: "auto_release" },
+      // bargaining and price changes
+      { type: "apply", note: "", price: int(10, 60) * 500 },
+      { type: "counter", helperId: pick(["h1", "h2", "h3"]), price: int(10, 60) * 500 },
+      { type: "reprice", price: int(10, 60) * 500 },
+      { type: "accept_counter" },
+      { type: "set_price", price: int(10, 60) * 500 },
+      { type: "withdraw_offer" },
+      { type: "propose_price", price: deal.type === "errand" ? Math.max(500, deal.fee + (r() < 0.5 ? -1 : 1) * int(1, 8) * 500) : 10000 },
+      { type: "answer_price", accept: r() < 0.6 },
+      { type: "withdraw_price" },
+      {
+        type: "confirm_price",
+        providerRef: `pc-${int(0, 1e6)}`,
+        amount: deal.type === "errand" && deal.priceChange ? (r() < 0.9 ? deal.priceChange.fee - deal.fee : 1) : 1,
+      },
+      // direct requests
+      { type: "decline_invite" },
+      { type: "open_to_all" },
     ];
-    const cmd = pick(cmds);
+    // a pending price change gets answered / paid often enough to finish its paths
+    const pc = deal.type === "errand" ? deal.priceChange : null;
+    const cmd =
+      pc?.status === "proposed" && r() < 0.3
+        ? cmds.find((c) => c.type === "answer_price")!
+        : pc?.status === "awaiting_payment" && r() < 0.3
+          ? cmds.find((c) => c.type === "confirm_price")!
+          : pick(cmds);
     // 70% of the time pick the actor who could legitimately send this command, so long
     // happy paths actually complete; otherwise a random actor to exercise rejections.
     const payer = deal.type === "errand" ? deal.customerId : deal.buyerId;
@@ -165,10 +200,30 @@ function simulate(seed: number, steps: number) {
       dispute: byId(payer),
       resolve: admin(),
       auto_release: { kind: "system" },
+      counter: byId(payer),
+      reprice: pick(users.slice(3, 6)),
+      accept_counter: pick(users.slice(3, 6)),
+      set_price: byId(payer),
+      withdraw_offer: pick(users.slice(3, 6)),
+      propose_price: byId(r() < 0.5 ? payer : worker),
+      answer_price: byId(pc ? (pc.by === "customer" ? worker : payer) : payer), // the other side answers
+      withdraw_price: byId(r() < 0.5 ? payer : worker),
+      confirm_price: provider,
+      decline_invite: deal.type === "errand" && deal.invite ? byId(deal.invite.helperId) : undefined,
+      open_to_all: byId(payer),
     };
     const actor = (r() < 0.7 && plausible[cmd.type]) || pick(users);
     try {
-      record(apply(deal, cmd, { now, actor }));
+      const t = apply(deal, cmd, { now, actor });
+      // Direct requests: while one stands, nobody else gets onto the task (apply / accept / chosen).
+      const only = deal.type === "errand" ? invitedOnly(deal, now) : null;
+      if (only !== null && t.deal.type === "errand" && deal.type === "errand") {
+        const newcomers = t.deal.offers.filter((o) => !deal.offers.some((x) => x.helperId === o.helperId)).map((o) => o.helperId);
+        if (t.deal.helperId && t.deal.helperId !== deal.helperId) newcomers.push(t.deal.helperId);
+        for (const h of newcomers) if (h !== only) throw new Error(`seed ${seed} step ${i}: ${h} got onto a task sent only to ${only}`);
+        invitesChecked++;
+      }
+      record(t);
     } catch (e) {
       if (!(e instanceof EngineError)) throw e;
       expect(e.code).not.toBe("INVARIANT_BROKEN");
@@ -177,14 +232,17 @@ function simulate(seed: number, steps: number) {
     const v = checkInvariants([...deals.values()], ledger);
     if (v.length) throw new Error(`seed ${seed} step ${i} ${cmd.type}: ${JSON.stringify(v)}`);
   }
-  return { deals: [...deals.values()], ledger, applied };
+  return { deals: [...deals.values()], ledger, applied, invitesChecked };
 }
 
 describe("random simulation", () => {
-  for (const seed of [1, 2, 3, 42, 2026]) {
+  // CI runs 10 seeds; SIM_SEEDS=200 for a deep run before a release
+  const extra = Array.from({ length: Math.max(0, Number(process.env.SIM_SEEDS ?? 10) - 10) }, (_, i) => 10_000 + i);
+  for (const seed of [1, 2, 3, 42, 2026, 7, 99, 1234, 31337, 777, ...extra]) {
     it(`seed ${seed}: money always balances`, () => {
-      const { deals, ledger, applied } = simulate(seed, 4000);
+      const { deals, ledger, applied, invitesChecked } = simulate(seed, 4000);
       expect(applied).toBeGreaterThan(200);
+      invitesSeen += invitesChecked;
       expect(checkInvariants(deals, ledger)).toEqual([]);
 
       // Double-entry: all balances across all accounts sum to zero.
@@ -193,8 +251,13 @@ describe("random simulation", () => {
 
       for (const d of deals) {
         const mine = ledger.filter((e) => e.dealId === d.id);
-        // At most one pay-in, and at most one release, per deal.
-        expect(mine.filter((e) => e.kind === "pay_in").length).toBeLessThanOrEqual(1);
+        // One first pay-in, plus one per paid price change / top-up — each a different provider
+        // payment, never the same one twice; and at most one release per deal.
+        const payIns = mine.filter((e) => e.kind === "pay_in");
+        expect(new Set(payIns.map((e) => e.providerRef)).size, `deal ${d.id} pay-in refs`).toBe(payIns.length);
+        const extraPaid = d.type === "errand" ? payIns.length - 1 : 0;
+        expect(extraPaid <= 0 || (d.type === "errand" && d.providerRefs.length === payIns.length), `deal ${d.id} extra pay-ins`).toBe(true);
+        if (d.type === "goods") expect(payIns.length).toBeLessThanOrEqual(1);
         expect(mine.filter((e) => e.kind === "release_fee" || e.kind === "release_seller").length).toBeLessThanOrEqual(1);
 
         const payer = d.type === "errand" ? d.customerId : d.buyerId;
@@ -213,6 +276,14 @@ describe("random simulation", () => {
 
   // Guards against the walk becoming too random to be meaningful.
   const reached = new Set<string>();
+  let invitesSeen = 0;
+  it("across all seeds, exercises bargaining and direct requests", () => {
+    expect(invitesSeen).toBeGreaterThan(0); // steps taken while a direct request stood were checked
+    // (price changes after matching get their own walk in price-change-fuzz.test.ts)
+    for (const code of ["offer_priced", "price_changed", "invite_sent", "invite_declined", "invite_opened"]) {
+      expect(seenEvents, code).toContain(code);
+    }
+  });
   it("across all seeds, reaches every closing status", () => {
     for (const s of ["released", "refunded", "cancelled", "expired"]) expect(reached).toContain(s);
   });

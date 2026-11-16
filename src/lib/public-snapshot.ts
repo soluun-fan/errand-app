@@ -61,7 +61,9 @@ export async function openRequests(
     .select("id, title, category, fee, commission_bps, details, scheduled_at, item_budget")
     .eq("type", "errand")
     .eq("status", "open")
-    .not("title", "ilike", "[verify]%");
+    .not("title", "ilike", "[verify]%")
+    // a task sent to one helper first isn't on the board until it opens to everyone
+    .or(`invited_helper_id.is.null,and(invite_open_after.eq.true,invite_until.lte.${new Date().toISOString()})`);
   if (opts.category) q = q.eq("category", opts.category);
   if (opts.minPay) q = q.gte("fee", opts.minPay);
   if (opts.excludeCustomer) q = q.neq("customer_id", opts.excludeCustomer); // your own posts aren't "to browse"
