@@ -6,3 +6,8 @@ alter type public.category add value if not exists 'electrical';
 alter type public.category add value if not exists 'cleaning';
 alter type public.category add value if not exists 'childcare';
 alter type public.category add value if not exists 'eldercare';
+-- everyday kinds (2026-11-17): day jobs, rubbish & recycling, accompanying an adult, assembly / installing
+alter type public.category add value if not exists 'dayjob';
+alter type public.category add value if not exists 'trash';
+alter type public.category add value if not exists 'escort';
+alter type public.category add value if not exists 'assembly';

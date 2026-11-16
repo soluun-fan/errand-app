@@ -13,6 +13,11 @@ export type CategoryId =
   | "deliver"
   | "repair"
   | "other"
+  // everyday work added 2026-11-17 (from the PleaseHelp categories)
+  | "dayjob"
+  | "trash"
+  | "escort"
+  | "assembly"
   // specialized work (docs/decisions.md 2026-11-16 "Specialized work")
   | "plumbing"
   | "electrical"
@@ -48,6 +53,11 @@ export const CATEGORIES: readonly CategoryConfig[] = [
   { id: "deliver", trust: "open", items: true, minutes: 30 },
   { id: "repair", trust: "open", items: false, minutes: 60 },
   { id: "other", trust: "open", items: false, minutes: 60 },
+  { id: "dayjob", trust: "open", items: false, minutes: 240 },
+  { id: "trash", trust: "open", items: false, minutes: 30 },
+  // adults only: children and patients are care work (agency + background check)
+  { id: "escort", trust: "open", items: false, minutes: 120 },
+  { id: "assembly", trust: "open", items: false, minutes: 60 },
   { id: "plumbing", trust: "pro", items: true, minutes: 60, checkHours: 72 },
   { id: "electrical", trust: "pro", items: true, minutes: 60, checkHours: 72 },
   { id: "cleaning", trust: "pro", items: false, minutes: 120 },

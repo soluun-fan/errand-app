@@ -11,6 +11,8 @@ import { formatMnPhone } from "@/lib/phone";
 import { setLocale, setMode } from "@/lib/prefs";
 import { myOrganizations, myInvitations, myMemberships } from "@/lib/orgs";
 import { Membership } from "./org-memberships";
+import { WorkKinds } from "./work-kinds";
+import { OPEN_CATEGORIES } from "@/lib/engine";
 import { removeAddress } from "./actions";
 
 const KIND_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
@@ -51,6 +53,12 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
       <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
+      {actor.helperApproved && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[17px] font-bold">{t("workKinds.title")}</h2>
+          <WorkKinds all={OPEN_CATEGORIES} mine={profile.categories} />
+        </section>
+      )}
       <section className="flex flex-col gap-3">
         <h2 className="text-[17px] font-bold">{t("org.my")}</h2>
         {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}

@@ -154,15 +154,27 @@ export default async function Home() {
       {section(
         t("landing.catsTitle"),
         null,
-        <nav aria-label={t("post.category")} className="grid grid-cols-3 gap-2.5 md:grid-cols-6 md:gap-3">
-          {CATEGORIES.filter((c) => live.includes(c.id)).map(({ id }) => (
-            <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
-              <CategoryIcon id={id} tile size={20} />
-              <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
-              <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{t("home.from", { amount: fmtMoney(fromPrice(id)) })}</span>
-            </Link>
-          ))}
-        </nav>,
+        <div className="flex flex-col gap-4">
+          {(["open", "specialized"] as const).map((group) => {
+            const ids = CATEGORIES.filter((c) => live.includes(c.id) && (group === "open" ? c.trust === "open" : c.trust !== "open")).map((c) => c.id);
+            if (!ids.length) return null;
+            return (
+              <nav key={group} aria-label={t(`home.kinds.${group}`)} className="flex flex-col gap-2">
+                {/* everyday work first; specialized (certified / organisation) work as its own group */}
+                <h3 className="text-[13px] font-semibold text-ink-2">{t(`home.kinds.${group}`)}</h3>
+                <div className="grid grid-cols-3 gap-2.5 md:grid-cols-6 md:gap-3">
+                  {ids.map((id) => (
+                    <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
+                      <CategoryIcon id={id} tile size={20} />
+                      <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
+                      <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{t("home.from", { amount: fmtMoney(fromPrice(id)) })}</span>
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+            );
+          })}
+        </div>,
       )}
 
       <SeasonalRow

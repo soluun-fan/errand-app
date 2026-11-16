@@ -27,6 +27,7 @@ create table public.category_settings (
 insert into public.category_settings (category, trust, live) values
   ('shop', 'open', true), ('carry', 'open', true), ('queue', 'open', true), ('deliver', 'open', true),
   ('repair', 'open', true), ('other', 'open', true),
+  ('dayjob', 'open', true), ('trash', 'open', true), ('escort', 'open', true), ('assembly', 'open', true),
   ('plumbing', 'pro', true), ('electrical', 'pro', true), ('cleaning', 'pro', true),
   -- care work stays off until the owner decides (legal review of child / patient care first)
   ('childcare', 'care', false), ('eldercare', 'care', false);
@@ -430,7 +431,17 @@ insert into public.category_keywords (category, word) values
   ('childcare', 'хүүхэд хар'), ('childcare', 'хүүхэд асар'), ('childcare', 'асрагч'), ('childcare', 'хүүхэд сахи'),
   ('childcare', 'babysit'), ('childcare', 'nanny'),
   ('eldercare', 'асаргаа'), ('eldercare', 'өвчтөн'), ('eldercare', 'ахмад'), ('eldercare', 'сувилагч'),
-  ('eldercare', 'caregiver'), ('eldercare', 'elder');
+  ('eldercare', 'caregiver'), ('eldercare', 'elder'),
+  -- everyday kinds added 2026-11-17
+  ('dayjob', 'түр ажил'), ('dayjob', 'цагийн ажил'), ('dayjob', 'өдрийн ажил'), ('dayjob', 'ажилтан хэрэгтэй'),
+  ('dayjob', 'туслах ажилтан'), ('dayjob', 'арга хэмжээ'), ('dayjob', 'агуулах'), ('dayjob', 'part time'), ('dayjob', 'shift'),
+  ('trash', 'хог'), ('trash', 'хогийн'), ('trash', 'ангилал'), ('trash', 'дахин боловсруул'), ('trash', 'хаях'),
+  ('trash', 'trash'), ('trash', 'garbage'), ('trash', 'recycl'),
+  ('escort', 'дагалд'), ('escort', 'хамт яв'), ('escort', 'эмнэлэгт хүрг'), ('escort', 'escort'), ('escort', 'accompan'),
+  ('assembly', 'угсар'), ('assembly', 'суурилуул'), ('assembly', 'өлгө'), ('assembly', 'тавилга угс'),
+  ('assembly', 'зурагт өлг'), ('assembly', 'assemble'), ('assembly', 'install'), ('assembly', 'ikea');
+-- assembly / installing words move from "small repair" to the new kind
+delete from public.category_keywords where category = 'repair' and word in ('угсар', 'суурилуул', 'өлгө', 'assemble', 'install');
 
 -- 9. server-only, like KYC ---------------------------------------------------------------------
 alter table public.category_settings enable row level security;

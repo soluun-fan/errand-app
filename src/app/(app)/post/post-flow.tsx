@@ -3,7 +3,7 @@
 import { ArrowLeft, Info, X } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
-import { useActionState, useEffect, useState } from "react";
+import { Fragment, useActionState, useEffect, useState } from "react";
 import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/choice";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { PinMap, type Pin } from "@/components/pin-map";
@@ -327,12 +327,15 @@ export function PostFlow({
 
       {STEPS[step] === "type" && (
         <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
-          {kinds.map((c) => {
+          {kinds.map((c, i) => {
             const on = d.category === c.id;
             const from = minFee;
+            // a heading where everyday work ends and specialized (certified / organisation) work starts
+            const groupStart = c.trust !== "open" && (i === 0 || kinds[i - 1].trust === "open");
             return (
+              <Fragment key={c.id}>
+              {groupStart && <h2 className="pt-2 text-[13px] font-semibold text-ink-2">{t("home.kinds.specialized")}</h2>}
               <button
-                key={c.id}
                 type="button"
                 role="radio"
                 aria-checked={on}
@@ -350,6 +353,7 @@ export function PostFlow({
                 </span>
                 <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{t("home.from", { amount: fmtMoney(from) })}</span>
               </button>
+              </Fragment>
             );
           })}
           <p className="flex items-start gap-2 rounded-card bg-bg p-3.5 text-[13px] text-ink-2 shadow-card">

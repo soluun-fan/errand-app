@@ -1,4 +1,4 @@
-import { Baby, HandHeart, Hourglass, Package, ShoppingBasket, Sofa, Sparkles, SprayCan, Wrench, Zap, Droplets, type LucideIcon } from "lucide-react";
+import { Briefcase, Footprints, Hammer, Recycle, Baby, HandHeart, Hourglass, Package, ShoppingBasket, Sofa, Sparkles, SprayCan, Wrench, Zap, Droplets, type LucideIcon } from "lucide-react";
 import type { CategoryId } from "@/lib/engine";
 
 /** One consistent icon per category (Lucide, open source) — replaces the old emoji. */
@@ -9,6 +9,10 @@ export const CATEGORY_LUCIDE: Record<CategoryId, LucideIcon> = {
   queue: Hourglass,
   repair: Wrench,
   other: Sparkles,
+  dayjob: Briefcase,
+  trash: Recycle,
+  escort: Footprints,
+  assembly: Hammer,
   plumbing: Droplets,
   electrical: Zap,
   cleaning: SprayCan,

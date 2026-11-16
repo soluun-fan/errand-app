@@ -12,7 +12,23 @@ import type { CategoryId } from "@/lib/engine";
 export type Keywords = Partial<Record<CategoryId, readonly string[]>>;
 
 /** Order matters on ties: the more specific kinds first (a "deliver documents" isn't shopping). */
-const ORDER: readonly CategoryId[] = ["carry", "queue", "repair", "deliver", "shop"];
+const ORDER: readonly CategoryId[] = [
+  // specific kinds first: "угаалтуурын хоолой засах" is plumbing, not small repair
+  "childcare",
+  "eldercare",
+  "plumbing",
+  "electrical",
+  "cleaning",
+  "assembly",
+  "trash",
+  "escort",
+  "dayjob",
+  "carry",
+  "queue",
+  "repair",
+  "deliver",
+  "shop",
+];
 
 export function guessCategory(text: string | null | undefined, keywords: Keywords): CategoryId | null {
   const s = (text ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
