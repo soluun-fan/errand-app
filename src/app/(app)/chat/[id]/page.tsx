@@ -18,11 +18,13 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
   if (!viewer) return null;
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const initialCallId = typeof sp.call === "string" && /^[0-9a-f-]{36}$/i.test(sp.call) ? sp.call : null;
+  // ?with=<helper>: which applicant's conversation (customer side, while choosing)
+  const withHelper = typeof sp.with === "string" && /^[0-9a-f-]{36}$/i.test(sp.with) ? sp.with : null;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const deal = await loadDeal(createAdminClient(), id);
   if (!deal || deal.type !== "errand") notFound();
   const me = viewer.profile.id;
-  const access = await accessFor(deal, me);
+  const access = await accessFor(deal, me, Date.now(), withHelper);
   if (!access.canRead || !access.threadHelperId || !access.counterpartId) notFound();
 
   const [t, people, messages] = await Promise.all([
@@ -41,7 +43,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         <Avatar name={other?.name ?? "?"} size={40} />
         <div className="min-w-0">
           <p className="truncate font-semibold">{other?.name ?? t("deal.newHelper")}</p>
-          <p className="text-sm text-ink-2">{me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
+          <p className="text-sm text-ink-2">{deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
         </div>
       </div>
       <ChatRoom
@@ -50,8 +52,9 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         canSend={access.canSend}
         me={me}
         name={other?.name ?? t("deal.newHelper")}
-        canCall={callParty(deal, me) !== null}
+        canCall={callParty(deal, me, withHelper) !== null}
         initialCallId={initialCallId}
+        withHelper={me === deal.customerId ? access.threadHelperId : null}
       />
     </>
   );

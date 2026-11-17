@@ -33,19 +33,19 @@ describe("who may take specialized work (docs/decisions.md 2026-11-16 \"Speciali
       expect(qualificationsFrom({ kycLevel: 4, memberships: [m], certificates: [], now: NOW })).toEqual([]);
     }
   });
-  it("on their own: an approved, unexpired certificate — trades only, never care", () => {
-    const q = qualificationsFrom({
-      kycLevel: 4,
-      memberships: [],
-      certificates: [
-        { category: "electrical", status: "approved", expiresOn: "2027-01-01" },
-        { category: "plumbing", status: "approved", expiresOn: "2026-11-16" }, // expired yesterday (UB)
-        { category: "cleaning", status: "pending", expiresOn: null },
-        { category: "childcare", status: "approved", expiresOn: null }, // can't happen (DB refuses), ignored anyway
-      ],
-      now: NOW,
-    });
-    expect(q).toEqual([{ category: "electrical", orgId: null }]);
+  it("on their own: an approved, unexpired certificate (trades) or care clearance (only with the background check)", () => {
+    const certificates = [
+      { category: "electrical", status: "approved", expiresOn: "2027-01-01" },
+      { category: "plumbing", status: "approved", expiresOn: "2026-11-16" }, // expired yesterday (UB)
+      { category: "cleaning", status: "pending", expiresOn: null },
+      { category: "childcare", status: "approved", expiresOn: null }, // a care clearance from Ops
+    ] as const;
+    expect(qualificationsFrom({ kycLevel: 4, memberships: [], certificates: [...certificates], now: NOW })).toEqual([
+      { category: "electrical", orgId: null },
+      { category: "childcare", orgId: null },
+    ]);
+    // without the criminal-record check a care clearance counts for nothing
+    expect(qualificationsFrom({ kycLevel: 3, memberships: [], certificates: [...certificates], now: NOW })).toEqual([{ category: "electrical", orgId: null }]);
   });
   it("keeps every valid route, with organisations first for new offers", () => {
     const q = qualificationsFrom({ kycLevel: 3, memberships: [org()], certificates: [{ category: "plumbing", status: "approved", expiresOn: null }], now: NOW });
@@ -67,10 +67,11 @@ describe("input checks", () => {
     expect(OrgApplicationInput.safeParse({ ...app, categories: ["childcare"] }).success).toBe(false);
     expect(OrgApplicationInput.safeParse({ ...app, kind: "agency", categories: ["childcare"] }).success).toBe(true);
   });
-  it("certificate: trades only (care goes through an agency), optional expiry date", () => {
+  it("certificate: trades and care clearances (not everyday kinds), optional expiry date", () => {
     const c = { category: "electrical", issuer: "Эрчим хүчний зохицуулах хороо", docPath: "docs/u/c.pdf", expiresOn: "" };
     expect(CertificateInput.parse(c)).toMatchObject({ expiresOn: null, number: null });
-    expect(CertificateInput.safeParse({ ...c, category: "childcare" }).success).toBe(false);
+    expect(CertificateInput.safeParse({ ...c, category: "childcare" }).success).toBe(true); // care clearance
+    expect(CertificateInput.safeParse({ ...c, category: "shop" }).success).toBe(false);
     expect(CertificateInput.safeParse({ ...c, expiresOn: "next year" }).success).toBe(false);
     expect(CertificateInput.safeParse({ ...c, expiresOn: "2026-02-30" }).success).toBe(false);
   });

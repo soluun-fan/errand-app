@@ -11,6 +11,8 @@ const wordsNow = async () => ((await db.from("category_keywords").select("word")
 test.beforeAll(async () => {
   const { data } = await db.from("quick_starts").select("id, active").eq("title_mn", TITLE).single();
   before = data!;
+  // a run cut off by a network drop may have left the test word behind: start clean
+  await db.from("category_keywords").delete().eq("category", "repair").eq("word", WORD);
   repairWords = await wordsNow();
 });
 test.afterAll(async () => {

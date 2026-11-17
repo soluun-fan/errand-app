@@ -6,7 +6,8 @@ import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deal
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
 import { organizationNames } from "@/lib/orgs";
 import { rankApplicants } from "@/lib/dispatch/rank";
-import { accessFor, unreadCount } from "@/lib/chat";
+import { accessFor, hadCareCall, unreadCount } from "@/lib/chat";
+import { categoryTrust, liveOffers } from "@/lib/engine";
 import { proofsFor } from "@/lib/proofs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SafetyBar } from "@/components/safety-bar";
@@ -41,6 +42,14 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const chat = chatAccess.canRead && chatAccess.threadHelperId
     ? { unread: await unreadCount(deal.id, chatAccess.threadHelperId, viewer.profile.id) }
     : null;
+  // while choosing: unread messages per applicant, and (care work) who the customer has really talked to
+  const applicantIds = isCustomer && deal.status === "open" ? liveOffers(deal, Date.now()).map((o) => o.helperId) : [];
+  const [applicantUnread, careCalls] = await Promise.all([
+    Promise.all(applicantIds.map(async (h) => [h, await unreadCount(deal.id, h, viewer.profile.id)] as const)).then((e) => new Map(e)),
+    categoryTrust(deal.category) === "care"
+      ? Promise.all(applicantIds.map(async (h) => ((await hadCareCall(deal.id, h)) ? h : null))).then((h) => new Set(h.filter((x): x is string => x !== null)))
+      : Promise.resolve(new Set<string>()),
+  ]);
   // The helper's live position (sent by their phone during the job; ignored if older than 10 min).
   let helperPos: { lat: number; lng: number } | null = null;
   if (isCustomer && deal.helperId && (deal.status === "matched" || deal.status === "in_progress")) {
@@ -85,6 +94,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       organizations={await organizationNames([deal.payeeOrgId, ...deal.offers.map((o) => o.orgId)])}
       helperPos={helperPos}
       chat={chat}
+      applicantUnread={applicantUnread}
+      careCalls={careCalls}
       safety={safety}
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
     />

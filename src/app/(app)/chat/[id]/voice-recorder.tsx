@@ -19,8 +19,8 @@ export interface VoiceRecorderHandle {
  * Tap to record a voice message (max 2 min), tap again to send. Works on every network, so it's
  * also the fallback when a call can't connect. Stored privately in the chat bucket.
  */
-export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; disabled: boolean; onError: (m: string) => void; onRecording: (r: boolean) => void }>(
-  function VoiceRecorder({ dealId, disabled, onError, onRecording }, ref) {
+export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; withHelper: string | null; disabled: boolean; onError: (m: string) => void; onRecording: (r: boolean) => void }>(
+  function VoiceRecorder({ dealId, withHelper, disabled, onError, onRecording }, ref) {
     const t = useT();
     const router = useRouter();
     const [recording, setRecording] = useState(false);
@@ -66,11 +66,11 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; d
         const blob = new Blob(chunks.current, { type: base });
         setBusy(true);
         try {
-          const slot = await prepareVoice(dealId, base, blob.size);
+          const slot = await prepareVoice(dealId, base, blob.size, withHelper);
           if ("error" in slot) throw new Error(slot.error);
           const up = await browserClient().storage.from("chat").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: base });
           if (up.error) throw new Error(t("proof.failed"));
-          const sent = await sendVoice(dealId, slot.path, seconds);
+          const sent = await sendVoice(dealId, slot.path, seconds, withHelper);
           if (sent.error) throw new Error(sent.error);
           router.refresh();
         } catch (e) {

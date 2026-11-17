@@ -15,21 +15,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const MAX_CHAT_IMAGE_BYTES = 10 * 1024 * 1024;
 
-async function senderContext(dealId: string) {
+/** `withHelper`: which applicant's conversation the customer means (while choosing); ignored for helpers. */
+const helperParam = (v: unknown): string | null => (v === null || v === undefined || v === "" ? null : parseOr(Uuid, v));
+
+async function senderContext(dealId: string, withHelper: string | null) {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   if (!parseOr(Uuid, dealId)) return null;
   const deal = await loadDeal(createAdminClient(), dealId);
   if (!deal || deal.type !== "errand") return null;
-  const access = await accessFor(deal, viewer.profile.id);
+  const access = await accessFor(deal, viewer.profile.id, Date.now(), helperParam(withHelper));
   if (!access.canSend || !access.threadHelperId || !access.counterpartId) return null;
   return { viewer, deal: deal as ErrandDeal, access };
 }
 
 /** Upload slot for one chat photo (JPEG, ≤ 10 MB) — only for someone who may send in this chat. */
-export async function prepareChatImage(dealId: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
+export async function prepareChatImage(dealId: string, bytes: number, withHelper: string | null = null): Promise<{ path: string; token: string } | { error: string }> {
   const t = await getT();
-  const ctx = await senderContext(dealId);
+  const ctx = await senderContext(dealId, withHelper);
   if (!ctx) return { error: t("chat.closed") };
   if (!(typeof bytes === "number" && bytes > 0 && bytes <= MAX_CHAT_IMAGE_BYTES)) return { error: t("proof.tooBig") };
   return createChatImageSlot(dealId);
@@ -39,9 +42,9 @@ export async function prepareChatImage(dealId: string, bytes: number): Promise<{
  * Sends one message. Access is re-checked here (the database also refuses client writes);
  * contact details are masked and the sender is told; the other side gets a push without content.
  */
-export async function sendChat(dealId: string, text: string, imagePath: string | null): Promise<{ error?: string; masked?: boolean }> {
+export async function sendChat(dealId: string, text: string, imagePath: string | null, withHelper: string | null = null): Promise<{ error?: string; masked?: boolean }> {
   const t = await getT();
-  const ctx = await senderContext(dealId);
+  const ctx = await senderContext(dealId, withHelper);
   if (!ctx) return { error: t("chat.closed") };
   if (typeof text !== "string" || !isValid(UploadPath.nullable(), imagePath)) return { error: t("chat.empty") };
   if (imagePath && !(await chatImageExists(dealId, imagePath))) return { error: t("proof.failed") };
@@ -58,8 +61,9 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
     title: "push.chatTitle",
     body: "push.chatBody",
     params: { name: ctx.viewer.profile.name || "—" },
-    url: `/chat/${dealId}`,
-    tag: `chat-${dealId}${toCustomer ? "" : "-h"}`,
+    // the customer's link names the applicant (one conversation per applicant while choosing)
+    url: toCustomer ? `/chat/${dealId}?with=${ctx.access.threadHelperId}` : `/chat/${dealId}`,
+    tag: `chat-${dealId}${toCustomer ? `-${ctx.access.threadHelperId}` : "-h"}`,
   });
   refresh();
   return { masked: r.masked };
@@ -67,9 +71,9 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
 
 /* ---------- voice messages (also the fallback when a call can't connect) ---------- */
 
-export async function prepareVoice(dealId: string, mime: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
+export async function prepareVoice(dealId: string, mime: string, bytes: number, withHelper: string | null = null): Promise<{ path: string; token: string } | { error: string }> {
   const t = await getT();
-  const ctx = await senderContext(dealId);
+  const ctx = await senderContext(dealId, withHelper);
   if (!ctx) return { error: t("chat.closed") };
   if (typeof mime !== "string" || typeof bytes !== "number") return { error: t("call.unsupported") };
   const base = mime.split(";")[0];
@@ -78,9 +82,9 @@ export async function prepareVoice(dealId: string, mime: string, bytes: number):
   return createChatImageSlot(dealId, base);
 }
 
-export async function sendVoice(dealId: string, path: string, seconds: number): Promise<{ error?: string }> {
+export async function sendVoice(dealId: string, path: string, seconds: number, withHelper: string | null = null): Promise<{ error?: string }> {
   const t = await getT();
-  const ctx = await senderContext(dealId);
+  const ctx = await senderContext(dealId, withHelper);
   if (!ctx) return { error: t("chat.closed") };
   if (!parseOr(UploadPath, path) || !(await chatImageExists(dealId, path))) return { error: t("proof.failed") };
   const secs = Math.min(MAX_VOICE_SECONDS, Math.max(1, Math.round(Number(seconds) || 1)));
@@ -90,7 +94,7 @@ export async function sendVoice(dealId: string, path: string, seconds: number): 
     title: "push.chatTitle",
     body: "push.chatBody",
     params: { name: ctx.viewer.profile.name || "—" },
-    url: `/chat/${dealId}`,
+    url: ctx.access.counterpartId === ctx.deal.customerId ? `/chat/${dealId}?with=${ctx.access.threadHelperId}` : `/chat/${dealId}`,
     tag: `chat-${dealId}`,
   });
   refresh();
@@ -99,13 +103,13 @@ export async function sendVoice(dealId: string, path: string, seconds: number): 
 
 /* ---------- calls: the browser does WebRTC; these relay the handshake after checking access ---------- */
 
-async function callContext(dealId: string) {
+async function callContext(dealId: string, withHelper: string | null) {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   if (!parseOr(Uuid, dealId)) return null;
   const deal = await loadDeal(createAdminClient(), dealId);
   if (!deal || deal.type !== "errand") return null;
-  const party = callParty(deal, viewer.profile.id);
+  const party = callParty(deal, viewer.profile.id, helperParam(withHelper));
   return party ? { viewer, deal, party } : null;
 }
 
@@ -113,16 +117,16 @@ const uuid = (v: unknown) => parseOr(Uuid, v) !== null;
 const sdpOk = (v: unknown) => typeof v === "string" && v.length <= 20_000;
 
 /** ICE servers for this call (STUN; our own relay, relay-only, once configured). */
-export async function callSetup(dealId: string): Promise<{ iceServers: RTCIceServer[]; relayOnly: boolean } | { error: string }> {
+export async function callSetup(dealId: string, withHelper: string | null = null): Promise<{ iceServers: RTCIceServer[]; relayOnly: boolean } | { error: string }> {
   const t = await getT();
-  const ctx = await callContext(dealId);
+  const ctx = await callContext(dealId, withHelper);
   if (!ctx) return { error: t("call.notAllowed") };
   return iceConfig(ctx.viewer.profile.id);
 }
 
-export async function placeCall(dealId: string, callId: string, video: boolean, sdp: string): Promise<{ error?: string }> {
+export async function placeCall(dealId: string, callId: string, video: boolean, sdp: string, withHelper: string | null = null): Promise<{ error?: string }> {
   const t = await getT();
-  const ctx = await callContext(dealId);
+  const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId) || !sdpOk(sdp)) return { error: t("call.notAllowed") };
   const r = await sendSignal({ dealId, callId, from: ctx.party.me, to: ctx.party.other, kind: "offer", video: Boolean(video), sdp });
   if (!r.ok) return { error: t(r.reason === "rate" ? "chat.slowDown" : "call.failed") };
@@ -130,15 +134,16 @@ export async function placeCall(dealId: string, callId: string, video: boolean, 
     title: video ? "push.videoCallTitle" : "push.callTitle",
     body: "push.callBody",
     params: { name: ctx.viewer.profile.name || "—" },
-    url: `/chat/${dealId}?call=${callId}`,
+    // the customer answering an applicant's call opens that applicant's conversation
+    url: ctx.party.other === ctx.deal.customerId ? `/chat/${dealId}?call=${callId}&with=${ctx.party.helperId}` : `/chat/${dealId}?call=${callId}`,
     tag: `call-${dealId}`,
   });
   return {};
 }
 
-export async function answerCall(dealId: string, callId: string, sdp: string): Promise<{ error?: string }> {
+export async function answerCall(dealId: string, callId: string, sdp: string, withHelper: string | null = null): Promise<{ error?: string }> {
   const t = await getT();
-  const ctx = await callContext(dealId);
+  const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId) || !sdpOk(sdp)) return { error: t("call.notAllowed") };
   const r = await sendSignal({ dealId, callId, from: ctx.party.me, to: ctx.party.other, kind: "answer", video: false, sdp });
   return r.ok ? {} : { error: t("call.failed") };
@@ -148,23 +153,30 @@ export async function answerCall(dealId: string, callId: string, sdp: string): P
  * Ends / declines / reports busy, and writes the call-log line into the chat (once per call).
  * Allowed even if the task just changed status, so a call can always be hung up cleanly.
  */
-export async function endCall(dealId: string, callId: string, rawKind: "hangup" | "decline" | "busy", rawLog: CallLog | null): Promise<void> {
+export async function endCall(dealId: string, callId: string, rawKind: "hangup" | "decline" | "busy", rawLog: CallLog | null, withHelper: string | null = null): Promise<void> {
   const viewer = await getViewer();
   const kind = parseOr(CallEndKind, rawKind);
   const log = rawLog === null ? null : parseOr(CallLogInput, rawLog);
   if (!viewer || !uuid(dealId) || !uuid(callId) || !kind || (rawLog !== null && !log)) return;
   const deal = await loadDeal(createAdminClient(), dealId);
-  if (!deal || deal.type !== "errand" || !deal.helperId) return;
+  if (!deal || deal.type !== "errand") return;
   const me = viewer.profile.id;
-  if (me !== deal.customerId && me !== deal.helperId) return;
-  const other = me === deal.customerId ? deal.helperId : deal.customerId;
+  // Who the call was with: an applicant while choosing, else the chosen helper. Allowed even if the
+  // task changed status meanwhile, so a call can always be hung up — but only by someone on this task.
+  const asked = helperParam(withHelper);
+  const helperId = me === deal.customerId ? (asked ?? deal.helperId) : me;
+  if (!helperId) return;
+  const onTask = me === deal.customerId || me === deal.helperId || deal.offers.some((o) => o.helperId === me);
+  if (!onTask || (me === deal.customerId && helperId !== deal.helperId && !deal.offers.some((o) => o.helperId === helperId))) return;
+  const other = me === deal.customerId ? helperId : deal.customerId;
   await sendSignal({ dealId, callId, from: me, to: other, kind, video: false, sdp: null });
-  if (log) await logCall({ dealId, helperId: deal.helperId, fromUserId: me, callId, log });
+  // the log line goes into the conversation with that helper (care work: proof that you talked)
+  if (log) await logCall({ dealId, helperId, fromUserId: me, callId, log });
 }
 
 /** The ringing offer behind a "?call=" link (from the push), if it's still ringing. */
-export async function getIncoming(dealId: string, callId: string): Promise<IncomingCall | null> {
-  const ctx = await callContext(dealId);
+export async function getIncoming(dealId: string, callId: string, withHelper: string | null = null): Promise<IncomingCall | null> {
+  const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId)) return null;
   return incomingCall(dealId, callId, ctx.party.me);
 }

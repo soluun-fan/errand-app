@@ -358,7 +358,7 @@ export function PostFlow({
           })}
           <p className="flex items-start gap-2 rounded-card bg-bg p-3.5 text-[13px] text-ink-2 shadow-card">
             <Info aria-hidden size={16} className="mt-0.5 flex-none" />
-            {t("task.typeHint")}
+            {t("task.typeHint", { amount: fmtMoney(minFee) })}
           </p>
         </div>
       )}

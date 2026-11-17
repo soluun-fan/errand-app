@@ -46,6 +46,7 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
  */
 export function CallPanel({
   dealId,
+  withHelper,
   me,
   name,
   canCall,
@@ -53,6 +54,8 @@ export function CallPanel({
   onFallback,
 }: {
   dealId: string;
+  /** The applicant this conversation is with (customer side, while choosing). */
+  withHelper: string | null;
   me: string;
   name: string;
   canCall: boolean;
@@ -107,7 +110,7 @@ export function CallPanel({
   async function hangUp(log: CallLog | null, text: string, fallback = false) {
     const id = callId.current;
     finish(text, fallback);
-    if (id) await endCall(dealId, id, "hangup", log);
+    if (id) await endCall(dealId, id, "hangup", log, withHelper);
   }
 
   function wire(conn: RTCPeerConnection, isVideo: boolean) {
@@ -168,7 +171,7 @@ export function CallPanel({
   async function start(isVideo: boolean) {
     setMessage(null);
     setShowFallback(false);
-    const setup = await callSetup(dealId);
+    const setup = await callSetup(dealId, withHelper);
     if ("error" in setup) return setMessage(setup.error);
     const stream = await media(isVideo);
     if (!stream) return;
@@ -184,7 +187,7 @@ export function CallPanel({
     await gathered(conn);
     const id = crypto.randomUUID();
     callId.current = id;
-    const r = await placeCall(dealId, id, isVideo, conn.localDescription?.sdp ?? "");
+    const r = await placeCall(dealId, id, isVideo, conn.localDescription?.sdp ?? "", withHelper);
     if (r.error) return finish(r.error, true);
     // no answer in time → missed
     timers.current.push(
@@ -204,7 +207,7 @@ export function CallPanel({
     const inc = incoming;
     if (!inc) return;
     setMessage(null);
-    const setup = await callSetup(dealId);
+    const setup = await callSetup(dealId, withHelper);
     if ("error" in setup) return finish(setup.error);
     const stream = await media(inc.video);
     if (!stream) return;
@@ -220,7 +223,7 @@ export function CallPanel({
     await conn.setRemoteDescription({ type: "offer", sdp: inc.sdp });
     await conn.setLocalDescription(await conn.createAnswer());
     await gathered(conn);
-    const r = await answerCall(dealId, inc.callId, conn.localDescription?.sdp ?? "");
+    const r = await answerCall(dealId, inc.callId, conn.localDescription?.sdp ?? "", withHelper);
     setIncoming(null);
     if (r.error) finish(r.error, true);
   }
@@ -229,7 +232,7 @@ export function CallPanel({
     const inc = incoming;
     setIncoming(null);
     go("idle");
-    if (inc) await endCall(dealId, inc.callId, "decline", { kind: "declined", video: inc.video });
+    if (inc) await endCall(dealId, inc.callId, "decline", { kind: "declined", video: inc.video }, withHelper);
   }
 
   // incoming offers and the other side's answers / hang-ups (Realtime, filtered by RLS to me)
@@ -242,7 +245,7 @@ export function CallPanel({
         if (row.deal_id !== dealId) return;
         if (row.kind === "offer") {
           if (phaseRef.current !== "idle" && phaseRef.current !== "ended") {
-            void endCall(dealId, row.call_id, "busy", null);
+            void endCall(dealId, row.call_id, "busy", null, withHelper);
             return;
           }
           if (row.sdp) {
@@ -266,7 +269,7 @@ export function CallPanel({
   // arriving from the push notification: "/chat/<id>?call=<callId>"
   useEffect(() => {
     if (!initialCallId) return;
-    void getIncoming(dealId, initialCallId).then((inc) => {
+    void getIncoming(dealId, initialCallId, withHelper).then((inc) => {
       if (inc && phaseRef.current === "idle") {
         setIncoming({ callId: inc.callId, video: inc.video, sdp: inc.sdp });
         go("incoming");
@@ -291,7 +294,7 @@ export function CallPanel({
   useEffect(
     () => () => {
       const id = callId.current;
-      if (id && ["outgoing", "connecting", "live"].includes(phaseRef.current)) void endCall(dealId, id, "hangup", null);
+      if (id && ["outgoing", "connecting", "live"].includes(phaseRef.current)) void endCall(dealId, id, "hangup", null, withHelper);
       cleanup();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

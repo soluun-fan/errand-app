@@ -27,6 +27,8 @@ export interface ChatDealView {
   helperId: string | null;
   /** When the task reached its final status (deals.updated_at), for the 24 h grace. */
   endedAt: number | null;
+  /** Helpers with a live application while the task is open (they may talk to the customer before being chosen). */
+  applicants?: readonly string[];
 }
 
 export interface ChatAccess {
@@ -44,8 +46,19 @@ const NONE: ChatAccess = { canRead: false, canSend: false, threadHelperId: null,
  * What `viewerId` may do in the chat of this task. `hadThread` says whether a released helper
  * already has messages here (they keep read-only access to their own conversation).
  */
-export function chatAccess(deal: ChatDealView, viewerId: string, now: number, hadThread = false): ChatAccess {
+export function chatAccess(deal: ChatDealView, viewerId: string, now: number, hadThread = false, withHelper: string | null = null): ChatAccess {
   const isCustomer = viewerId === deal.customerId;
+  // Before choosing (docs/decisions.md 2026-11-17 "Talk before choosing"): the customer and each
+  // applicant have their own conversation; the customer picks which one with `withHelper`.
+  if (deal.status === "open") {
+    const applicants = deal.applicants ?? [];
+    if (applicants.includes(viewerId)) return { canRead: true, canSend: true, threadHelperId: viewerId, counterpartId: deal.customerId };
+    if (isCustomer && withHelper && applicants.includes(withHelper)) return { canRead: true, canSend: true, threadHelperId: withHelper, counterpartId: withHelper };
+  }
+  // Once someone is chosen, the customer can still read (not write) a conversation with another applicant.
+  if (isCustomer && withHelper && withHelper !== deal.helperId && hadThread) {
+    return { canRead: true, canSend: false, threadHelperId: withHelper, counterpartId: withHelper };
+  }
   const isHelper = deal.helperId !== null && viewerId === deal.helperId;
   const ended = ENDED.includes(deal.status);
   const inGrace = ended && deal.endedAt !== null && now < deal.endedAt + CHAT_GRACE_MS;

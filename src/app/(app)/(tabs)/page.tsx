@@ -58,7 +58,7 @@ export default async function Home() {
     />
   );
   const everCompleted = all.some((x) => x.deal.status === "released");
-  const repeat = [...new Map(all.filter((x) => x.deal.status === "released").map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
+  const repeat = [...new Map(all.filter((x) => x.deal.status === "released" && !x.deal.title.startsWith("[verify]")) /* test tasks never become chips */.map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
 
   // "from" price per category: the engine's build-up price for a usual job of that kind, today
   const [cfg, recent, online, board, helpers, reviews, popular, seasonal] = await Promise.all([

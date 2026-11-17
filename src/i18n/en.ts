@@ -133,6 +133,7 @@ export const en = {
     pickKinds: "Choose requested services and check the document and payout account. Care requires an agency."
   },
   opsCerts: {
+    careCheck: "Care clearance: before approving, confirm the criminal-record check (✓), hold a video interview and contact at least 2 references.",
     title: "Certificate reviews",
     empty: "No certificates waiting for review."
   },
@@ -373,6 +374,13 @@ export const en = {
     saved: "Saved.",
     pickOne: "Pick at least one kind.",
   },
+  care: {
+    callFirst: "Care work: talk to this person on an in-app call (over 30 seconds) before choosing them.",
+    callFirstHelper: "Care work: the customer chooses you only after talking with you on a call.",
+    helperNote: "Care work: the customer must call you before choosing you. The first time, the customer is at home.",
+    needsRecord: "To get a care clearance, first have your criminal-record certificate checked.",
+    clearanceIntro: "For babysitting and care work: ask for a clearance once your criminal-record certificate is checked. We do a video interview and check references (past employers, training).",
+  },
   web: {
     requests: "Requests",
     helpers: "Helpers",
@@ -440,7 +448,7 @@ export const en = {
     helperBody: "Pick the jobs you want, when you want. You keep your whole fee.",
     helperCta: "Apply as a helper",
     priceTitle: "You set the price",
-    priceBody: "Name your price from 5,000₮. A helper takes it or answers with theirs, and you two agree. No percentage commission.",
+    priceBody: "Name your price from {amount}. A helper takes it or answers with theirs, and you two agree. No percentage commission.",
     bar: "One request, and helpers nearby apply first.",
     footerAbout: "Errands with held payments in Ulaanbaatar.",
     footerHelp: "Help",
@@ -717,7 +725,7 @@ export const en = {
   },
   task: {
     steps: { type: "What kind of task?", what: "What exactly?", where: "Where and when?", review: "Review" },
-    typeHint: "You set the price at the last step (from 5,000₮). Helpers can take it or answer with theirs.",
+    typeHint: "You set the price at the last step (from {amount}). Helpers can take it or answer with theirs.",
     change: "change",
     close: "Close",
     pickup: "Pick up from",
@@ -940,7 +948,7 @@ export const en = {
     quote: "Send your price",
     quotePrice: "Your price",
     quoteNote: "Note for the customer (optional)",
-    quoteInvalid: "Enter a price of at least 5,000₮",
+    quoteInvalid: "Enter a price of at least {amount}",
     quoteSent: "Price sent: {amount}. The customer will choose.",
     quoteDone: "Price sent. The customer will choose.",
     waitingPay: "Accepted. Waiting for the customer to pay ({time}). Don't set off yet.",
@@ -981,6 +989,8 @@ export const en = {
     handover: "Handover",
   },
   chat: {
+    withApplicant: "Applied for your task · talk before you choose",
+    withCustomerBefore: "Customer · before choosing you",
     open: "Chat",
     unread: "{n} new",
     withHelper: "Your helper",
@@ -1439,7 +1449,7 @@ export const en = {
   },
   help: {
     title: "How Tuslamj works",
-    s1: "Post your task for free and name your price (from 5,000₮). Verified helpers nearby are notified.",
+    s1: "Post your task for free and name your price (from {amount}). Verified helpers nearby are notified.",
     s2: "Helpers take your price or name theirs — answer back, agree and choose. You pay only after choosing; the partner bank holds the money.",
     s3: "The helper does the job and adds a receipt (if they bought something) and a handover photo. You check and confirm; only then does the bank pay them (automatically after 24 h if you do nothing). You can agree a new price along the way.",
     protectTitle: "Your protection",

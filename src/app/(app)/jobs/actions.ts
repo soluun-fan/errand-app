@@ -11,7 +11,9 @@ import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
-import { EngineError, type Command } from "@/lib/engine";
+import { EngineError, categoryTrust, minFeeAt, type Command } from "@/lib/engine";
+import { hadCareCall } from "@/lib/chat";
+import { pricingConfig } from "@/lib/pricing";
 import { fmtMoney } from "@/lib/format";
 import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
@@ -212,12 +214,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (intent === "apply") cmd = { type: "apply", note };
     else if (intent === "quote" || intent === "reprice") {
       const price = await named();
-      if (price === null) return { error: t("job.quoteInvalid") };
+      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
       cmd = intent === "quote" ? { type: "apply", note, price } : { type: "reprice", price };
     } else if (intent === "accept_counter") cmd = { type: "accept_counter" };
     else if (intent === "propose_price") {
       const price = await named();
-      if (price === null) return { error: t("job.quoteInvalid") };
+      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
       cmd = { type: "propose_price", price };
     } else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
     else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
@@ -228,6 +230,13 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     else if (intent === "finish") cmd = { type: "finish" };
     else return { error: t("error.generic") };
 
+    // care work: the customer must have talked to this helper before they're matched (also for accepting the customer's price)
+    if (cmd.type === "accept_counter") {
+      const before = await loadDeal(db, dealId);
+      if (before?.type === "errand" && categoryTrust(before.category) === "care" && !(await hadCareCall(dealId, viewer.profile.id))) {
+        return { error: t("care.callFirstHelper") };
+      }
+    }
     const { deal } = await runCommand(db, dealId, cmd, viewer.actor);
     if (deal.type !== "errand") return { error: t("error.generic") };
 
@@ -283,7 +292,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (e instanceof EngineError) {
       refresh();
       if (e.code === "FORBIDDEN") return { error: t("error.forbidden") };
-      if (/Minimum fee/.test(e.message)) return { error: t("job.quoteInvalid") };
+      if (/Minimum fee/.test(e.message)) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
       if (e.code === "PROOF_MISSING") return { error: t("proof.missing") };
       if (/approve the extra/.test(e.message)) return { error: t("proof.waitTopUp") };
       if (/applicants/.test(e.message)) return { error: t("job.full") };

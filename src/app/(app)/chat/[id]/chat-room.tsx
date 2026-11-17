@@ -25,7 +25,10 @@ export function ChatRoom({
   name,
   canCall,
   initialCallId,
+  withHelper,
 }: {
+  /** The applicant this conversation is with (customer side, while choosing); null otherwise. */
+  withHelper: string | null;
   dealId: string;
   messages: ChatMessage[];
   canSend: boolean;
@@ -65,7 +68,7 @@ export function ChatRoom({
     setBusy(true);
     setNotice(null);
     try {
-      const r = await sendChat(dealId, imagePath ? "" : text, imagePath);
+      const r = await sendChat(dealId, imagePath ? "" : text, imagePath, withHelper);
       if (r.error) setNotice({ tone: "bad", text: r.error });
       else {
         if (!imagePath) setText("");
@@ -82,7 +85,7 @@ export function ChatRoom({
     setNotice(null);
     try {
       const { blob } = await compressImage(f);
-      const slot = await prepareChatImage(dealId, blob.size);
+      const slot = await prepareChatImage(dealId, blob.size, withHelper);
       if ("error" in slot) throw new Error(slot.error);
       const up = await browserClient().storage.from("chat").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
       if (up.error) throw new Error(t("proof.failed"));
@@ -97,7 +100,7 @@ export function ChatRoom({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <CallPanel dealId={dealId} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />
+      <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />
       <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
@@ -156,7 +159,7 @@ export function ChatRoom({
           }}
         >
           <input ref={file} type="file" accept="image/*" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} />
-          <VoiceRecorder ref={voice} dealId={dealId} disabled={busy} onRecording={setRecording} onError={(text) => setNotice({ tone: "bad", text })} />
+          <VoiceRecorder ref={voice} dealId={dealId} withHelper={withHelper} disabled={busy} onRecording={setRecording} onError={(text) => setNotice({ tone: "bad", text })} />
           {!recording && (
           <>
           <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">

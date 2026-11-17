@@ -260,6 +260,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             {deal.invite.openAfter ? <Countdown until={deal.invite.until} serverNow={now} template={t("invite.toYouUntil")} /> : t("invite.toYouOnly")}
           </Note>
         )}
+        {deal.status === "open" && categoryTrust(deal.category) === "care" && <Note tone="warn">{t("care.helperNote")}</Note>}
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </DetailTitle>

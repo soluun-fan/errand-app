@@ -71,7 +71,9 @@ export const OPEN_CATEGORIES: readonly CategoryId[] = CATEGORIES.filter((c) => c
 export const categoryTrust = (id: CategoryId): Trust => categoryConfig(id).trust;
 
 /** Tasks with a pickup and a drop-off (distance and a pickup pin apply); others happen in one place. */
-export const TWO_POINT_CATEGORIES: readonly CategoryId[] = ["shop", "deliver", "carry"];
+// "other" and "escort" too (owner 2026-11-17): "take the keys there and come back" is priced by
+// distance, and the way back (round trip) costs a share of it (roundTripBps, 50% by default).
+export const TWO_POINT_CATEGORIES: readonly CategoryId[] = ["shop", "deliver", "carry", "other", "escort"];
 
 /** Flat service fee by task price: the first tier whose `below` is above the price (null = any). */
 export interface FeeTier {

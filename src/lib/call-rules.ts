@@ -5,7 +5,18 @@
 import type { DealStatus } from "@/lib/engine";
 
 /** Statuses during which the two sides may call (not after it ends, not during a dispute). */
-export const CALL_STATUSES: readonly DealStatus[] = ["awaiting_payment", "matched", "in_progress", "check"];
+export const CALL_STATUSES: readonly DealStatus[] = ["open", "awaiting_payment", "matched", "in_progress", "check"];
+
+/** Care work (children, patients): the customer must have talked to a helper this long before choosing them. */
+export const CARE_CALL_MIN_SECONDS = 30;
+
+/** Whether a conversation's call log shows a real call (answered, at least `min` seconds). */
+export function hadRealCall(logTexts: readonly string[], min = CARE_CALL_MIN_SECONDS): boolean {
+  return logTexts.some((text) => {
+    const c = decodeCallLog(text);
+    return c !== null && c.kind === "ended" && c.seconds >= min;
+  });
+}
 /** An unanswered call stops ringing after this long and is logged as missed. */
 export const RING_TIMEOUT_MS = 45_000;
 /** Signals carry network addresses — the server deletes them after this long. */

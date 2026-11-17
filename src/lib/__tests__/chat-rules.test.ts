@@ -13,9 +13,19 @@ describe("chatAccess", () => {
     }
   });
 
-  it("no chat while nobody is chosen; applicants can't chat", () => {
-    expect(chatAccess(deal({ status: "open", helperId: null }), "c", NOW).canRead).toBe(false);
-    expect(chatAccess(deal({ status: "open", helperId: null }), "applicant", NOW).canRead).toBe(false);
+  it("before choosing: each applicant talks to the customer in their own conversation; nobody else can", () => {
+    const open = deal({ status: "open", helperId: null, applicants: ["a1", "a2"] });
+    expect(chatAccess(open, "a1", NOW)).toEqual({ canRead: true, canSend: true, threadHelperId: "a1", counterpartId: "c" });
+    expect(chatAccess(open, "c", NOW, false, "a2")).toEqual({ canRead: true, canSend: true, threadHelperId: "a2", counterpartId: "a2" });
+    expect(chatAccess(open, "c", NOW).canRead).toBe(false); // the customer must say which applicant
+    expect(chatAccess(open, "c", NOW, false, "stranger").canRead).toBe(false); // not an applicant
+    expect(chatAccess(open, "stranger", NOW).canRead).toBe(false);
+    expect(chatAccess(deal({ status: "open", helperId: null }), "a1", NOW).canRead).toBe(false); // application lapsed
+  });
+  it("after choosing, the customer can still read (not write) another applicant's conversation", () => {
+    const chosen = deal({ status: "matched", helperId: "a1" });
+    expect(chatAccess(chosen, "c", NOW, true, "a2")).toMatchObject({ canRead: true, canSend: false, threadHelperId: "a2" });
+    expect(chatAccess(chosen, "c", NOW, false, "a2")).toMatchObject({ canSend: true, threadHelperId: "a1" }); // nothing there → their chosen helper
   });
 
   it("a released helper keeps read-only access to their own conversation; the next helper gets a fresh one", () => {

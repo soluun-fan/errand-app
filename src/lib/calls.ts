@@ -1,6 +1,6 @@
 import "server-only";
 import { CALLS_PER_MINUTE, RING_TIMEOUT_MS, SIGNAL_TTL_MS, callAllowed, encodeCallLog, validSdp, type CallLog, type SignalKind } from "@/lib/call-rules";
-import type { ErrandDeal } from "@/lib/engine";
+import { liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { turnCredentials } from "@/lib/turn";
 
@@ -16,9 +16,19 @@ export interface CallParty {
   helperId: string;
 }
 
-/** Who may call whom on this task right now (customer ⇄ chosen helper, live task only). */
-export function callParty(deal: ErrandDeal, viewerId: string): CallParty | null {
-  if (!deal.helperId || !callAllowed(deal.status)) return null;
+/**
+ * Who may call whom on this task right now: while choosing, the customer ⇄ one applicant
+ * (`withHelper` says which, for the customer); after that, customer ⇄ chosen helper.
+ */
+export function callParty(deal: ErrandDeal, viewerId: string, withHelper: string | null = null, now = Date.now()): CallParty | null {
+  if (!callAllowed(deal.status)) return null;
+  if (deal.status === "open") {
+    const applicants = liveOffers(deal, now).map((o) => o.helperId);
+    if (applicants.includes(viewerId)) return { me: viewerId, other: deal.customerId, helperId: viewerId };
+    if (viewerId === deal.customerId && withHelper && applicants.includes(withHelper)) return { me: viewerId, other: withHelper, helperId: withHelper };
+    return null;
+  }
+  if (!deal.helperId) return null;
   if (viewerId === deal.customerId) return { me: viewerId, other: deal.helperId, helperId: deal.helperId };
   if (viewerId === deal.helperId) return { me: viewerId, other: deal.customerId, helperId: deal.helperId };
   return null;
@@ -96,11 +106,28 @@ export async function incomingCall(dealId: string, callId: string, viewerId: str
 }
 
 /** Adds a call-log line to the chat once per call (the first side to report wins). */
-export async function logCall(p: { dealId: string; helperId: string; fromUserId: string; callId: string; log: CallLog }): Promise<void> {
+export async function logCall(p: { dealId: string; helperId: string; fromUserId: string; callId: string; log: CallLog }, now = Date.now()): Promise<void> {
   const db = createAdminClient();
   const tag = `call:${p.callId}`;
   const { count } = await db.from("messages").select("id", { count: "exact", head: true }).eq("deal_id", p.dealId).contains("flags", [tag]);
   if (count) return;
+  // The browser reports the length; the server only believes what it relayed: an "ended" call must
+  // have an answer on record, and can't have lasted longer than the time since that answer.
+  // (Care work needs a real call before choosing, so this line is evidence.)
+  if (p.log.kind === "ended") {
+    const { data: answer } = await db
+      .from("call_signals")
+      .select("created_at")
+      .eq("deal_id", p.dealId)
+      .eq("call_id", p.callId)
+      .eq("kind", "answer")
+      .order("created_at")
+      .limit(1)
+      .maybeSingle<{ created_at: string }>();
+    p.log = answer
+      ? { ...p.log, seconds: Math.max(0, Math.min(p.log.seconds, Math.floor((now - Date.parse(answer.created_at)) / 1000))) }
+      : { kind: "failed", video: p.log.video };
+  }
   await db
     .from("messages")
     .insert({ deal_id: p.dealId, helper_id: p.helperId, from_user_id: p.fromUserId, is_system: true, text: encodeCallLog(p.log), flags: [tag] })

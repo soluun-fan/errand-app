@@ -110,6 +110,7 @@ export async function submitCert(raw: CertForm): Promise<{ error?: string }> {
   const r = await submitCertificate(viewer.profile.id, parsed.data);
   if (r === "file") return { error: t("org.errors.file") };
   if (r === "duplicate") return { error: t("cert.errors.duplicate") };
+  if (r === "needsRecord") return { error: t("care.needsRecord") };
   refresh();
   return {};
 }

@@ -1,12 +1,12 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { callAllowed, decodeCallLog, encodeCallLog, validSdp } from "@/lib/call-rules";
+import { callAllowed, decodeCallLog, encodeCallLog, hadRealCall, validSdp } from "@/lib/call-rules";
 import { turnCredentials } from "@/lib/turn";
 
 describe("call rules", () => {
-  it("calls only during a live task — not before a helper is chosen, not after it ends, not in a dispute", () => {
-    for (const s of ["awaiting_payment", "matched", "in_progress", "check"] as const) expect(callAllowed(s)).toBe(true);
-    for (const s of ["open", "disputed", "released", "refunded", "cancelled", "expired"] as const) expect(callAllowed(s)).toBe(false);
+  it("calls while choosing (with an applicant) and during a live task — not after it ends, not in a dispute", () => {
+    for (const s of ["open", "awaiting_payment", "matched", "in_progress", "check"] as const) expect(callAllowed(s)).toBe(true);
+    for (const s of ["disputed", "released", "refunded", "cancelled", "expired"] as const) expect(callAllowed(s)).toBe(false);
   });
 
   it("relays only plausible SDP of sane size", () => {
@@ -35,5 +35,14 @@ describe("TURN REST credentials", () => {
     expect(username).toBe("1700000600:user-1");
     expect(credential).toBe(createHmac("sha1", "s3cret").update(username).digest("base64"));
     expect(turnCredentials("other", "user-1", 1_700_000_000_000).credential).not.toBe(credential);
+  });
+});
+
+describe("care work: a real call before choosing", () => {
+  it("needs an answered call of at least 30 seconds; missed, declined or short calls don't count", () => {
+    expect(hadRealCall(["call:ended:voice:45"])).toBe(true);
+    expect(hadRealCall(["call:ended:video:30"])).toBe(true);
+    expect(hadRealCall(["call:ended:voice:12", "call:missed:voice", "call:declined:video", "hello"])).toBe(false);
+    expect(hadRealCall([])).toBe(false);
   });
 });

@@ -80,7 +80,7 @@ describe("specialized work", () => {
     const h = worker(category);
     expect((w.get(id) as ErrandDeal).details.autoPick).toBe(false);
     w.reject(id, { type: "accept" }, h, "ILLEGAL_TRANSITION");
-    w.reject(id, { type: "apply", note: "" }, worker(category, null), "FORBIDDEN");
+    w.reject(id, { type: "apply", note: "" }, helper("h9"), "FORBIDDEN"); // no care clearance, no agency
     offer(w, id, h);
     const tampered = { ...w.get(id), details: { ...(w.get(id) as ErrandDeal).details, autoPick: true } } as ErrandDeal;
     expect(autoPickAt(tampered, w.now)).toBeNull();

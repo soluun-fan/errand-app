@@ -416,7 +416,7 @@ export async function myCertificates(helperId: string): Promise<Certificate[]> {
   return (data ?? []).map((r) => toCert({ ...r, status: r.status === "approved" && r.expires_on && r.expires_on < ubDay(Date.now()) ? "expired" : r.status }));
 }
 
-export async function submitCertificate(helperId: string, c: CertificateInput): Promise<"ok" | "file" | "duplicate"> {
+export async function submitCertificate(helperId: string, c: CertificateInput): Promise<"ok" | "file" | "duplicate" | "needsRecord"> {
   if (!(await ownFileExists(helperId, c.docPath))) return "file";
   const db = createAdminClient();
   // Expiry is date based; clear the unique active slot before accepting a renewal.
@@ -425,6 +425,7 @@ export async function submitCertificate(helperId: string, c: CertificateInput): 
     .from("helper_certificates")
     .insert({ helper_id: helperId, category: c.category, issuer: c.issuer, number: c.number, expires_on: c.expiresOn, doc_path: c.docPath });
   if (error?.code === "23505") return "duplicate"; // one pending / approved per kind
+  if (error?.code === "23514" && /criminal-record/.test(error.message)) return "needsRecord"; // care clearance
   if (error) throw new DbError(error);
   return "ok";
 }

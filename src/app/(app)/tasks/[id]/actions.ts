@@ -11,7 +11,8 @@ import { getDealForViewer } from "@/lib/deals/queries";
 import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
-import { EngineError, amountDue, type Command } from "@/lib/engine";
+import { EngineError, amountDue, categoryTrust, type Command } from "@/lib/engine";
+import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
 import { notifyPriceChange } from "@/lib/price-notify";
@@ -140,6 +141,13 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           if (note.length < DISPUTE_NOTE_MIN) return { error: t("dispute.noteShort") };
           cmd = { type: "dispute", reason, note };
         } else return { error: t("error.generic") };
+        // care work (children, patients): talk first — a real call with that person before choosing them
+        if (cmd.type === "choose") {
+          const before = await loadDeal(db, dealId);
+          if (before?.type === "errand" && categoryTrust(before.category) === "care" && !(await hadCareCall(dealId, cmd.helperId))) {
+            return { error: t("care.callFirst") };
+          }
+        }
         const r = await runCommand(db, dealId, cmd, viewer.actor);
         if (cmd.type === "choose" && r.deal.type === "errand") {
           await notifyChosen(r.deal, false);

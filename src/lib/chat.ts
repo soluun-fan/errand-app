@@ -1,6 +1,7 @@
 import "server-only";
 import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, type ChatAccess } from "@/lib/chat-rules";
-import type { ErrandDeal } from "@/lib/engine";
+import { hadRealCall } from "@/lib/call-rules";
+import { liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -29,18 +30,34 @@ async function endedAt(dealId: string): Promise<number | null> {
 }
 
 /** What this viewer may do in this task's chat (and which conversation is theirs). */
-export async function accessFor(deal: ErrandDeal, viewerId: string, now = Date.now()): Promise<ChatAccess> {
+export async function accessFor(deal: ErrandDeal, viewerId: string, now = Date.now(), withHelper: string | null = null): Promise<ChatAccess> {
   const ended = ["released", "refunded", "cancelled", "expired"].includes(deal.status) ? await endedAt(deal.id) : null;
+  // whose old conversation might be readable: the viewer's own (a released helper) or the one the customer asked for
+  const threadOwner = viewerId === deal.customerId ? withHelper : viewerId !== deal.helperId ? viewerId : null;
   let hadThread = false;
-  if (viewerId !== deal.customerId && viewerId !== deal.helperId) {
+  if (threadOwner) {
     const { count } = await createAdminClient()
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("deal_id", deal.id)
-      .eq("helper_id", viewerId);
+      .eq("helper_id", threadOwner);
     hadThread = Boolean(count);
   }
-  return chatAccess({ status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended }, viewerId, now, hadThread);
+  const applicants = deal.status === "open" ? liveOffers(deal, now).map((o) => o.helperId) : [];
+  return chatAccess({ status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended, applicants }, viewerId, now, hadThread, withHelper);
+}
+
+/** Whether the customer and this helper have had a real call on this task (care work needs one before choosing). */
+export async function hadCareCall(dealId: string, helperId: string): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from("messages")
+    .select("text")
+    .eq("deal_id", dealId)
+    .eq("helper_id", helperId)
+    .eq("is_system", true)
+    .like("text", "call:ended:%")
+    .returns<{ text: string }[]>();
+  return hadRealCall((data ?? []).map((m) => m.text));
 }
 
 /** The viewer's conversation, oldest first, with 1-hour signed photo URLs. */

@@ -220,7 +220,7 @@ export default async function Welcome() {
           </div>
           <div className="flex flex-col gap-3 rounded-card bg-brand-bg p-6 md:p-8">
             <h2 className="text-[24px] font-extrabold">{t("landing.priceTitle")}</h2>
-            <p className="text-[15px] text-ink-2">{t("landing.priceBody")}</p>
+            <p className="text-[15px] text-ink-2">{t("landing.priceBody", { amount: fmtMoney(cfg.minFee) })}</p>
           </div>
         </section>
 

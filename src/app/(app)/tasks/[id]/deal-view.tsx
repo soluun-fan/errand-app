@@ -10,7 +10,7 @@ import { StepTracker } from "@/components/step-tracker";
 import { Card, FlowHeader, HeldBadge, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, autoPickAt, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { amountDue, autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
@@ -48,6 +48,10 @@ export interface DealViewProps {
   proofs?: ProofView[];
   /** Chat entry (null when there's no conversation for this viewer). */
   chat?: { unread: number } | null;
+  /** Unread messages per applicant (while choosing). */
+  applicantUnread?: Map<string, number>;
+  /** Care work: applicants the customer has already had a real call with (needed before choosing). */
+  careCalls?: Set<string>;
   /** SOS / report-a-problem row (client component, passed in by the page). */
   safety?: ReactNode;
 }
@@ -68,15 +72,17 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
  */
 /** "💬 Чат" with an unread badge. */
 /** Call | Chat side by side (both open the deal's chat, where the call buttons are). Call only while a call is allowed. */
-export function ContactRow({ dealId, unread, canCall, t }: { dealId: string; unread: number; canCall: boolean; t: T }) {
+export function ContactRow({ dealId, unread, canCall, t, withHelper = null }: { dealId: string; unread: number; canCall: boolean; t: T; withHelper?: string | null }) {
+  // the customer talking to one applicant (before choosing) opens that applicant's conversation
+  const href = withHelper ? `/chat/${dealId}?with=${withHelper}` : `/chat/${dealId}`;
   return (
     <div className={`grid gap-2 ${canCall ? "grid-cols-2" : "grid-cols-1"}`}>
       {canCall && (
-        <Link href={`/chat/${dealId}`} className={`${btn.secondary} w-full`}>
+        <Link href={href} className={`${btn.secondary} w-full`}>
           📞 {t("call.voice")}
         </Link>
       )}
-      <Link href={`/chat/${dealId}`} className={`${btn.small} relative w-full`}>
+      <Link href={href} className={`${btn.small} relative w-full`}>
         💬 {t("chat.open")}
         {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
       </Link>
@@ -87,6 +93,7 @@ export function ContactRow({ dealId, unread, canCall, t }: { dealId: string; unr
 export function DealView(p: DealViewProps) {
   const { deal, events, people, t, locale, serverNow } = p;
   const isCustomer = deal.customerId === p.viewerId;
+  const care = categoryTrust(deal.category) === "care";
   const name = (uid: unknown) => (typeof uid === "string" ? (people.get(uid)?.name ?? p.organizations?.get(uid)?.name ?? t("deal.newHelper")) : "—");
   const helperName = deal.helperId ? name(deal.helperId) : "";
   const payeeName = deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId)?.name ?? t("org.title") : helperName;
@@ -558,8 +565,12 @@ export function DealView(p: DealViewProps) {
                 note={[priceLine, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note].filter(Boolean).join(" · ")}
                 t={t}
                 action={
+                  <div className="flex flex-col gap-2">
+                  {/* talk before choosing: each applicant has their own chat and call */}
+                  <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall t={t} />
+                  {care && !p.careCalls?.has(o.helperId) && <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">{t("care.callFirst")}</p>}
                   <div className="flex items-center justify-between gap-2">
-                    {!waiting && (
+                    {!waiting && (!care || p.careCalls?.has(o.helperId)) && (
                       <ConfirmSheet
                         action={p.action}
                         fields={{ ...fields, intent: "choose", helperId: o.helperId }}
@@ -589,6 +600,7 @@ export function DealView(p: DealViewProps) {
                         <input name="price" inputMode="numeric" defaultValue={String(agreed)} className={`${field} text-[20px] font-bold tabular-nums`} required />
                       </label>
                     </ConfirmSheet>
+                  </div>
                   </div>
                 }
               />

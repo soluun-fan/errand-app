@@ -13,8 +13,8 @@ export type OrgStatus = "pending" | "approved" | "rejected" | "suspended";
 
 /** The kinds an organisation or a certificate can cover (everything that isn't open work). */
 export const SPECIALIZED: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust !== "open").map((c) => c.id);
-/** Kinds an individual certificate can cover (care always goes through an agency). */
-export const CERTIFIABLE: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust === "pro").map((c) => c.id);
+/** Kinds an individual certificate (trades) or care clearance (care, after the background check) can cover. */
+export const CERTIFIABLE: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust !== "open").map((c) => c.id); // care = a care clearance (needs the background check)
 
 export interface MembershipFact {
   orgId: string;
@@ -53,7 +53,8 @@ export function qualificationsFrom(f: { kycLevel: number; memberships: readonly 
     );
     for (const m of viaOrgs.sort((a, b) => a.orgId.localeCompare(b.orgId))) out.push({ category, orgId: m.orgId });
     const cert = f.certificates.some((c) => c.category === category && c.status === "approved" && (c.expiresOn === null || c.expiresOn >= today));
-    if (trust === "pro" && cert) out.push({ category, orgId: null });
+    // on their own: a trade certificate, or a care clearance — care also needs the criminal-record check
+    if (cert && (trust === "pro" || (trust === "care" && f.kycLevel >= KYC_LEVEL_BACKGROUND))) out.push({ category, orgId: null });
   }
   return out;
 }

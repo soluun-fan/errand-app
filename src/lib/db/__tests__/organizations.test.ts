@@ -76,11 +76,19 @@ it.each(["invited", "declined", "removed"])("a %s membership cannot qualify a wo
   expect(await allowed("plumbing")).toBe(false);
 });
 
-it("individual certificates work only for trades and expire at the UB calendar-day boundary", async () => {
+it("individual certificates expire at the UB calendar-day boundary; care clearance needs the background check", async () => {
   await db.query("insert into public.helper_certificates(helper_id, category, issuer, doc_path, status, expires_on) values ($1, 'electrical', 'Trade body', 'private.pdf', 'approved', '2026-11-17')", [helperId]);
   expect(await allowed("electrical", null, "2026-11-17T15:59:59Z")).toBe(true);
   expect(await allowed("electrical", null, "2026-11-17T16:00:00Z")).toBe(false);
-  expect((await sqlError(db.query("insert into public.helper_certificates(helper_id, category, issuer, doc_path) values ($1, 'childcare', 'Agency', 'private.pdf')", [helperId]))).message).toMatch(/pro kinds/);
+  expect((await sqlError(db.query("insert into public.helper_certificates(helper_id, category, issuer, doc_path) values ($1, 'shop', 'x', 'private.pdf')", [helperId]))).message).toMatch(/pro or care/);
+  // care clearance: only after the criminal-record check, and it stops counting if that level drops
+  await db.query("update public.profiles set kyc_level = 3 where id = $1", [helperId]);
+  expect((await sqlError(db.query("insert into public.helper_certificates(helper_id, category, issuer, doc_path) values ($1, 'childcare', 'Ops interview', 'private.pdf')", [helperId]))).message).toMatch(/criminal-record/);
+  await db.query("update public.profiles set kyc_level = 4 where id = $1", [helperId]);
+  await db.query("insert into public.helper_certificates(helper_id, category, issuer, doc_path, status) values ($1, 'childcare', 'Ops interview', 'private.pdf', 'approved')", [helperId]);
+  expect(await allowed("childcare", null)).toBe(true);
+  await db.query("update public.profiles set kyc_level = 3 where id = $1", [helperId]);
+  expect(await allowed("childcare", null)).toBe(false);
 });
 
 it("certification, organisation and worker category scopes must all match", async () => {
@@ -149,4 +157,21 @@ it.each(["anon", "authenticated"] as const)("%s cannot read private org or certi
   expect((await sqlError(as(db, role, helperId, (tx) => rpc(tx, "register_organization", { p_org: {}, p_payout: {} })))).message).toMatch(/permission denied/);
   const bucket = await db.query<{ public: boolean }>("select public from storage.buckets where id = 'kyc'");
   expect(bucket.rows).toEqual([{ public: false }]);
+});
+
+it("care: the job is assigned only to someone the customer really talked to on this task (≥ 30 s call)", async () => {
+  await db.exec("update public.category_settings set live = true where category = 'childcare'");
+  let d = await persist(null, post("childcare"));
+  d = await step(d, { type: "apply", note: "" }, worker("childcare"));
+  const choose: Command = { type: "choose", helperId };
+  // no call, a missed call, or a 12-second call: the database refuses the assignment
+  expect((await sqlError(step(d, choose, customer))).message).toMatch(/talk to the helper/);
+  for (const text of ["call:missed:voice", "call:ended:voice:12"]) {
+    await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1, $2, $3, true, $4)", [d.id, helperId, customerId, text]);
+    expect((await sqlError(step(d, choose, customer))).message).toMatch(/talk to the helper/);
+  }
+  // a real call (answered, 45 s) in this helper's conversation: now they can be chosen
+  await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1, $2, $3, true, 'call:ended:video:45')", [d.id, helperId, customerId]);
+  d = await step(d, choose, customer);
+  expect(d).toMatchObject({ status: "awaiting_payment", helperId });
 });

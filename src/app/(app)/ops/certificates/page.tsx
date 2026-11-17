@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
-import { FlowHeader } from "@/components/ui";
+import { FlowHeader, Note } from "@/components/ui";
+import { categoryTrust } from "@/lib/engine";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { certificateQueue } from "@/lib/orgs";
@@ -35,6 +36,7 @@ export default async function OpsCertificatesPage() {
               {t("opsOrgs.openDoc")}
             </a>
           )}
+          {categoryTrust(c.category) === "care" && <Note tone="warn">{t("opsCerts.careCheck")}</Note>}
           <DecideCert id={c.id} />
         </section>
       ))}

@@ -68,6 +68,7 @@ export default async function CertificatesPage() {
       )}
 
       <h2 className="text-[17px] font-bold">{t("cert.add")}</h2>
+      <Note tone="info">{t("care.clearanceIntro")}</Note>
       <CertForm />
       <p className="text-[14px] text-ink-2">{t("cert.orgHint")}</p>
     </>

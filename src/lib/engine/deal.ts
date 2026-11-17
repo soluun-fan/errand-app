@@ -110,9 +110,11 @@ function requireEligibleHelper(ctx: Ctx, d: ErrandDeal): UserActor {
   const trust = categoryTrust(d.category);
   if (trust === "open") {
     if (!u.categories?.includes(d.category)) fail("FORBIDDEN", `Helper does not work in category "${d.category}"`);
-  } else if (!(u.qualified ?? []).some((q) => q.category === d.category && (trust === "pro" || q.orgId !== null))) {
-    // specialized work (docs/decisions.md 2026-11-16): a certificate or an organisation; care = an agency only
-    fail("FORBIDDEN", trust === "care" ? "Only workers of an approved agency with a background check can take this task" : "This kind of task needs a checked certificate or an approved organisation");
+  } else if (!(u.qualified ?? []).some((q) => q.category === d.category)) {
+    // specialized work: a certificate or an organisation (docs/decisions.md 2026-11-16); care: an agency
+    // or an individual care clearance, both only with the background check (2026-11-17) — the server
+    // works out `qualified` with those rules, the database checks them again
+    fail("FORBIDDEN", trust === "care" ? "Only background-checked helpers cleared for care work can take this task" : "This kind of task needs a checked certificate or an approved organisation");
   }
   if (u.id === d.customerId) fail("FORBIDDEN", "You cannot take your own task");
   return u;
