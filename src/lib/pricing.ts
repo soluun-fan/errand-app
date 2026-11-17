@@ -1,6 +1,6 @@
 import "server-only";
 import { DbError } from "@/lib/db/deals";
-import { DEFAULT_CONFIG, type EngineConfig, type FeeTier } from "@/lib/engine";
+import { DEFAULT_CONFIG, type CategoryId, type EngineConfig, type FeeTier } from "@/lib/engine";
 import { cleanTiers } from "@/lib/pricing-rules";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -73,8 +73,35 @@ export function withPricing(p: PricingSettings, cfg: EngineConfig = DEFAULT_CONF
   return { ...cfg, ...p, minFee: p.baseFee };
 }
 
+/** Per-kind floors (category_settings.min_fee / min_hourly); null = the general minimum. */
+export interface KindMinimum {
+  category: CategoryId;
+  minFee: number | null;
+  minHourly: number | null;
+}
+
+export async function kindMinimums(): Promise<KindMinimum[]> {
+  const { data, error } = await createAdminClient().from("category_settings").select("category, min_fee, min_hourly").returns<{ category: CategoryId; min_fee: number | null; min_hourly: number | null }[]>();
+  if (error) throw new DbError(error);
+  return (data ?? []).map((r) => ({ category: r.category, minFee: r.min_fee, minHourly: r.min_hourly }));
+}
+
 export async function pricingConfig(): Promise<EngineConfig> {
-  return withPricing(await getPricing());
+  const [p, kinds] = await Promise.all([getPricing(), kindMinimums()]);
+  const cfg = withPricing(p);
+  return {
+    ...cfg,
+    kindMinFee: Object.fromEntries(kinds.filter((k) => k.minFee !== null).map((k) => [k.category, k.minFee as number])),
+    kindMinHourly: Object.fromEntries(kinds.filter((k) => k.minHourly !== null).map((k) => [k.category, k.minHourly as number])),
+  };
+}
+
+/** Ops only (the caller checks): set one kind's floor — a fixed minimum or an hourly one (or neither). Logged. */
+export async function updateKindMinimum(opsId: string, next: KindMinimum): Promise<void> {
+  const db = createAdminClient();
+  const { data: before } = await db.from("category_settings").select("min_fee, min_hourly").eq("category", next.category).single();
+  await db.from("category_settings").update({ min_fee: next.minFee, min_hourly: next.minHourly }).eq("category", next.category).throwOnError();
+  await audit(opsId, "pricing.kindMin", next.category, { before, after: { min_fee: next.minFee, min_hourly: next.minHourly } });
 }
 
 /** Ops only (caller checks and validates). Logged with before/after. */

@@ -82,8 +82,12 @@ export interface FeeTier {
 }
 
 export interface EngineConfig {
-  /** Lowest task price by day (night adds `nightFee`). */
+  /** Lowest task price by day (night adds `nightFee`) — for kinds without their own minimum. */
   minFee: number;
+  /** A kind's own lowest price (easy work lower, hard work higher). Ops: category_settings.min_fee. */
+  kindMinFee: Partial<Record<CategoryId, number>>;
+  /** Hourly kinds (day jobs, care): the lowest pay per hour; the minimum is this × hours. */
+  kindMinHourly: Partial<Record<CategoryId, number>>;
   /** Flat service fee the customer pays on top of the task price (SafePay buyers too). */
   serviceFeeTiers: readonly FeeTier[];
   /** Cut taken from the helper's fee in basis points. 0: helpers keep 100% (older deals kept 10%). */
@@ -153,6 +157,10 @@ export interface EngineConfig {
 
 export const DEFAULT_CONFIG: EngineConfig = {
   minFee: 5000,
+  // per-kind minimums live in the database (category_settings.min_fee / min_hourly, edited at
+  // /ops/pricing; starting values in migration 20261117070000) — the engine default is flat
+  kindMinFee: {},
+  kindMinHourly: {},
   serviceFeeTiers: [
     { below: 10000, fee: 500 },
     { below: 30000, fee: 1000 },

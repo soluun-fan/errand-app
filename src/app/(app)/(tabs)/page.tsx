@@ -16,7 +16,7 @@ import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
 import { fmtMoney } from "@/lib/format";
 import { liveCategories } from "@/lib/orgs";
-import { CATEGORIES, minFeeAt, type CategoryId } from "@/lib/engine";
+import { CATEGORIES, kindFromLabel, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
 import { popularStarts, seasonalStarts } from "@/lib/content";
 import { qsTitle } from "@/lib/content-rules";
@@ -78,7 +78,10 @@ export default async function Home() {
   const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
-  const fromPrice = (_c: CategoryId) => minFeeAt(now, cfg);
+  const fromLabel = (c: CategoryId) => {
+    const f = kindFromLabel(c, cfg);
+    return f.hourly ? t("home.fromHourly", { amount: fmtMoney(f.amount) }) : t("home.from", { amount: fmtMoney(f.amount) });
+  };
   const name = viewer.profile.name?.split(" ")[0];
 
   const section = (title: string, more: string | null, body: React.ReactNode) => (
@@ -160,7 +163,7 @@ export default async function Home() {
         null,
         <div className="flex flex-col gap-4">
           {/* the only price that is ours is the minimum — said once, not on every tile */}
-          <p className="-mt-2 text-[14px] text-ink-2">{t("home.allFrom", { amount: fmtMoney(fromPrice("shop")) })}</p>
+          <p className="-mt-2 text-[14px] text-ink-2">{t("home.allFrom")}</p>
           {(["open", "specialized"] as const).map((group) => {
             const ids = CATEGORIES.filter((c) => live.includes(c.id) && (group === "open" ? c.trust === "open" : c.trust !== "open")).map((c) => c.id);
             if (!ids.length) return null;
@@ -178,6 +181,7 @@ export default async function Home() {
                         <CategoryIcon id={id} tile size={20} />
                       )}
                       <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
+                      <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{fromLabel(id)}</span>
                     </Link>
                   ))}
                 </div>

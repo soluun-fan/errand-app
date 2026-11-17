@@ -492,7 +492,7 @@ export const en = {
   },
   home: {
     kindsTitle: "Kinds of work",
-    allFrom: "Every job from {amount}. You name the price; helpers accept it or offer theirs.",
+    allFrom: "You name the price. Each kind has its own minimum, plus the trip for longer distances.",
     kinds: { open: "Everyday help", specialized: "Specialized · certified" },
     seasonNow: "Needed this season",
     past: "Past tasks",
@@ -508,6 +508,7 @@ export const en = {
     hello: "Hi,",
     online: "{n} helpers online",
     from: "from {amount}",
+    fromHourly: "from {amount}/h",
     postCta: "Post a task",
     area: "Set your area",
     hero: "What do you need help with?",
@@ -1295,6 +1296,7 @@ export const en = {
   price: {
     yourPrice: "Your price",
     minHint: "Name any price from {min}. That's the only rule.",
+    perHour: "That's about {amount} an hour (minimum {floor} an hour).",
     bargainHint: "Helpers can take it or answer with their own price; you can answer back.",
     invalid: "Enter a price in whole tögrög.",
     waitingHelper: "That price is yours — wait for the helper to answer.",
@@ -1355,6 +1357,13 @@ export const en = {
     chooseCounter: "{name} asks {amount} instead of your {posted}.",
   },
   opsPricing: {
+    kindsTitle: "Minimum price by kind of work",
+    kindsHelp: "The customer names the price; this is only the floor. Easy work can be lower, hard work higher; day jobs and care by the hour (× hours). Longer trips and night add on top. Tasks keep the minimum they were posted with.",
+    kindMode: "Kind of minimum",
+    kindGeneral: "General ({amount}₮)",
+    kindFixed: "Own minimum ₮",
+    kindHourly: "Per hour ₮",
+    save: "Save",
     title: "Prices",
     build: "How a price is built",
     base: "Base",

@@ -95,6 +95,33 @@ export function careTimeOk(startMs: number, minutes: number, cfg: EngineConfig =
   return minutes <= cfg.careMaxMinutes && local >= cfg.careDayStartHour * 60 && local + minutes <= cfg.careDayEndHour * 60;
 }
 
+/**
+ * This task's lowest price (owner, 2026-11-17): the kind's own minimum — or, for hourly kinds, the
+ * hourly floor × hours — plus the trip (distance beyond the included km, and the way back) and the
+ * night extra; a second person doubles the labour part. The customer names any price at or above it.
+ */
+export function taskMinFee(category: CategoryId, d: Pick<ErrandDetails, "km" | "minutes" | "roundTrip" | "people">, atMs: number | undefined, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  const hourly = cfg.kindMinHourly[category];
+  const minutes = Number.isFinite(d.minutes) && d.minutes > 0 ? d.minutes : cfg.includedMinutes;
+  let labour = hourly ? ceilStep((hourly * minutes) / 60, cfg) : (cfg.kindMinFee[category] ?? cfg.minFee);
+  if (d.people === 2) labour *= 2;
+  const km = Number.isFinite(d.km) && d.km > 0 ? d.km : 0;
+  const trip = roundStep(Math.max(0, km - cfg.includedKm) * cfg.perKm, cfg) + (d.roundTrip && km > 0 ? roundStep(bps(km * cfg.perKm, cfg.roundTripBps), cfg) : 0);
+  return labour + trip + (atMs !== undefined && isNight(atMs, cfg) ? cfg.nightFee : 0);
+}
+
+/** A kind's advertised "from": its fixed minimum, or its hourly floor (shown per hour). */
+export function kindFromLabel(category: CategoryId, cfg: EngineConfig = DEFAULT_CONFIG): { amount: number; hourly: boolean } {
+  const h = cfg.kindMinHourly[category];
+  return h ? { amount: h, hourly: true } : { amount: cfg.kindMinFee[category] ?? cfg.minFee, hourly: false };
+}
+
+/** The lowest "from" price to advertise: the cheapest fixed minimum among these kinds. */
+export function lowestMinFee(kinds: readonly CategoryId[], cfg: EngineConfig = DEFAULT_CONFIG): number {
+  const fixed = kinds.filter((k) => !cfg.kindMinHourly[k]).map((k) => cfg.kindMinFee[k] ?? cfg.minFee);
+  return fixed.length ? Math.min(...fixed) : cfg.minFee;
+}
+
 /** Lowest task price for a task starting at `atMs` (night adds the night extra, 22:00–07:00 local). */
 export function minFeeAt(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
   return isNight(atMs, cfg) ? cfg.minFee + cfg.nightFee : cfg.minFee;
@@ -161,7 +188,8 @@ export function quoteFee(category: CategoryId, d: ErrandDetails, cfg: EngineConf
   if (atMs !== undefined && isNight(atMs, cfg)) lines.push({ key: "night", amount: cfg.nightFee });
 
   const sum = lines.reduce((a, l) => a + l.amount, 0);
-  const total = Math.max(atMs === undefined ? cfg.minFee : minFeeAt(atMs, cfg), roundStep(sum, cfg));
+  // the suggestion never goes below this task's own minimum
+  const total = Math.max(taskMinFee(category, d, atMs, cfg), roundStep(sum, cfg));
   const peopleRequired: 1 | 2 = category === "carry" && d.carryByHelper && d.heavy && !liftOk && floor > 2 ? 2 : 1;
   return { lines, total, peopleRequired };
 }

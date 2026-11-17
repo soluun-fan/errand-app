@@ -256,12 +256,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     } else if (intent === "apply") cmd = { type: "apply", note };
     else if (intent === "quote" || intent === "reprice") {
       const price = await named();
-      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
+      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(await taskFloor(dealId)) }) };
       cmd = intent === "quote" ? { type: "apply", note, price } : { type: "reprice", price };
     } else if (intent === "accept_counter") cmd = { type: "accept_counter" };
     else if (intent === "propose_price") {
       const price = await named();
-      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
+      if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(await taskFloor(dealId)) }) };
       cmd = { type: "propose_price", price };
     } else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
     else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
@@ -340,7 +340,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (e instanceof EngineError) {
       refresh();
       if (e.code === "FORBIDDEN") return { error: t("error.forbidden") };
-      if (/Minimum fee/.test(e.message)) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
+      const floor = /Minimum fee is ₮(\d+)/.exec(e.message);
+      if (floor) return { error: t("job.quoteInvalid", { amount: fmtMoney(Number(floor[1])) }) };
       if (e.code === "PROOF_MISSING") return { error: t("proof.missing") };
       if (/approve the extra/.test(e.message)) return { error: t("proof.waitTopUp") };
       if (/applicants/.test(e.message)) return { error: t("job.full") };
@@ -414,4 +415,11 @@ export async function careCheckOut(dealId: string, lat: number | null, lng: numb
     console.error("care check-out failed", e);
     return { error: t("proof.failed") };
   }
+}
+
+/** The task's own lowest price (saved at posting; older tasks: today's general minimum). */
+async function taskFloor(dealId: string): Promise<number> {
+  const d = await loadDeal(createAdminClient(), dealId).catch(() => null);
+  if (d?.type === "errand" && d.details.minFee) return d.details.minFee;
+  return minFeeAt(Date.now(), await pricingConfig());
 }

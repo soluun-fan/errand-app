@@ -1,4 +1,5 @@
 import { Card, FlowHeader } from "@/components/ui";
+import { CATEGORIES, lowestMinFee } from "@/lib/engine";
 import { getT } from "@/i18n/server";
 import { fmtMoney } from "@/lib/format";
 import { pricingConfig } from "@/lib/pricing";
@@ -22,7 +23,7 @@ export default async function HelpPage() {
         {(["s1", "s2", "s3"] as const).map((k, i) => (
           <li key={k} className="flex gap-3 rounded-card border border-line bg-bg p-4">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-brand-bg text-sm font-bold text-brand-ink">{i + 1}</span>
-            <span className="text-[15px]">{t(`help.${k}`, { amount: fmtMoney(cfg.minFee) })}</span>
+            <span className="text-[15px]">{t(`help.${k}`, { amount: fmtMoney(lowestMinFee(CATEGORIES.map((c) => c.id), cfg)) })}</span>
           </li>
         ))}
       </ol>

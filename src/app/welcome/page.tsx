@@ -12,7 +12,7 @@ import { btn } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { liveCategories } from "@/lib/orgs";
-import { CATEGORIES, minFeeAt } from "@/lib/engine";
+import { CATEGORIES, kindFromLabel, lowestMinFee } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { popularStarts, seasonalStarts } from "@/lib/content";
 import { qsTitle } from "@/lib/content-rules";
@@ -46,7 +46,10 @@ export default async function Welcome() {
   const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
-  const from = (_c: (typeof CATEGORIES)[number]) => minFeeAt(now, cfg);
+  const fromLabel = (c: (typeof CATEGORIES)[number]) => {
+    const f = kindFromLabel(c.id, cfg);
+    return f.hourly ? t("home.fromHourly", { amount: fmtMoney(f.amount) }) : t("home.from", { amount: fmtMoney(f.amount) });
+  };
   const steps = [
     { icon: PenLine, title: t("landing.s1t"), body: t("landing.s1b") },
     { icon: Hand, title: t("landing.s2t"), body: t("landing.s2b") },
@@ -126,13 +129,14 @@ export default async function Welcome() {
         <section className={`${wrap} flex flex-col gap-5 py-12`}>
           <div>
             <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.catsTitle")}</h2>
-            <p className="mt-1 text-[15px] text-ink-2">{t("home.allFrom", { amount: fmtMoney(from(CATEGORIES[0])) })}</p>
+            <p className="mt-1 text-[15px] text-ink-2">{t("home.allFrom")}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
             {CATEGORIES.filter((c) => live.includes(c.id)).map((c) => (
               <LoginGate key={c.id} next={`/post?cat=${c.id}`} className="press flex flex-col items-center gap-2 rounded-tile bg-bg px-2 py-4 text-center shadow-card">
                 <CategoryIcon id={c.id} tile size={26} />
                 <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${c.id}`)}</span>
+                <span className="text-[12px] text-ink-2 tabular-nums">{fromLabel(c)}</span>
               </LoginGate>
             ))}
           </div>
@@ -220,7 +224,7 @@ export default async function Welcome() {
           </div>
           <div className="flex flex-col gap-3 rounded-card bg-brand-bg p-6 md:p-8">
             <h2 className="text-[24px] font-extrabold">{t("landing.priceTitle")}</h2>
-            <p className="text-[15px] text-ink-2">{t("landing.priceBody", { amount: fmtMoney(cfg.minFee) })}</p>
+            <p className="text-[15px] text-ink-2">{t("landing.priceBody", { amount: fmtMoney(lowestMinFee(live, cfg)) })}</p>
           </div>
         </section>
 

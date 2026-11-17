@@ -6,7 +6,7 @@ import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { acknowledgeIncident, resolveIncident } from "@/lib/incidents";
-import { updatePricing, type PricingSettings } from "@/lib/pricing";
+import { updateKindMinimum, updatePricing, type PricingSettings } from "@/lib/pricing";
 import { cleanTiers, percentToBps, wholeAmount } from "@/lib/pricing-rules";
 import { updateControls } from "@/lib/safety";
 import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
@@ -224,4 +224,25 @@ export async function saveCover(rawCategory: string, path: string | null): Promi
   if (!(await setCover(viewer.profile.id, category, path))) return { error: t("taskPhotos.failed") };
   refresh();
   return {};
+}
+
+/* ---------- per-kind minimum price (docs/decisions.md 2026-11-17 "Minimum per kind") ---------- */
+
+/** One kind's floor: general (the base price), a fixed minimum, or an hourly minimum × hours. */
+export async function saveKindMinimum(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const category = String(form.get("category") ?? "") as CategoryId;
+  if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic") };
+  const mode = String(form.get("mode") ?? "");
+  const amount = wholeAmount(form.get("amount"), 1000, mode === "hourly" ? 200_000 : 1_000_000);
+  if (mode !== "general" && (amount === null || amount % 500 !== 0)) return { error: t("opsPricing.invalid") };
+  await updateKindMinimum(viewer.profile.id, {
+    category,
+    minFee: mode === "fixed" ? amount : null,
+    minHourly: mode === "hourly" ? amount : null,
+  });
+  refresh();
+  return { done: true };
 }

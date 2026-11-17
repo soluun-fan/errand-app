@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, categoryConfi
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
+import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange } from "./types";
 import type {
   Account,
@@ -273,8 +273,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
   // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
-  const min = minFeeAt(startsAt, cfg);
+  const min = taskMinFee(input.category, details, startsAt, cfg);
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
+  details.minFee = min; // later prices (counters, changes) are checked against this, not today's settings
   details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
   details.counterMax = 0;
   // care work: the customer always chooses the person themselves
@@ -373,7 +374,7 @@ function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number
 /** A price either side may name: a whole tögrög amount, at least today's minimum. */
 function checkPrice(e: ErrandDeal, price: number, now: number): void {
   assertMoney(price, "price");
-  const min = minFeeAt(e.scheduledAt ?? now);
+  const min = e.details.minFee && e.details.minFee > 0 ? e.details.minFee : minFeeAt(e.scheduledAt ?? now);
   if (price < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
 }
 

@@ -46,8 +46,11 @@ describe("pickup pin at posting", () => {
   it("records the real distance for helpers, whatever the client claims", () => {
     // the customer names the price, but helpers see the true trip length from the pins
     const far = { lat: 47.99, lng: 106.9177 }; // ~8 km
-    const d = post({ fee: 5000, location: far, pickupLocation: SQ, details: { km: 0.1 } });
+    // …and the true length sets the minimum: a client claiming 0.1 km can't post a 9 km trip at the floor
+    expect(() => post({ fee: 5000, location: far, pickupLocation: SQ, details: { km: 0.1 } })).toThrow(/Minimum fee/);
+    const d = post({ fee: 30_000, location: far, pickupLocation: SQ, details: { km: 0.1 } });
     expect(d.details.km).toBeGreaterThan(9);
+    expect(d.details.minFee).toBeGreaterThan(5000);
   });
 
   it("keeps the customer's rough distance when there is no pickup pin", () => {

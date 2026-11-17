@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { insertDeal, runCommand } from "@/lib/db/deals";
 import { actorFromProfile } from "@/lib/db/mapping";
-import { amountDue, createErrand } from "@/lib/engine";
+import { DEFAULT_DETAILS, amountDue, createErrand, taskMinFee } from "@/lib/engine";
 import { qualificationsFor } from "@/lib/qualifications";
 import { pricingConfig } from "@/lib/pricing";
 import { NAMES, PHONES, cancelIfOpen, db, errand, ledgerClean, loginAs, profile } from "./support";
@@ -65,7 +65,7 @@ test("a plumbing job: only the company's worker can take it, and the company is 
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] Угаалтуурын хоолой", description: "Хоолой гоожиж байна", category: "plumbing", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 5000, customerId: sol.id },
+    { id: crypto.randomUUID(), title: "[verify] Угаалтуурын хоолой", description: "Хоолой гоожиж байна", category: "plumbing", mode: "now", address: "Test", itemBudget: 0, fee: taskMinFee("plumbing", DEFAULT_DETAILS, now, cfg) + 5000, customerId: sol.id },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );
@@ -123,7 +123,8 @@ test("care work is off: not offered to customers, and the database refuses it", 
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] care", description: "x", category: "childcare", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 5000, customerId: sol.id },
+    // tomorrow 10:00 Ulaanbaatar (care is daytime only) at a price above any floor: only "switched off" can refuse it
+    { id: crypto.randomUUID(), title: "[verify] care", description: "x", category: "childcare", mode: "now", scheduledAt: (Math.floor((now + 8 * 3_600_000) / 86_400_000) + 1) * 86_400_000 + 2 * 3_600_000, address: "Test", itemBudget: 0, fee: 200_000, customerId: sol.id },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );

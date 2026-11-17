@@ -32,10 +32,14 @@ describe("round trip (Буцаж ирэх)", () => {
 
   it("is part of our estimate (kept for learning); the customer's price only has to meet the minimum", () => {
     const w = new World(DEFAULT_CONFIG);
+    // the minimum includes the trip (owner, 2026-11-17): 5,000 + 3 km × 1,500 + the way back 3,000
     const trip = { category: "deliver" as const, itemBudget: 0, details: { km: 4, roundTrip: true } };
-    expect(() => w.post({ ...trip, fee: 4500 })).toThrow("Minimum fee is ₮5000");
-    const id = w.post({ ...trip, fee: 7000 }); // below our 12,500 estimate is fine: their call
-    expect((w.get(id) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, counterMax: 0 });
+    expect(() => w.post({ ...trip, fee: 12000 })).toThrow("Minimum fee is ₮12500");
+    expect((w.get(w.post({ ...trip, fee: 12500 })) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, minFee: 12500, counterMax: 0 });
+    // time and effort are only our estimate: a long, heavy job can still be posted at its minimum
+    const long = { category: "shop" as const, itemBudget: 0, details: { minutes: 120, heavy: true } };
+    const id = w.post({ ...long, fee: 7000 }); // below our 17,000 estimate is fine: their call
+    expect((w.get(id) as ErrandDeal).details).toMatchObject({ quotedFee: 17000, minFee: 5000 });
     expect(() => w.post({ ...trip, fee: 90000 })).not.toThrow(); // no upper band either
   });
 });

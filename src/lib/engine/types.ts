@@ -57,6 +57,11 @@ export interface ErrandDetails {
   quotedFee: number;
   /** No longer used (bargaining has no cap since 2026-11-16); kept for older deals. */
   counterMax: number;
+  /**
+   * Set by the engine at posting: this task's lowest price (its kind's minimum or hourly floor ×
+   * hours, plus distance and night). Every later price is checked against it. 0 on older deals.
+   */
+  minFee?: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {

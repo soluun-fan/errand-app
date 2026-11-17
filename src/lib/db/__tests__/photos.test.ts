@@ -80,3 +80,22 @@ describe("kind cover pictures", () => {
     await svc(`update public.category_settings set cover_path = null where category = 'shop'`);
   });
 });
+
+describe("minimum price per kind", () => {
+  it("starts rubbish lower, hard work higher, day jobs and care by the hour; one kind of floor at a time", async () => {
+    const r = await db.query<{ category: string; min_fee: number | null; min_hourly: number | null }>(
+      "select category, min_fee, min_hourly from public.category_settings where category in ('trash','shop','carry','dayjob','childcare') order by category",
+    );
+    expect([...r.rows].sort((a, b) => a.category.localeCompare(b.category))).toEqual([
+      { category: "carry", min_fee: 10000, min_hourly: null },
+      { category: "childcare", min_fee: null, min_hourly: 8000 },
+      { category: "dayjob", min_fee: null, min_hourly: 6000 },
+      { category: "shop", min_fee: null, min_hourly: null },
+      { category: "trash", min_fee: 3000, min_hourly: null },
+    ]);
+    const both = await sqlError(svc("update public.category_settings set min_fee = 5000, min_hourly = 5000 where category = 'shop'"));
+    expect(both.message).toMatch(/category_settings_one_floor/);
+    const silly = await sqlError(svc("update public.category_settings set min_fee = 10 where category = 'shop'"));
+    expect(silly.message).toMatch(/check constraint/);
+  });
+});

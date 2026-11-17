@@ -4,7 +4,9 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { DEFAULT_DETAILS, priceRange, quoteFee, serviceFeeFor, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
-import { getPricing, withPricing } from "@/lib/pricing";
+import { getPricing, kindMinimums, pricingConfig } from "@/lib/pricing";
+import { CATEGORIES } from "@/lib/engine";
+import { KindMinForm } from "./kind-min-form";
 import { PricingForm } from "./pricing-form";
 
 const DAY = Date.UTC(2026, 10, 16, 4); // 12:00 Ulaanbaatar — examples are priced by day
@@ -22,8 +24,7 @@ const EXAMPLES: { key: "groceries" | "groceriesFar" | "queue" | "wardrobe" | "fr
 export default async function OpsPricingPage() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, p] = await Promise.all([getT(), getPricing()]);
-  const cfg = withPricing(p);
+  const [t, p, cfg, kinds] = await Promise.all([getT(), getPricing(), pricingConfig(), kindMinimums()]);
   return (
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsPricing.title")} />
@@ -48,6 +49,16 @@ export default async function OpsPricingPage() {
         </ul>
         <p className="text-sm text-ink-2">{t("opsPricing.examplesHelp")}</p>
       </Card>
+      <section className="flex flex-col gap-3">
+        <h2 className="font-bold">{t("opsPricing.kindsTitle")}</h2>
+        <p className="text-sm text-ink-2">{t("opsPricing.kindsHelp")}</p>
+        <div className="flex flex-col rounded-card bg-bg shadow-card">
+          {CATEGORIES.map((c) => {
+            const k = kinds.find((x) => x.category === c.id);
+            return <KindMinForm key={c.id} category={c.id} minFee={k?.minFee ?? null} minHourly={k?.minHourly ?? null} general={p.baseFee} />;
+          })}
+        </div>
+      </section>
       <PricingForm p={p} />
     </>
   );

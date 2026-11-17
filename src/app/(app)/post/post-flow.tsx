@@ -12,7 +12,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, suggestedMinutes, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -168,6 +168,11 @@ export function PostFlow({
   const [now, setNow] = useState(() => Date.now());
   const [state, action] = useActionState<PostState, FormData>(postTask, {});
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
+  /** A kind's "from" price on its card: "3,000₮-өөс" or, for hourly kinds, "6,000₮/цаг-аас". */
+  const kindFrom = (c: CategoryId) => {
+    const f = kindFromLabel(c, cfg);
+    return f.hourly ? t("home.fromHourly", { amount: fmtMoney(f.amount) }) : t("home.from", { amount: fmtMoney(f.amount) });
+  };
 
   // Draft: restore unless arriving with a prefilled title; save on every change (DESIGN §7).
   useEffect(() => {
@@ -238,7 +243,9 @@ export function PostFlow({
 
   // Freedom, but limited (docs/decisions.md "Pricing"): recommended −20%…+30%, same function as the server.
   // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
-  const minFee = minFeeAt(startsAt, cfg);
+  // this task's floor: its kind's minimum (or hourly floor × hours) + the trip + night (engine rule)
+  const minFee = taskMinFee(d.category, details, startsAt, cfg);
+  const hourly = cfg.kindMinHourly[d.category];
   const typed = Number(digits(d.price ?? ""));
   const fee = typed > 0 ? typed : minFee;
   const belowMin = typed > 0 && typed < minFee;
@@ -359,6 +366,7 @@ export function PostFlow({
                   <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
                   <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
                 </span>
+                <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{kindFrom(c.id)}</span>
               </button>
               </Fragment>
             );
@@ -727,6 +735,12 @@ export function PostFlow({
               </p>
             ) : (
               <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee) })}</p>
+            )}
+            {/* hourly kinds (day jobs, care): what the price means per hour */}
+            {hourly && details.minutes > 0 && (
+              <p className="text-[13px] font-medium text-ink-2">
+                {t("price.perHour", { amount: fmtMoney(Math.floor(fee / (details.minutes / 60))), floor: fmtMoney(hourly) })}
+              </p>
             )}
             <p className="text-[13px] text-ink-2">{t("price.bargainHint")}</p>
           </div>
