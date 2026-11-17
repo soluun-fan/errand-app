@@ -6,6 +6,8 @@ import { allQuickStarts, loadKeywords } from "@/lib/content";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { categorySettings } from "@/lib/orgs";
 import { KeywordsForm, LiveSwitch, QuickStartForm } from "./content-forms";
+import { CoverForm } from "./cover-form";
+import { kindCovers } from "@/lib/covers";
 
 /**
  * /ops/content — what the app suggests, changed without a deploy (docs/decisions.md 2026-11-16
@@ -15,7 +17,7 @@ import { KeywordsForm, LiveSwitch, QuickStartForm } from "./content-forms";
 export default async function OpsContentPage() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, list, keywords, settings] = await Promise.all([getT(), allQuickStarts(), loadKeywords(), categorySettings()]);
+  const [t, list, keywords, settings, covers] = await Promise.all([getT(), allQuickStarts(), loadKeywords(), categorySettings(), kindCovers()]);
   const kinds = ["popular", "seasonal"] as const;
   return (
     <>
@@ -27,6 +29,15 @@ export default async function OpsContentPage() {
         <div className="flex flex-col rounded-card bg-bg shadow-card">
           {settings.map((k) => (
             <LiveSwitch key={k.category} category={k.category} trust={k.trust} live={k.live} />
+          ))}
+        </div>
+      </section>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-[18px] font-bold">{t("opsContent.coversTitle")}</h2>
+        <p className="text-[14px] text-ink-2">{t("opsContent.coversHelp")}</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {CATEGORIES.map((c) => (
+            <CoverForm key={c.id} category={c.id} url={covers.get(c.id) ?? null} />
           ))}
         </div>
       </section>

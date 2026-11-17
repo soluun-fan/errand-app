@@ -84,3 +84,21 @@ export async function purgeLooseTaskPhotos(now = Date.now()): Promise<number> {
   await db.from("task_photos").delete().in("id", rows.map((r) => r.id)).is("deal_id", null).throwOnError();
   return rows.length;
 }
+
+/** The first photo of each task (signed, 1 h) — for list thumbnails. Only for tasks the viewer may see. */
+export async function firstPhotoUrls(dealIds: readonly string[]): Promise<Map<string, string>> {
+  if (!dealIds.length) return new Map();
+  const db = createAdminClient();
+  const { data } = await db
+    .from("task_photos")
+    .select("deal_id, file_path")
+    .in("deal_id", [...dealIds])
+    .order("created_at")
+    .returns<{ deal_id: string; file_path: string }[]>();
+  const first = new Map<string, string>();
+  for (const r of data ?? []) if (!first.has(r.deal_id)) first.set(r.deal_id, r.file_path);
+  if (!first.size) return new Map();
+  const signed = (await db.storage.from(TASK_PHOTO_BUCKET).createSignedUrls([...first.values()], 3600)).data ?? [];
+  const urlOf = new Map(signed.map((s) => [s.path, s.signedUrl]));
+  return new Map([...first].flatMap(([deal, path]) => (urlOf.get(path) ? [[deal, urlOf.get(path) as string]] : [])));
+}

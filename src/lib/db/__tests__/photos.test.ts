@@ -69,3 +69,14 @@ describe("task photos", () => {
     expect(e.message).toMatch(/task_photos_attached/);
   });
 });
+
+describe("kind cover pictures", () => {
+  it("live in a PUBLIC JPEG-only bucket (generic pictures) and the path is checked", async () => {
+    const b = await db.query<{ public: boolean; allowed_mime_types: string[] }>("select public, allowed_mime_types from storage.buckets where id = 'kind-covers'");
+    expect(b.rows[0]).toEqual({ public: true, allowed_mime_types: ["image/jpeg"] });
+    await svc(`update public.category_settings set cover_path = $1 where category = 'shop'`, [`shop/${crypto.randomUUID()}.jpg`]);
+    const bad = await sqlError(svc(`update public.category_settings set cover_path = '../task-photos/u/x.jpg' where category = 'shop'`));
+    expect(bad.message).toMatch(/check constraint/);
+    await svc(`update public.category_settings set cover_path = null where category = 'shop'`);
+  });
+});

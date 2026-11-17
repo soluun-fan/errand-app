@@ -14,6 +14,7 @@ import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rule
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { Uuid, parseOr } from "@/lib/input";
 import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/orgs";
+import { createCoverSlot, setCover } from "@/lib/covers";
 
 async function requireAdmin() {
   const viewer = await getViewer();
@@ -197,4 +198,30 @@ export async function setLiveAction(_prev: ActionResult, form: FormData): Promis
   await setCategoryLive(viewer.profile.id, category, live);
   refresh();
   return { done: true };
+}
+
+/* ---------- cover photos per kind (docs/decisions.md 2026-11-17 "Pictures") ---------- */
+
+const kindOf = (v: unknown): CategoryId | null => (typeof v === "string" && CATEGORIES.some((c) => c.id === v) ? (v as CategoryId) : null);
+
+/** Step 1: a signed upload URL for a kind's cover (JPEG, ≤ 5 MB; re-encoded in the browser). */
+export async function prepareCover(rawCategory: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const category = kindOf(rawCategory);
+  if (!category || typeof bytes !== "number" || !(bytes > 0 && bytes <= 5 * 1024 * 1024)) return { error: t("taskPhotos.tooBig") };
+  return createCoverSlot(category);
+}
+
+/** Step 2: use the uploaded file as the kind's cover — or clear it (path null). */
+export async function saveCover(rawCategory: string, path: string | null): Promise<{ error?: string }> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const category = kindOf(rawCategory);
+  if (!category || (path !== null && (typeof path !== "string" || path.length > 120))) return { error: t("error.generic") };
+  if (!(await setCover(viewer.profile.id, category, path))) return { error: t("taskPhotos.failed") };
+  refresh();
+  return {};
 }

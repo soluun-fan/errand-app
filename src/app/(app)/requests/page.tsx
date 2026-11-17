@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { kindCovers } from "@/lib/covers";
 import { CategoryIcon } from "@/components/category-icon";
 import { OpenBoard } from "@/components/open-board";
 import { EmptyState, FlowHeader, Wide, btn, chipClass } from "@/components/ui";
@@ -61,7 +62,7 @@ export default async function RequestsPage({ searchParams }: PageProps<"/request
       {items.length === 0 ? (
         <EmptyState icon="🔎" title={t("web.noRequests")} />
       ) : (
-        <OpenBoard items={items} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} />
+        <OpenBoard items={items} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={await kindCovers()} />
       )}
     </Wide>
   );

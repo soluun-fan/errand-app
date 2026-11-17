@@ -12,6 +12,8 @@ import { ReviewCard } from "@/components/review-card";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyTasks, walletEntries } from "@/lib/deals/queries";
+import { firstPhotoUrls } from "@/lib/task-photos";
+import { kindCovers } from "@/lib/covers";
 import { fmtMoney } from "@/lib/format";
 import { liveCategories } from "@/lib/orgs";
 import { CATEGORIES, minFeeAt, type CategoryId } from "@/lib/engine";
@@ -43,12 +45,14 @@ export default async function Home() {
   const holding = all.filter((x) => x.deal.heldAmount > 0);
   const heldNow = holding.reduce((a, x) => a + x.deal.heldAmount, 0);
   const refunds = entries.filter((e) => REFUND_KINDS.includes(e.kind) && e.amount > 0).reduce((a, e) => a + e.amount, 0);
+  const [ownPics, covers] = await Promise.all([firstPhotoUrls(past.map((x) => x.deal.id)), kindCovers()]);
   const pastRow = (x: (typeof past)[number]) => (
     <DealCard
       key={x.deal.id}
       deal={x.deal}
       t={t}
       locale={locale}
+      thumb={ownPics.get(x.deal.id) ?? covers.get(x.deal.category) ?? null}
       row
       rowAction={
         <Link href={`/post?again=${x.deal.id}`} className="flex min-h-11 items-center gap-1.5 px-1 text-[14px] font-semibold text-brand-ink">
@@ -164,8 +168,13 @@ export default async function Home() {
                 <h3 className="text-[13px] font-semibold text-ink-2">{t(`home.kinds.${group}`)}</h3>
                 <div className="grid grid-cols-3 gap-2.5 md:grid-cols-6 md:gap-3">
                   {ids.map((id) => (
-                    <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
-                      <CategoryIcon id={id} tile size={20} />
+                    <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 overflow-hidden rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
+                      {covers.get(id) ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- public cover in Supabase Storage
+                        <img src={covers.get(id)} alt="" loading="lazy" className="-mx-3 -mt-3 aspect-[4/3] w-[calc(100%+1.5rem)] max-w-none object-cover md:-mt-5" />
+                      ) : (
+                        <CategoryIcon id={id} tile size={20} />
+                      )}
                       <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
                       <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{t("home.from", { amount: fmtMoney(fromPrice(id)) })}</span>
                     </Link>
@@ -188,7 +197,7 @@ export default async function Home() {
         )}
       />
 
-      {board.length > 0 && section(t("web.requestsTitle"), "/requests", <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} />)}
+      {board.length > 0 && section(t("web.requestsTitle"), "/requests", <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={covers} />)}
 
       {helpers.length > 0 &&
         section(

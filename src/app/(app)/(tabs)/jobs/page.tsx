@@ -14,6 +14,8 @@ import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
+import { firstPhotoUrls } from "@/lib/task-photos";
+import { kindCovers } from "@/lib/covers";
 
 /** Open tasks as price chips on the map, at the approximate (~300 m) spot where the helper starts. */
 function jobPins(items: JobListItem[]): MapMarker[] {
@@ -30,7 +32,17 @@ const earn = (d: ErrandDeal) =>
  * One open request (PleaseHelp-style card): tags, title, where and when, then a line and the
  * helper's fee big and orange — scannable in a list.
  */
-function JobRow({ item, t, now = 0, locale = "mn", mine }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[] }) {
+/** A card's picture: the customer's own first photo, or the kind's example cover (labelled as such). */
+type Pic = { url: string; example: boolean } | null;
+type Pics = { own: Map<string, string>; covers: Map<CategoryId, string> };
+const picOf = (d: ErrandDeal, p: Pics): Pic =>
+  p.own.get(d.id) ? { url: p.own.get(d.id) as string, example: false } : p.covers.get(d.category) ? { url: p.covers.get(d.category) as string, example: true } : null;
+async function loadPics(items: readonly JobListItem[]): Promise<Pics> {
+  const [own, covers] = await Promise.all([firstPhotoUrls(items.map((i) => i.deal.id)), kindCovers()]);
+  return { own, covers };
+}
+
+function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: JobListItem; t: T; now?: number; locale?: Locale; mine?: readonly CategoryId[]; pic?: Pic }) {
   const d = item.deal;
   const outside = mine !== undefined && !mine.includes(d.category);
   const full = d.offers.length >= d.maxApplicants;
@@ -51,24 +63,40 @@ function JobRow({ item, t, now = 0, locale = "mn", mine }: { item: JobListItem; 
         {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
-      <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
-      <span className="flex flex-col gap-1 text-[13px] text-ink-2">
-        <span className="flex items-center gap-1.5">
-          <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
-          {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
-          {d.details.km > 0 ? ` · ${t("job.trip", { km: d.details.km.toFixed(1) })}` : ""}
+      <span className="flex gap-3">
+        <span className="flex min-w-0 flex-1 flex-col gap-2.5">
+          <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
+          <span className="flex flex-col gap-1 text-[13px] text-ink-2">
+            <span className="flex items-center gap-1.5">
+              <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
+              {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
+              {d.details.km > 0 ? ` · ${t("job.trip", { km: d.details.km.toFixed(1) })}` : ""}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CalendarClock aria-hidden size={14} className="flex-none" />
+              {d.scheduledAt ? fmtDateTime(d.scheduledAt, locale) : t("task.whenNow")} · {dur}
+            </span>
+            {d.offers.length > 0 && !full && <span>{t("job.applicants", { n: d.offers.length })}</span>}
+          </span>
         </span>
-        <span className="flex items-center gap-1.5">
-          <CalendarClock aria-hidden size={14} className="flex-none" />
-          {d.scheduledAt ? fmtDateTime(d.scheduledAt, locale) : t("task.whenNow")} · {dur}
-        </span>
-        {d.offers.length > 0 && !full && <span>{t("job.applicants", { n: d.offers.length })}</span>}
+        {pic && <Thumb pic={pic} t={t} />}
       </span>
       <span className="flex items-baseline justify-between border-t border-line pt-2.5">
         <span className="text-[13px] font-medium text-ink-2">{t("job.feeLabel")}</span>
         <span className="text-[20px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
       </span>
     </Link>
+  );
+}
+
+/** 88 px picture on a card; an example cover says so, so nobody mistakes it for the real job. */
+function Thumb({ pic, t }: { pic: NonNullable<Pic>; t: T }) {
+  return (
+    <span className="relative h-[88px] w-[88px] flex-none overflow-hidden rounded-input bg-fill">
+      {/* eslint-disable-next-line @next/next/no-img-element -- signed / public storage URL */}
+      <img src={pic.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+      {pic.example && <span className="absolute inset-x-0 bottom-0 bg-ink/60 px-1 py-0.5 text-center text-[10px] font-medium text-white">{t("job.examplePic")}</span>}
+    </span>
   );
 }
 
@@ -88,6 +116,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
   const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id;
   const sort: BoardSort = sp.sort === "new" || sp.sort === "pay" ? sp.sort : from ? "near" : "new";
   const items = await browseOpenDeals(viewerId, { category: cat, sort, from });
+  const pics = await loadPics(items);
   const href = (p: { cat?: string; sort?: string }) => {
     const q = new URLSearchParams({ view: "all" });
     const c = "cat" in p ? p.cat : cat;
@@ -121,7 +150,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
       {items.length === 0 ? (
         <p className="text-[15px] text-ink-2">{t("job.allEmpty")}</p>
       ) : (
-        items.map((i) => <JobRow key={i.deal.id} item={i} t={t} now={Date.now()} locale={locale} mine={mine} />)
+        items.map((i) => <JobRow key={i.deal.id} item={i} t={t} now={Date.now()} locale={locale} mine={mine} pic={picOf(i.deal, pics)} />)
       )}
     </section>
   );
@@ -158,6 +187,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     const offered = new Set([...offers.map((o) => o.deal.id), ...appliedIds]);
     const feed = nearby.filter((n) => !offered.has(n.deal.id));
     const active = mine.filter((d) => !TERMINAL_STATUSES.includes(d.status));
+    const pics = await loadPics([...applied, ...offers, ...feed]);
     return (
       <>
         {header}
@@ -181,7 +211,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.myRequests")}</h2>
             {applied.map((a) => (
-              <JobRow key={a.deal.id} item={a} t={t} now={now} locale={locale} />
+              <JobRow key={a.deal.id} item={a} t={t} now={now} locale={locale} pic={picOf(a.deal, pics)} />
             ))}
           </section>
         )}
@@ -190,7 +220,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <section className="flex flex-col gap-2" aria-live="polite">
             <h2 className="font-bold">{t("job.offersTitle")}</h2>
             {offers.map((o) => (
-              <JobRow key={o.deal.id} item={o} t={t} now={now} locale={locale} />
+              <JobRow key={o.deal.id} item={o} t={t} now={now} locale={locale} pic={picOf(o.deal, pics)} />
             ))}
           </section>
         )}
@@ -217,7 +247,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
                 </Link>
               </p>
             ) : (
-              feed.map((n) => <JobRow key={n.deal.id} item={n} t={t} now={now} locale={locale} />)
+              feed.map((n) => <JobRow key={n.deal.id} item={n} t={t} now={now} locale={locale} pic={picOf(n.deal, pics)} />)
             )}
           </section>
         )}

@@ -26,13 +26,30 @@ function Opener({ id, hrefFor, children }: { id: string; hrefFor?: (id: string) 
  * first: a standard title per category (never the customer's words), no place, no person —
  * trip length, time and pay only. Opening one asks to log in and lands on that job.
  */
-export function OpenBoard({ items, t, locale, hrefFor }: { items: PublicOpenRequest[]; t: T; locale: Locale; hrefFor?: (id: string) => string }) {
+export function OpenBoard({
+  items,
+  t,
+  locale,
+  hrefFor,
+  covers,
+}: {
+  items: PublicOpenRequest[];
+  t: T;
+  locale: Locale;
+  hrefFor?: (id: string) => string;
+  /** The kind's example picture (public, generic) — never the customer's own photos on this board. */
+  covers?: Map<string, string>;
+}) {
   const tag = "inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold";
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((r) => (
         <li key={r.id} className="min-w-0">
           <Opener id={r.id} hrefFor={hrefFor}>
+            {covers?.get(r.category) && (
+              // eslint-disable-next-line @next/next/no-img-element -- public cover in Supabase Storage
+              <img src={covers.get(r.category)} alt="" loading="lazy" className="-mx-4 -mt-4 mb-1 aspect-[16/9] w-[calc(100%+2rem)] max-w-none rounded-t-card object-cover" />
+            )}
             <span className="flex flex-wrap gap-1.5">
               <span className={`${tag} bg-fill text-ink-2`}>
                 <CategoryIcon id={r.category} size={13} />

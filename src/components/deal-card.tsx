@@ -29,6 +29,7 @@ export function DealCard({
   locale,
   row = false,
   rowAction,
+  thumb = null,
 }: {
   deal: ErrandDeal;
   offerCount?: number;
@@ -37,12 +38,19 @@ export function DealCard({
   row?: boolean;
   /** Row only: a button beside the row (e.g. "Дахин захиалах"); links can't nest inside the row link. */
   rowAction?: ReactNode;
+  /** Row only: the task's first photo (or its kind's cover) instead of the icon. */
+  thumb?: string | null;
 }) {
   const when = deal.scheduledAt ? fmtDateTime(deal.scheduledAt, locale) : fmtDateTime(deal.createdAt, locale);
   if (row) {
     const link = (
       <Link href={`/tasks/${deal.id}`} className={`press flex items-center gap-3 py-3 ${rowAction ? "" : "border-b border-line last:border-b-0"}`}>
-        <CategoryIcon id={deal.category} tile size={22} />
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element -- signed / public storage URL
+          <img src={thumb} alt="" loading="lazy" className="h-11 w-11 flex-none rounded-input bg-fill object-cover" />
+        ) : (
+          <CategoryIcon id={deal.category} tile size={22} />
+        )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold">{deal.title}</span>
           <span className="block text-[13px] text-ink-2">{when}</span>

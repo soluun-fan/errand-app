@@ -1,4 +1,5 @@
 import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
+import { kindCovers } from "@/lib/covers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -165,7 +166,7 @@ export default async function Welcome() {
                   {t("landing.boardAll")} →
                 </LoginGate>
               </div>
-              <OpenBoard items={board} t={t} locale={locale} />
+              <OpenBoard items={board} t={t} locale={locale} covers={await kindCovers()} />
             </div>
           </section>
         )}
