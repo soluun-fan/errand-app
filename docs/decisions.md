@@ -12,6 +12,11 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-17 — Backing out** (owner: "penalty for commission rejection after accepting — after 10min or so. and immediately the commission post is posted like anew again and notified"; picked: escalating pause, refund and pay again, clock from being chosen):
+  - The chosen helper can back out until the job is finished. **Free within 10 minutes of being chosen** (`deals.assigned_at`); later = penalty.
+  - The task is **not cancelled**: everything held is refunded, receipt / top-up / handover / price change are cleared (a paid top-up's extra budget is taken off again), the helper's offer is removed, a fresh match window starts, a direct request to that helper opens to everyone. The app then restarts dispatch from the first wave (the helper who backed out stays marked declined) and tells the customer. The customer pays again when they choose the next helper.
+  - **Pause:** 1st late back-out in 30 days = 1 day, 2nd = 3 days, 3rd or more = 7 days and a push to Ops. The database decides the length (`helper_penalties`, `apply_transition` v7). The helper sees which applies before confirming. No money is taken.
+  - The DB guard "cannot change the recipient of a paid job" now has one exception: back to nobody, with everything refunded and the task open.
 - **2026-11-17 — more photos** (owner: "in the real pleasehelp app/web they constantly took pictures"; picked: photos when posting, start photo, progress photos):
   - **Start photo:** required to start (taking it runs `start`; the plain button refuses without one). Server-action rule, not engine: it's evidence, not money.
   - **Progress photos:** optional, any time while in progress, ≤ 20 per task, note ≤ 140 chars (contacts masked); the customer gets a push.

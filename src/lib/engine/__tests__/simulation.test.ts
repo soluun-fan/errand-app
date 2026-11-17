@@ -73,6 +73,7 @@ function simulate(seed: number, steps: number) {
   let n = 0;
   let applied = 0;
   let invitesChecked = 0;
+  let orgJobsHeld = 0;
 
   const record = (t: Transition) => {
     deals.set(t.deal.id, t.deal);
@@ -230,6 +231,7 @@ function simulate(seed: number, steps: number) {
         for (const h of newcomers) if (h !== only) throw new Error(`seed ${seed} step ${i}: ${h} got onto a task sent only to ${only}`);
         invitesChecked++;
       }
+      if (t.deal.type === "errand" && t.deal.payeeOrgId === "org1" && t.deal.heldAmount > 0) orgJobsHeld++;
       record(t);
     } catch (e) {
       if (!(e instanceof EngineError)) throw e;
@@ -239,7 +241,7 @@ function simulate(seed: number, steps: number) {
     const v = checkInvariants([...deals.values()], ledger);
     if (v.length) throw new Error(`seed ${seed} step ${i} ${cmd.type}: ${JSON.stringify(v)}`);
   }
-  return { deals: [...deals.values()], ledger, applied, invitesChecked };
+  return { deals: [...deals.values()], ledger, applied, invitesChecked, orgJobsHeld };
 }
 
 describe("random simulation", () => {
@@ -247,9 +249,10 @@ describe("random simulation", () => {
   const extra = Array.from({ length: Math.max(0, Number(process.env.SIM_SEEDS ?? 10) - 10) }, (_, i) => 10_000 + i);
   for (const seed of [1, 2, 3, 42, 2026, 7, 99, 1234, 31337, 777, ...extra]) {
     it(`seed ${seed}: money always balances`, () => {
-      const { deals, ledger, applied, invitesChecked } = simulate(seed, 4000);
+      const { deals, ledger, applied, invitesChecked, orgJobsHeld: orgHeld } = simulate(seed, 4000);
       expect(applied).toBeGreaterThan(200);
       invitesSeen += invitesChecked;
+      orgJobsHeld += orgHeld;
       expect(checkInvariants(deals, ledger)).toEqual([]);
 
       // Double-entry: all balances across all accounts sum to zero.
@@ -279,7 +282,10 @@ describe("random simulation", () => {
         // an organisation's job pays the organisation, never the worker personally
         if (d.type === "errand" && d.payeeOrgId && d.helperId) {
           expect(mine.some((e) => e.to === `payable:${d.helperId}`), `deal ${d.id} paid the worker`).toBe(false);
-          payeeSeen++;
+        }
+        // the company was paid (a release or a cancellation fee) — the worker's own account never was
+        if (mine.some((e) => e.to === "payable:org1")) {
+          expect(mine.some((e) => e.to === "payable:h4"), `deal ${d.id} paid the company's worker`).toBe(false);
         }
       }
       for (const d of deals) reached.add(d.status);
@@ -289,10 +295,10 @@ describe("random simulation", () => {
   // Guards against the walk becoming too random to be meaningful.
   const reached = new Set<string>();
   let invitesSeen = 0;
-  let payeeSeen = 0;
+  let orgJobsHeld = 0;
   it("across all seeds, exercises bargaining and direct requests", () => {
     expect(invitesSeen).toBeGreaterThan(0);
-    expect(payeeSeen).toBeGreaterThan(0); // organisation jobs really happened // steps taken while a direct request stood were checked
+    expect(orgJobsHeld).toBeGreaterThan(0); // organisation jobs really were paid for (money held for the company) // steps taken while a direct request stood were checked
     // (price changes after matching get their own walk in price-change-fuzz.test.ts)
     for (const code of ["offer_priced", "price_changed", "invite_sent", "invite_declined", "invite_opened"]) {
       expect(seenEvents, code).toContain(code);

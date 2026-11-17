@@ -211,3 +211,16 @@ export async function openDealIds(limit = 200): Promise<string[]> {
     .limit(limit);
   return (data ?? []).map((r) => r.id as string);
 }
+
+/**
+ * Posted anew (the chosen helper backed out — docs/decisions.md 2026-11-17 "Backing out"): forget
+ * who was notified so the waves start again from the nearest helpers, but keep the helper who
+ * backed out marked declined so they aren't offered it again. Then send the first wave.
+ */
+export async function restartDispatch(dealId: string, quitter: string, now = Date.now()): Promise<DispatchStatus | null> {
+  const db = createAdminClient();
+  await db.from("dispatch_offers").delete().eq("deal_id", dealId).neq("helper_id", quitter).throwOnError();
+  await db.from("dispatch_offers").update({ status: "declined" }).eq("deal_id", dealId).eq("helper_id", quitter).throwOnError();
+  await db.from("dispatch_state").delete().eq("deal_id", dealId).throwOnError();
+  return runDispatch(dealId, now);
+}

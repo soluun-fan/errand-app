@@ -134,9 +134,13 @@ describe("receipt over budget → top-up", () => {
     const id = inProgress(w);
     w.do(id, { type: "record_receipt", amount: 54500 }, h1);
     w.do(id, { type: "confirm_topup", providerRef: "tu1", amount: 4500 }, provider);
+    const before = (w.get(id) as ErrandDeal).itemBudget;
     w.do(id, { type: "cancel" }, h1);
-    expect(w.get(id).status).toBe("cancelled");
-    expect(w.bal(ext("c1"))).toBe(0);
+    const d = w.get(id) as ErrandDeal;
+    expect(d.status).toBe("open"); // posted anew
+    expect(w.bal(ext("c1"))).toBe(0); // both payments back
+    expect(d.itemBudget).toBe(before - 4500); // the refunded extra no longer counts
+    expect(d.topUp).toBeNull();
   });
 
   it("only while the task is in progress", () => {

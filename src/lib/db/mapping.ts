@@ -22,8 +22,6 @@ import type {
 } from "@/lib/engine/types";
 
 /** How long a helper is suspended after cancelling an accepted task (CLAUDE.md §3). */
-export const HELPER_PENALTY_DAYS = 3;
-const DAY_MS = 86_400_000;
 
 /* ---------- row types ---------- */
 
@@ -64,6 +62,7 @@ export interface DealRow {
   invite_until?: string | null;
   invite_open_after?: boolean | null;
   handover_proof_at: string | null;
+  assigned_at?: string | null;
   price: number | null;
   buyer_fee: number | null;
   seller_id: string | null;
@@ -227,6 +226,7 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
           ? { helperId: row.invited_helper_id, until: req(toMs(row.invite_until), "invite_until"), openAfter: row.invite_open_after !== false }
           : null,
       handoverProofAt: toMs(row.handover_proof_at),
+      assignedAt: toMs(row.assigned_at ?? null),
     };
     return d;
   }
@@ -276,6 +276,7 @@ export function dealToRow(d: Deal): DealRow {
     invite_until: null,
     invite_open_after: true,
     handover_proof_at: null,
+    assigned_at: null,
     price: null,
     buyer_fee: null,
     seller_id: null,
@@ -331,6 +332,7 @@ export function dealToRow(d: Deal): DealRow {
       invite_until: toIso(d.invite?.until ?? null),
       invite_open_after: d.invite?.openAfter ?? true,
       handover_proof_at: toIso(d.handoverProofAt),
+      assigned_at: toIso(d.assignedAt),
     };
   }
   return {
@@ -421,7 +423,8 @@ export function applyTransitionArgs(before: Deal, t: Transition, now: number) {
   }));
   const suspend = t.effects
     .filter((e) => e.kind === "helper_penalty")
-    .map((e) => ({ user_id: e.helperId, until: toIso(now + HELPER_PENALTY_DAYS * DAY_MS) }));
+    // the database decides the pause length from the helper's recent back-outs (escalating)
+    .map((e) => ({ user_id: e.helperId, at: toIso(now) }));
 
   return {
     p_deal_id: before.id,

@@ -15,7 +15,8 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { categoryTrust, errandSplit, invitedOnly } from "@/lib/engine";
+import { DEFAULT_CONFIG, categoryTrust, errandSplit, invitedOnly } from "@/lib/engine";
+import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
@@ -167,19 +168,6 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     );
   } else if (mine && deal.status === "awaiting_payment") {
     line = deal.payBy ? <Countdown until={deal.payBy} serverNow={now} template={t("job.waitingPay")} /> : null;
-    secondary.push(
-      <ConfirmSheet
-        key="withdraw"
-        action={jobAction}
-        fields={{ ...fields, intent: "withdraw" }}
-        trigger={t("job.withdraw")}
-        triggerClass={btn.text}
-        title={t("job.withdrawTitle")}
-        body={t("job.withdrawBody")}
-        confirmLabel={t("job.withdraw")}
-        confirmClass={btn.danger}
-      />,
-    );
   } else if (mine && deal.status === "matched") {
     line = t("job.paidGo");
     // the start photo starts the job (it's below); care work starts with the plain button, no photo
@@ -194,16 +182,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       line = t("proof.finishSub", { hours: deal.checkHours });
     }
   }
-  if (mine && (deal.status === "matched" || deal.status === "in_progress")) {
+  if (mine && (deal.status === "awaiting_payment" || deal.status === "matched" || deal.status === "in_progress")) {
+    // Backing out (docs/decisions.md 2026-11-17): free within 10 minutes of being chosen, then an
+    // escalating pause; either way the task is posted anew and the customer is refunded.
+    const late = deal.assignedAt === null || now - deal.assignedAt > DEFAULT_CONFIG.backOutGraceMinutes * 60_000;
+    const days = late ? pauseDaysFor((await recentBackOuts(me, now)) + 1) : 0;
     secondary.push(
       <ConfirmSheet
         key="cancel"
         action={jobAction}
         fields={{ ...fields, intent: "withdraw" }}
         trigger={t("job.cancelLate")}
-        triggerClass={btn.textDanger}
+        triggerClass={late ? btn.textDanger : btn.text}
         title={t("job.cancelLateTitle")}
-        body={t("job.cancelLateBody")}
+        body={late ? t("job.cancelLateBody", { days: days === 1 ? t("job.pauseDay") : t("job.pauseDays", { n: days }) }) : t("job.cancelFreeBody")}
         confirmLabel={t("job.cancelLate")}
         confirmClass={btn.danger}
       />,

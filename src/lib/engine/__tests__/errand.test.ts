@@ -381,17 +381,53 @@ describe("cancellation", () => {
     w.reject(id, { type: "cancel" }, c1, "ILLEGAL_TRANSITION");
   });
 
-  it("helper cancels: full refund to the customer and a penalty effect", () => {
+  it("helper backs out after the grace: full refund, the task is posted anew, and a penalty", () => {
     const w = new World();
     const id = w.post({ itemBudget: 5000 });
     w.do(id, { type: "accept" }, h1);
     w.pay(id);
     w.do(id, { type: "start" }, h1);
+    w.advance(0.5); // 30 min after being chosen
     const t = w.do(id, { type: "cancel" }, h1);
-    expect(w.get(id).status).toBe("cancelled");
+    const d = w.get(id) as ErrandDeal;
+    expect(d.status).toBe("open");
+    expect(d).toMatchObject({ helperId: null, assignedAt: null, heldAmount: 0, receiptAmount: null, handoverProofAt: null, topUp: null, paymentRef: null });
+    expect(d.offers.map((o) => o.helperId)).not.toContain("h1"); // can't be chosen again
+    expect(d.matchBy).toBe(w.now + 30 * MINUTE_MS); // a fresh search window
     expect(w.bal(ext("c1"))).toBe(0);
     expect(w.bal(payable("h1"))).toBe(0);
     expect(t.effects).toEqual([{ kind: "helper_penalty", helperId: "h1", dealId: id }]);
+    expect(t.events.map((e) => e.code)).toContain("helper_backed_out");
+  });
+
+  it("within 10 minutes of being chosen, backing out is free (even after payment)", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "accept" }, h1);
+    w.pay(id);
+    w.now += 9 * MINUTE_MS;
+    const t = w.do(id, { type: "cancel" }, h1);
+    expect(w.get(id).status).toBe("open");
+    expect(w.bal(ext("c1"))).toBe(0);
+    expect(t.effects).toEqual([]);
+    expect(t.events.map((e) => e.code)).toContain("helper_withdrew");
+    // past 10 minutes it counts, even before the customer paid
+    const id2 = w.post();
+    w.do(id2, { type: "accept" }, h1);
+    w.now += 11 * MINUTE_MS;
+    expect(w.do(id2, { type: "cancel" }, h1).effects).toEqual([{ kind: "helper_penalty", helperId: "h1", dealId: id2 }]);
+  });
+
+  it("a direct request opens to everyone when the invited helper backs out", () => {
+    const w = new World();
+    const id = w.post({ invite: { helperId: "h1", openAfter: false } });
+    w.do(id, { type: "apply", note: "" }, h1);
+    w.do(id, { type: "choose", helperId: "h1" }, customer("c1"));
+    w.pay(id);
+    w.do(id, { type: "cancel" }, h1);
+    const d = w.get(id) as ErrandDeal;
+    expect(d.status).toBe("open");
+    expect(d.invite).toMatchObject({ helperId: "h1", openAfter: true, until: w.now });
   });
 
   it("strangers cannot cancel", () => {

@@ -264,24 +264,40 @@ describe("engine → database round trip", () => {
     expect(after.rows[0].rating_count).toBe(before.rows[0].rating_count + 1);
   });
 
-  it("helper cancel suspends the helper for 3 days", async () => {
-    let d = await postErrand({ itemBudget: 0 });
-    d = await step(d, { type: "accept" }, helper(U.h2, ["shop"]), T0);
-    d = await pay(d);
-    d = await step(d, { type: "cancel" }, helper(U.h2, ["shop"]), T0 + 1000);
-    expect(d.status).toBe("cancelled");
+  it("a late back-out reopens the task and pauses the helper: 1 day, then 3, then 7 (within 30 days)", async () => {
+    const h = helper(U.h2, ["shop"]);
+    const pauseAfter = async (at: number) => {
+      let d = await postErrand({ itemBudget: 0 });
+      d = await step(d, { type: "accept" }, h, at);
+      d = await pay(d);
+      d = await step(d, { type: "cancel" }, h, at + 11 * 60_000); // after the 10-minute grace
+      expect(d.status).toBe("open");
+      expect(d.heldAmount).toBe(0);
+      const r = await db.query<{ v: string }>(`select to_jsonb(suspended_until) #>> '{}' as v from public.profiles where id = $1`, [U.h2]);
+      return (Date.parse(r.rows[0].v) - (at + 11 * 60_000)) / 86_400_000;
+    };
+    expect(await pauseAfter(T0)).toBe(1);
+    expect(await pauseAfter(T0 + 2 * 86_400_000)).toBe(3);
+    expect(await pauseAfter(T0 + 6 * 86_400_000)).toBe(7);
+    const rows = await db.query<{ pause_days: number; nth_in_30d: number }>(`select pause_days, nth_in_30d from public.helper_penalties where helper_id = $1 order by created_at`, [U.h2]);
+    expect(rows.rows).toEqual([
+      { pause_days: 1, nth_in_30d: 1 },
+      { pause_days: 3, nth_in_30d: 2 },
+      { pause_days: 7, nth_in_30d: 3 },
+    ]);
+    // a suspended helper is not approved until the pause ends
     const p = await db.query<ProfileRow>(
-      `select id, name, phone, role, kyc_level, helper_status, verified_name, categories, area,
-              to_jsonb(suspended_until) #>> '{}' as suspended_until
-       from public.profiles where id = $1`,
+      `select id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, to_jsonb(suspended_until) #>> '{}' as suspended_until from public.profiles where id = $1`,
       [U.h2],
     );
     const prof = { ...p.rows[0], categories: ["shop" as const] };
-    expect(Date.parse(prof.suspended_until as string)).toBe(T0 + 1000 + 3 * 86_400_000);
-    expect(actorFromProfile(prof, T0 + 2 * 86_400_000).helperApproved).toBe(false);
-    expect(actorFromProfile(prof, T0 + 4 * 86_400_000).helperApproved).toBe(true);
-    // clean up so later tests can use h2
+    expect(actorFromProfile(prof, T0 + 8 * 86_400_000).helperApproved).toBe(false);
+    expect(actorFromProfile(prof, T0 + 14 * 86_400_000).helperApproved).toBe(true);
+    // helpers can't read the penalty rows themselves (server only)
+    const denied = await sqlError(as(db, "authenticated", U.h2, (tx) => tx.query("select * from public.helper_penalties")));
+    expect(denied.message).toMatch(/permission denied/);
     await db.query(`update public.profiles set suspended_until = null where id = $1`, [U.h2]);
+    await db.query(`delete from public.helper_penalties where helper_id = $1`, [U.h2]);
   });
 });
 

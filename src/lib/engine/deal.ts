@@ -307,6 +307,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     pickupLocation,
     location,
     payBy: null,
+    assignedAt: null,
     details,
     itemBudget,
     fee: input.fee,
@@ -356,6 +357,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
 function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number, orgId: string | null): void {
   e.helperId = helperId;
   e.payeeOrgId = orgId;
+  e.assignedAt = tx.ctx.now;
   if (e.heldAmount > 0) {
     e.status = "matched";
     return;
@@ -405,6 +407,7 @@ function unassignHelper(e: ErrandDeal): void {
   e.helperId = null;
   e.payeeOrgId = null;
   e.payBy = null;
+  e.assignedAt = null;
   e.fee = e.postedFee;
   e.status = "open";
 }
@@ -718,18 +721,31 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           if (d.priceChange?.status !== "paid") d.priceChange = null;
           d.status = "cancelled";
           tx.ev("cancelled", { by: "customer" });
-        } else if (d.helperId !== null && u.id === d.helperId && d.status === "awaiting_payment") {
-          // Not paid yet: the helper can step back without a penalty; the task searches again.
-          if (d.mode === "schedule") d.offers = d.offers.filter((o) => o.helperId !== u.id);
-          unassignHelper(d);
-          tx.ev("helper_withdrew", { helperId: u.id });
         } else if (d.helperId !== null && u.id === d.helperId) {
-          requireStatus(d, "cancel", "matched", "in_progress");
-          refundAll(tx, "helper_cancelled");
-          if (d.priceChange?.status !== "paid") d.priceChange = null;
-          d.status = "cancelled";
-          tx.effects.push({ kind: "helper_penalty", helperId: u.id, dealId: d.id });
-          tx.ev("cancelled", { by: "helper" });
+          // The chosen helper backs out (docs/decisions.md 2026-11-17 "Backing out"): the task is
+          // posted anew — everything held goes back to the customer, the job's progress is cleared,
+          // a full search window starts, and helpers are notified again. Free within the grace
+          // after being chosen; later it counts against the helper (escalating pause, in the DB).
+          requireStatus(d, "cancel", "awaiting_payment", "matched", "in_progress");
+          const late = d.assignedAt === null || ctx.now - d.assignedAt > DEFAULT_CONFIG.backOutGraceMinutes * MINUTE_MS;
+          refundAll(tx, "helper_backed_out");
+          if (d.topUp?.status === "paid") d.itemBudget -= d.topUp.amount; // the extra was refunded with the rest
+          d.topUp = null;
+          d.receiptAmount = null;
+          d.handoverProofAt = null;
+          d.priceChange = null;
+          d.paymentRef = null;
+          d.offers = d.offers.filter((o) => o.helperId !== u.id); // they can't be chosen again
+          unassignHelper(d);
+          d.matchBy = Math.max(d.scheduledAt ?? 0, ctx.now + DEFAULT_CONFIG.nowMatchWindowMinutes * MINUTE_MS);
+          // a direct request to this helper opens to everyone now
+          if (d.invite?.helperId === u.id) d.invite = { ...d.invite, until: ctx.now, openAfter: true };
+          if (late) {
+            tx.effects.push({ kind: "helper_penalty", helperId: u.id, dealId: d.id });
+            tx.ev("helper_backed_out", { helperId: u.id });
+          } else {
+            tx.ev("helper_withdrew", { helperId: u.id });
+          }
         } else {
           fail("FORBIDDEN", "Only the customer or the assigned helper can cancel");
         }

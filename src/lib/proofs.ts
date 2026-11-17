@@ -133,7 +133,9 @@ export async function proofsFor(dealId: string): Promise<ProofView[]> {
 }
 
 /** How many proofs of one kind a task has (start photo present? progress cap). */
-export async function proofCount(dealId: string, kind: ProofKind): Promise<number> {
-  const { count } = await createAdminClient().from("proofs").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("kind", kind);
+export async function proofCount(dealId: string, kind: ProofKind, uploadedBy?: string): Promise<number> {
+  let q = createAdminClient().from("proofs").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("kind", kind);
+  if (uploadedBy) q = q.eq("uploaded_by", uploadedBy); // a task posted anew: the earlier helper's photos don't count
+  const { count } = await q;
   return count ?? 0;
 }

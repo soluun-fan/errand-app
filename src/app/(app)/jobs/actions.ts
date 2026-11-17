@@ -10,8 +10,10 @@ import { parsePrice } from "@/lib/price-input";
 import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
-import { runDispatch } from "@/lib/dispatch/run";
-import { EngineError, categoryTrust, minFeeAt, type CategoryId, type Command } from "@/lib/engine";
+import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
+import { OPS_ALERT_AT, recentBackOuts } from "@/lib/penalties";
+import { adminIds } from "@/lib/safety";
+import { EngineError, categoryTrust, minFeeAt, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
 import { hadCareCall } from "@/lib/chat";
 import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
@@ -260,7 +262,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     else if (intent === "start") {
       // the start photo starts the job (submitProof); the plain button is only for care work
       const before = await loadDeal(db, dealId);
-      if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start")) === 0) return { error: t("proof.startNeeded") };
+      if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start", viewer.profile.id)) === 0) return { error: t("proof.startNeeded") };
       cmd = { type: "start" };
     }
     else if (intent === "finish") cmd = { type: "finish" };
@@ -273,6 +275,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         return { error: t("care.callFirstHelper") };
       }
     }
+    const before = cmd.type === "cancel" ? await loadDeal(db, dealId) : null;
     const { deal } = await runCommand(db, dealId, cmd, viewer.actor);
     if (deal.type !== "errand") return { error: t("error.generic") };
 
@@ -303,7 +306,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         tag: `task-${dealId}`,
       });
     } else if (intent === "withdraw") {
-      await runDispatch(dealId); // back to searching
+      await afterBackOut(deal, before, viewer.profile.id, viewer.profile.name || "—");
     } else if (intent === "decline_invite") {
       await db.from("dispatch_offers").update({ status: "declined" }).eq("deal_id", dealId).eq("helper_id", viewer.profile.id);
       const opened = deal.status === "open";
@@ -340,4 +343,33 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
   }
   refresh();
   return { done: true };
+}
+
+/**
+ * The chosen helper backed out (docs/decisions.md 2026-11-17 "Backing out"): the engine already
+ * refunded everything and reopened the task. Tell the customer, start the search over (helpers are
+ * notified again), and alert Ops when someone keeps backing out. Each step is best-effort: the
+ * money and the reopening are already saved.
+ */
+async function afterBackOut(deal: ErrandDeal, before: Deal | null, helperId: string, helperName: string): Promise<void> {
+  if (deal.status !== "open") return;
+  const paid = before?.type === "errand" && before.heldAmount > 0;
+  await notify([deal.customerId], {
+    title: "push.backedOutTitle",
+    body: paid ? "push.backedOutPaidBody" : "push.backedOutBody",
+    params: { name: helperName, title: deal.title },
+    url: `/tasks/${deal.id}`,
+    tag: `task-${deal.id}`,
+  }).catch((e) => console.error("back-out notice failed", e));
+  await restartDispatch(deal.id, helperId).catch((e) => console.error("restart dispatch failed", e));
+  const n = await recentBackOuts(helperId).catch(() => 0);
+  if (n >= OPS_ALERT_AT) {
+    await notify(await adminIds(), {
+      title: "push.repeatBackOutTitle",
+      body: "push.repeatBackOutBody",
+      params: { n, name: helperName },
+      url: `/ops/helpers/${helperId}`,
+      tag: `backout-${helperId}`,
+    }).catch((e) => console.error("ops back-out alert failed", e));
+  }
 }

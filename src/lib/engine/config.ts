@@ -125,6 +125,8 @@ export interface EngineConfig {
   utcOffsetHours: number;
   /** After a helper is matched the customer pays within this window, or the helper is released. */
   paymentWindowMinutes: number;
+  /** A chosen helper may back out this long after being chosen without a penalty (owner, 2026-11-17). */
+  backOutGraceMinutes: number;
   titleMax: number;
   descriptionMax: number;
   /** Carrying up stairs without a lift: per floor above the first. */
@@ -174,6 +176,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   nightEndHour: 7,
   utcOffsetHours: 8,
   paymentWindowMinutes: 10,
+  backOutGraceMinutes: 10,
   titleMax: 40,
   descriptionMax: 500,
   carryPerFloor: 1500,

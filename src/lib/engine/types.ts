@@ -159,6 +159,8 @@ export interface ErrandDeal extends DealBase {
   location: GeoPoint | null;
   /** After a helper is matched, the customer must pay by this time (null otherwise). */
   payBy: number | null;
+  /** When the current helper was chosen (null while nobody is). Backing out later than the grace counts against them. */
+  assignedAt: number | null;
   details: ErrandDetails;
   itemBudget: number;
   /** The helper fee to be held: the posted fee, or the chosen helper's quote. */

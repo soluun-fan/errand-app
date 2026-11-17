@@ -105,6 +105,7 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
     case "chosen":
     case "payment_timeout":
     case "helper_withdrew":
+    case "helper_backed_out":
       return t(`event.${code}`, { name: name(data.helperId) });
     case "receipt_recorded":
       return t("event.receipt_recorded", { amount: money("amount") });

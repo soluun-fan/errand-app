@@ -49,6 +49,11 @@ function run(seed: number) {
 
   for (let i = 0; i < 60 && !TERMINAL_STATUSES.includes(d.status); i++) {
     now += int(0, 30) * MINUTE_MS;
+    if (d.status === "open") {
+      // the helper backed out and the task was posted anew: chosen again, paid again
+      d = step(d, { type: "accept" }, h1);
+      d = step(d, { type: "confirm_payment", providerRef: `pay-${seed}-${i}`, amount: amountDue(d) }, provider);
+    }
     const pc = d.priceChange;
     const other = pc ? (pc.by === "customer" ? h1 : c1) : pick([c1, h1]);
     const cmds: [Command, Actor][] = [
@@ -109,7 +114,7 @@ describe("price changes after matching: random walk", () => {
         expect(d.heldAmount).toBe(0);
         expect(helperGot).toBeGreaterThanOrEqual(d.fee - Math.floor((d.fee * d.commissionBps) / 10_000));
       }
-      if (!TERMINAL_STATUSES.includes(d.status)) expect(d.heldAmount).toBe(-customerNet - helperGot - balanceOf(ledger, "platform"));
+      if (!TERMINAL_STATUSES.includes(d.status)) expect(d.heldAmount + customerNet + helperGot + balanceOf(ledger, "platform")).toBe(0);
     }
   });
   it("reached every price-change outcome", () => {
