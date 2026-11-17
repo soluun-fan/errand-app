@@ -12,6 +12,7 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-17 — Shifts planned** (owner: day jobs / short gigs in their own section, anyone may post, "we can still hold the money … to avoid scamming"): one shift post + one held errand deal per worker, so each worker's money, attendance and disputes stay separate. Plan and lawyer questions in `docs/shifts.md`; build after the launch blockers.
 - **2026-11-17 — Pictures** (owner: "photos make it feel real and legible … i can add random photos at the start … do whatever the pleasehelp one does"):
   - **Task thumbnails:** the helper's cards (nearby, all, my requests) and the customer's past tasks show the task's first photo (signed, 1 h) — only where that task is already visible.
   - **Kind covers:** Ops uploads one example picture per kind (/ops/content, logged). Cards use it when a task has no photo, **marked "Жишээ" (example)** so nobody mistakes it for the real job; Home's kind tiles and the public request boards use covers only — never a customer's photo. Covers are generic, so their bucket (`kind-covers`) is public; task photos stay private.

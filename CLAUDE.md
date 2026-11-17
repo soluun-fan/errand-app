@@ -15,6 +15,7 @@ Mongolian (UB-first) errand marketplace + held payments. Customers post small ph
 | Helper or Ops screens | `docs/screens-helper-ops.md` |
 | User-facing text | `docs/copy.md` (the live strings are in `src/i18n/`) |
 | Why a decision was made / open questions | `docs/decisions.md` |
+| Shifts / day jobs (planned) | `docs/shifts.md` |
 
 - `reference/*.png`: look at a screenshot **only** when building the screen it matches (listed in `docs/ui.md`).
 - `prototype/index.html`: working demo of the full logic.
