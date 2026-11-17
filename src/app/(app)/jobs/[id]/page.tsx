@@ -7,6 +7,7 @@ import { InlineAction } from "@/components/inline-action";
 import { JobBeacon } from "@/components/job-beacon";
 import { ProofGallery } from "@/components/proof-gallery";
 import { ProofUploader } from "@/components/proof-uploader";
+import { CareCheckOut } from "@/components/care-check-out";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
 import { AddressBox, DetailPair, DetailSection, DetailTitle, MapHero } from "@/components/detail";
@@ -23,6 +24,7 @@ import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { taskPhotosFor } from "@/lib/task-photos";
+import { workedTogether } from "@/lib/care";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { SafetyBar } from "@/components/safety-bar";
 import { PriceChangeCard } from "@/components/price-change-card";
@@ -186,7 +188,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     // Backing out (docs/decisions.md 2026-11-17): free within 10 minutes of being chosen, then an
     // escalating pause; either way the task is posted anew and the customer is refunded.
     const late = deal.assignedAt === null || now - deal.assignedAt > DEFAULT_CONFIG.backOutGraceMinutes * 60_000;
-    const days = late ? pauseDaysFor((await recentBackOuts(me, now)) + 1) : 0;
+    const days = late ? pauseDaysFor((await recentBackOuts(me, now)) + 1, categoryTrust(deal.category) === "care") : 0;
     secondary.push(
       <ConfirmSheet
         key="cancel"
@@ -217,6 +219,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
   const photos = await taskPhotosFor(deal.id);
+  const firstMeeting = !startPhoto && mine && !(await workedTogether(deal.customerId, [me])).has(me);
   const chatAccess = await accessFor(deal, me);
   const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
   const sos = mine ? await liveSos(deal.id, me) : null;
@@ -259,6 +262,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Note>
         )}
         {deal.status === "open" && categoryTrust(deal.category) === "care" && <Note tone="warn">{t("care.helperNote")}</Note>}
+        {!startPhoto && <Note tone="info">{t(deal.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
+        {!startPhoto && mine && firstMeeting && <Note tone="info">{t("care.meetFirstHelper")}</Note>}
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
       </DetailTitle>
@@ -328,8 +333,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <ProofUploader dealId={deal.id} kind="receipt" done={deal.receiptAmount !== null} />
             )}
             {deal.topUp?.status === "pending" && <Note tone="warn">{t("proof.waitTopUp")}</Note>}
-            {startPhoto ? <ProofUploader dealId={deal.id} kind="progress" done={false} /> : <Note tone="warn">{t("proof.careHandover")}</Note>}
-            <ProofUploader dealId={deal.id} kind="handover" done={deal.handoverProofAt !== null} />
+            {startPhoto && <ProofUploader dealId={deal.id} kind="progress" done={false} />}
+            {startPhoto ? (
+              <ProofUploader dealId={deal.id} kind="handover" done={deal.handoverProofAt !== null} />
+            ) : (
+              <CareCheckOut dealId={deal.id} done={deal.handoverProofAt !== null} />
+            )}
           </div>
         </DetailSection>
       )}

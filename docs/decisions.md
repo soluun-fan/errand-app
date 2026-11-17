@@ -12,6 +12,16 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-17 — Care pilot + trip time** (owner: "babysitting and stuff...can we?" → "sure" to the pilot list; "wouldnt the price match the duration they go through"):
+  - **Trip time:** "About how long?" now starts at the kind's usual time + travel (3 min/km per leg in UB traffic, `pricing_settings.travel_min_per_km`, Ops-editable), so a return trip is priced by its time too. The customer can still pick another length; the form says how much of it is travel. The "Буцаж ирэх" switch is explained as "the helper must come back to the start".
+  - **Care limits (engine):** daytime only, 08:00–21:00 Ulaanbaatar time, at most 6 hours (`careDayStartHour`, `careDayEndHour`, `careMaxMinutes`).
+  - **Scope text** on posting and on the helper's job: babysitting = care, play, meals, bedtime, medicine only if written down; elder care = company, walks, meals, errands, no medical tasks.
+  - **Meet first:** choosing a sitter the family hasn't had a finished care job with needs a ticked "someone from the family stays at home" (server-checked); the helper sees "first session" on the job.
+  - **Check-out instead of a handover photo** for care: a proof row with time + position and no file, then `record_handover` (engine unchanged).
+  - **First-aid badge:** a care clearance can claim a first-aid certificate (`helper_certificates.first_aid`); Ops is reminded to check the file; approved → 🩹 badge on the applicant card.
+  - **Back-outs:** a late back-out from care work pauses 7 days at once (`apply_transition` v8).
+  - **Ops alert** when a family rates a care job below 4★ (problem reports already alert Ops).
+  - Still the owner's: lawyer check (liability, terms, any licence for childcare), insurance, Ops checking the criminal-record certificate against the official source. Care stays **off** until then.
 - **2026-11-17 — Backing out** (owner: "penalty for commission rejection after accepting — after 10min or so. and immediately the commission post is posted like anew again and notified"; picked: escalating pause, refund and pay again, clock from being chosen):
   - The chosen helper can back out until the job is finished. **Free within 10 minutes of being chosen** (`deals.assigned_at`); later = penalty.
   - The task is **not cancelled**: everything held is refunded, receipt / top-up / handover / price change are cleared (a paid top-up's extra budget is taken off again), the helper's offer is removed, a fresh match window starts, a direct request to that helper opens to everyone. The app then restarts dispatch from the first wave (the helper who backed out stays marked declined) and tells the customer. The customer pays again when they choose the next helper.
@@ -165,5 +175,4 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 - **Background scheduler:** who calls `/api/cron/tick` in production (Supabase pg_cron + pg_net every 15–30 s is the default plan).
 - **Multi-person jobs:** "keep recruiting" for 2+ helpers needs split payouts per helper.
 - **Address search:** pin-first for now; text place search (Nominatim / paid geocoder) only if users ask.
-- **Care handover proof:** the engine requires a handover photo to finish every task, care included. For care, should it be a check-out instead (time + GPS, no photo)?
 - **Unanswered top-up:** should a pending over-budget request expire (e.g. after 30 min → treat as declined)? Today it waits; the helper can drop items instead.

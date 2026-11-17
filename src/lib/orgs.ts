@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { DbError } from "@/lib/db/deals";
-import { CATEGORIES, type CategoryId, type Trust } from "@/lib/engine";
+import { CATEGORIES, categoryTrust, type CategoryId, type Trust } from "@/lib/engine";
 import { helperDirectory, type HelperProfile } from "@/lib/helper-profile";
 import { maskContacts } from "@/lib/chat-rules";
 import { memberCategories, ubDay, type CertificateInput, type OrgApplicationInput, type OrgKind, type OrgStatus } from "@/lib/org-rules";
@@ -395,6 +395,7 @@ export interface Certificate {
   expiresOn: string | null;
   status: "pending" | "approved" | "rejected" | "expired";
   reviewNote: string | null;
+  firstAid: boolean;
   createdAt: number;
 }
 interface CertRow {
@@ -407,9 +408,10 @@ interface CertRow {
   status: Certificate["status"];
   review_note: string | null;
   doc_path: string;
+  first_aid: boolean | null;
   created_at: string;
 }
-const toCert = (r: CertRow): Certificate => ({ id: r.id, helperId: r.helper_id, category: r.category, issuer: r.issuer, number: r.number, expiresOn: r.expires_on, status: r.status, reviewNote: r.review_note, createdAt: Date.parse(r.created_at) });
+const toCert = (r: CertRow): Certificate => ({ id: r.id, helperId: r.helper_id, category: r.category, issuer: r.issuer, number: r.number, expiresOn: r.expires_on, status: r.status, reviewNote: r.review_note, firstAid: r.first_aid === true, createdAt: Date.parse(r.created_at) });
 
 export async function myCertificates(helperId: string): Promise<Certificate[]> {
   const { data } = await createAdminClient().from("helper_certificates").select("*").eq("helper_id", helperId).order("created_at", { ascending: false }).returns<CertRow[]>();
@@ -423,7 +425,7 @@ export async function submitCertificate(helperId: string, c: CertificateInput): 
   await db.from("helper_certificates").update({ status: "expired" }).eq("helper_id", helperId).eq("category", c.category).in("status", ["pending", "approved"]).lt("expires_on", ubDay(Date.now())).throwOnError();
   const { error } = await db
     .from("helper_certificates")
-    .insert({ helper_id: helperId, category: c.category, issuer: c.issuer, number: c.number, expires_on: c.expiresOn, doc_path: c.docPath });
+    .insert({ helper_id: helperId, category: c.category, issuer: c.issuer, number: c.number, expires_on: c.expiresOn, doc_path: c.docPath, first_aid: c.firstAid && categoryTrust(c.category) === "care" });
   if (error?.code === "23505") return "duplicate"; // one pending / approved per kind
   if (error?.code === "23514" && /criminal-record/.test(error.message)) return "needsRecord"; // care clearance
   if (error) throw new DbError(error);

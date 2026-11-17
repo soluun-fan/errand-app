@@ -133,6 +133,12 @@ export interface EngineConfig {
   carryPerFloor: number;
   /** Round trip ("Буцаж ирэх"): return leg costs this share of the distance part (5000 = 50%). */
   roundTripBps: number;
+  /** Travel time per km in UB traffic, per leg — fills in "About how long?" for two-place tasks. */
+  travelMinPerKm: number;
+  /** Care work pilot (docs/decisions.md 2026-11-17 "Care pilot"): daytime only, at most this long. */
+  careDayStartHour: number;
+  careDayEndHour: number;
+  careMaxMinutes: number;
   /** Buy-for-me: optional extra held on top of the item budget, refunded if unused (1000 = 10%). */
   budgetBufferBps: number;
   /** Instant tasks: a helper's application lapses after this long (they may be busy by then). */
@@ -181,6 +187,10 @@ export const DEFAULT_CONFIG: EngineConfig = {
   descriptionMax: 500,
   carryPerFloor: 1500,
   roundTripBps: 5000,
+  travelMinPerKm: 3,
+  careDayStartHour: 8,
+  careDayEndHour: 21,
+  careMaxMinutes: 360,
   budgetBufferBps: 1000,
   applicationMinutes: 15,
   autoPickMinutes: 3,

@@ -1,7 +1,7 @@
 import { type PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { applyTransitionArgs, insertDealArgs } from "@/lib/db/mapping";
-import { CATEGORIES, amountDue, apply, createErrand, type CategoryId, type Command, type ErrandDeal, type Transition, type UserActor } from "@/lib/engine";
+import { CATEGORIES, amountDue, apply, categoryTrust, createErrand, type CategoryId, type Command, type ErrandDeal, type Transition, type UserActor } from "@/lib/engine";
 import { as, createTestDb, loadDeal, rpc, sqlError } from "./pg";
 
 const customerId = "00000000-0000-4000-8000-000000000001";
@@ -31,8 +31,11 @@ async function allowed(category: CategoryId, via: string | null = orgId, at = ne
   const r = await db.query<{ ok: boolean }>("select private.can_take_via($1, $2, $3, $4) as ok", [helperId, category, via, at]);
   return r.rows[0].ok;
 }
+/** Tomorrow 10:00 in Ulaanbaatar — care work is daytime only, whatever time the tests run. */
+const tomorrowAt10 = () => (Math.floor((now + 8 * 3_600_000) / 86_400_000) + 1) * 86_400_000 + 2 * 3_600_000;
 function post(category: CategoryId = "plumbing", invite = false) {
-  return createErrand({ id: crypto.randomUUID(), title: "Fix tap", description: "Leaking", category, mode: "now", address: "Test", customerId, fee: 10_000, itemBudget: 0, invite: invite ? { helperId, openAfter: true } : null }, { now, actor: customer });
+  const scheduledAt = categoryTrust(category) === "care" ? tomorrowAt10() : null;
+  return createErrand({ id: crypto.randomUUID(), title: "Fix tap", description: "Leaking", category, mode: "now", scheduledAt, address: "Test", customerId, fee: 10_000, itemBudget: 0, invite: invite ? { helperId, openAfter: true } : null }, { now, actor: customer });
 }
 async function persist(before: ErrandDeal | null, t: Transition) {
   await as(db, "service_role", null, (tx) => rpc(tx, before ? "apply_transition" : "insert_deal", before ? applyTransitionArgs(before, t, now) : insertDealArgs(t)));
@@ -174,4 +177,32 @@ it("care: the job is assigned only to someone the customer really talked to on t
   await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1, $2, $3, true, 'call:ended:video:45')", [d.id, helperId, customerId]);
   d = await step(d, choose, customer);
   expect(d).toMatchObject({ status: "awaiting_payment", helperId });
+});
+
+it("care: a late back-out pauses the helper 7 days at once; the job is posted anew", async () => {
+  await db.exec("update public.category_settings set live = true where category = 'childcare'; delete from public.helper_penalties;");
+  let d = await persist(null, post("childcare"));
+  d = await step(d, { type: "apply", note: "" }, worker("childcare"));
+  await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1, $2, $3, true, 'call:ended:voice:60')", [d.id, helperId, customerId]);
+  d = await step(d, { type: "choose", helperId }, customer);
+  d = await step(d, { type: "confirm_payment", providerRef: `care-${d.id}`, amount: amountDue(d) }, { kind: "provider" });
+  now += 20 * 60_000; // past the 10-minute grace
+  d = await step(d, { type: "cancel" }, worker("childcare"));
+  expect(d).toMatchObject({ status: "open", helperId: null, heldAmount: 0 });
+  const pen = await db.query<{ pause_days: number }>("select pause_days from public.helper_penalties where deal_id = $1", [d.id]);
+  expect(pen.rows).toEqual([{ pause_days: 7 }]);
+  const until = await db.query<{ v: string }>("select to_jsonb(suspended_until) #>> '{}' as v from public.profiles where id = $1", [helperId]);
+  expect(Date.parse(until.rows[0].v) - now).toBe(7 * 86_400_000);
+});
+
+it("first-aid claims and travel time live in the database with safe defaults", async () => {
+  const cols = await db.query<{ table_name: string; column_name: string; column_default: string }>(
+    "select table_name, column_name, column_default from information_schema.columns where (table_name, column_name) in (('helper_certificates', 'first_aid'), ('pricing_settings', 'travel_min_per_km')) order by table_name",
+  );
+  expect(cols.rows).toEqual([
+    { table_name: "helper_certificates", column_name: "first_aid", column_default: "false" },
+    { table_name: "pricing_settings", column_name: "travel_min_per_km", column_default: "3" },
+  ]);
+  const bad = await sqlError(db.query("update public.pricing_settings set travel_min_per_km = 60"));
+  expect(bad.message).toMatch(/check constraint/);
 });

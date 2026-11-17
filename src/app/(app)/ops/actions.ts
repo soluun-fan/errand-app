@@ -91,6 +91,7 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     toolsFee: amt("toolsFee"),
     nightFee: amt("nightFee"),
     roundTripBps: percentToBps(form.get("roundTripPct"), 100),
+    travelMinPerKm: amt("travelMinPerKm", 0, 15),
     priceDownBps: percentToBps(form.get("priceDownPct"), 50),
     priceUpBps: percentToBps(form.get("priceUpPct"), 100),
     counterUpBps: percentToBps(form.get("counterUpPct"), 100),

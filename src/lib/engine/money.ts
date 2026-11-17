@@ -80,6 +80,21 @@ export function isNight(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): boole
     : hour >= cfg.nightStartHour && hour < cfg.nightEndHour;
 }
 
+/**
+ * "About how long?" suggestion: the kind of task's usual time plus the travel there (and back, for a
+ * round trip), in 30-minute steps, at most 8 hours. The customer can still pick another length.
+ */
+export function suggestedMinutes(usual: number, km: number, roundTrip: boolean, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  const travel = Math.max(0, km) * cfg.travelMinPerKm * (roundTrip ? 2 : 1);
+  return Math.min(480, Math.max(30, Math.ceil((usual + travel) / 30) * 30));
+}
+
+/** Care pilot: starts and ends within the day window (UB time), and is no longer than allowed. */
+export function careTimeOk(startMs: number, minutes: number, cfg: EngineConfig = DEFAULT_CONFIG): boolean {
+  const local = (((startMs / 60_000 + cfg.utcOffsetHours * 60) % 1440) + 1440) % 1440; // minutes after local midnight
+  return minutes <= cfg.careMaxMinutes && local >= cfg.careDayStartHour * 60 && local + minutes <= cfg.careDayEndHour * 60;
+}
+
 /** Lowest task price for a task starting at `atMs` (night adds the night extra, 22:00–07:00 local). */
 export function minFeeAt(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
   return isNight(atMs, cfg) ? cfg.minFee + cfg.nightFee : cfg.minFee;

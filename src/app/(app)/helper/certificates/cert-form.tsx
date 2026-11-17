@@ -5,7 +5,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { DocUpload } from "@/components/doc-upload";
 import { btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import type { CategoryId } from "@/lib/engine";
+import { categoryTrust, type CategoryId } from "@/lib/engine";
 import { CERTIFIABLE } from "@/lib/org-rules";
 import { prepareDoc, submitCert } from "../../orgs/actions";
 
@@ -27,6 +27,7 @@ export function CertForm() {
       number: String(form.get("number") ?? ""),
       expiresOn: String(form.get("expiresOn") ?? ""),
       docPath: doc ?? "",
+      firstAid: form.get("firstAid") === "on",
     });
     if (r.error) setError(r.error);
     else {
@@ -59,6 +60,12 @@ export function CertForm() {
           <input name="expiresOn" type="date" className={field} />
         </label>
       </div>
+      {categoryTrust(category) === "care" && (
+        <label className="flex items-start gap-3 rounded-input bg-fill p-3 text-[15px]">
+          <input type="checkbox" name="firstAid" className="mt-1 h-5 w-5" />
+          <span>{t("care.firstAidClaim")}</span>
+        </label>
+      )}
       <DocUpload label={t("cert.doc")} path={doc} prepare={(mime, bytes) => prepareDoc("cert", mime, bytes)} onDone={setDoc} onError={setError} />
       {error && (
         <p role="alert" className="text-sm text-danger">

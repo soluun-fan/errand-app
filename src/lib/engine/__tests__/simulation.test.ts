@@ -16,6 +16,7 @@ import {
   balanceOf,
   checkInvariants,
   createErrand,
+  careTimeOk,
   createGoods,
   ext,
   generateDealCode,
@@ -91,8 +92,10 @@ function simulate(seed: number, steps: number) {
       const id = `D${++n}`;
       if (r() < 0.7) {
         const mode = r() < 0.5 ? "now" : "schedule";
-        const category = pick(CATS);
+        const picked = pick(CATS);
         const scheduledAt = mode === "schedule" && r() < 0.7 ? now + int(1, 48) * 3_600_000 : null;
+        // care work only in the daytime window (the engine refuses it otherwise — tested on its own)
+        const category = categoryTrust(picked) === "care" && !careTimeOk(scheduledAt ?? now, DEFAULT_DETAILS.minutes) ? "shop" : picked;
         const quote = quoteFee(category, DEFAULT_DETAILS, undefined, scheduledAt ?? now);
         const range = priceRange(quote.total, scheduledAt ?? now);
         record(

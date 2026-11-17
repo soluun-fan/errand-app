@@ -139,6 +139,9 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: STEP.review };
       const max = /Maximum fee is ₮(\d+)/.exec(e.message);
       if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: STEP.review };
+      if (/Care work is daytime only/.test(e.message)) {
+        return { error: t("care.pilotHours", { from: cfg.careDayStartHour, to: cfg.careDayEndHour, hours: cfg.careMaxMinutes / 60 }), step: STEP.where };
+      }
       if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: STEP.where };
       if (/Distance must be between/.test(e.message)) return { error: t("post.reason.far"), step: STEP.where };
       return { error: e.message, step: STEP.where };

@@ -12,7 +12,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, minFeeAt, quoteFee, serviceFeeFor, suggestedMinutes, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -207,8 +207,13 @@ export function PostFlow({
   const startsAt = start ? (parseUbLocal(start) ?? now) : now;
   // both pins → distance from the map (same function as the server); otherwise the rough chip
   const measuredKm = twoPoint && d.pin && d.pickupPin ? roadKm(d.pickupPin, d.pin) : null;
+  const tripKm = twoPoint ? (measuredKm ?? d.km) : 0;
+  const usualMinutes = CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30;
+  // "About how long?" follows the trip: the usual time plus travel there (and back), unless picked
+  const autoMinutes = Math.min(care ? cfg.careMaxMinutes : 480, suggestedMinutes(usualMinutes, tripKm, twoPoint && d.roundTrip, cfg));
+  const travelMinutes = Math.round(tripKm * cfg.travelMinPerKm * (twoPoint && d.roundTrip ? 2 : 1));
   const details: ErrandDetails = {
-    km: twoPoint ? (measuredKm ?? d.km) : 0,
+    km: tripKm,
     entrance: d.entrance || null,
     floor: d.floor ? Number(d.floor) : null,
     unit: d.unit || null,
@@ -220,7 +225,7 @@ export function PostFlow({
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
     autoPick: invite || care ? false : d.autoPick, // a direct request: the customer answers that helper themselves
-    minutes: d.minutes ?? CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30,
+    minutes: d.minutes ?? autoMinutes,
     tools: d.tools,
     quotedFee: 0,
     counterMax: 0,
@@ -389,6 +394,7 @@ export function PostFlow({
           </label>
           {/* no pictures on care tasks (children, elders) */}
           {categoryTrust(d.category) !== "care" && <TaskPhotoPicker value={photos} onChange={setPhotos} />}
+          {categoryTrust(d.category) === "care" && <Note tone="warn">{t(d.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
           <Note tone="info">{t("post.rules")}</Note>
         </>
       )}
@@ -585,13 +591,20 @@ export function PostFlow({
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("price.howLong")}</legend>
             <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
-              {DURATIONS.map((m) => (
+              {DURATIONS.filter((m) => !care || m <= cfg.careMaxMinutes).map((m) => (
                 <button key={m} type="button" role="radio" aria-checked={details.minutes === m} onClick={() => set("minutes", m)} className={chipClass(details.minutes === m)}>
                   {m < 60 ? t("price.min", { n: m }) : t("price.hours", { n: m / 60 })}
                 </button>
               ))}
             </div>
             <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour) })}</p>
+            {travelMinutes > 0 && (
+              <p className="text-sm text-ink-2">
+                {t(d.roundTrip ? "price.travelBoth" : "price.travelOne", { min: travelMinutes })}
+                {d.minutes !== null && d.minutes < autoMinutes ? ` ${t("price.travelShort", { min: autoMinutes })}` : ""}
+              </p>
+            )}
+            {care && <Note tone="info">{t("care.pilotHours", { from: cfg.careDayStartHour, to: cfg.careDayEndHour, hours: cfg.careMaxMinutes / 60 })}</Note>}
             <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
             <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
           </fieldset>

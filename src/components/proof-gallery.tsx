@@ -5,6 +5,7 @@ function caption(p: ProofView, t: T): string {
   if (p.kind === "receipt" && p.amount !== null) return t("proof.receiptAmount", { amount: fmtMoney(p.amount) });
   if (p.kind === "start") return t("proof.start");
   if (p.kind === "progress") return p.note ?? t("proof.progress");
+  if (p.note === "check-out") return t("care.checkedOut");
   return t("proof.handover");
 }
 
@@ -28,6 +29,10 @@ export function ProofGallery({ proofs, t, showFlags = true }: { proofs: ProofVie
                 <img src={p.url} alt={caption(p, t)} className="aspect-square w-full rounded-input bg-fill object-cover" />
               </a>
             )
+          ) : p.note === "check-out" ? (
+            <div className="flex aspect-square w-full items-center justify-center rounded-input bg-fill text-[40px]" aria-hidden>
+              📍
+            </div>
           ) : (
             <div className="aspect-square w-full rounded-input bg-fill" />
           )}

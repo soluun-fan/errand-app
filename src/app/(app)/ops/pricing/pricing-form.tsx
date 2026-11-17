@@ -35,6 +35,7 @@ export function PricingForm({ p }: { p: PricingSettings }) {
           {num("toolsFee", t("price.line.tools"), p.toolsFee)}
           {num("nightFee", t("price.line.night"), p.nightFee)}
           {num("roundTripPct", t("opsPricing.roundTrip"), p.roundTripBps / 100, "%")}
+          {num("travelMinPerKm", t("opsPricing.travelMinPerKm"), p.travelMinPerKm, t("opsPricing.minSuffix"))}
         </div>
       </section>
 

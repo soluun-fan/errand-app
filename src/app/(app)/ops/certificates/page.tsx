@@ -37,6 +37,7 @@ export default async function OpsCertificatesPage() {
             </a>
           )}
           {categoryTrust(c.category) === "care" && <Note tone="warn">{t("opsCerts.careCheck")}</Note>}
+          {c.firstAid && <Note tone="info">🩹 {t("opsCerts.firstAidClaimed")}</Note>}
           <DecideCert id={c.id} />
         </section>
       ))}

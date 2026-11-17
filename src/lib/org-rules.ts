@@ -89,6 +89,8 @@ export const CertificateInput = z.object({
     .or(z.literal(""))
     .transform((v) => v || null),
   docPath: z.string().min(5).max(300),
+  /** care clearance: the helper says a first-aid certificate is among the files (Ops checks it) */
+  firstAid: z.boolean().optional().default(false),
 });
 export type CertificateInput = z.infer<typeof CertificateInput>;
 

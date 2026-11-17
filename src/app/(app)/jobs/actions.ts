@@ -373,3 +373,36 @@ async function afterBackOut(deal: ErrandDeal, before: Deal | null, helperId: str
     }).catch((e) => console.error("ops back-out alert failed", e));
   }
 }
+
+/**
+ * Care work finishes with a check-out instead of a handover photo (docs/decisions.md 2026-11-17
+ * "Care pilot"): the time and, if the phone gives it, the position — never a picture of the person.
+ */
+export async function careCheckOut(dealId: string, lat: number | null, lng: number | null): Promise<{ error?: string }> {
+  const viewer = await helperViewer();
+  const t = await getT();
+  const deal = await assignedFor(dealId, viewer.profile.id, "handover");
+  if (!deal || categoryTrust(deal.category) !== "care") return { error: t("error.changed") };
+  const ok = (v: unknown, lim: number) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= lim;
+  try {
+    await createAdminClient()
+      .from("proofs")
+      .insert({
+        deal_id: dealId,
+        kind: "handover",
+        note: "check-out",
+        lat: ok(lat, 90) ? lat : null,
+        lng: ok(lng, 180) ? lng : null,
+        taken_at: new Date().toISOString(),
+        uploaded_by: viewer.profile.id,
+      })
+      .throwOnError();
+    await runCommand(createAdminClient(), dealId, { type: "record_handover" }, viewer.actor);
+    refresh();
+    return {};
+  } catch (e) {
+    if (e instanceof EngineError) return { error: t("error.changed") };
+    console.error("care check-out failed", e);
+    return { error: t("proof.failed") };
+  }
+}

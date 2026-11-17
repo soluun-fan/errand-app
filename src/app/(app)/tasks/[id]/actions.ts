@@ -12,12 +12,13 @@ import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { EngineError, amountDue, categoryTrust, type Command } from "@/lib/engine";
+import { workedTogether } from "@/lib/care";
 import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
 import { notifyPriceChange } from "@/lib/price-notify";
 import { parsePrice } from "@/lib/price-input";
-import { getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
+import { adminIds, getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fmtMoney } from "@/lib/format";
 
@@ -111,6 +112,19 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           p_note: String(form.get("note") ?? "").slice(0, 500),
         });
         if (error) return { error: error.code === "23505" ? t("error.changed") : t("error.generic") };
+        // care pilot: Ops looks at every care job a family rates below 4 stars
+        if (stars < 4) {
+          const rated = await loadDeal(db, dealId);
+          if (rated?.type === "errand" && categoryTrust(rated.category) === "care" && viewer.profile.id === rated.customerId) {
+            await notify(await adminIds(), {
+              title: "push.careLowRatingTitle",
+              body: "push.careLowRatingBody",
+              params: { stars, title: rated.title },
+              url: `/ops`,
+              tag: `care-rating-${dealId}`,
+            }).catch((e) => console.error("care rating alert failed", e));
+          }
+        }
         break;
       }
 
@@ -144,8 +158,11 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         // care work (children, patients): talk first — a real call with that person before choosing them
         if (cmd.type === "choose") {
           const before = await loadDeal(db, dealId);
-          if (before?.type === "errand" && categoryTrust(before.category) === "care" && !(await hadCareCall(dealId, cmd.helperId))) {
-            return { error: t("care.callFirst") };
+          if (before?.type === "errand" && categoryTrust(before.category) === "care") {
+            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("care.callFirst") };
+            // meet first: with a new sitter, a parent / family member stays at home for this session
+            const known = await workedTogether(before.customerId, [cmd.helperId]);
+            if (!known.has(cmd.helperId) && form.get("familyHome") !== "on") return { error: t("care.meetFirstNeeded") };
           }
         }
         const r = await runCommand(db, dealId, cmd, viewer.actor);

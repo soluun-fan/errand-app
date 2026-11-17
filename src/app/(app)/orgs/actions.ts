@@ -99,6 +99,7 @@ export interface CertForm {
   number: string;
   expiresOn: string;
   docPath: string;
+  firstAid?: boolean;
 }
 
 export async function submitCert(raw: CertForm): Promise<{ error?: string }> {

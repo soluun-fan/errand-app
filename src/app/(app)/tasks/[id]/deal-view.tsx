@@ -56,6 +56,10 @@ export interface DealViewProps {
   applicantUnread?: Map<string, number>;
   /** Care work: applicants the customer has already had a real call with (needed before choosing). */
   careCalls?: Set<string>;
+  /** Care: applicants this family already had a finished care job with (no "meet first" needed). */
+  careKnown?: Set<string>;
+  /** Care: applicants with an Ops-approved first-aid certificate. */
+  firstAid?: Set<string>;
   /** SOS / report-a-problem row (client component, passed in by the page). */
   safety?: ReactNode;
 }
@@ -572,6 +576,7 @@ export function DealView(p: DealViewProps) {
                   <div className="flex flex-col gap-2">
                   {/* talk before choosing: each applicant has their own chat and call */}
                   <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall t={t} />
+                  {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">🩹 {t("care.firstAidBadge")}</p>}
                   {care && !p.careCalls?.has(o.helperId) && <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">{t("care.callFirst")}</p>}
                   <div className="flex items-center justify-between gap-2">
                     {!waiting && (!care || p.careCalls?.has(o.helperId)) && (
@@ -588,7 +593,14 @@ export function DealView(p: DealViewProps) {
                           .filter(Boolean)
                           .join(" ")}
                         confirmLabel={t("deal.choose")}
-                      />
+                      >
+                        {care && !p.careKnown?.has(o.helperId) && (
+                          <label className="flex items-start gap-3 rounded-input bg-warn-bg p-3 text-[15px]">
+                            <input type="checkbox" name="familyHome" required className="mt-1 h-5 w-5" />
+                            <span>{t("care.meetFirst", { name: pp.name })}</span>
+                          </label>
+                        )}
+                      </ConfirmSheet>
                     )}
                     <ConfirmSheet
                       action={p.action}

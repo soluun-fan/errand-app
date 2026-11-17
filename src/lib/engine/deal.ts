@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, categoryConfi
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
+import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor } from "./money";
 import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange } from "./types";
 import type {
   Account,
@@ -267,6 +267,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     location && pickupLocation ? { ...input.details, km: roadKm(pickupLocation, location) } : input.details,
   );
   const startsAt = scheduledAt ?? ctx.now;
+  if (categoryTrust(input.category) === "care" && !careTimeOk(startsAt, details.minutes, cfg)) {
+    fail("INVALID_INPUT", `Care work is daytime only (${cfg.careDayStartHour}:00–${cfg.careDayEndHour}:00) and up to ${cfg.careMaxMinutes / 60} hours`);
+  }
   const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
   // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
