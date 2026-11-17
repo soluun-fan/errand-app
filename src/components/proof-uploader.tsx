@@ -19,15 +19,26 @@ function position(): Promise<{ lat: number; lng: number } | null> {
   );
 }
 
+type Kind = "receipt" | "handover" | "start" | "progress";
+
+const TEXT = {
+  receipt: { title: "proof.receiptTitle", sub: "proof.receiptSub" },
+  handover: { title: "proof.handoverTitle", sub: "proof.handoverSub" },
+  start: { title: "proof.startTitle", sub: "proof.startSub" },
+  progress: { title: "proof.progressTitle", sub: "proof.progressSub" },
+} as const;
+
 /**
  * One proof slot (docs/rules.md §Proof): camera → compress → fingerprint → signed upload → record.
- * Receipts need the total; handover accepts a photo or a short video.
+ * Receipts need the total; the start photo starts the job; progress photos may carry a short note;
+ * handover and progress accept a photo or a short video.
  */
-export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "receipt" | "handover"; done: boolean }) {
+export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: Kind; done: boolean }) {
   const t = useT();
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,8 +78,10 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "r
         lat: pos?.lat ?? null,
         lng: pos?.lng ?? null,
         takenAt: file.lastModified || null,
+        note: kind === "progress" ? note.trim() || null : null,
       });
       if (r.error) throw new Error(r.error);
+      setNote("");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : t("proof.failed"));
@@ -78,13 +91,20 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "r
     }
   }
 
+  function label() {
+    if (kind === "start") return t("proof.startTake");
+    if (kind === "progress") return t("proof.progressTake");
+    if (done) return `📷 ${t("proof.retake")}`;
+    return `📷 ${kind === "receipt" ? t("proof.take") : t("proof.takeOrVideo")}`;
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
       <div>
         <p className="font-semibold">
-          {kind === "receipt" ? t("proof.receiptTitle") : t("proof.handoverTitle")} {done && <span className="text-held">· {t("proof.done")}</span>}
+          {t(TEXT[kind].title)} {done && <span className="text-held">· {t("proof.done")}</span>}
         </p>
-        <p className="text-sm text-ink-2">{kind === "receipt" ? t("proof.receiptSub") : t("proof.handoverSub")}</p>
+        <p className="text-sm text-ink-2">{t(TEXT[kind].sub)}</p>
       </div>
       {kind === "receipt" && (
         <label className={fieldLabel}>
@@ -98,16 +118,19 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: "r
           />
         </label>
       )}
+      {kind === "progress" && (
+        <input className={field} value={note} maxLength={140} onChange={(e) => setNote(e.target.value)} placeholder={t("proof.progressNotePh")} aria-label={t("proof.progressNotePh")} />
+      )}
       <input
         ref={input}
         type="file"
-        accept={kind === "receipt" ? "image/*" : "image/*,video/*"}
+        accept={kind === "receipt" || kind === "start" ? "image/*" : "image/*,video/*"}
         capture="environment"
         className="sr-only"
         onChange={(e) => onFile(e.target.files?.[0])}
       />
-      <button type="button" disabled={busy} onClick={() => input.current?.click()} className={done ? btn.secondary : `${btn.primary} w-full`}>
-        {busy ? t("proof.uploading") : done ? `📷 ${t("proof.retake")}` : `📷 ${kind === "receipt" ? t("proof.take") : t("proof.takeOrVideo")}`}
+      <button type="button" disabled={busy} onClick={() => input.current?.click()} className={done || kind === "progress" ? btn.secondary : `${btn.primary} w-full`}>
+        {busy ? t("proof.uploading") : label()}
       </button>
       {error && (
         <p role="alert" className="text-sm text-danger">

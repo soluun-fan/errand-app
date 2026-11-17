@@ -43,6 +43,7 @@ check → released on customer confirm OR when checkUntil passes (cron, exactly 
 
 ## Proof
 Before "done": receipt photo + amount (if budget > 0), handover photo with time + GPS. Helpers can't finish without required proof.
+Start: a start photo is required to start (care work excepted). While in progress: optional progress photos with a short note (≤ 20). Posting: up to 5 task photos (private `task-photos` bucket, attached on posting, unposted ones purged after 1 day). No photos of any kind on care tasks except the handover (never of the person).
 
 ## KYC
 L1 phone OTP (small tasks) · L2 ДАН login (SafePay, larger) · L3 helper: ДАН + selfie vs ID + same-name payout account + 18+ + Ops approval · L4 trusted (home-entry, high value) later. ДАН is mocked behind an interface.

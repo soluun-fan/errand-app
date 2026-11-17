@@ -11,9 +11,10 @@ import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { invitableHelper } from "@/lib/helper-profile";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
-import { DetailsJson, PinJson, Uuid, parseOr } from "@/lib/input";
+import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
 import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MAX_TASK_PHOTO_BYTES, attachTaskPhotos, createTaskPhotoSlot, type TaskPhotoSlot } from "@/lib/task-photos";
 
 export interface PostState {
   error?: string;
@@ -28,6 +29,16 @@ const int = (v: FormDataEntryValue | null) => {
   const s = String(v ?? "").replace(/[\s,₮]/g, "");
   return s === "" ? 0 : Number(s);
 };
+
+/** A signed upload URL for one task photo (JPEG, re-encoded in the browser). Attached when posting. */
+export async function prepareTaskPhoto(bytes: number): Promise<TaskPhotoSlot | { error: string }> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  if (typeof bytes !== "number" || !(bytes > 0 && bytes <= MAX_TASK_PHOTO_BYTES)) return { error: t("taskPhotos.tooBig") };
+  const slot = await createTaskPhotoSlot(viewer.profile.id, bytes);
+  return slot === "tooMany" ? { error: t("taskPhotos.tooMany") } : slot;
+}
 
 /**
  * Last step of the post flow. Re-checks everything — the client only guides. The engine
@@ -90,6 +101,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   }
 
   const id = crypto.randomUUID();
+  let photoIds: string[] = [];
   try {
     const created = createErrand(
       {
@@ -118,6 +130,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     }
     await insertDeal(createAdminClient(), created);
     details = created.deal.details;
+    photoIds = parseOr(PhotoIdsJson, String(form.get("photos") ?? "")) ?? [];
   } catch (e) {
     if (e instanceof Error && /this kind of task is not available/.test(e.message)) return { error: t("specialized.unavailable"), step: STEP.type };
     if (isPausedError(e)) return { error: t("safety.postingPaused"), step: STEP.review };
@@ -131,6 +144,13 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       return { error: e.message, step: STEP.where };
     }
     throw e;
+  }
+
+  // the customer's photos (uploaded while filling in the form); a failure never blocks posting
+  try {
+    await attachTaskPhotos(id, viewer.profile.id, photoIds);
+  } catch (e) {
+    console.error("attaching task photos failed", e);
   }
 
   // "Энэ хаягийг хадгалах" — after the task exists; a failed save never blocks posting.

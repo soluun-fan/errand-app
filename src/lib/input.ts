@@ -41,6 +41,20 @@ export const PinJson = z
   })
   .pipe(LatLng.nullable());
 
+/** Task photo ids from the post form (a JSON array, at most 5). */
+export const PhotoIdsJson = z
+  .string()
+  .max(500)
+  .transform((s, ctx) => {
+    try {
+      return JSON.parse(s || "[]") as unknown;
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "bad json" });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.array(z.string().uuid()).max(5));
+
 const text = (max: number) => z.string().max(max).nullable();
 
 /** The post form's task details (types only; the engine checks ranges and prices). */
@@ -80,7 +94,7 @@ export const DetailsJson = z
 
 export const CategoryInput = z.enum(CATEGORIES.map((c) => c.id) as [string, ...string[]]);
 
-export const ProofKindInput = z.enum(["receipt", "handover"]);
+export const ProofKindInput = z.enum(["receipt", "handover", "start", "progress"]);
 
 export const ProofSubmitInput = z.object({
   dealId: Uuid,
@@ -94,6 +108,7 @@ export const ProofSubmitInput = z.object({
   lat: z.number().nullable(),
   lng: z.number().nullable(),
   takenAt: z.number().nullable(),
+  note: z.string().max(140).nullable().optional(),
 });
 
 export const PushSubscriptionInput = z.object({

@@ -21,6 +21,8 @@ import { fuzz, googleDirectionsUrl } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
+import { taskPhotosFor } from "@/lib/task-photos";
+import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { SafetyBar } from "@/components/safety-bar";
 import { PriceChangeCard } from "@/components/price-change-card";
 import { SOS_STATUSES } from "@/lib/incident-rules";
@@ -49,6 +51,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const onTable = deal.status === "open" && myOffer?.price != null ? myOffer.price : deal.fee;
   const net = errandSplit({ fee: onTable, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet;
   const fields = { dealId: deal.id };
+  // no start or progress photos on care work (never photograph the child or the person cared for)
+  const startPhoto = categoryTrust(deal.category) !== "care";
   const dt = deal.details;
   const bits = mine
     ? [
@@ -178,7 +182,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     );
   } else if (mine && deal.status === "matched") {
     line = t("job.paidGo");
-    primary = <InlineAction action={jobAction} fields={{ ...fields, intent: "start" }} label={t("job.start")} className={`${btn.primary} w-full`} />;
+    // the start photo starts the job (it's below); care work starts with the plain button, no photo
+    if (!startPhoto) primary = <InlineAction action={jobAction} fields={{ ...fields, intent: "start" }} label={t("job.start")} className={`${btn.primary} w-full`} />;
   } else if (mine && deal.status === "in_progress") {
     const needReceipt = deal.itemBudget > 0 && deal.receiptAmount === null && deal.topUp?.status !== "declined";
     const ready = deal.handoverProofAt !== null && !needReceipt && deal.topUp?.status !== "pending";
@@ -219,6 +224,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupLocation ?? deal.pickupAddress);
 
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
+  const photos = await taskPhotosFor(deal.id);
   const chatAccess = await accessFor(deal, me);
   const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
   const sos = mine ? await liveSos(deal.id, me) : null;
@@ -294,6 +300,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <TaskPhotoGrid photos={photos} t={t} />
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && (
             <AddressBox
@@ -317,6 +324,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {mine && dt.note && <p className="rounded-input bg-fill p-3 text-[15px]">{dt.note}</p>}
       </DetailSection>
 
+      {mine && deal.status === "matched" && (
+        <DetailSection label={t("proof.title")}>
+          {startPhoto ? <ProofUploader dealId={deal.id} kind="start" done={false} /> : <Note tone="info">{t("proof.careNoPhoto")}</Note>}
+        </DetailSection>
+      )}
       {mine && deal.status === "in_progress" && (
         <DetailSection label={t("proof.title")}>
           <div className="flex flex-col gap-3">
@@ -324,6 +336,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <ProofUploader dealId={deal.id} kind="receipt" done={deal.receiptAmount !== null} />
             )}
             {deal.topUp?.status === "pending" && <Note tone="warn">{t("proof.waitTopUp")}</Note>}
+            {startPhoto ? <ProofUploader dealId={deal.id} kind="progress" done={false} /> : <Note tone="warn">{t("proof.careHandover")}</Note>}
             <ProofUploader dealId={deal.id} kind="handover" done={deal.handoverProofAt !== null} />
           </div>
         </DetailSection>

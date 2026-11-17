@@ -12,6 +12,11 @@ Open: Bank of Mongolia licensing for holding funds · M Bank API (per-deal hold,
 Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage 1 = held payments after bank deal + legal review.
 
 ## Decisions log (implementation)
+- **2026-11-17 — more photos** (owner: "in the real pleasehelp app/web they constantly took pictures"; picked: photos when posting, start photo, progress photos):
+  - **Start photo:** required to start (taking it runs `start`; the plain button refuses without one). Server-action rule, not engine: it's evidence, not money.
+  - **Progress photos:** optional, any time while in progress, ≤ 20 per task, note ≤ 140 chars (contacts masked); the customer gets a push.
+  - **Task photos:** ≤ 5 when posting, private `task-photos` bucket (JPEG only, re-encoded in the browser so the location data inside the file is dropped). Rows are made when the upload slot is issued and attached on posting; unposted uploads are purged after a day by the tick. Visible to whoever can see the task.
+  - **Care work:** no start / progress / task photos at all, and the handover photo note says never to photograph the child or the person cared for. (The handover photo itself is still required by the engine — open question below.)
 - **2026-11-17 — talk before choosing; care work for individuals; distance for "other" and "accompany"** (owner: "allow the babysitting or the elder caring … approve them by additional security and safety, as well as direct communication like mandatory call"):
   - **Talk before choosing:** while a task is open, the customer and each live applicant have their own chat and in-app call (`/chat/<task>?with=<applicant>`; the DB already stored one conversation per (task, helper) with matching RLS, so no migration). Phones / links stay masked. After someone is chosen, other applicants' conversations become read-only for the customer.
   - **Care clearance (individuals):** a `helper_certificates` row for childcare / eldercare; only someone with the criminal-record check (kyc 4) can ask; Ops approves after a video interview and ≥ 2 references (shown as a reminder on /ops/certificates). Counts only while kyc stays 4. Agencies keep working as before (agency kind + kyc 4).
@@ -155,4 +160,5 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 - **Background scheduler:** who calls `/api/cron/tick` in production (Supabase pg_cron + pg_net every 15–30 s is the default plan).
 - **Multi-person jobs:** "keep recruiting" for 2+ helpers needs split payouts per helper.
 - **Address search:** pin-first for now; text place search (Nominatim / paid geocoder) only if users ask.
+- **Care handover proof:** the engine requires a handover photo to finish every task, care included. For care, should it be a check-out instead (time + GPS, no photo)?
 - **Unanswered top-up:** should a pending over-budget request expire (e.g. after 30 min → treat as declined)? Today it waits; the helper can drop items instead.

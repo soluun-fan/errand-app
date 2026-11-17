@@ -9,6 +9,7 @@ import { rankApplicants } from "@/lib/dispatch/rank";
 import { accessFor, hadCareCall, unreadCount } from "@/lib/chat";
 import { categoryTrust, liveOffers } from "@/lib/engine";
 import { proofsFor } from "@/lib/proofs";
+import { taskPhotosFor } from "@/lib/task-photos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SafetyBar } from "@/components/safety-bar";
 import { SOS_STATUSES } from "@/lib/incident-rules";
@@ -97,6 +98,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       applicantUnread={applicantUnread}
       careCalls={careCalls}
       safety={safety}
+      photos={await taskPhotosFor(deal.id)}
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
     />
     </>

@@ -20,6 +20,8 @@ import { AddressBox, DetailSection, DetailTitle, MapHero } from "@/components/de
 import { googlePlaceUrl } from "@/lib/maps";
 import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
+import type { TaskPhotoView } from "@/lib/task-photos";
+import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
 import { PriceChangeCard } from "@/components/price-change-card";
@@ -46,6 +48,8 @@ export interface DealViewProps {
   helperPos?: { lat: number; lng: number } | null;
   /** Photo / video proof with signed URLs. */
   proofs?: ProofView[];
+  /** The customer's own photos of the task (signed URLs). */
+  photos?: TaskPhotoView[];
   /** Chat entry (null when there's no conversation for this viewer). */
   chat?: { unread: number } | null;
   /** Unread messages per applicant (while choosing). */
@@ -681,6 +685,7 @@ export function DealView(p: DealViewProps) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        {p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}
           <AddressBox

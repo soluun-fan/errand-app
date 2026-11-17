@@ -8,6 +8,7 @@ import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/c
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { PinMap, type Pin } from "@/components/pin-map";
 import { SubmitButton } from "@/components/sheet";
+import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picker";
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
@@ -158,6 +159,8 @@ export function PostFlow({
   const [d, setD] = useState<Draft>(blank);
   /** Direct request: if the helper says no or doesn't answer in time, let everyone apply. */
   const [openAfter, setOpenAfter] = useState(true);
+  /** Photos uploaded while filling in (not part of the saved draft: uploads expire after a day). */
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const kinds = CATEGORIES.filter((c) => live.includes(c.id) && (!invite || invite.categories.includes(c.id)));
   const [step, setStep] = useState(startStep);
   /** Which point the map is placing (two-point tasks). */
@@ -324,6 +327,7 @@ export function PostFlow({
       <input type="hidden" name="pickupLocation" value={twoPoint && d.pickupPin ? JSON.stringify(d.pickupPin) : ""} />
       <input type="hidden" name="invite" value={invite?.id ?? ""} />
       <input type="hidden" name="inviteOpenAfter" value={invite && openAfter ? "on" : ""} />
+      <input type="hidden" name="photos" value={categoryTrust(d.category) === "care" ? "[]" : JSON.stringify(photos.map((p) => p.id))} />
 
       {STEPS[step] === "type" && (
         <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
@@ -383,6 +387,8 @@ export function PostFlow({
             </span>
             <textarea className={`${field} min-h-32`} value={d.description} maxLength={cfg.descriptionMax} onChange={(e) => set("description", e.target.value)} placeholder={t("post.descriptionPh")} />
           </label>
+          {/* no pictures on care tasks (children, elders) */}
+          {categoryTrust(d.category) !== "care" && <TaskPhotoPicker value={photos} onChange={setPhotos} />}
           <Note tone="info">{t("post.rules")}</Note>
         </>
       )}

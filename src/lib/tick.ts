@@ -5,6 +5,7 @@ import { settleDueDeals } from "@/lib/deals/queries";
 import { openDealIds, runDispatch } from "@/lib/dispatch/run";
 import { purgeIncidentLocations, repingSos } from "@/lib/incidents";
 import { purgeKycFiles } from "@/lib/kyc";
+import { purgeLooseTaskPhotos } from "@/lib/task-photos";
 
 export interface TickResult {
   settled: number;
@@ -12,6 +13,7 @@ export interface TickResult {
   failedDispatch: number;
   chatsPurged: number;
   kycPurged: number;
+  photosPurged: number;
   sosReminders: number;
   ms: number;
 }
@@ -23,7 +25,7 @@ export interface TickResult {
  * 2. dispatch waves (and "Choose for me") for open tasks
  * 3. safety: remind Ops about an SOS nobody has acknowledged yet
  * 4. retention: call signals after 1 h, ID documents 30 days after the decision, chats 90 days
- *    after the task, incident positions 30 days after resolution
+ *    after the task, incident positions 30 days after resolution, task photos never posted after 1 day
  */
 export async function runTick(now = Date.now()): Promise<TickResult> {
   const t0 = Date.now();
@@ -44,5 +46,6 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   const kycPurged = await purgeKycFiles(now).catch((e) => (console.error("kyc purge failed", e), 0));
   const chatsPurged = await purgeExpiredChats(now).catch((e) => (console.error("chat purge failed", e), 0));
   await purgeIncidentLocations(now).catch((e) => console.error("incident purge failed", e));
-  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, sosReminders, ms: Date.now() - t0 };
+  const photosPurged = await purgeLooseTaskPhotos(now).catch((e) => (console.error("task photo purge failed", e), 0));
+  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, photosPurged, sosReminders, ms: Date.now() - t0 };
 }

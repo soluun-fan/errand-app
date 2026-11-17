@@ -11,11 +11,12 @@ import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
-import { EngineError, categoryTrust, minFeeAt, type Command } from "@/lib/engine";
+import { EngineError, categoryTrust, minFeeAt, type CategoryId, type Command } from "@/lib/engine";
 import { hadCareCall } from "@/lib/chat";
+import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { fmtMoney } from "@/lib/format";
-import { MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
+import { MAX_PROGRESS_PROOFS, MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, proofCount, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
 import { LatLng, ProofKindInput, ProofSubmitInput, PushSubscriptionInput, Uuid, parseOr } from "@/lib/input";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -83,22 +84,33 @@ export async function trackJob(dealId: string, rawLat: number, rawLng: number): 
 
 /* ---------- proof upload (docs/rules.md §Proof) ---------- */
 
-async function assignedInProgress(dealId: string, helperId: string) {
+/**
+ * The assigned helper's task, in the state this kind of photo is taken in: the start photo while
+ * matched (taking it starts the job), everything else while in progress.
+ */
+async function assignedFor(dealId: string, helperId: string, kind: ProofKind) {
   if (!/^[0-9a-f-]{36}$/i.test(dealId)) return null;
   const deal = await loadDeal(createAdminClient(), dealId);
-  return deal?.type === "errand" && deal.helperId === helperId && deal.status === "in_progress" ? deal : null;
+  if (deal?.type !== "errand" || deal.helperId !== helperId) return null;
+  return deal.status === (kind === "start" ? "matched" : "in_progress") ? deal : null;
 }
 
-/** Step 1: a signed upload URL for one file — only for the assigned helper of a task in progress. */
+/** Care work: no start photo (no pictures of children or elders); the start button works as before. */
+const needsStartPhoto = (category: CategoryId) => categoryTrust(category) !== "care";
+
+/** Step 1: a signed upload URL for one file — only for the assigned helper, at the right moment. */
 export async function prepareProof(dealId: string, rawKind: ProofKind, mime: string, bytes: number): Promise<UploadSlot | { error: string }> {
   const viewer = await helperViewer();
   const t = await getT();
   // `kind` becomes part of the storage path: only the two known kinds, never free text
   const kind = parseOr(ProofKindInput, rawKind);
   if (!kind || typeof mime !== "string" || typeof bytes !== "number") return { error: t("proof.badType") };
-  if (!(await assignedInProgress(dealId, viewer.profile.id))) return { error: t("error.changed") };
-  if (!(PROOF_MIME as readonly string[]).includes(mime) || (kind === "receipt" && !mime.startsWith("image/"))) return { error: t("proof.badType") };
+  const deal = await assignedFor(dealId, viewer.profile.id, kind);
+  if (!deal) return { error: t("error.changed") };
+  const photoOnly = kind === "receipt" || kind === "start";
+  if (!(PROOF_MIME as readonly string[]).includes(mime) || (photoOnly && !mime.startsWith("image/"))) return { error: t("proof.badType") };
   if (!(bytes > 0 && bytes <= MAX_PROOF_BYTES)) return { error: t("proof.tooBig") };
+  if (kind === "progress" && (await proofCount(dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
   return createUploadSlot(dealId, kind, mime);
 }
 
@@ -114,16 +126,22 @@ export interface ProofSubmit {
   lat: number | null;
   lng: number | null;
   takenAt: number | null;
+  note?: string | null;
 }
 
-/** Step 2 (after the browser uploaded): record the proof, then tell the engine (receipt / handover). */
+/**
+ * Step 2 (after the browser uploaded): record the proof, then tell the engine — receipt, handover,
+ * or start (the start photo starts the job). Progress photos only tell the customer.
+ */
 export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; flags?: string[] }> {
   const viewer = await helperViewer();
   const t = await getT();
   const p = parseOr(ProofSubmitInput, raw);
   if (!p) return { error: t("proof.failed") };
-  const deal = await assignedInProgress(p.dealId, viewer.profile.id);
+  const deal = await assignedFor(p.dealId, viewer.profile.id, p.kind);
   if (!deal) return { error: t("error.changed") };
+  if (p.kind === "progress" && (await proofCount(p.dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
+  const note = p.kind === "progress" ? (p.note ?? "").replace(/\s+/g, " ").trim().slice(0, 140) || null : null;
   const amount = p.kind === "receipt" ? Number(p.amount) : null;
   if (p.kind === "receipt" && !(Number.isSafeInteger(amount) && (amount as number) > 0)) return { error: t("proof.amountNeeded") };
   const clean = (v: unknown, re: RegExp) => (typeof v === "string" && re.test(v) ? v : null);
@@ -141,7 +159,20 @@ export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; f
       lng: Number.isFinite(p.lng) ? p.lng : null,
       takenAt: Number.isFinite(p.takenAt) ? p.takenAt : null,
       uploadedBy: viewer.profile.id,
+      note: note === null ? null : maskContacts(note).text,
     });
+    if (p.kind === "progress" || p.kind === "start") {
+      if (p.kind === "start") await runCommand(createAdminClient(), p.dealId, { type: "start" }, viewer.actor);
+      await notify([deal.customerId], {
+        title: p.kind === "start" ? "push.startedTitle" : "push.photoTitle",
+        body: p.kind === "start" ? "push.startedBody" : "push.photoBody",
+        params: { name: viewer.profile.name || "—", title: deal.title },
+        url: `/tasks/${p.dealId}`,
+        tag: `task-${p.dealId}`,
+      });
+      refresh();
+      return { flags };
+    }
     const cmd: Command = p.kind === "receipt" ? { type: "record_receipt", amount: amount as number } : { type: "record_handover" };
     const r = await runCommand(createAdminClient(), p.dealId, cmd, viewer.actor);
     if (r.deal.type === "errand" && r.deal.topUp?.status === "pending") {
@@ -226,7 +257,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     else if (intent === "unapply") cmd = { type: "withdraw_offer" };
     else if (intent === "decline_invite") cmd = { type: "decline_invite" };
     else if (intent === "withdraw") cmd = { type: "cancel" };
-    else if (intent === "start") cmd = { type: "start" };
+    else if (intent === "start") {
+      // the start photo starts the job (submitProof); the plain button is only for care work
+      const before = await loadDeal(db, dealId);
+      if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start")) === 0) return { error: t("proof.startNeeded") };
+      cmd = { type: "start" };
+    }
     else if (intent === "finish") cmd = { type: "finish" };
     else return { error: t("error.generic") };
 

@@ -8,7 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * short-lived signed read URLs. Fingerprints flag reused pictures — hints only, Ops decides.
  */
 export const PROOF_BUCKET = "proofs";
-export type ProofKind = "receipt" | "handover";
+export type ProofKind = "receipt" | "handover" | "start" | "progress";
+/** Progress photos per task (a cap against flooding the customer). */
+export const MAX_PROGRESS_PROOFS = 20;
 export const PROOF_MIME = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime", "video/webm"] as const;
 export const MAX_PROOF_BYTES = 25 * 1024 * 1024;
 
@@ -48,6 +50,8 @@ export interface ProofInput {
   lng: number | null;
   takenAt: number | null;
   uploadedBy: string;
+  /** progress photos: what it shows (≤ 140 chars) */
+  note?: string | null;
 }
 
 /** Checks the file really arrived, fingerprints it against other deals, stores the row. Returns flags. */
@@ -85,6 +89,7 @@ export async function recordProof(p: ProofInput): Promise<string[]> {
       lng: p.lng,
       taken_at: p.takenAt === null ? null : new Date(p.takenAt).toISOString(),
       uploaded_by: p.uploadedBy,
+      note: p.note || null,
       flags,
     })
     .throwOnError();
@@ -97,6 +102,7 @@ export interface ProofView {
   url: string | null;
   isVideo: boolean;
   amount: number | null;
+  note: string | null;
   flags: string[];
   at: number;
 }
@@ -106,10 +112,10 @@ export async function proofsFor(dealId: string): Promise<ProofView[]> {
   const db = createAdminClient();
   const { data } = await db
     .from("proofs")
-    .select("id, kind, file_path, mime, amount, flags, created_at")
+    .select("id, kind, file_path, mime, amount, note, flags, created_at")
     .eq("deal_id", dealId)
     .order("created_at")
-    .returns<{ id: string; kind: ProofKind; file_path: string | null; mime: string | null; amount: number | null; flags: string[]; created_at: string }[]>();
+    .returns<{ id: string; kind: ProofKind; file_path: string | null; mime: string | null; amount: number | null; note: string | null; flags: string[]; created_at: string }[]>();
   const rows = data ?? [];
   const paths = rows.map((r) => r.file_path).filter((x): x is string => Boolean(x));
   const signed = paths.length ? (await db.storage.from(PROOF_BUCKET).createSignedUrls(paths, 3600)).data ?? [] : [];
@@ -120,7 +126,14 @@ export async function proofsFor(dealId: string): Promise<ProofView[]> {
     url: r.file_path ? (urlOf.get(r.file_path) ?? null) : null,
     isVideo: (r.mime ?? "").startsWith("video/"),
     amount: r.amount === null ? null : Number(r.amount),
+    note: r.note ?? null,
     flags: r.flags ?? [],
     at: Date.parse(r.created_at),
   }));
+}
+
+/** How many proofs of one kind a task has (start photo present? progress cap). */
+export async function proofCount(dealId: string, kind: ProofKind): Promise<number> {
+  const { count } = await createAdminClient().from("proofs").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("kind", kind);
+  return count ?? 0;
 }
