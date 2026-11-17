@@ -131,6 +131,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     line = viewer.actor.helperApproved
       ? specialized ? t("specialized.qualified") : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
+    // an everyday kind they just haven't picked yet: add it and apply in one tap
+    if (viewer.actor.helperApproved && !specialized && !invitedOnly(deal, now)) {
+      primary = (
+        <InlineAction
+          action={jobAction}
+          fields={{ ...fields, intent: "add_kind_apply" }}
+          label={t("job.addKindApply", { category: t(`categoryShort.${deal.category}`), amount: fmtMoney(net) })}
+          className={`${btn.primary} w-full`}
+          done={<Note tone="info">{t("job.applied")}</Note>}
+        />
+      );
+    }
   } else if (deal.status === "open" && !myOffer) {
     // Take the customer's price, or name your own — bargaining is open (docs/decisions.md 2026-11-16).
     primary = (

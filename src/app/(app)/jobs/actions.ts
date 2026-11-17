@@ -13,7 +13,7 @@ import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/ra
 import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
 import { OPS_ALERT_AT, recentBackOuts } from "@/lib/penalties";
 import { adminIds } from "@/lib/safety";
-import { EngineError, categoryTrust, minFeeAt, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
+import { EngineError, OPEN_CATEGORIES, categoryTrust, minFeeAt, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
 import { hadCareCall } from "@/lib/chat";
 import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
@@ -233,7 +233,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       return { done: true };
     }
 
-    if ((intent === "apply" || intent === "quote") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
+    if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
       return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
     }
     let cmd: Command;
@@ -244,7 +244,16 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (price === null) return null;
       return price <= (await getControls()).maxDealAmount ? price : null;
     };
-    if (intent === "apply") cmd = { type: "apply", note };
+    let actor = viewer.actor;
+    if (intent === "add_kind_apply") {
+      // an everyday kind the helper hadn't picked: add it to their work kinds, then apply
+      const target = await loadDeal(db, dealId);
+      if (target?.type !== "errand" || !OPEN_CATEGORIES.includes(target.category) || !viewer.actor.helperApproved) return { error: t("error.forbidden") };
+      const kinds = [...new Set([...(viewer.actor.categories ?? []), target.category])];
+      await db.from("profiles").update({ categories: kinds }).eq("id", viewer.profile.id).eq("role", "helper").throwOnError();
+      actor = { ...viewer.actor, categories: kinds };
+      cmd = { type: "apply", note };
+    } else if (intent === "apply") cmd = { type: "apply", note };
     else if (intent === "quote" || intent === "reprice") {
       const price = await named();
       if (price === null) return { error: t("job.quoteInvalid", { amount: fmtMoney(minFeeAt(Date.now(), await pricingConfig())) }) };
@@ -276,10 +285,10 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       }
     }
     const before = cmd.type === "cancel" ? await loadDeal(db, dealId) : null;
-    const { deal } = await runCommand(db, dealId, cmd, viewer.actor);
+    const { deal } = await runCommand(db, dealId, cmd, actor);
     if (deal.type !== "errand") return { error: t("error.generic") };
 
-    if (intent === "apply") {
+    if (intent === "apply" || intent === "add_kind_apply") {
       await notify([deal.customerId], {
         title: "push.applicantTitle",
         body: "push.applicantBody",
@@ -335,7 +344,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (e.code === "PROOF_MISSING") return { error: t("proof.missing") };
       if (/approve the extra/.test(e.message)) return { error: t("proof.waitTopUp") };
       if (/applicants/.test(e.message)) return { error: t("job.full") };
-      return { error: intent === "apply" || intent === "quote" ? t("job.taken") : t("error.changed") };
+      return { error: intent === "apply" || intent === "quote" || intent === "add_kind_apply" ? t("job.taken") : t("error.changed") };
     }
     if (isPausedError(e)) return { error: t("safety.moneyFrozen") };
     if (e instanceof DbError) return { error: t("error.changed") };

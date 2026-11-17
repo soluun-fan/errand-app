@@ -928,6 +928,7 @@ export const en = {
     boardSub: "What people need right now. You can take them once you're verified.",
     needApproval: "You can take tasks once you're a verified helper.",
     needCategory: "Add “{category}” to your categories to take this task.",
+    addKindApply: "Add “{category}” to my work and apply · {amount}",
     myRequests: "My requests · waiting for the customer",
     offersTitle: "Offered to you",
     offerEnds: "Yours for {time}",
