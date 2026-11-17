@@ -1,4 +1,4 @@
-import { CalendarClock, MapPin } from "lucide-react";
+import { CalendarClock, MapPin, Zap } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -8,12 +8,13 @@ import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
-import { CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
+import { NewKindsCard } from "./new-kinds-card";
 import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
 
@@ -72,18 +73,27 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
               {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
               {d.details.km > 0 ? ` · ${t("job.trip", { km: d.details.km.toFixed(1) })}` : ""}
             </span>
-            <span className="flex items-center gap-1.5">
-              <CalendarClock aria-hidden size={14} className="flex-none" />
-              {d.scheduledAt ? fmtDateTime(d.scheduledAt, locale) : t("task.whenNow")} · {dur}
-            </span>
-            {d.offers.length > 0 && !full && <span>{t("job.applicants", { n: d.offers.length })}</span>}
+            {d.scheduledAt ? (
+              <span className="flex items-center gap-1.5">
+                <CalendarClock aria-hidden size={14} className="flex-none" />
+                {fmtDateTime(d.scheduledAt, locale)} · {dur}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5">
+                <Zap aria-hidden size={14} className="flex-none text-brand-ink" />
+                <b className="font-semibold text-brand-ink">{t("task.whenNow")}</b> · {dur}
+              </span>
+            )}
           </span>
         </span>
         {pic && <Thumb pic={pic} t={t} />}
       </span>
-      <span className="flex items-baseline justify-between border-t border-line pt-2.5">
-        <span className="text-[13px] font-medium text-ink-2">{t("job.feeLabel")}</span>
-        <span className="text-[20px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
+      <span className="flex items-end justify-between gap-3 border-t border-line pt-2.5">
+        <span className="flex flex-col">
+          <span className="text-[13px] font-medium text-ink-2">{t("job.feeLabel")}</span>
+          <span className="text-[20px] font-extrabold leading-tight tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
+        </span>
+        {d.offers.length > 0 && <span className="pb-0.5 text-[13px] font-semibold text-route">{t("job.applicants", { n: d.offers.length })}</span>}
       </span>
     </Link>
   );
@@ -193,6 +203,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {header}
         <AutoRefresh seconds={online ? 10 : 30} />
         <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
+        <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
 
         {active.length > 0 && (
           <section className="flex flex-col gap-2">

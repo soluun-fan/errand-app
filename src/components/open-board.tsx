@@ -1,4 +1,4 @@
-import { CalendarClock, MapPin } from "lucide-react";
+import { CalendarClock, MapPin, Zap } from "lucide-react";
 import Link from "next/link";
 import type { Locale, T } from "@/i18n";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
@@ -66,8 +66,8 @@ export function OpenBoard({
                 {r.buysItems ? ` · ${t("landing.buys")}` : ""}
               </span>
               <span className="flex items-center gap-1.5">
-                <CalendarClock aria-hidden size={14} className="flex-none" />
-                {r.startsAt ? fmtDateTime(r.startsAt, locale) : t("task.whenNow")} ·{" "}
+                {r.startsAt ? <CalendarClock aria-hidden size={14} className="flex-none" /> : <Zap aria-hidden size={14} className="flex-none text-brand-ink" />}
+                {r.startsAt ? fmtDateTime(r.startsAt, locale) : <b className="font-semibold text-brand-ink">{t("task.whenNow")}</b>} ·{" "}
                 {r.minutes >= 60 ? t("price.hours", { n: r.minutes / 60 }) : t("price.min", { n: r.minutes })}
               </span>
             </span>

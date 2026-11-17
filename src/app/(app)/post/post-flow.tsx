@@ -338,7 +338,6 @@ export function PostFlow({
         <div className="flex flex-col gap-2.5" role="radiogroup" aria-label={t("task.steps.type")}>
           {kinds.map((c, i) => {
             const on = d.category === c.id;
-            const from = minFee;
             // a heading where everyday work ends and specialized (certified / organisation) work starts
             const groupStart = c.trust !== "open" && (i === 0 || kinds[i - 1].trust === "open");
             return (
@@ -360,7 +359,6 @@ export function PostFlow({
                   <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
                   <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
                 </span>
-                <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{t("home.from", { amount: fmtMoney(from) })}</span>
               </button>
               </Fragment>
             );

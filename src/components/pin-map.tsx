@@ -1,6 +1,7 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import { loadMapLibre } from "@/lib/map-loader";
 import type { Map as MlMap, Marker } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
@@ -59,7 +60,7 @@ export function PinMap({
 
   useEffect(() => {
     let cancelled = false;
-    import("maplibre-gl")
+    loadMapLibre()
       .then(({ Map }) => {
         if (cancelled || !box.current) return;
         const from = value ?? start ?? UB_CENTER;
@@ -103,7 +104,7 @@ export function PinMap({
     otherMarker.current = null;
     if (!m || !ready || !other) return;
     let cancelled = false;
-    import("maplibre-gl").then(({ Marker }) => {
+    loadMapLibre().then(({ Marker }) => {
       if (cancelled) return;
       const el = document.createElement("div");
       el.className = `flex items-center justify-center ${MARKER_CLASS[other.kind]}`;

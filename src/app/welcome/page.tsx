@@ -126,14 +126,13 @@ export default async function Welcome() {
         <section className={`${wrap} flex flex-col gap-5 py-12`}>
           <div>
             <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.catsTitle")}</h2>
-            <p className="mt-1 text-[15px] text-ink-2">{t("landing.catsSub")}</p>
+            <p className="mt-1 text-[15px] text-ink-2">{t("home.allFrom", { amount: fmtMoney(from(CATEGORIES[0])) })}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
             {CATEGORIES.filter((c) => live.includes(c.id)).map((c) => (
               <LoginGate key={c.id} next={`/post?cat=${c.id}`} className="press flex flex-col items-center gap-2 rounded-tile bg-bg px-2 py-4 text-center shadow-card">
                 <CategoryIcon id={c.id} tile size={26} />
                 <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${c.id}`)}</span>
-                <span className="text-[12px] text-ink-2 tabular-nums">{t("home.from", { amount: fmtMoney(from(c)) })}</span>
               </LoginGate>
             ))}
           </div>

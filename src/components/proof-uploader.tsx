@@ -33,7 +33,7 @@ const TEXT = {
  * Receipts need the total; the start photo starts the job; progress photos may carry a short note;
  * handover and progress accept a photo or a short video.
  */
-export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: Kind; done: boolean }) {
+export function ProofUploader({ dealId, kind, done, compact = false }: { dealId: string; kind: Kind; done: boolean; /** just the button (for the bottom bar) */ compact?: boolean }) {
   const t = useT();
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -98,6 +98,32 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: Ki
     return `📷 ${kind === "receipt" ? t("proof.take") : t("proof.takeOrVideo")}`;
   }
 
+  const fileInput = (
+    <input
+      ref={input}
+      type="file"
+      accept={kind === "receipt" || kind === "start" ? "image/*" : "image/*,video/*"}
+      capture="environment"
+      className="sr-only"
+      onChange={(e) => onFile(e.target.files?.[0])}
+    />
+  );
+  if (compact) {
+    return (
+      <div className="flex w-full flex-col gap-1">
+        {fileInput}
+        <button type="button" disabled={busy} onClick={() => input.current?.click()} className={`${btn.primary} w-full`}>
+          {busy ? t("proof.uploading") : label()}
+        </button>
+        {error && (
+          <p role="alert" className="text-center text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
       <div>
@@ -121,14 +147,7 @@ export function ProofUploader({ dealId, kind, done }: { dealId: string; kind: Ki
       {kind === "progress" && (
         <input className={field} value={note} maxLength={140} onChange={(e) => setNote(e.target.value)} placeholder={t("proof.progressNotePh")} aria-label={t("proof.progressNotePh")} />
       )}
-      <input
-        ref={input}
-        type="file"
-        accept={kind === "receipt" || kind === "start" ? "image/*" : "image/*,video/*"}
-        capture="environment"
-        className="sr-only"
-        onChange={(e) => onFile(e.target.files?.[0])}
-      />
+      {fileInput}
       <button type="button" disabled={busy} onClick={() => input.current?.click()} className={done || kind === "progress" ? btn.secondary : `${btn.primary} w-full`}>
         {busy ? t("proof.uploading") : label()}
       </button>

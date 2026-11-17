@@ -16,19 +16,20 @@
     "cron:local": "node --env-file=.env.local --import tsx scripts/cron-local.ts",
     "scheduler:configure": "node --env-file=.env.local --import tsx scripts/configure-scheduler.ts",
     "check:deploy": "node --env-file=.env.local --import tsx scripts/check-deploy.ts",
-    "e2e": "NODE_OPTIONS=--conditions=react-server playwright test"
+    "e2e": "NODE_OPTIONS=--conditions=react-server playwright test",
+    "postinstall": "node scripts/copy-map-worker.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^0.519.0",
-    "maplibre-gl": "^5.24.1",
+    "maplibre-gl": "^6.18.0",
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "web-push": "^3.6.7",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",

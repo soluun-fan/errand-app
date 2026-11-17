@@ -33,6 +33,7 @@ export const en = {
     jobsDone: "{n} jobs completed",
     workers: "Workers ({n})",
     paidNote: "Fees, materials and any cancellation fee go to the organisation. It pays its staff.",
+    closedCount: "Closed or refused ({n})",
     statusShort: {
       pending: "In review",
       approved: "Approved",
@@ -375,6 +376,10 @@ export const en = {
     }
   },
   workKinds: {
+    newTitle: "Kinds of work you don't get yet",
+    newBody: "Tasks of these kinds aren't sent to you. Add the ones you'd do.",
+    addAll: "Add them all",
+    choose: "Choose on my profile",
     title: "Work I do",
     help: "Jobs of the kinds you pick come to you. Specialized work (plumbing, electrical, care…) opens through an organisation or a certificate.",
     save: "Save",
@@ -441,7 +446,6 @@ export const en = {
     liveEmptyTitle: "Your money is safe",
     liveEmptyBody: "You pay when a helper is matched; the bank holds it. The helper is paid only after you confirm the job is done.",
     catsTitle: "What can we help with?",
-    catsSub: "Pick a kind of task; we suggest a fair price.",
     howTitle: "One request is all it takes",
     howSub: "No searching for helpers: they come to you.",
     step: "Step {n}",
@@ -487,6 +491,8 @@ export const en = {
     gateNote: "New here? Verifying your number is all it takes.",
   },
   home: {
+    kindsTitle: "Kinds of work",
+    allFrom: "Every job from {amount}. You name the price; helpers accept it or offer theirs.",
     kinds: { open: "Everyday help", specialized: "Specialized · certified" },
     seasonNow: "Needed this season",
     past: "Past tasks",
@@ -976,7 +982,6 @@ export const en = {
     waitingPay: "Accepted. Waiting for the customer to pay ({time}). Don't set off yet.",
     paidGo: "Paid and held by the bank. You can set off.",
     start: "Start the task",
-    inProgress: "In progress. Photo and receipt upload comes in the next update.",
     addressAfterMatch: "Exact entrance, floor and door are shown once you're matched.",
     cancelLate: "Back out",
     cancelLateTitle: "Back out of this job?",

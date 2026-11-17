@@ -35,7 +35,7 @@ export const PinJson = z
     try {
       return JSON.parse(s) as unknown;
     } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "bad json" });
+      ctx.addIssue({ code: "custom", message: "bad json" });
       return z.NEVER;
     }
   })
@@ -49,7 +49,7 @@ export const PhotoIdsJson = z
     try {
       return JSON.parse(s || "[]") as unknown;
     } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "bad json" });
+      ctx.addIssue({ code: "custom", message: "bad json" });
       return z.NEVER;
     }
   })
@@ -86,7 +86,7 @@ export const DetailsJson = z
     try {
       return JSON.parse(s || "{}") as unknown;
     } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "bad json" });
+      ctx.addIssue({ code: "custom", message: "bad json" });
       return z.NEVER;
     }
   })

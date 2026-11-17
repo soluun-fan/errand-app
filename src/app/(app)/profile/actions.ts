@@ -33,3 +33,16 @@ export async function setWorkKinds(_prev: ActionResult, form: FormData): Promise
   refresh();
   return { done: true };
 }
+
+/** "Add them all": the everyday kinds the helper hasn't picked yet, added in one tap. */
+export async function addWorkKinds(raw: readonly string[]): Promise<{ error?: string }> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  if (!viewer.actor.helperApproved || !Array.isArray(raw)) return { error: t("error.forbidden") };
+  const add = raw.filter((c): c is CategoryId => OPEN_CATEGORIES.includes(c as CategoryId));
+  const kinds = [...new Set([...(viewer.actor.categories ?? []), ...add])];
+  await createAdminClient().from("profiles").update({ categories: kinds }).eq("id", viewer.profile.id).eq("role", "helper").throwOnError();
+  refresh();
+  return {};
+}

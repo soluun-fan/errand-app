@@ -46,3 +46,6 @@ next-env.d.ts
 # browser tests (Playwright)
 /test-results/
 /playwright-report/
+
+# copied from node_modules on install (scripts/copy-map-worker.mjs)
+/public/vendor/

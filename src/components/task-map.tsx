@@ -1,6 +1,7 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+import { loadMapLibre } from "@/lib/map-loader";
 import type { GeoJSONSource, Map as MlMap, Marker } from "maplibre-gl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -80,7 +81,7 @@ export function TaskMap({
 
   useEffect(() => {
     let cancelled = false;
-    import("maplibre-gl")
+    loadMapLibre()
       .then(({ Map }) => {
         if (cancelled || !box.current) return;
         const m = new Map({
@@ -115,7 +116,7 @@ export function TaskMap({
     const m = map.current;
     if (!m || !ready) return;
     let cancelled = false;
-    import("maplibre-gl").then(({ Marker, LngLatBounds }) => {
+    loadMapLibre().then(({ Marker, LngLatBounds }) => {
       if (cancelled) return;
       for (const p of placed.current) p.remove();
       placed.current = [];

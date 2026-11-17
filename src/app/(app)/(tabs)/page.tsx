@@ -156,9 +156,11 @@ export default async function Home() {
       </section>
 
       {section(
-        t("landing.catsTitle"),
+        t("home.kindsTitle"),
         null,
         <div className="flex flex-col gap-4">
+          {/* the only price that is ours is the minimum — said once, not on every tile */}
+          <p className="-mt-2 text-[14px] text-ink-2">{t("home.allFrom", { amount: fmtMoney(fromPrice("shop")) })}</p>
           {(["open", "specialized"] as const).map((group) => {
             const ids = CATEGORIES.filter((c) => live.includes(c.id) && (group === "open" ? c.trust === "open" : c.trust !== "open")).map((c) => c.id);
             if (!ids.length) return null;
@@ -176,7 +178,6 @@ export default async function Home() {
                         <CategoryIcon id={id} tile size={20} />
                       )}
                       <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
-                      <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{t("home.from", { amount: fmtMoney(fromPrice(id)) })}</span>
                     </Link>
                   ))}
                 </div>

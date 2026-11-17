@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
@@ -175,10 +176,15 @@ export function ChatRoom({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t("chat.placeholder")}
-            className="max-h-32 min-h-12 flex-1 resize-none rounded-input border border-line bg-bg px-3 py-3 text-[16px] outline-none focus:border-ink"
+            className="max-h-32 min-h-12 min-w-0 flex-1 resize-none rounded-input border border-line bg-bg px-3 py-3 text-[16px] outline-none focus:border-ink"
           />
-          <button type="submit" disabled={busy || !text.trim()} className="flex h-12 flex-none items-center justify-center rounded-full bg-brand-ink px-4 font-semibold text-white disabled:bg-fill disabled:text-ink-3">
-            {busy ? "…" : t("chat.send")}
+          <button
+            type="submit"
+            aria-label={t("chat.send")}
+            disabled={busy || !text.trim()}
+            className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-brand-ink text-white disabled:bg-fill disabled:text-ink-3"
+          >
+            {busy ? "…" : <ArrowUp aria-hidden size={22} />}
           </button>
           </>
           )}

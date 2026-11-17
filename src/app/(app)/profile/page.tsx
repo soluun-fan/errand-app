@@ -62,9 +62,25 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       <section className="flex flex-col gap-3">
         <h2 className="text-[17px] font-bold">{t("org.my")}</h2>
         {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
-        {orgs.map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
+        {orgs.filter((o) => o.status === "pending" || o.status === "approved").map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
           <span className="block font-semibold">{o.name}</span><span className="text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
         </Link>)}
+        {/* closed or refused companies stay reachable, folded away */}
+        {orgs.some((o) => o.status === "suspended" || o.status === "rejected") && (
+          <details className="rounded-card bg-bg px-4 py-3 shadow-card">
+            <summary className="cursor-pointer text-[15px] font-semibold text-ink-2">
+              {t("org.closedCount", { n: orgs.filter((o) => o.status === "suspended" || o.status === "rejected").length })}
+            </summary>
+            <div className="mt-2 flex flex-col">
+              {orgs.filter((o) => o.status === "suspended" || o.status === "rejected").map((o) => (
+                <Link key={o.id} href={`/orgs/${o.id}`} className="flex justify-between gap-3 border-t border-line py-2.5 text-[15px]">
+                  <span className="min-w-0 truncate">{o.name}</span>
+                  <span className="flex-none text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
         {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
         <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
         {actor.helperApproved && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}

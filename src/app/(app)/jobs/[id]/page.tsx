@@ -185,7 +185,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   } else if (mine && deal.status === "matched") {
     line = t("job.paidGo");
     // the start photo starts the job (it's below); care work starts with the plain button, no photo
-    if (!startPhoto) primary = <InlineAction action={jobAction} fields={{ ...fields, intent: "start" }} label={t("job.start")} className={`${btn.primary} w-full`} />;
+    primary = startPhoto ? (
+      <ProofUploader dealId={deal.id} kind="start" done={false} compact />
+    ) : (
+      <InlineAction action={jobAction} fields={{ ...fields, intent: "start" }} label={t("job.start")} className={`${btn.primary} w-full`} />
+    );
   } else if (mine && deal.status === "in_progress") {
     const needReceipt = deal.itemBudget > 0 && deal.receiptAmount === null && deal.topUp?.status !== "declined";
     const ready = deal.handoverProofAt !== null && !needReceipt && deal.topUp?.status !== "pending";
@@ -335,7 +339,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {mine && deal.status === "matched" && (
         <DetailSection label={t("proof.title")}>
-          {startPhoto ? <ProofUploader dealId={deal.id} kind="start" done={false} /> : <Note tone="info">{t("proof.careNoPhoto")}</Note>}
+          {/* the button itself is in the bottom bar, where the next step always is */}
+          <Note tone="info">{startPhoto ? `${t("proof.startTitle")}: ${t("proof.startSub")}` : t("proof.careNoPhoto")}</Note>
         </DetailSection>
       )}
       {mine && deal.status === "in_progress" && (
