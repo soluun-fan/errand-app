@@ -53,3 +53,16 @@ test("someone not yet verified sees 'Get verified' in worker mode, and it opens 
   await p.waitForURL(/\/helper\/apply/);
   await ctx.close();
 });
+
+test("tapping a kind opens that kind even with an unfinished draft of another kind", async ({ browser }) => {
+  const ctx = await browser.newContext();
+  await loginAs(ctx, PHONES.solongo);
+  const p = await ctx.newPage();
+  await p.goto("/post");
+  await p.evaluate(() => localStorage.setItem("tuslamj:post-draft:v2", JSON.stringify({ category: "shop", title: "Old shop draft" })));
+  await p.goto("/post?cat=dayjob");
+  await expect(p.getByText("Түр ажил").first()).toBeVisible();
+  await expect(p.getByText("Дэлгүүр · солих")).toHaveCount(0);
+  await p.evaluate(() => localStorage.clear());
+  await ctx.close();
+});

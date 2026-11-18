@@ -188,6 +188,8 @@ export function PostFlow({
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<Draft>;
+        // arriving by tapping a kind: a draft of another kind isn't this task — keep it saved, don't mix it in
+        if (initial.category && draft.category && draft.category !== initial.category) return;
         // a direct request keeps to the kinds of task that helper does
         if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) delete draft.category;
         setD((x) => ({ ...x, ...draft }));
@@ -195,7 +197,7 @@ export function PostFlow({
     } catch {
       /* storage unavailable */
     }
-  }, [initial.title, invite, live]);
+  }, [initial.title, initial.category, invite, live]);
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(d));

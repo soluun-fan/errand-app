@@ -24,7 +24,7 @@ export function SeasonalRow({
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-[17px] font-bold">{t("home.seasonNow")}</h2>
-      <div className="-mx-5 flex snap-x gap-2.5 overflow-x-auto px-5 pb-1">
+      <div className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {items.map((item) => {
           const title = qsTitle(item, locale);
           return (

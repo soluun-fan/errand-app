@@ -2,6 +2,7 @@ import "server-only";
 import type { ErrandDeal } from "@/lib/engine";
 import type { Viewer } from "@/lib/auth";
 import { latestApplication } from "@/lib/kyc";
+import { getRules } from "@/lib/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -45,14 +46,15 @@ export async function helperTodos(viewer: Viewer): Promise<Todo[]> {
     return out;
   }
   const db = createAdminClient();
-  const [{ data: acct }, { data: available }] = await Promise.all([
+  const [{ data: acct }, { data: available }, rules] = await Promise.all([
     db.from("payout_accounts").select("verified_at").eq("user_id", profile.id).maybeSingle<{ verified_at: string | null }>(),
     db.rpc("payable_balance", { p_user: profile.id }),
+    getRules(),
   ]);
   if (!acct) out.push({ key: "bankAdd", href: "/helper/bank", urgent: true });
   else if (!acct.verified_at) out.push({ key: "bankCheck", href: null });
   if (!(profile.categories ?? []).length) out.push({ key: "workKinds", href: "/profile#work-kinds", urgent: true });
-  if (acct?.verified_at && Number(available ?? 0) > 0) out.push({ key: "withdraw", href: "/earnings" });
+  if (acct?.verified_at && Number(available ?? 0) >= Math.max(1, rules.withdrawMin)) out.push({ key: "withdraw", href: "/earnings" });
   return out;
 }
 

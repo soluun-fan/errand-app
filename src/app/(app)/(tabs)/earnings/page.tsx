@@ -22,7 +22,9 @@ export default async function EarningsPage() {
   const [t, locale, jobs, sum, account] = await Promise.all([getT(), getLocale(), listMyJobs(viewer.profile.id), earningsSummary(viewer.profile.id), myPayout(viewer.profile.id)]);
   const net = (d: (typeof jobs)[number]) => errandSplit({ fee: d.fee, itemBudget: 0, receipt: null, serviceFee: d.serviceFee, commissionBps: d.commissionBps }).helperFeeNet;
   const finished = jobs.filter((d) => d.status === "released" && !d.payeeOrgId);
-  const waiting = jobs.filter((d) => !d.payeeOrgId && ["matched", "in_progress", "check", "disputed"].includes(d.status)).reduce((a, d) => a + net(d), 0);
+  // older fee-only tasks: the customer paid the helper directly, so the app owes nothing for them
+  const viaApp = (d: (typeof jobs)[number]) => d.payMode !== "direct";
+  const waiting = jobs.filter((d) => viaApp(d) && !d.payeeOrgId && ["matched", "in_progress", "check", "disputed"].includes(d.status)).reduce((a, d) => a + net(d), 0);
   const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
 
   return (
@@ -98,7 +100,14 @@ export default async function EarningsPage() {
                 <span className="block truncate font-semibold">{d.title}</span>
                 <span className="block text-sm text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>
               </span>
-              <span className="font-bold tabular-nums text-held">+{fmtMoney(net(d))}</span>
+              {viaApp(d) ? (
+                <span className="font-bold tabular-nums text-held">+{fmtMoney(net(d))}</span>
+              ) : (
+                <span className="text-right text-[13px] text-ink-2">
+                  {fmtMoney(net(d))}
+                  <span className="block">{t("earnings.paidDirectly")}</span>
+                </span>
+              )}
             </a>
           ))}
         </section>

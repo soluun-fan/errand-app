@@ -17,13 +17,20 @@ let coverBefore: string | null = null;
 test.beforeAll(async () => {
   const { data } = await db.from("category_settings").select("cover_path").eq("category", "queue").single();
   coverBefore = data?.cover_path ?? null;
+  // only a picture whose file is really there counts as "before" (a cut-off run can leave a dead one)
+  if (coverBefore) {
+    const [dir, name] = coverBefore.split("/");
+    const { data: files } = await db.storage.from("kind-covers").list(dir, { search: name });
+    if (!files?.some((f) => f.name === name)) coverBefore = null;
+  }
 });
 test.afterAll(async () => {
   await cancelIfOpen(created);
   const { data } = await db.from("category_settings").select("cover_path").eq("category", "queue").single();
   if (data?.cover_path && data.cover_path !== coverBefore) {
+    // reference first, then the file: if this is cut off, nothing points at a missing picture
+    await db.from("category_settings").update({ cover_path: coverBefore }).eq("category", "queue").throwOnError();
     await db.storage.from("kind-covers").remove([data.cover_path]);
-    await db.from("category_settings").update({ cover_path: coverBefore }).eq("category", "queue");
   }
 });
 

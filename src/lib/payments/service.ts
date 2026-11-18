@@ -145,7 +145,8 @@ export async function runRefunds(dealId: string): Promise<void> {
   const d = await loadDeal(db, dealId);
   if (!d || d.type !== "errand") return;
   const [{ data: ledger }, { data: asked }] = await Promise.all([
-    db.from("ledger_entries").select("amount").eq("deal_id", dealId).eq("kind", "refund").eq("to_account", `ext:${d.customerId}`).returns<{ amount: number }[]>(),
+    // everything the ledger gave back to the customer: refunds AND the unspent shopping budget
+    db.from("ledger_entries").select("amount").eq("deal_id", dealId).in("kind", REFUND_KINDS).eq("to_account", `ext:${d.customerId}`).returns<{ amount: number }[]>(),
     db.from("provider_refunds").select("payment_id, amount, status, reason").eq("deal_id", dealId).returns<{ payment_id: string; amount: number; status: string; reason: string | null }[]>(),
   ]);
   const refundedInLedger = (ledger ?? []).reduce((a, r) => a + Number(r.amount), 0);
@@ -185,6 +186,9 @@ export async function runRefunds(dealId: string): Promise<void> {
     }
   }
 }
+
+/** Ledger kinds that return money to the customer and must become real refunds. */
+export const REFUND_KINDS = ["refund", "budget_refund"] as const;
 
 /** Background job: refunds that still need doing (new ones and retries). */
 export async function sweepRefunds(): Promise<number> {

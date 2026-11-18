@@ -322,10 +322,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
               {state === "needed" && !pending ? (
                 <Link href="/helper/apply" className="press flex min-h-12 items-center justify-between gap-3">
                   <span className="text-[15px]">{label}</span>
-                  <span className="flex items-center gap-2">
-                    {chip(state)}
-                    <span className="text-[14px] font-semibold text-brand-ink underline underline-offset-4">{t("helper.stepGo")} ›</span>
-                  </span>
+                  {/* needed → one clear button to the form (not a grey label you can't act on) */}
+                  <span className="flex-none whitespace-nowrap rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold text-white">{t("helper.stepGo")} ›</span>
                 </Link>
               ) : (
                 <span className="flex min-h-12 items-center justify-between gap-3">
