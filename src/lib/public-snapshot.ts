@@ -3,7 +3,7 @@ import { errandSplit, type CategoryId, type DealStatus } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * What anyone (even logged out) may see about activity on Tuslamj: recent requests as
+ * What anyone (even logged out) may see about activity in the app: recent requests as
  * category + price + status + time, and how many helpers are online. Never titles, descriptions,
  * places or people — those are the customer's own words and stay private (docs/decisions.md
  * 2026-11-16 "Landing page"). Real numbers only; nothing is invented.

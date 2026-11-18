@@ -4,9 +4,9 @@
  * the new one before going on. Pure: used by pages, actions, tests and the browser tests.
  */
 export const LEGAL_VERSIONS = {
-  terms: "2026-11-18",
-  privacy: "2026-11-18",
-  helper: "2026-11-18",
+  terms: "2026-11-19",
+  privacy: "2026-11-19",
+  helper: "2026-11-19",
 } as const;
 export type LegalDoc = keyof typeof LEGAL_VERSIONS;
 

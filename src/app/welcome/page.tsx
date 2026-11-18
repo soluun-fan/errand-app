@@ -1,4 +1,5 @@
 import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 import { kindCovers } from "@/lib/covers";
 import { latestWork } from "@/lib/work-photos";
 import { WorkCard } from "@/components/work-photos";
@@ -22,7 +23,7 @@ import { pricingConfig } from "@/lib/pricing";
 import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 
 export const metadata: Metadata = {
-  title: "Tuslamj — даалгаврын туслагч, банкинд хадгалагдах төлбөр",
+  title: `${APP_NAME} — гүйлгээний үйлчилгээ, баталгаатай төлбөр`,
   description: "Улаанбаатарт хүнс авчрах, хүргэх, зөөх, засвар. Нэг хүсэлт бичихэд ойрын туслагчид санал ирүүлнэ.",
 };
 
@@ -30,7 +31,7 @@ const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
 
 /**
  * Public landing page (docs/decisions.md 2026-11-16, layout ideas from PleaseHelp/UBCab, our own
- * look): visitors see what Tuslamj is and real recent activity; acting opens a login sheet that
+ * look): visitors see what the app is and real recent activity; acting opens a login sheet that
  * brings them back. Signed-in people go straight to the app.
  */
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
@@ -80,7 +81,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           <div className={`${wrap} flex min-h-16 items-center gap-6`}>
             <Link href="/welcome" className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
               <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">T</span>
-              Tuslamj
+              {APP_NAME}
             </Link>
             <nav className="hidden items-center gap-6 text-[15px] text-ink-2 md:flex">
               <a href="#how" className="hover:text-ink">
@@ -260,10 +261,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
             <div className="flex flex-col gap-3">
               <span className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
                 <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">T</span>
-                Tuslamj
+                {APP_NAME}
               </span>
               <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>
-              <p className="text-[13px] text-ink-3">© 2026 Tuslamj</p>
+              <p className="text-[13px] text-ink-3">© 2026 {APP_NAME}</p>
             </div>
             <nav className="grid grid-cols-2 gap-6 text-[14px]">
               <div className="flex flex-col gap-2">

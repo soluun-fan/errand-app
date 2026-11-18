@@ -6,6 +6,7 @@ import { runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fmtMoney } from "@/lib/format";
+import { APP_NAME_LATIN } from "@/lib/brand";
 import { cancelIntent, chargeOf, createCheckout, createIntent, getIntent, refundCharge, WireError } from "./wire";
 
 /**
@@ -57,7 +58,7 @@ export async function startWirePayment(d: ErrandDeal, origin: string, kind: Paym
     await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", open.id).eq("status", "pending");
   }
   const attempt = crypto.randomUUID();
-  const intent = await createIntent(amount, `Tuslamj · ${d.title}`.slice(0, 120), { deal_id: d.id, purpose }, `pi-${d.id}-${purpose}-${attempt}`);
+  const intent = await createIntent(amount, `${APP_NAME_LATIN} · ${d.title}`.slice(0, 120), { deal_id: d.id, purpose }, `pi-${d.id}-${purpose}-${attempt}`);
   const back = `${origin}/tasks/${d.id}`;
   const session = await createCheckout(intent.id, `${back}?paid=1`, back, `cs-${intent.id}`);
   if (!/^https:\/\//.test(session.url)) throw new Error("wire returned an unexpected checkout URL");

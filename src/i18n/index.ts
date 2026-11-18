@@ -22,11 +22,13 @@ export function parseLocale(v: string | undefined | null): Locale {
 }
 
 export function makeT(messages: Messages): T {
+  // the app's name ({app}) comes from common.app, so every text follows a rename (src/lib/brand.ts)
+  const app = messages.common.app;
   return (key, params) => {
     let node: unknown = messages;
     for (const part of key.split(".")) node = (node as Record<string, unknown> | undefined)?.[part];
     const s = typeof node === "string" ? node : key; // a missing key shows itself, never crashes
-    return params ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m)) : s;
+    return s.replace(/\{(\w+)\}/g, (m, k: string) => (params && k in params ? String(params[k]) : k === "app" ? app : m));
   };
 }
 

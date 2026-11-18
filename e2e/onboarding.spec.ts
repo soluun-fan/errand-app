@@ -26,7 +26,7 @@ test("register (name, 18+, Terms + Privacy), use the app, then close the account
   // 1. any app page sends a new person to registration first
   await p.goto("/");
   await p.waitForURL(/\/onboarding/);
-  await expect(p.getByRole("heading", { name: "Tuslamj-д тавтай морил" })).toBeVisible();
+  await expect(p.getByRole("heading", { name: "Гүйгээрэй апп-д тавтай морил" })).toBeVisible();
 
   // 2. under 18 is refused (the database checks it too)
   const today = new Date(Date.now() + 8 * 3_600_000);

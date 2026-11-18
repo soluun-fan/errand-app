@@ -1,9 +1,10 @@
 import { BadgeCheck, Ban, Landmark, MapPinOff, MessageCircle, Siren } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
 import { FlowHeader } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
-export const metadata: Metadata = { title: "Tuslamj — Аюулгүй байдал" };
+export const metadata: Metadata = { title: `${APP_NAME} — Аюулгүй байдал` };
 
 /** /safety — what the app actually does today to protect people (no promises it doesn't keep). */
 export default async function SafetyPage() {

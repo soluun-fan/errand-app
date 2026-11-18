@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/brand";
 import { FlowHeader } from "@/components/ui";
 import { LegalDoc } from "@/components/legal-doc";
 import { getT } from "@/i18n/server";
 import { legalParams } from "@/lib/legal-params";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 
-export const metadata: Metadata = { title: "Tuslamj — Үйлчилгээний нөхцөл" };
+export const metadata: Metadata = { title: `${APP_NAME} — Үйлчилгээний нөхцөл` };
 
 const KEYS = ["service", "account", "posting", "price", "payment", "shopping", "check", "cancel", "disputes", "conduct", "liability", "changes"] as const;
 

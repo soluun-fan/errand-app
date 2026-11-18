@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/brand";
 import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
 
-export const metadata: Metadata = { title: "Tuslamj — Нууцлалын бодлого" };
+export const metadata: Metadata = { title: `${APP_NAME} — Нууцлалын бодлого` };
 
 /**
  * /privacy — plain-words privacy policy describing what the code actually does (docs/rules.md,

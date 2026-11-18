@@ -1,10 +1,11 @@
+import { APP_NAME } from "@/lib/brand";
 import type { MetadataRoute } from "next";
 
 /** Installable web app ("Add to Home Screen") — on iPhone, web push only works once installed. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Tuslamj",
-    short_name: "Tuslamj",
+    name: APP_NAME,
+    short_name: APP_NAME,
     description: "Errands and protected payments in Ulaanbaatar",
     start_url: "/",
     display: "standalone",

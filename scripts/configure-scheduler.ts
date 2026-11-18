@@ -21,7 +21,7 @@ const db = createClient(url, key, { auth: { persistSession: false } });
   if (arg && arg !== "--status") {
     const base = arg.replace(/\/+$/, "");
     if (!/^https:\/\/[^\s/]+$/.test(base)) {
-      console.error("Give the app's public https address, e.g. https://tuslamj.mn");
+      console.error("Give the app's public https address, e.g. https://guigeeree.mn");
       process.exit(1);
     }
     const { error } = await db.rpc("configure_scheduler", { p_url: `${base}/api/cron/tick`, p_secret: secret });

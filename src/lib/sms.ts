@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { APP_NAME_LATIN } from "@/lib/brand";
 
 /**
  * Real SMS for login codes (docs/deploy.md "SMS"). Supabase Auth's "Send SMS" hook, set to HTTP,
@@ -33,7 +34,7 @@ export function verifyHookSignature(secret: string, headers: { id: string | null
 }
 
 /** The login text: Latin letters so it fits one SMS on every phone (Cyrillic halves the length). */
-export const otpText = (otp: string) => `Tuslamj: tany nevtrekh kod ${otp}. Hend ch buu hel.`;
+export const otpText = (otp: string) => `${APP_NAME_LATIN}: tany nevtrekh kod ${otp}. Hend ch buu hel.`;
 
 export interface SmsRequest {
   url: string;

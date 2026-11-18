@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/brand";
 import { FlowHeader, Note } from "@/components/ui";
 import { InlineAction } from "@/components/inline-action";
 import { LegalDoc } from "@/components/legal-doc";
@@ -9,7 +10,7 @@ import { legalParams } from "@/lib/legal-params";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { acceptHelperTerms } from "./actions";
 
-export const metadata: Metadata = { title: "Tuslamj — Туслагчийн гэрээ" };
+export const metadata: Metadata = { title: `${APP_NAME} — Туслагчийн гэрээ` };
 
 const KEYS = ["independent", "eligibility", "price", "earnings", "work", "backout", "conditions", "disputes", "taxes", "safety", "ending"] as const;
 

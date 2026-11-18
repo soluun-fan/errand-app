@@ -3,6 +3,7 @@ import { Onest } from "next/font/google";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import "./globals.css";
+import { APP_NAME } from "@/lib/brand";
 import { ErrorReporter } from "@/components/error-reporter";
 
 // Onest has every Mongolian letter. Ө ө Ү ү live in the cyrillic-ext subset — without it they
@@ -10,7 +11,7 @@ import { ErrorReporter } from "@/components/error-reporter";
 const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic", "cyrillic-ext"] });
 
 export const metadata: Metadata = {
-  title: "Tuslamj",
+  title: APP_NAME,
   description: "Errands and protected payments, held by the bank until the job is done.",
 };
 
