@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { isOnboarded } from "@/lib/legal-rules";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
@@ -16,6 +17,7 @@ import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { checkHandoverCode } from "@/lib/handover-code";
 import { hasPayout } from "@/lib/payout";
 import { workReadyMissing } from "@/lib/work-ready";
+import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
@@ -34,6 +36,7 @@ const RADII = [1, 3, 5, 10, 15, 60] as const;
 async function helperViewer() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (!isOnboarded(viewer.profile)) redirect("/onboarding"); // actions can be called directly: same rule as the pages
   return viewer;
 }
 
@@ -276,6 +279,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     }
     // a phone with notifications and location on — applying, taking a price, starting
     if (["apply", "quote", "add_kind_apply", "accept_counter", "start"].includes(intent)) {
+      // the current Helper service agreement must be accepted (asked again when it changes)
+      if (viewer.profile.helper_terms_version !== LEGAL_VERSIONS.helper) return { error: t("workReady.terms") };
       const missing = await workReadyMissing(viewer.profile.id);
       if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
     }

@@ -3,6 +3,7 @@ import type { ErrandDeal } from "@/lib/engine";
 import type { Viewer } from "@/lib/auth";
 import { latestApplication } from "@/lib/kyc";
 import { getRules } from "@/lib/rules";
+import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -18,6 +19,7 @@ export type TodoKey =
   | "bankCheck"
   | "workKinds"
   | "withdraw"
+  | "helperTerms"
   | "pay"
   | "payExtra"
   | "confirm"
@@ -51,6 +53,7 @@ export async function helperTodos(viewer: Viewer): Promise<Todo[]> {
     db.rpc("payable_balance", { p_user: profile.id }),
     getRules(),
   ]);
+  if (profile.helper_terms_version !== LEGAL_VERSIONS.helper) out.push({ key: "helperTerms", href: "/helper-terms", urgent: true });
   if (!acct) out.push({ key: "bankAdd", href: "/helper/bank", urgent: true });
   else if (!acct.verified_at) out.push({ key: "bankCheck", href: null });
   if (!(profile.categories ?? []).length) out.push({ key: "workKinds", href: "/profile#work-kinds", urgent: true });

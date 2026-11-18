@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isOnboarded } from "@/lib/legal-rules";
 import { getT } from "@/i18n/server";
 import { ADDRESS_KINDS, saveAddress, type AddressKind } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
@@ -49,6 +50,7 @@ export async function prepareTaskPhoto(bytes: number): Promise<TaskPhotoSlot | {
 export async function postTask(_prev: PostState, form: FormData): Promise<PostState> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (!isOnboarded(viewer.profile)) redirect("/onboarding"); // actions can be called directly: same rule as the pages
   const t = await getT();
   const cfg = await pricingConfig(); // today's prices (live Ops settings)
 

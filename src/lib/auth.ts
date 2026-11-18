@@ -14,7 +14,7 @@ export interface Viewer {
 }
 
 const PROFILE_COLUMNS =
-  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until";
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, birth_date, terms_version, privacy_version, helper_terms_version, deleted_at";
 
 /**
  * The signed-in user, verified (getClaims checks the JWT signature), or null.
@@ -35,6 +35,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     .eq("id", sub)
     .single<ProfileRow>();
   if (error || !profile) return null;
+  if (profile.deleted_at) return null; // a closed account is signed out everywhere
   const actor = actorFromProfile(profile, Date.now());
   // specialized work: what organisations vouch for them / which certificates Ops approved
   if (actor.helperApproved) {

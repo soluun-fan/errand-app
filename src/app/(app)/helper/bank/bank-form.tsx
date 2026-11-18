@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { SubmitButton, type ActionResult } from "@/components/sheet";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
+import type { ActionResult } from "@/components/sheet";
 import { btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { BANKS } from "@/lib/kyc-rules";
@@ -10,13 +10,21 @@ import { savePayout } from "./actions";
 /** Bank, account number, account holder — the holder must be the helper themselves. */
 export function BankForm({ next, holder }: { next: "jobs" | "profile"; holder: string }) {
   const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(savePayout, {});
+  const [state, action, pending] = useActionState<ActionResult, FormData>(savePayout, {});
   // kept in state: a refused save (e.g. someone else's name) must not wipe what was typed
   const [bank, setBank] = useState("");
   const [account, setAccount] = useState("");
   const [name, setName] = useState(holder);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      // sent by hand: React clears a form after an action, which would wipe the entries on an error
+      onSubmit={(e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => action(data));
+      }}
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="next" value={next} />
       <label className={fieldLabel}>
         {t("kyc.bank")}
@@ -45,7 +53,9 @@ export function BankForm({ next, holder }: { next: "jobs" | "profile"; holder: s
           {state.error}
         </p>
       )}
-      <SubmitButton className={`${btn.primary} w-full`}>{t("payout.save")}</SubmitButton>
+      <button type="submit" disabled={pending} aria-busy={pending} className={`${btn.primary} w-full`}>
+        {pending ? t("common.working") : t("payout.save")}
+      </button>
     </form>
   );
 }

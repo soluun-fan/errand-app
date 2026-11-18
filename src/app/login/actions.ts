@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
 import { loginRules } from "@/lib/dev";
 import { safeNext } from "@/lib/next-path";
+import { onboardingMissing, type OnboardingState } from "@/lib/legal-rules";
 import { normalizeMnPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -45,10 +46,17 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
   const token = String(formData.get("code") ?? "").replace(/\s/g, "");
   if (!/^\d{6}$/.test(token)) return { ...prev, error: t("login.badCode") };
 
-  const { error } = await supabase.auth.verifyOtp({ phone: prev.phone, token, type: "sms" });
+  const { data: verified, error } = await supabase.auth.verifyOtp({ phone: prev.phone, token, type: "sms" });
   if (error) return { ...prev, error: t("login.wrongCode") };
+  const next = safeNext(formData.get("next"));
+  // new people (or a changed document): name, date of birth, Terms + Privacy first
+  const uid = verified.user?.id;
+  if (uid) {
+    const { data: p } = await createAdminClient().from("profiles").select("name, birth_date, terms_version, privacy_version").eq("id", uid).maybeSingle<OnboardingState>();
+    if (p && onboardingMissing(p).length) redirect(`/onboarding?next=${encodeURIComponent(next)}`);
+  }
   // back to what they were starting (e.g. a task from the landing page); our own paths only
-  redirect(safeNext(formData.get("next")));
+  redirect(next);
 }
 
 export async function signOut(): Promise<void> {

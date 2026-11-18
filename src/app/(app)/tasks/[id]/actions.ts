@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { isOnboarded } from "@/lib/legal-rules";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
@@ -36,6 +37,7 @@ const DISPUTE_NOTE_MIN = 20;
 export async function taskAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (!isOnboarded(viewer.profile)) redirect("/onboarding"); // actions can be called directly: same rule as the pages
   const t = await getT();
   const db = createAdminClient();
   const dealId = String(form.get("dealId") ?? "");

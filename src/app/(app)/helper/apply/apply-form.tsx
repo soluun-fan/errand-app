@@ -73,6 +73,7 @@ export function ApplyForm() {
   const [holder, setHolder] = useState("");
   const [holderTouched, setHolderTouched] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [agreement, setAgreement] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +83,7 @@ export function ApplyForm() {
     setBusy(true);
     setError(null);
     try {
-      const r = await submitKyc({ legalName, birthDate, idLast4, categories, files, bank, accountNumber: account, holderName: holderTouched ? holder : legalName, consent });
+      const r = await submitKyc({ legalName, birthDate, idLast4, categories, files, bank, accountNumber: account, holderName: holderTouched ? holder : legalName, consent, agreement });
       if (r?.error) setError(r.error);
     } finally {
       setBusy(false);
@@ -162,6 +163,15 @@ export function ApplyForm() {
       <label className="flex items-start gap-3 text-[15px]">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
         <span>{t("kyc.consent")}</span>
+      </label>
+      <label className="flex items-start gap-3 text-[15px]">
+        <input type="checkbox" checked={agreement} onChange={(e) => setAgreement(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
+        <span>
+          {t("kyc.agreement")}{" "}
+          <a href="/helper-terms" target="_blank" className="font-semibold text-brand-ink underline underline-offset-2">
+            {t("kyc.agreementLink")}
+          </a>
+        </span>
       </label>
 
       {error && (

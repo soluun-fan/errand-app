@@ -20,6 +20,12 @@ export default async function InfoLayout({ children }: LayoutProps<"/">) {
         <Link href="/privacy" className="flex min-h-11 items-center hover:text-ink">
           {t("info.navPrivacy")}
         </Link>
+        <Link href="/terms" className="flex min-h-11 items-center hover:text-ink">
+          {t("legal.termsTitle")}
+        </Link>
+        <Link href="/helper-terms" className="flex min-h-11 items-center hover:text-ink">
+          {t("legal.helperTitle")}
+        </Link>
       </nav>
     </main>
   );

@@ -150,4 +150,6 @@ export const KycFormInput = z.object({
   accountNumber: z.string().max(40),
   holderName: z.string().max(200),
   consent: z.boolean(),
+  /** accepted the Helper service agreement (docs/decisions.md 2026-11-18 "Registration and terms") */
+  agreement: z.boolean(),
 });

@@ -135,6 +135,12 @@ export interface ProfileRow {
   categories: CategoryId[];
   area: string | null;
   suspended_until: string | null;
+  /** Registration (docs/decisions.md 2026-11-18 "Registration and terms"); null on old rows. */
+  birth_date?: string | null;
+  terms_version?: string | null;
+  privacy_version?: string | null;
+  helper_terms_version?: string | null;
+  deleted_at?: string | null;
 }
 
 /* ---------- time + number helpers ---------- */

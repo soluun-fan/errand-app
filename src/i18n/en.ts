@@ -428,6 +428,7 @@ export const en = {
     openJob: "Open",
   },
   landing: {
+    closed: "Your account was closed. Thank you for using Tuslamj.",
     nav: { how: "How it works", helper: "Become a helper", login: "Log in", post: "Post a task" },
     areaLive: "Ulaanbaatar · {n} helpers online now",
     areaIdle: "Ulaanbaatar · verified helpers, fair prices",
@@ -1136,6 +1137,8 @@ export const en = {
     cancel: "Cancel",
   },
   kyc: {
+    agreement: "I accept the",
+    agreementLink: "Helper service agreement",
     title: "Become a verified helper",
     intro: "Customers let helpers into their homes, so every helper is checked by a person on our team. It takes about 5 minutes; review usually takes up to 24 h.",
     start: "Start verification",
@@ -1165,6 +1168,7 @@ export const en = {
     submit: "Send for review",
     privacy: "Only our review team can open these files, through links that expire in 5 minutes. Other users never see them.",
     errors: {
+      agreement: "Please accept the Helper service agreement.",
       name: "Enter your full name as on your ID.",
       age: "You must be 18 or older.",
       last4: "Enter the last 4 digits of your ID number.",
@@ -1273,6 +1277,7 @@ export const en = {
   },
   opsSafety: {
     act: {
+      account_closed: "closed their account",
       errors_resolve: "marked an error fixed",
       badge_approve: "approved a licence / car document",
       badge_reject: "rejected a licence / car document",
@@ -1809,15 +1814,15 @@ export const en = {
     privacyTitle: "Privacy policy",
     privacyDraft: "Draft — to be reviewed by a lawyer before launch. Company and contact details will be added.",
     pWhatT: "What we collect",
-    pWhatB: "Your phone number (to sign in); your name and area; the tasks you post or take (description, price, addresses and map pins); chat messages, voice notes and photos inside a task; for helpers: location while online or on a task, and verification documents.",
+    pWhatB: "Your phone number (to sign in); your name, date of birth and area; the tasks you post or take (description, price, addresses and map pins, photos); chat messages and call records inside a task; reviews and photos you choose to make public. For helpers also: ID documents and a criminal-record certificate (for the check), your bank account (for payouts), your location while you work, and the devices you turned notifications on. When something breaks, a short error report (no codes or card numbers).",
     pWhyT: "Why",
     pWhyB: "To match tasks with nearby helpers, take our service fee and refund it when a job doesn't happen, keep everyone safe and resolve problems. We don't sell your data and we don't use it for advertising.",
     pWhoT: "Who sees what",
     pWhoB: "The other person on a task sees what they need for that task (exact address only after matching; never your phone number). Our operations team sees data only to handle payments, safety reports and disputes; their actions are logged. Public on purpose: helpers' profiles and reviews (reviewer's name hidden), photos you add to a review, and a helper's job photos you agree to show — with the kind of job only, never your address or name. You can remove them any time from the task.",
     pKeepT: "How long we keep it",
-    pKeepB: "Verification documents: deleted 30 days after the decision. Positions in safety reports: deleted 30 days after the report is resolved. Payment records: kept as the law requires.",
+    pKeepB: "ID documents: deleted 30 days after the decision. Positions in safety reports: deleted 30 days after the report is resolved. Chats: deleted after the task's retention period. Payment and task records: kept as the law requires. When you close your account, your name, bank account, saved places, devices and public photos are removed; the records the law requires stay without your name.",
     pRightsT: "Your choices",
-    pRightsB: "You can edit your name, area and saved addresses in your profile. To get a copy of your data or delete your account, contact us (self-service is coming).",
+    pRightsB: "You can edit your name, area and saved addresses in your profile, remove photos you made public, turn notifications and location off (helpers need them on to work), and close your account in Profile when nothing is running. To get a copy of your data, contact us.",
   },
   help: {
     title: "How Tuslamj works",
@@ -1947,6 +1952,11 @@ export const en = {
     checkOk: "Matches the ID",
   },
   todo: {
+    helperTerms: {
+      title: "Accept the updated Helper agreement",
+      body: "Needed to keep working.",
+      go: "Read",
+    },
     title: "To do ({n})",
     helperApply: {
       title: "Get verified to work",
@@ -2010,6 +2020,7 @@ export const en = {
     },
   },
   workReady: {
+    terms: "Accept the updated Helper service agreement first (Profile → Documents).",
     title: "Get ready to work",
     sub: "Helpers work from their phone with notifications and location on — so you hear about jobs at once and customers see you coming.",
     phone: "Use your phone",
@@ -2051,6 +2062,148 @@ export const en = {
     details: "Technical details",
     fixed: "Fixed",
     source: { server: "Server", client: "Browser" },
+  },
+  legal: {
+    termsTitle: "Terms of service",
+    helperTitle: "Helper service agreement",
+    docs: "Documents",
+    version: "Version {v}",
+    draft: "Draft — to be reviewed by a lawyer before launch. Company details will be added.",
+    helperAcceptNote: "This agreement was updated. Read it and accept to keep working.",
+    helperAccept: "I accept the Helper service agreement",
+    helperAccepted: "Accepted ✓",
+    terms: {
+      service: {
+        t: "What Tuslamj is",
+        b: "Tuslamj provides errand services: shopping, delivering, carrying, queuing, small repairs and similar help. When you post a task and choose a helper, you buy that service from Tuslamj. The helper who does it is an independent service provider engaged by us — not our employee and not your employee. We are responsible for arranging the service, for refunds under these terms and for handling complaints.",
+      },
+      account: {
+        t: "Your account",
+        b: "You must be 18 or older. One account per person, registered with your own Mongolian mobile number, your real name and date of birth. Keep your phone and login codes to yourself: what is done from your account counts as done by you. We may suspend an account that breaks these terms, puts others at risk or is used for fraud.",
+      },
+      posting: {
+        t: "Posting a task",
+        b: "Describe the task truthfully: what, where, when and anything the helper must know. Not allowed: anything illegal; weapons or drugs; buying alcohol, tobacco or medicine for someone else; transporting people; tasks that put anyone at risk. Study help means helping — explaining, printing, practising — never writing or submitting graded work for a student. We may hold or remove a task that breaks these rules.",
+      },
+      price: {
+        t: "Price and fees",
+        b: "You name the price; helpers may accept it or answer with theirs, and you agree between you. We only set the lowest price for each kind of task (from {minPrice}). One job, price plus shopping budget, can be at most {maxJob} for now. On top of the price you pay our service & safety fee: {tiers}. Your first {freeTasks} active tasks have the normal fee; each further active task adds {extraFee}. The helper receives the whole agreed price.",
+      },
+      payment: {
+        t: "Paying",
+        b: "Posting is free. When you choose a helper you pay the full amount — price, shopping budget and fee — in the app, within {payNow} minutes for tasks right now and {payBooked} minutes for booked ones; otherwise the task opens to helpers again. Payments go through a licensed payment service (QPay, bank apps, cards). A payment counts only when the payment service confirms it; screenshots never do. Never pay a helper outside the app.",
+      },
+      shopping: {
+        t: "Shopping tasks",
+        b: "For buy-for-me tasks you prepay an estimated budget. The helper adds a photo of the receipt. If they spent less, the difference comes back to you automatically; if more, they ask you first and you approve and pay the extra in the app before the handover. What the helper spent is paid back to them by the receipt.",
+      },
+      check: {
+        t: "Checking the job",
+        b: "When the helper finishes you have {checkHours} hours to check and confirm, or to report a problem. If you do nothing, the job is confirmed automatically — but never while a problem you reported is open. Once confirmed, we pay the helper.",
+      },
+      cancel: {
+        t: "Cancelling and refunds",
+        b: "Before a helper is chosen you can cancel for free. If the helper backs out, doesn't come or no helper is found, you get everything back. If you cancel after paying, once the helper is on the way, {tripFee} goes to the helper as a trip fee and the rest comes back to you; our fee is kept. Refunds go back the way you paid.",
+      },
+      disputes: {
+        t: "Problems and disputes",
+        b: "Report a problem from the task before confirming. Nobody is paid while it's open. Our team looks at the photos, receipts and chat and decides within about 24 hours: the helper is paid, you get a full or partial refund, or both in part. Both sides can add evidence.",
+      },
+      conduct: {
+        t: "Respect and safety",
+        b: "Treat helpers with respect. Keep contact in the app: chat and calls are inside the task and phone numbers are never shown. Don't ask a helper to do something unsafe or outside the task. In an emergency use SOS on the task — it alerts our team and shows 102 / 103. Ratings and reviews must be honest; your review is public with your name hidden.",
+      },
+      liability: {
+        t: "Our responsibility",
+        b: "If something goes wrong with a task we arranged, we put it right by redoing it with another helper, refunding, or as our team decides in a dispute. Our responsibility for one task is limited to the amount you paid for it, except where the law says otherwise. We are not responsible for losses caused by wrong information in your task or by paying outside the app.",
+      },
+      changes: {
+        t: "Changes, closing your account, contact",
+        b: "We may update these terms; when we do, the app asks you to accept the new version before you go on. You can close your account in Profile when you have no active tasks; payment records are kept as the law requires. Company name, registration number and contact details will be added here before launch.",
+      },
+    },
+    helper: {
+      independent: {
+        t: "You are an independent service provider",
+        b: "You are not our employee. You decide when you are online, which jobs to take and which to decline, and you may work elsewhere. There are no shifts, no minimum hours and no penalty for declining a job. We pay you a service fee for each task you complete. Day jobs on Tuslamj are one-off help priced per job; the same poster can book the same helper for at most {dayjobCap} day jobs in 30 days.",
+      },
+      eligibility: {
+        t: "Who can be a helper",
+        b: "You must be 18 or older and pass our checks: ID card, a selfie with it, a criminal-record certificate and a bank account in your own name. Some kinds of work also need a certificate, a driving licence or an organisation. You work from your phone with notifications and location on. Everything you send us must be true and yours.",
+      },
+      price: {
+        t: "Price",
+        b: "Each task's price is agreed between you and the customer — you can take the posted price or name yours (never below the minimum we set). You receive 100% of the agreed price; the customer pays our fee on top. If you buy items, you are paid back by the receipt.",
+      },
+      earnings: {
+        t: "Earnings and withdrawals",
+        b: "When the customer confirms (or the check time ends), the service fee for that task becomes your earnings — an amount we owe you. Earnings are withdraw-only: they can't be spent or sent in the app and earn no interest. You withdraw the whole available amount to your own checked bank account, from {withdrawMin}, up to {perDay} times a day; earnings left for {autoDays} days are sent automatically. We aim to send within 15 minutes in opening hours.",
+      },
+      work: {
+        t: "Doing the job",
+        b: "Do what the task says, carefully and on time. Take a start photo when you begin and a handover photo at the end; add the receipt if you bought something. Respect the customer's home and things. Keep contact and payment in the app; never ask for or take payment outside it. Don't share the customer's address or details.",
+      },
+      backout: {
+        t: "Backing out",
+        b: "After being chosen you can back out for free within {grace} minutes. Later back-outs pause you from new work: {pause1} day(s) the first time in 30 days, {pause2} the second, {pause3} from the third; the customer gets a full refund and the task is posted again. Declining before being chosen never counts against you.",
+      },
+      conditions: {
+        t: "Conditions, ratings and photos",
+        b: "Customers may require a licence, a car, a check, an on-time record, a language or a call first; apply only if you really meet them. Customers rate each job; repeated low ratings or complaints may lead to a review. Photos of your work appear in your public portfolio only with the customer's permission.",
+      },
+      disputes: {
+        t: "Disputes",
+        b: "If a customer reports a problem, your earnings for that task wait until our team decides, based on the photos, receipts and chat. You can add your evidence. The decision may pay you in full, in part or not at all.",
+      },
+      taxes: {
+        t: "Taxes",
+        b: "You are responsible for your own income and taxes, unless the law requires us to withhold tax from your payments — then we do and show it. (Being confirmed with our accountant.)",
+      },
+      safety: {
+        t: "Safety",
+        b: "Never do anything unsafe or illegal, even if a customer asks. Prohibited tasks (see the Terms) may not be done. In an emergency use SOS on the task — it alerts our team and shows 102 / 103. Your location is shared only while you work, and with the customer of that task only.",
+      },
+      ending: {
+        t: "Ending",
+        b: "You can stop at any time and close your account when you have no active jobs and no earnings left to withdraw. We may pause or end this agreement for safety reasons, fraud, false documents or serious complaints. Earnings already owed to you are still paid.",
+      },
+    },
+  },
+  onboarding: {
+    title: "Welcome to Tuslamj",
+    sub: "A few details before you start. It takes a minute.",
+    updatedTitle: "We updated our documents",
+    updatedSub: "Please read and accept the new version to go on.",
+    name: "Your name",
+    namePh: "e.g. Solongo B.",
+    nameHelp: "Shown to the people you work with. Letters only, 2–40 characters.",
+    birth: "Date of birth",
+    birthHelp: "You must be 18 or older. It is never shown to others.",
+    termsLabel: "I'm 18 or older and accept the",
+    termsLink: "Terms of service",
+    privacyLabel: "I've read the",
+    privacyLink: "Privacy policy",
+    go: "Continue",
+    err: {
+      name: "Write your name: letters only, 2–40 characters.",
+      age: "You must be 18 or older to use Tuslamj.",
+      terms: "Please accept the Terms of service.",
+      privacy: "Please confirm you have read the Privacy policy.",
+    },
+  },
+  closeAccount: {
+    button: "Close my account",
+    title: "Close your account?",
+    body: "Your name, bank account, saved places, devices and public photos are removed and you can no longer sign in. Past tasks and payment records stay, as the law requires (your name on them is removed). This can't be undone.",
+    confirm: "Close my account",
+    word: "close",
+    typeWord: "Type \"{word}\" to confirm",
+    block: {
+      activeTasks: "Finish or cancel your active tasks first.",
+      earnings: "Withdraw your earnings first (or wait until a withdrawal on its way is sent).",
+      unpaid: "A \"not paid\" report must be settled first.",
+      admin: "Ops accounts are closed by another admin.",
+    },
   },
   error: {
     changed: "This task changed in the meantime. You're now seeing its current state.",

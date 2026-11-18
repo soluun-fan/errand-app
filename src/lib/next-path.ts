@@ -5,6 +5,6 @@
 export function safeNext(raw: unknown, fallback = "/"): string {
   if (typeof raw !== "string" || raw.length > 300) return fallback;
   if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return fallback;
-  if (/[\r\n]/.test(raw) || raw.startsWith("/login")) return fallback;
+  if (/[\r\n]/.test(raw) || raw.startsWith("/login") || raw.startsWith("/onboarding")) return fallback;
   return raw;
 }

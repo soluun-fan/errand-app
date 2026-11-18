@@ -3,7 +3,7 @@ import { TodoCard } from "@/components/todo-card";
 import { helperTodos } from "@/lib/todo";
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
-import { Card, FlowHeader, btn } from "@/components/ui";
+import { Card, FlowHeader, btn, field, fieldLabel } from "@/components/ui";
 import { LOCALES } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { listSavedAddresses } from "@/lib/addresses";
@@ -15,7 +15,8 @@ import { myOrganizations, myInvitations, myMemberships } from "@/lib/orgs";
 import { Membership } from "./org-memberships";
 import { WorkKinds } from "./work-kinds";
 import { OPEN_CATEGORIES } from "@/lib/engine";
-import { removeAddress } from "./actions";
+import { closeMyAccount, removeAddress } from "./actions";
+import { ConfirmSheet } from "@/components/sheet";
 
 const KIND_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
 
@@ -182,9 +183,30 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       <Link href="/help" className={`${btn.secondary} w-full`}>
         {t("profile.help")}
       </Link>
+      {/* the documents they agreed to, always one tap away */}
+      <nav aria-label={t("legal.docs")} className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[14px]">
+        <Link href="/terms" className="font-medium text-ink-2 underline underline-offset-2">{t("legal.termsTitle")}</Link>
+        <Link href="/privacy" className="font-medium text-ink-2 underline underline-offset-2">{t("info.privacyTitle")}</Link>
+        {(profile.role === "helper" || profile.helper_status) && <Link href="/helper-terms" className="font-medium text-ink-2 underline underline-offset-2">{t("legal.helperTitle")}</Link>}
+      </nav>
       <form action={signOut}>
         <button className={`${btn.textDanger} w-full`}>{t("profile.signOut")}</button>
       </form>
+      <ConfirmSheet
+        action={closeMyAccount}
+        fields={{}}
+        trigger={t("closeAccount.button")}
+        triggerClass={`${btn.text} w-full text-[13px] text-ink-3`}
+        title={t("closeAccount.title")}
+        body={t("closeAccount.body")}
+        confirmLabel={t("closeAccount.confirm")}
+        confirmClass={btn.danger}
+      >
+        <label className={fieldLabel}>
+          {t("closeAccount.typeWord", { word: t("closeAccount.word") })}
+          <input name="confirm" autoComplete="off" className={field} />
+        </label>
+      </ConfirmSheet>
     </>
   );
 }

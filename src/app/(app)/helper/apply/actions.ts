@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isOnboarded } from "@/lib/legal-rules";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
@@ -9,6 +10,7 @@ import { BANKS, KYC_DOCS, cleanLegalName, isAdult, normalizeAccount, payoutNameO
 import { KycFormInput, parseOr } from "@/lib/input";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAcceptance } from "@/lib/legal";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
@@ -37,12 +39,14 @@ export interface KycForm {
   accountNumber: string;
   holderName: string;
   consent: boolean;
+  agreement: boolean;
 }
 
 /** Validates everything again on the server, then stores the application for Ops review. */
 export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (!isOnboarded(viewer.profile)) redirect("/onboarding"); // actions can be called directly: same rule as the pages
   const t = await getT();
   const f = parseOr(KycFormInput, raw);
   if (!f) return { error: t("kyc.errors.files") };
@@ -65,9 +69,12 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   const holder = cleanLegalName(String(f.holderName ?? ""));
   if (!holder || !payoutNameOk(legalName, holder)) return { error: t("kyc.errors.holder") };
   if (f.consent !== true) return { error: t("kyc.errors.consent") };
+  if (f.agreement !== true) return { error: t("kyc.errors.agreement") };
 
   const r = await submitApplication(viewer.profile.id, { legalName, idLast4: f.idLast4, birthDate: f.birthDate, categories, files, bank: f.bank, accountNumber: account, holderName: holder });
   if (!r.ok) return { error: t(r.reason === "open" ? "kyc.errors.open" : "kyc.errors.files") };
+  // the Helper service agreement they accepted, with its version (shown again if it changes)
+  await recordAcceptance(viewer.profile.id, "helper");
 
   // tell the operations team (admins) there's something to review
   const { data: admins } = await createAdminClient().from("profiles").select("id").eq("role", "admin");

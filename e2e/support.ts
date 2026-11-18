@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "@playwright/test";
+import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -24,7 +25,18 @@ type Cookie = { name: string; value: string; domain: string; path: string };
 const sessions = new Map<string, Cookie[]>();
 
 /** Signs in through the real phone-OTP flow (code read from the dev outbox) and puts the session cookie in the browser. */
-export async function loginAs(context: BrowserContext, phone: string): Promise<void> {
+export async function loginAs(context: BrowserContext, phone: string, opts: { fresh?: boolean } = {}): Promise<void> {
+  // demo accounts have finished registration (current Terms / Privacy / Helper agreement); a
+  // `fresh` account goes through it in the browser (onboarding.spec.ts)
+  if (!opts.fresh) {
+    const { data: p } = await db.from("profiles").select("id, birth_date").eq("phone", phone).maybeSingle<{ id: string; birth_date: string | null }>();
+    if (p) {
+      await db
+        .from("profiles")
+        .update({ birth_date: p.birth_date ?? "1995-01-01", terms_version: LEGAL_VERSIONS.terms, privacy_version: LEGAL_VERSIONS.privacy, helper_terms_version: LEGAL_VERSIONS.helper })
+        .eq("id", p.id);
+    }
+  }
   if (!sessions.has(phone)) sessions.set(phone, await signIn(phone));
   await context.addCookies(sessions.get(phone)!);
   // test browsers can't hold a real push subscription: the test server (E2E_DEVICE_BYPASS=1) skips

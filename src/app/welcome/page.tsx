@@ -33,8 +33,9 @@ const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
  * look): visitors see what Tuslamj is and real recent activity; acting opens a login sheet that
  * brings them back. Signed-in people go straight to the app.
  */
-export default async function Welcome() {
+export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   if (await getViewer()) redirect("/");
+  const closed = (await searchParams).closed === "1";
   const [t, locale, cfg, recent, online, board, popular, seasonal] = await Promise.all([
     getT(),
     getLocale(),
@@ -69,6 +70,11 @@ export default async function Welcome() {
   return (
     <LoginPromptProvider>
       <div className="flex flex-1 flex-col">
+        {closed && (
+          <p role="status" className="bg-held-bg px-4 py-3 text-center text-[15px] font-medium text-held">
+            {t("landing.closed")}
+          </p>
+        )}
         {/* top bar */}
         <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
           <div className={`${wrap} flex min-h-16 items-center gap-6`}>
