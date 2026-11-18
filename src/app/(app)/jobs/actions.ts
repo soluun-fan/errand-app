@@ -11,6 +11,9 @@ import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
+import { runRefunds } from "@/lib/payments/service";
+import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
+import { checkHandoverCode } from "@/lib/handover-code";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
@@ -234,6 +237,18 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       return { done: true };
     }
 
+    if (intent === "direct_received" || intent === "direct_unpaid") {
+      // fee-only task: the helper confirms they were paid — or reports they weren't (Ops follows up)
+      const d = await loadDeal(db, dealId);
+      if (d?.type !== "errand" || d.helperId !== viewer.profile.id) return { error: t("error.forbidden") };
+      if (!(await markDirectPay(d, intent === "direct_received" ? "helper_received" : "unpaid_reported"))) return { error: t("error.changed") };
+      if (intent === "direct_unpaid") {
+        await notify(await adminIds(), { title: "push.unpaidOpsTitle", body: "push.unpaidOpsBody", params: { title: d.title, amount: fmtMoney(owedToHelper(d)) }, url: `/ops/payments`, tag: `unpaid-${d.id}` }).catch(() => undefined);
+        await notify([d.customerId], { title: "push.unpaidCustomerTitle", body: "push.unpaidCustomerBody", params: { title: d.title, amount: fmtMoney(owedToHelper(d)) }, url: `/tasks/${d.id}`, tag: `task-${d.id}` }).catch(() => undefined);
+      }
+      refresh();
+      return { done: true };
+    }
     if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
       return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
     }
@@ -278,6 +293,14 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     else if (intent === "finish") {
       // a handover photo (or care check-out) that is still there — one taken back doesn't count
       if ((await proofCount(dealId, "handover", viewer.profile.id)) === 0) return { error: t("proof.missing") };
+      // handover code condition: the customer's 4 digits (the database refuses "done" without it too)
+      const target = await loadDeal(db, dealId);
+      if (target?.type === "errand" && target.details.require?.handoverCode && target.helperId === viewer.profile.id) {
+        const r = await checkHandoverCode(dealId, String(form.get("code") ?? "").trim());
+        if (r === "wrong") return { error: t("conditions.codeWrong") };
+        if (r === "locked") return { error: t("conditions.codeLocked") };
+        if (r === "missing") return { error: t("error.generic") };
+      }
       cmd = { type: "finish" };
     }
     else return { error: t("error.generic") };
@@ -314,8 +337,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     } else if (intent === "accept_counter") {
       await notify([deal.customerId], {
         title: "push.counterAcceptedTitle",
-        body: "push.acceptedBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee), minutes: ruleOf(deal, "paymentWindowMinutes") },
+        body: deal.payMode === "direct" ? "push.acceptedDirectBody" : "push.acceptedBody",
+        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee), minutes: ruleOf(deal, "paymentWindowMinutes"), serviceFee: fmtMoney(deal.serviceFee) },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
@@ -335,7 +358,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     } else if (intent === "finish") {
       await notify([deal.customerId], {
         title: "push.doneTitle",
-        body: "push.doneBody",
+        body: deal.payMode === "direct" ? "push.doneDirectBody" : "push.doneBody",
         params: { title: deal.title, hours: deal.checkHours },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
@@ -377,6 +400,8 @@ async function afterBackOut(deal: ErrandDeal, before: Deal | null, helperId: str
     tag: `task-${deal.id}`,
   }).catch((e) => console.error("back-out notice failed", e));
   await restartDispatch(deal.id, helperId).catch((e) => console.error("restart dispatch failed", e));
+  // our fee was refunded in the ledger: send the real refund now (the background job retries)
+  await runRefunds(deal.id).catch((e) => console.error("refund after back-out failed", e));
   const n = await recentBackOuts(helperId).catch(() => 0);
   if (n >= OPS_ALERT_AT) {
     await notify(await adminIds(), {

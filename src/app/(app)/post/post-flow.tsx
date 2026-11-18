@@ -12,7 +12,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -55,6 +55,8 @@ export interface Draft {
   minutes: number | null;
   /** The helper must bring tools. */
   tools: boolean;
+  /** What the customer requires of the helper (docs/decisions.md 2026-11-18 "Task conditions"). */
+  require: TaskConditions;
   /** Save the drop-off address as Home / Work / Other when posting ("" = don't). */
   saveAs: AddressKind | "";
   /** Map pin for the drop-off / task place (drives nearby dispatch). */
@@ -149,6 +151,7 @@ export function PostFlow({
     price: "",
     minutes: null,
     tools: false,
+    require: {},
     saveAs: "",
     pin: null,
     pickupPin: null,
@@ -234,6 +237,7 @@ export function PostFlow({
     tools: d.tools,
     quotedFee: 0,
     counterMax: 0,
+    require: d.require ?? {},
   };
   const quote = quoteFee(d.category, details, cfg, startsAt);
   const needTwo = quote.peopleRequired === 2;
@@ -278,12 +282,20 @@ export function PostFlow({
           : l.key === "base"
             ? t("price.line.base", { min: cfg.includedMinutes, km: cfg.includedKm })
             : t(`price.line.${l.key}`);
-  const breakdown: MoneyRow[] = [
-    { label: t("price.yourPrice"), amount: fee },
-    ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
-    ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
-    { label: t("money.serviceFee"), amount: serviceFee, muted: true },
-  ];
+  // fee-only (docs/decisions.md 2026-11-18): the app takes only our fee; the helper is paid directly
+  const direct = cfg.payMode === "direct";
+  const breakdown: MoneyRow[] = direct
+    ? [
+        { label: t("direct.money.toHelperLater"), amount: fee },
+        ...(itemBudget > 0 ? [{ label: t("direct.money.itemsLater"), amount: itemBudget, muted: true }] : []),
+        { label: t("direct.money.feeNow"), amount: serviceFee },
+      ]
+    : [
+        { label: t("price.yourPrice"), amount: fee },
+        ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
+        ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
+        { label: t("money.serviceFee"), amount: serviceFee, muted: true },
+      ];
 
   return (
     <form
@@ -617,6 +629,51 @@ export function PostFlow({
             <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
           </fieldset>
 
+          {/* conditions for the helper (docs/decisions.md 2026-11-18): only helpers who meet them can apply */}
+          <details className="group flex flex-col gap-3" open={Object.values(d.require ?? {}).some(Boolean)}>
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium text-ink-2">
+              {t("conditions.postTitle")}
+              <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
+            </summary>
+            <p className="pb-2 text-sm text-ink-2">{t("conditions.postSub")}</p>
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  ["driver", "🚗"],
+                  ["car", "🚙"],
+                  ["call", "📞"],
+                  ["onTime", "⏰"],
+                  ["checked", "🛡️"],
+                  ["handoverCode", "🔢"],
+                ] as const
+              ).map(([k, icon]) => (
+                <ToggleRow
+                  key={k}
+                  icon={icon}
+                  title={t(`conditions.k.${k}`)}
+                  sub={t(`conditions.sub.${k}`)}
+                  checked={Boolean(d.require?.[k])}
+                  onChange={(v) => set("require", { ...(d.require ?? {}), [k]: v || undefined })}
+                />
+              ))}
+              <label className={fieldLabel}>
+                🌐 {t("conditions.k.language")}
+                <select
+                  className={field}
+                  value={d.require?.language ?? ""}
+                  onChange={(e) => set("require", { ...(d.require ?? {}), language: (e.target.value || null) as TaskConditions["language"] })}
+                >
+                  <option value="">{t("conditions.anyLanguage")}</option>
+                  {LANGUAGES.map((l) => (
+                    <option key={l} value={l}>
+                      {t(`conditions.lang.${l}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </details>
+
           {isCarry && (
             <fieldset className="flex flex-col gap-3">
               <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.carryHow")}</legend>
@@ -649,7 +706,8 @@ export function PostFlow({
                   <span className="text-sm font-normal">{t("post.itemsHelp")}</span>
                 </label>
               )}
-              {d.buyForMe && (
+              {/* the +10% buffer is only meaningful when the money is held */}
+              {d.buyForMe && !direct && (
                 <ToggleRow
                   icon="🧾"
                   title={t("task.buffer")}
@@ -658,7 +716,7 @@ export function PostFlow({
                   onChange={(v) => set("budgetBuffer", v)}
                 />
               )}
-              {d.buyForMe && <p className="text-sm text-ink-2">{t("task.overBudgetRule")}</p>}
+              {d.buyForMe && <p className="text-sm text-ink-2">{t(direct ? "direct.itemsRule" : "task.overBudgetRule")}</p>}
             </fieldset>
           )}
         </>
@@ -754,7 +812,11 @@ export function PostFlow({
                 ▾
               </span>
             </summary>
-            <MoneyBreakdown rows={breakdown} total={{ label: t("money.totalHeld"), amount: total }} caption={itemBudget > 0 ? t("money.itemBudgetNote") : undefined} />
+            <MoneyBreakdown
+              rows={breakdown}
+              total={direct ? { label: t("direct.money.payWhenChosen"), amount: serviceFee } : { label: t("money.totalHeld"), amount: total }}
+              caption={itemBudget > 0 && !direct ? t("money.itemBudgetNote") : undefined}
+            />
           </details>
 
           {invite ? (
@@ -793,7 +855,7 @@ export function PostFlow({
           )}
           {STEPS[step] === "review" ? (
             <SubmitButton className={`${btn.primary} flex-1`} disabled={!!reason}>
-              {t("task.confirm", { amount: fmtMoney(total) })}
+              {t("task.confirm", { amount: fmtMoney(direct ? fee : total) })}
             </SubmitButton>
           ) : (
             <button type="button" disabled={!!reason} onClick={() => setStep(step + 1)} className={`${btn.primary} flex-1`}>

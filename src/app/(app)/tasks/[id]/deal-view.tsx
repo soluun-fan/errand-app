@@ -25,6 +25,11 @@ import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { TaskPhotoManager } from "@/components/task-photo-manager";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
+import { DirectPayCustomerCard } from "@/components/direct-pay-card";
+import { BadgeChips, ConditionChips } from "@/components/conditions";
+import type { HelperBadges } from "@/lib/engine";
+import type { OnTime } from "@/lib/badges";
+import type { DirectPayState, PayeeAccount } from "@/lib/direct-pay";
 import { PriceChangeCard } from "@/components/price-change-card";
 
 export interface DealViewProps {
@@ -40,6 +45,10 @@ export interface DealViewProps {
   rated: number | null;
   autoOpenPay: boolean;
   mockPay: boolean;
+  /** Real payments go through wire.mn's checkout page (else the simulated button). */
+  wirePay?: boolean;
+  /** Fee-only tasks, once the job is done: what the customer owes the helper and where to pay. */
+  directPay?: { state: DirectPayState; account: PayeeAccount | null } | null;
   action: FormAction;
   /** Dispatch progress while the task is open (how many helpers were notified). */
   dispatch?: { notified: number } | null;
@@ -59,6 +68,12 @@ export interface DealViewProps {
   applicantUnread?: Map<string, number>;
   /** Care work: applicants the customer has already had a real call with (needed before choosing). */
   careCalls?: Set<string>;
+  /** A call before choosing is required (care work, or the customer's "talk first" condition). */
+  needsCall?: boolean;
+  /** Applicants' badges for the task's conditions (driver, car, checked, on time, languages). */
+  applicantBadges?: Map<string, HelperBadges & { record: OnTime }>;
+  /** The handover code to tell the helper at handover (customer only, while the job runs). */
+  handoverCode?: string | null;
   /** Care: applicants this family already had a finished care job with (no "meet first" needed). */
   careKnown?: Set<string>;
   /** Care: the required call length (Ops rule). */
@@ -134,6 +149,8 @@ export function DealView(p: DealViewProps) {
     </Link>
   );
   const cancelFeePaid = events.find((e) => e.code === "cancel_fee_paid");
+  /** fee-only task (docs/decisions.md 2026-11-18): only our fee went through the app */
+  const direct = deal.payMode === "direct";
   const dt = deal.details;
   const detailBits = [
     dt.entrance && t("details.entrance", { v: dt.entrance }),
@@ -148,7 +165,15 @@ export function DealView(p: DealViewProps) {
   switch (deal.status) {
     case "awaiting_payment":
       line = deal.payBy ? (
-        <Countdown until={deal.payBy} serverNow={serverNow} template={t("deal.line.awaiting_payment", { helper: helperName, time: "{time}" })} />
+        <Countdown
+          until={deal.payBy}
+          serverNow={serverNow}
+          template={
+            direct
+              ? t("direct.line.awaiting", { helper: helperName, fee: fmtMoney(deal.serviceFee), time: "{time}" })
+              : t("deal.line.awaiting_payment", { helper: helperName, time: "{time}" })
+          }
+        />
       ) : null;
       break;
     case "open":
@@ -172,7 +197,7 @@ export function DealView(p: DealViewProps) {
       );
       break;
     case "matched":
-      line = t("deal.line.matched", { helper: helperName });
+      line = direct ? t("direct.line.matched", { helper: helperName }) : t("deal.line.matched", { helper: helperName });
       break;
     case "in_progress":
       line = t("deal.line.in_progress", { helper: helperName });
@@ -191,16 +216,22 @@ export function DealView(p: DealViewProps) {
       );
       break;
     case "disputed":
-      line = t("deal.line.disputed");
+      line = direct ? t("direct.line.disputed") : t("deal.line.disputed");
       break;
     case "released":
-      line = split.refund > 0 ? t("deal.line.releasedRefund", { amount: fmtMoney(split.refund) }) : t("deal.line.released", { helper: payeeName });
+      line = direct
+        ? t("direct.line.released", { helper: payeeName })
+        : split.refund > 0
+          ? t("deal.line.releasedRefund", { amount: fmtMoney(split.refund) })
+          : t("deal.line.released", { helper: payeeName });
       break;
     case "refunded":
-      line = t("deal.line.refunded", { amount: fmtMoney(amountDue(deal)) });
+      line = direct ? t("direct.line.refunded", { amount: fmtMoney(deal.serviceFee) }) : t("deal.line.refunded", { amount: fmtMoney(amountDue(deal)) });
       break;
     case "cancelled":
-      line = cancelFeePaid
+      line = events.some((e) => e.code === "fee_kept")
+        ? t("direct.line.cancelledKept", { fee: fmtMoney(deal.serviceFee) })
+        : cancelFeePaid
         ? deal.payeeOrgId ? t("org.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)), name: payeeName }) : t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
         : t("deal.line.cancelled");
       break;
@@ -226,7 +257,16 @@ export function DealView(p: DealViewProps) {
 
   /* ---------- money: where it is now ---------- */
   let money: ReactNode;
-  if (["check", "disputed", "released"].includes(deal.status)) {
+  if (direct && !["refunded", "cancelled", "expired"].includes(deal.status)) {
+    // fee-only: what goes through the app now, and what the customer pays the helper themselves
+    const done = ["check", "disputed", "released"].includes(deal.status);
+    const rows: MoneyRow[] = [
+      { label: t(done ? "direct.money.toHelperNow" : "direct.money.toHelperLater"), amount: done ? deal.fee + (deal.receiptAmount ?? 0) : deal.fee },
+    ];
+    if (deal.itemBudget > 0 && !done) rows.push({ label: t("direct.money.itemsLater"), amount: deal.itemBudget, muted: true });
+    rows.push({ label: t(deal.heldAmount > 0 || done ? "direct.money.feePaid" : "direct.money.feeNow"), amount: deal.serviceFee });
+    money = <MoneyBreakdown rows={rows} total={{ label: t(deal.status === "awaiting_payment" ? "direct.money.payNow" : "direct.money.feeTotal"), amount: deal.serviceFee }} />;
+  } else if (["check", "disputed", "released"].includes(deal.status)) {
     const rows: MoneyRow[] = [
       { label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
     ];
@@ -264,6 +304,8 @@ export function DealView(p: DealViewProps) {
             serverNow={serverNow}
             defaultOpen={p.autoOpenPay}
             mock={p.mockPay}
+            wire={p.wirePay}
+            doneLabel={direct ? t("pay.feeDone") : undefined}
             action={p.action}
             qr={<MockQr seed={deal.id} />}
           />
@@ -400,7 +442,7 @@ export function DealView(p: DealViewProps) {
               {t("dispute.note")}
               <textarea name="note" required minLength={20} maxLength={1000} rows={3} className={field} placeholder={t("dispute.notePh")} />
             </label>
-            <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">{t("dispute.what")}</p>
+            <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">{t(direct ? "direct.disputeWhat" : "dispute.what")}</p>
           </ConfirmSheet>,
         );
         break;
@@ -507,7 +549,7 @@ export function DealView(p: DealViewProps) {
       >
         <StepTracker status={deal.status} events={events} t={t} />
         <div className="text-[16px] text-ink">{line}</div>
-        {deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
+        {deal.heldAmount > 0 && <HeldBadge>{direct ? t("direct.badge", { amount: fmtMoney(deal.heldAmount) }) : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
         {p.rated !== null && <p className="text-sm text-ink-2">{t("deal.rated", { stars: p.rated })}</p>}
         {waiting && (
           <Link href="/help" className="self-start text-[15px] font-medium text-ink underline underline-offset-4">
@@ -588,9 +630,14 @@ export function DealView(p: DealViewProps) {
                   {/* talk before choosing: each applicant has their own chat and call */}
                   <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall t={t} />
                   {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">🩹 {t("care.firstAidBadge")}</p>}
-                  {care && !p.careCalls?.has(o.helperId) && <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">{t("care.callFirst", { seconds: p.careCallSeconds ?? 30 })}</p>}
+                  {p.applicantBadges?.get(o.helperId) && <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />}
+                  {p.needsCall && !p.careCalls?.has(o.helperId) && (
+                    <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
+                      {care ? t("care.callFirst", { seconds: p.careCallSeconds ?? 30 }) : t("conditions.callFirst", { seconds: p.careCallSeconds ?? 30 })}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between gap-2">
-                    {!waiting && (!care || p.careCalls?.has(o.helperId)) && (
+                    {!waiting && (!p.needsCall || p.careCalls?.has(o.helperId)) && (
                       <ConfirmSheet
                         action={p.action}
                         fields={{ ...fields, intent: "choose", helperId: o.helperId }}
@@ -700,7 +747,17 @@ export function DealView(p: DealViewProps) {
         </Card>
       )}
 
+      {p.handoverCode && (
+        <section className="flex flex-col items-center gap-1 rounded-card bg-bg p-4 text-center shadow-card" aria-label={t("conditions.codeTitle")}>
+          <h2 className="font-bold">🔢 {t("conditions.codeTitle")}</h2>
+          <p className="text-[40px] font-extrabold tracking-[0.3em] tabular-nums text-brand-ink">{p.handoverCode}</p>
+          <p className="text-sm text-ink-2">{t("conditions.codeSub")}</p>
+        </section>
+      )}
       {money}
+      {isCustomer && p.directPay && (
+        <DirectPayCustomerCard dealId={deal.id} payeeName={payeeName} state={p.directPay.state} account={p.directPay.account} receipt={deal.receiptAmount} action={p.action} t={t} />
+      )}
 
       <DetailSection label={t("job.whenLabel")}>
         <p className="text-[18px] font-bold">{when}</p>
@@ -708,6 +765,7 @@ export function DealView(p: DealViewProps) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <ConditionChips require={deal.details.require} t={t} />
         {p.photosEditable ? <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} /> : p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}

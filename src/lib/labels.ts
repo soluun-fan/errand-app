@@ -71,7 +71,7 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
     case "posted":
       return t("event.posted", { amount: money("amountDue") });
     case "paid":
-      return t("event.paid", { amount: money("amount") });
+      return t(data.direct ? "event.paidDirect" : "event.paid", { amount: money("amount") });
     case "helpers_notified":
       return t(data.mode === "now" ? "event.helpers_notified_now" : "event.helpers_notified_schedule");
     case "invite_sent":

@@ -187,8 +187,8 @@ export async function notifyChosen(deal: ErrandDeal, auto: boolean) {
   if (auto) {
     await notify([deal.customerId], {
       title: "push.autoChosenTitle",
-      body: "push.acceptedBody",
-      params: { title: deal.title, minutes: ruleOf(deal, "paymentWindowMinutes") },
+      body: deal.payMode === "direct" ? "push.acceptedDirectBody" : "push.acceptedBody",
+      params: { title: deal.title, minutes: ruleOf(deal, "paymentWindowMinutes"), serviceFee: fmtMoney(deal.serviceFee) },
       url: `/tasks/${deal.id}`,
       tag: `task-${deal.id}`,
     });

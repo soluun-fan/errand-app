@@ -75,7 +75,11 @@ export function PriceChangeCard({
         <>
           <p className="text-[16px] font-semibold">{t("priceChange.theyPropose", { name: otherName, amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
           <p className="text-[14px] text-ink-2">
-            {diff < 0 ? t("priceChange.lowerNote", { amount: fmtMoney(-diff) }) : t("priceChange.higherNote", { amount: fmtMoney(diff) })}
+            {deal.payMode === "direct"
+              ? t("direct.priceNote", { amount: fmtMoney(pc.fee) })
+              : diff < 0
+                ? t("priceChange.lowerNote", { amount: fmtMoney(-diff) })
+                : t("priceChange.higherNote", { amount: fmtMoney(diff) })}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <InlineAction action={action} fields={{ ...fields, intent: "answer_price", accept: "0" }} label={t("priceChange.decline")} className={`${btn.secondary} w-full`} />

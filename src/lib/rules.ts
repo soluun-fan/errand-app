@@ -29,6 +29,8 @@ export interface PlatformRules {
   careMaxMinutes: number;
   careCallMinSeconds: number;
   dispatchWaves: Wave[];
+  /** New tasks: "direct" (only our fee through the provider) or "held" (escrow — needs legal clearance). */
+  payMode: "held" | "direct";
 }
 
 interface Row {
@@ -51,6 +53,7 @@ interface Row {
   care_max_minutes: number;
   care_call_min_seconds: number;
   dispatch_waves: unknown;
+  pay_mode: string;
 }
 
 /** Waves as stored, checked; anything odd falls back to the built-in waves (never breaks dispatch). */
@@ -89,6 +92,7 @@ export async function getRules(): Promise<PlatformRules> {
     careMaxMinutes: data.care_max_minutes,
     careCallMinSeconds: data.care_call_min_seconds,
     dispatchWaves: cleanWaves(data.dispatch_waves),
+    payMode: data.pay_mode === "held" ? "held" : "direct",
   };
 }
 
@@ -117,6 +121,7 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       care_max_minutes: next.careMaxMinutes,
       care_call_min_seconds: next.careCallMinSeconds,
       dispatch_waves: next.dispatchWaves,
+      pay_mode: next.payMode,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

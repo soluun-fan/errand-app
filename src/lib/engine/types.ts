@@ -67,7 +67,41 @@ export interface ErrandDetails {
    * later change never moves a running task. Absent on older tasks (the engine defaults apply).
    */
   rules?: TaskRules;
+  /** What the customer requires of the helper (set at posting; docs/decisions.md 2026-11-18 "Task conditions"). */
+  require?: TaskConditions;
 }
+
+/** Languages a helper can list and a customer can require (Mongolian is assumed). */
+export const LANGUAGES = ["en", "ru", "zh", "ko", "ja", "de", "kk"] as const;
+export type Language = (typeof LANGUAGES)[number];
+
+export interface TaskConditions {
+  /** a driver's licence checked by Ops */
+  driver?: boolean;
+  /** an own car, its registration checked by Ops */
+  car?: boolean;
+  /** passed the criminal-record check */
+  checked?: boolean;
+  /** a good on-time record on booked-for-later jobs */
+  onTime?: boolean;
+  /** the customer talks to the helper on a call before choosing them */
+  call?: boolean;
+  /** the helper finishes only by entering the customer's 4-digit code */
+  handoverCode?: boolean;
+  /** speaks this language */
+  language?: Language | null;
+}
+
+/** What a helper has, worked out by the server (badges checked by Ops, the record, languages). */
+export interface HelperBadges {
+  driver: boolean;
+  car: boolean;
+  checked: boolean;
+  onTimeOk: boolean;
+  languages: readonly Language[];
+}
+
+export type PayMode = "held" | "direct";
 
 /** Timings copied onto a task when it's posted (platform_rules via the engine config). */
 export interface TaskRules {
@@ -181,6 +215,12 @@ export interface ErrandDeal extends DealBase {
   payBy: number | null;
   /** When the current helper was chosen (null while nobody is). Backing out later than the grace counts against them. */
   assignedAt: number | null;
+  /**
+   * How money moves (owner, 2026-11-18): "held" — the whole amount is held until the customer
+   * confirms (escrow); "direct" — only our service fee goes through the payment provider and the
+   * customer pays the helper themselves after the job. Fixed at posting.
+   */
+  payMode: PayMode;
   details: ErrandDetails;
   itemBudget: number;
   /** The helper fee to be held: the posted fee, or the chosen helper's quote. */
@@ -255,6 +295,8 @@ export interface UserActor {
    * Worked out by the server from organisation memberships and certificates.
    */
   qualified?: readonly Qualification[];
+  /** Badges for task conditions (server-computed); absent = none. */
+  badges?: HelperBadges;
 }
 
 export interface Qualification {

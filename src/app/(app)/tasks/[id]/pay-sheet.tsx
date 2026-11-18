@@ -25,6 +25,8 @@ export function PaySheet({
   qr,
   intent = "simulate_payment",
   triggerLabel,
+  wire = false,
+  doneLabel,
 }: {
   dealId: string;
   amountLabel: string;
@@ -37,6 +39,10 @@ export function PaySheet({
   /** "simulate_topup" for the over-budget top-up. */
   intent?: "simulate_payment" | "simulate_topup" | "simulate_price_payment";
   triggerLabel?: string;
+  /** Real payment: one button to wire.mn's checkout page (QPay, bank apps, cards); it comes back here. */
+  wire?: boolean;
+  /** What the success screen says (e.g. "Fee paid ✓" for fee-only tasks). */
+  doneLabel?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -55,7 +61,7 @@ export function PaySheet({
         <span aria-hidden className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-4xl text-held">
           ✓
         </span>
-        <p className="text-center text-2xl font-bold">{t("pay.held", { amount: amountLabel })}</p>
+        <p className="text-center text-2xl font-bold">{doneLabel ?? t("pay.held", { amount: amountLabel })}</p>
       </div>
     );
   }
@@ -72,6 +78,19 @@ export function PaySheet({
             <Countdown until={payBy} serverNow={serverNow} template={t("pay.validFor")} />
           </p>
         )}
+        {wire && intent === "simulate_payment" ? (
+          <form action={formAction} className="relative flex flex-col gap-3">
+            <input type="hidden" name="dealId" value={dealId} />
+            <input type="hidden" name="intent" value="pay" />
+            <WireButton label={t("pay.wireButton", { amount: amountLabel })} />
+            <p className="text-sm text-ink-2">{t("pay.wireSub")}</p>
+            {state.error && (
+              <p role="alert" className="text-sm text-danger">
+                {state.error}
+              </p>
+            )}
+          </form>
+        ) : (
         <form action={formAction} className="relative flex flex-col gap-3">
           <input type="hidden" name="dealId" value={dealId} />
           <input type="hidden" name="intent" value={intent} />
@@ -89,10 +108,13 @@ export function PaySheet({
             </p>
           )}
         </form>
-        <div className="flex flex-col items-center gap-2 border-t border-line pt-3">
-          <p className="text-sm text-ink-2">{t("pay.orScan")}</p>
-          {qr}
-        </div>
+        )}
+        {!wire && (
+          <div className="flex flex-col items-center gap-2 border-t border-line pt-3">
+            <p className="text-sm text-ink-2">{t("pay.orScan")}</p>
+            {qr}
+          </div>
+        )}
         <p className="rounded-input border border-warn/20 bg-warn-bg p-3 text-xs text-warn">{t("pay.screenshot")}</p>
       </BottomSheet>
     </>
@@ -122,5 +144,15 @@ function Checking() {
       <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
       {t("pay.checking")}
     </div>
+  );
+}
+
+function WireButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  const t = useT();
+  return (
+    <button type="submit" disabled={pending} className={`${btn.primary} w-full`}>
+      {pending ? t("pay.redirecting") : label}
+    </button>
   );
 }

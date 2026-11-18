@@ -206,3 +206,65 @@ it("first-aid claims and travel time live in the database with safe defaults", a
   const bad = await sqlError(db.query("update public.pricing_settings set travel_min_per_km = 60"));
   expect(bad.message).toMatch(/check constraint/);
 });
+
+describe("task conditions in the database", () => {
+  const cond = (require: Record<string, unknown>, category: CategoryId = "shop") =>
+    createErrand(
+      { id: crypto.randomUUID(), title: "Bring it", description: "x", category, mode: "now", address: "Test", customerId, fee: 10_000, itemBudget: 0, details: { require } as never },
+      { now, actor: customer },
+    );
+  const shopHelper: UserActor = { kind: "user", id: helperId, role: "helper", helperApproved: true, categories: ["shop"], badges: { driver: true, car: false, checked: true, onTimeOk: true, languages: ["en"] } };
+
+  it("a helper without a checked licence can't apply or be chosen, even if the app is fooled", async () => {
+    await db.exec("delete from public.helper_badges");
+    let d = await persist(null, cond({ driver: true }));
+    // the engine is told the helper has a licence, but the database knows better
+    expect((await sqlError(step(d, { type: "apply", note: "" }, shopHelper))).message).toMatch(/conditions/);
+    await db.query("insert into public.helper_badges (helper_id, kind, status, doc_path) values ($1, 'driver', 'approved', 'x/licence.jpg')", [helperId]);
+    d = await step(d, { type: "apply", note: "" }, shopHelper);
+    expect(d.offers).toHaveLength(1);
+    // an expired licence no longer counts
+    await db.query("update public.helper_badges set expires_on = '2020-01-01' where helper_id = $1", [helperId]);
+    expect((await sqlError(step(d, { type: "choose", helperId }, customer))).message).toMatch(/conditions/);
+    await db.exec("delete from public.helper_badges");
+  });
+
+  it("languages, background check: checked against the profile", async () => {
+    const d = await persist(null, cond({ language: "ru", checked: true }));
+    const saysRussian: UserActor = { ...shopHelper, badges: { driver: false, car: false, checked: true, onTimeOk: true, languages: ["ru"] } };
+    // the app believes the helper speaks Russian; the profile says otherwise
+    expect((await sqlError(step(d, { type: "apply", note: "" }, saysRussian))).message).toMatch(/conditions/);
+    await db.query("update public.profiles set languages = '{ru}' where id = $1", [helperId]);
+    expect((await step(d, { type: "apply", note: "" }, saysRussian)).offers).toHaveLength(1);
+    expect((await sqlError(db.query("update public.profiles set languages = '{klingon}' where id = $1", [helperId]))).message).toMatch(/check constraint/);
+    await db.query("update public.profiles set languages = '{}' where id = $1", [helperId]);
+  });
+
+  it("'talk first' on an everyday task needs a real call, like care work", async () => {
+    let d = await persist(null, cond({ call: true }));
+    d = await step(d, { type: "apply", note: "" }, shopHelper);
+    expect((await sqlError(step(d, { type: "choose", helperId }, customer))).message).toMatch(/talk to the helper/);
+    await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1, $2, $3, true, 'call:ended:voice:40')", [d.id, helperId, customerId]);
+    d = await step(d, { type: "choose", helperId }, customer);
+    expect(d.helperId).toBe(helperId);
+  });
+
+  it("a handover code: the job can't be marked done until the code was entered", async () => {
+    let d = await persist(null, cond({ handoverCode: true }));
+    await db.query("insert into public.handover_codes (deal_id, code) values ($1, '0420')", [d.id]);
+    d = await step(d, { type: "accept" }, shopHelper);
+    d = await step(d, { type: "confirm_payment", providerRef: `code-${d.id}`, amount: amountDue(d) }, { kind: "provider" });
+    d = await step(d, { type: "start" }, shopHelper);
+    d = await step(d, { type: "record_handover" }, shopHelper);
+    expect((await sqlError(step(d, { type: "finish" }, shopHelper))).message).toMatch(/handover code/);
+    await db.query("update public.handover_codes set verified_at = now() where deal_id = $1", [d.id]);
+    d = await step(d, { type: "finish" }, shopHelper);
+    expect(d.status).toBe("check");
+  });
+
+  it("the on-time record: no record until 3 booked jobs; then 90% or better", async () => {
+    const r = await db.query<{ jobs: number; on_time: number }>("select * from public.helper_on_time($1)", [helperId]);
+    expect(r.rows[0]).toEqual({ jobs: 0, on_time: 0 });
+    expect((await db.query<{ ok: boolean }>("select private.on_time_ok($1) as ok", [helperId])).rows[0].ok).toBe(true);
+  });
+});

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LANGUAGES } from "@/lib/engine/types";
 import { CATEGORIES, type ErrandDetails } from "@/lib/engine";
 
 /**
@@ -74,6 +75,19 @@ export const DetailsInput = z
     autoPick: z.boolean(),
     minutes: z.number().int(),
     tools: z.boolean(),
+    // the customer's conditions for the helper (docs/decisions.md 2026-11-18 "Task conditions")
+    require: z
+      .object({
+        driver: z.boolean(),
+        car: z.boolean(),
+        checked: z.boolean(),
+        onTime: z.boolean(),
+        call: z.boolean(),
+        handoverCode: z.boolean(),
+        language: z.enum(LANGUAGES).nullable(),
+      })
+      .partial()
+      .strip(),
   })
   .partial()
   // quotedFee / counterMax are set by the engine; anything the client adds is dropped

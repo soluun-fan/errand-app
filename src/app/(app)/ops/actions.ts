@@ -8,7 +8,7 @@ import { getViewer } from "@/lib/auth";
 import { acknowledgeIncident, resolveIncident } from "@/lib/incidents";
 import { updateKindMinimum, updatePricing, type PricingSettings } from "@/lib/pricing";
 import { cleanTiers, percentToBps, wholeAmount } from "@/lib/pricing-rules";
-import { updateControls } from "@/lib/safety";
+import { audit, updateControls } from "@/lib/safety";
 import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
 import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rules";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
@@ -16,6 +16,8 @@ import { Uuid, parseOr } from "@/lib/input";
 import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/orgs";
 import { createCoverSlot, setCover } from "@/lib/covers";
 import { updateRules, type PlatformRules } from "@/lib/rules";
+import { resolveUnpaid } from "@/lib/direct-pay";
+import { decideBadge } from "@/lib/badges";
 import type { Wave } from "@/lib/dispatch/plan";
 
 async function requireAdmin() {
@@ -253,7 +255,7 @@ export async function saveKindMinimum(_prev: ActionResult, form: FormData): Prom
 /* ---------- rules: timings and limits (docs/decisions.md 2026-11-18 "Rules from the database") ---------- */
 
 /** Each field with its allowed range (the database checks the same ranges). */
-const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves">, [number, number]> = {
+const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">, [number, number]> = {
   paymentWindowMinutes: [3, 60],
   backOutGraceMinutes: [0, 60],
   nowMatchWindowMinutes: [10, 240],
@@ -298,7 +300,39 @@ export async function saveRules(_prev: ActionResult, form: FormData): Promise<Ac
   const clean = waves as Wave[];
   if (clean.some((w, i) => i > 0 && w.radiusKm < clean[i - 1].radiusKm)) return { error: t("opsRules.wavesInvalid") };
   r.dispatchWaves = clean;
+  r.payMode = form.get("payMode") === "held" ? "held" : "direct";
   await updateRules(viewer.profile.id, r);
+  refresh();
+  return { done: true };
+}
+
+/* ---------- payments: "not paid" reports (docs/decisions.md 2026-11-18 "Direct pay + wire.mn") ---------- */
+
+export async function resolveUnpaidAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const dealId = parseOr(Uuid, String(form.get("dealId") ?? ""));
+  const note = String(form.get("note") ?? "").trim();
+  if (!dealId || note.length < 3) return { error: t("opsPay.noteNeeded") };
+  if (!(await resolveUnpaid(dealId, viewer.profile.id, note))) return { error: t("error.changed") };
+  await audit(viewer.profile.id, "payments.unpaidResolved", dealId, { note });
+  refresh();
+  return { done: true };
+}
+
+/* ---------- driver's licence / car checks (docs/decisions.md 2026-11-18 "Task conditions") ---------- */
+
+export async function decideBadgeAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = parseOr(Uuid, String(form.get("id") ?? ""));
+  if (!id) return { error: t("error.generic") };
+  const approve = form.get("approve") === "1";
+  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  if (!(await decideBadge(viewer.profile.id, id, approve, note))) return { error: t("error.changed") };
+  await audit(viewer.profile.id, approve ? "badge.approve" : "badge.reject", id, { note });
   refresh();
   return { done: true };
 }

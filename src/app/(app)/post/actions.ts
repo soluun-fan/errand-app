@@ -9,6 +9,8 @@ import { insertDeal } from "@/lib/db/deals";
 import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type ErrandDetails } from "@/lib/engine";
 import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { invitableHelper } from "@/lib/helper-profile";
+import { hasOpenUnpaid } from "@/lib/direct-pay";
+import { createHandoverCode } from "@/lib/handover-code";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
 import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
@@ -53,6 +55,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   // Safety controls (docs/decisions.md "Safety pack"); the database enforces the pause too.
   const controls = await getControls();
   if (controls.postingPaused) return { error: t("safety.postingPaused"), step: STEP.review };
+  // a helper reported they weren't paid for an earlier job: settle that first (Ops resolves)
+  if (await hasOpenUnpaid(viewer.profile.id)) return { error: t("directPay.blockedPosting"), step: STEP.review };
   if ((await openTaskCount(viewer.profile.id)) >= controls.maxOpenTasks) {
     return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: STEP.review };
   }
@@ -147,6 +151,15 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       return { error: e.message, step: STEP.where };
     }
     throw e;
+  }
+
+  // handover code condition: make the customer's 4 digits now (shown on their task page)
+  if ((details as ErrandDetails).require?.handoverCode) {
+    try {
+      await createHandoverCode(id);
+    } catch (e) {
+      console.error("handover code failed", e);
+    }
   }
 
   // the customer's photos (uploaded while filling in the form); a failure never blocks posting

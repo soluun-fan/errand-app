@@ -68,14 +68,14 @@ export async function createDocSlot(userId: string, kind: "org" | "cert", mime: 
   return { path, token: data.token };
 }
 
-async function ownFileExists(userId: string, path: string): Promise<boolean> {
+export async function ownFileExists(userId: string, path: string): Promise<boolean> {
   if (!path.startsWith(`${userId}/`) || path.includes("..")) return false;
   const name = path.slice(userId.length + 1);
   const { data } = await createAdminClient().storage.from(BUCKET).list(userId, { search: name, limit: 1 });
   return Boolean(data?.some((f) => f.name === name));
 }
 
-const signedUrl = async (path: string | null) =>
+export const signedUrl = async (path: string | null) =>
   path ? ((await createAdminClient().storage.from(BUCKET).createSignedUrl(path, 300)).data?.signedUrl ?? null) : null;
 
 /* ---------- organisations ---------- */

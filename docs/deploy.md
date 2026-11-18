@@ -79,3 +79,23 @@ Every `git push` to `main` redeploys automatically. Changed environment variable
 ## Health check
 - `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-release and SOS reminders aren't happening.
 - `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details). Point a free uptime monitor at it after deploy so someone is alerted if it stops.
+
+## Going live with wire.mn (payments)
+
+How money moves now (docs/decisions.md 2026-11-18 "Direct pay + wire.mn"): the customer pays **only our service fee** through wire.mn when choosing a helper, and pays the helper **directly** after the job (bank transfer to the account shown, QPay or cash). The app never holds the helper's money. The fee is refunded automatically if the helper backs out or Ops refunds a dispute; it's kept if the customer cancels after paying.
+
+1. Finish wire.mn's onboarding (request → review → e-contract) and connect the payment operators you want in the wire.mn dashboard.
+2. Add to `.env.local` and to Vercel (🔒 = Sensitive):
+   | Name | Value |
+   |---|---|
+   | `PAYMENT_PROVIDER` | `wire` |
+   | 🔒 `WIRE_SECRET_KEY` | `sk_live_…` from the wire.mn dashboard |
+3. Register the webhook (prints the signing secret once):
+   ```bash
+   npm run wire:webhook -- https://your-app.vercel.app
+   ```
+   Add the printed `whsec_…` as 🔒 `WIRE_WEBHOOK_SECRET` in `.env.local` and Vercel, redeploy, then **verify the endpoint** in the wire.mn dashboard.
+4. wire.mn has no test mode: make one real small payment yourself (post a task, have a test helper accept, pay the fee), check it shows "Хураамж төлөгдлөө ✓", then cancel via a helper back-out to see the refund arrive.
+5. Watch **Ops → Төлбөр** for helpers who weren't paid and refunds wire couldn't finish on its own.
+
+Safety: with `PAYMENT_PROVIDER=wire` and a missing key, paying fails with a message — it never falls back to the simulated button. A payment counts only when wire's signed notification (or our own check with wire) says so; a payment that arrives after the task moved on is refunded in full.

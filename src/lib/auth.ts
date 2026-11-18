@@ -3,6 +3,7 @@ import { cache } from "react";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
 import type { UserActor } from "@/lib/engine";
 import { qualificationsFor } from "@/lib/qualifications";
+import { badgesFor } from "@/lib/badges";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +37,10 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   if (error || !profile) return null;
   const actor = actorFromProfile(profile, Date.now());
   // specialized work: what organisations vouch for them / which certificates Ops approved
-  if (actor.helperApproved) actor.qualified = await qualificationsFor(profile.id, profile.kyc_level);
+  if (actor.helperApproved) {
+    const [qualified, badges] = await Promise.all([qualificationsFor(profile.id, profile.kyc_level), badgesFor(profile.id, profile.kyc_level)]);
+    actor.qualified = qualified;
+    actor.badges = badges; // task conditions (driver, car, background check, on time, languages)
+  }
   return { profile, actor };
 });

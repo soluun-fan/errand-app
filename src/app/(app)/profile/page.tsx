@@ -84,6 +84,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
         <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
         {actor.helperApproved && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
+        {actor.helperApproved && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
       </section>
 
       <section className="flex flex-col gap-2">

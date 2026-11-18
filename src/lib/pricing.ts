@@ -3,6 +3,7 @@ import { DbError } from "@/lib/db/deals";
 import { DEFAULT_CONFIG, type CategoryId, type EngineConfig, type FeeTier } from "@/lib/engine";
 import { cleanTiers } from "@/lib/pricing-rules";
 import { getRules } from "@/lib/rules";
+import { activeProvider } from "@/lib/payments/service";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -112,6 +113,8 @@ export async function pricingConfig(): Promise<EngineConfig> {
     careDayStartHour: r.careDayStartHour,
     careDayEndHour: r.careDayEndHour,
     careMaxMinutes: r.careMaxMinutes,
+    // wire.mn can't hold money: with it, new tasks are always fee-only
+    payMode: activeProvider() === "wire" ? "direct" : r.payMode,
     kindMinFee: Object.fromEntries(kinds.filter((k) => k.minFee !== null).map((k) => [k.category, k.minFee as number])),
     kindMinHourly: Object.fromEntries(kinds.filter((k) => k.minHourly !== null).map((k) => [k.category, k.minHourly as number])),
   };

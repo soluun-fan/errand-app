@@ -11,6 +11,8 @@ import { categoryTrust, liveOffers } from "@/lib/engine";
 import { proofsFor } from "@/lib/proofs";
 import { firstAidHelpers, workedTogether } from "@/lib/care";
 import { getRules } from "@/lib/rules";
+import { badgesForMany, kycLevels } from "@/lib/badges";
+import { handoverCodeFor } from "@/lib/handover-code";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SafetyBar } from "@/components/safety-bar";
@@ -18,13 +20,21 @@ import { SOS_STATUSES } from "@/lib/incident-rules";
 import { isParty, liveSos } from "@/lib/incidents";
 import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
+import { activeProvider, checkWirePayments } from "@/lib/payments/service";
+import { directPayOpen, directPayState, payeeAccount } from "@/lib/direct-pay";
 
 export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
   if (!viewer) return null;
   const { id } = await params;
-  const deal = await getDealForViewer(id, viewer);
+  let deal = await getDealForViewer(id, viewer);
   if (!deal || deal.type !== "errand") notFound();
+  // back from wire's payment page (or still waiting): ask wire directly, in case its webhook is slow
+  if (deal.status === "awaiting_payment" && deal.customerId === viewer.profile.id && activeProvider() === "wire") {
+    await checkWirePayments(deal.id).catch((e) => console.error("wire check failed", e));
+    deal = (await getDealForViewer(id, viewer)) ?? deal;
+    if (deal.type !== "errand") notFound();
+  }
 
   const [events, rated, t, locale] = await Promise.all([timeline(deal.id), myRating(deal.id, viewer.profile.id), getT(), getLocale()]);
   const people = await publicProfiles([
@@ -48,9 +58,11 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   // while choosing: unread messages per applicant, and (care work) who the customer has really talked to
   const applicantIds = isCustomer && deal.status === "open" ? liveOffers(deal, Date.now()).map((o) => o.helperId) : [];
   const isCare = categoryTrust(deal.category) === "care";
+  /** a call before choosing: always for care, or when the customer asked for it */
+  const needsCall = isCare || Boolean(deal.details.require?.call);
   const [applicantUnread, careCalls, careKnown, firstAid] = await Promise.all([
     Promise.all(applicantIds.map(async (h) => [h, await unreadCount(deal.id, h, viewer.profile.id)] as const)).then((e) => new Map(e)),
-    categoryTrust(deal.category) === "care"
+    needsCall
       ? Promise.all(applicantIds.map(async (h) => ((await hadCareCall(deal.id, h)) ? h : null))).then((h) => new Set(h.filter((x): x is string => x !== null)))
       : Promise.resolve(new Set<string>()),
     isCare ? workedTogether(deal.customerId, applicantIds) : Promise.resolve(new Set<string>()),
@@ -103,9 +115,14 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       applicantUnread={applicantUnread}
       careCalls={careCalls}
       careKnown={careKnown}
-      careCallSeconds={isCare ? (await getRules()).careCallMinSeconds : undefined}
+      careCallSeconds={needsCall ? (await getRules()).careCallMinSeconds : undefined}
+      needsCall={needsCall}
+      applicantBadges={isCustomer && deal.status === "open" ? await badgesForMany(await kycLevels(applicantIds)) : undefined}
+      handoverCode={isCustomer && deal.details.require?.handoverCode && (deal.status === "matched" || deal.status === "in_progress") ? await handoverCodeFor(deal.id) : null}
       firstAid={firstAid}
       safety={safety}
+      wirePay={activeProvider() === "wire"}
+      directPay={isCustomer && directPayOpen(deal) ? { state: await directPayState(deal), account: await payeeAccount(deal) } : null}
       photos={await taskPhotosFor(deal.id)}
       photosEditable={isCustomer && deal.status === "open" && categoryTrust(deal.category) !== "care"}
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id, { includeRemoved: viewer.profile.role === "admin" }) : []}

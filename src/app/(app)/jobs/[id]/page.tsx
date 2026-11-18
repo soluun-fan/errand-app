@@ -16,8 +16,11 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { categoryTrust, errandSplit, invitedOnly, ruleOf } from "@/lib/engine";
+import { categoryTrust, errandSplit, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
+import { ConditionChips } from "@/components/conditions";
 import { getRules } from "@/lib/rules";
+import { directPayOpen, directPayState, owedToHelper } from "@/lib/direct-pay";
+import { DirectPayHelperCard } from "@/components/direct-pay-card";
 import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
@@ -117,6 +120,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const payeeOrgId = deal.helperId ? deal.payeeOrgId : myOffer ? myOffer.orgId : qualification?.orgId ?? null;
   const payee = payeeOrgId ? (await organizationNames([payeeOrgId])).get(payeeOrgId) : undefined;
   const canTake = viewer.actor.helperApproved && (specialized ? Boolean(qualification) : (viewer.actor.categories ?? []).includes(deal.category));
+  // the customer's conditions this helper doesn't meet (docs/decisions.md 2026-11-18 "Task conditions")
+  const missing = deal.status === "open" && viewer.actor.helperApproved ? missingConditions(deal.details.require, viewer.actor.badges) : [];
   // Sent straight to this helper from their profile (docs/decisions.md 2026-11-16 "Direct requests")
   const invitedMe = deal.status === "open" && invitedOnly(deal, now) === me;
   const declineSheet = invitedMe && deal.invite && (
@@ -131,7 +136,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       confirmLabel={t("invite.declineConfirm")}
     />
   );
-  if (deal.status === "open" && !myOffer && !canTake) {
+  if (deal.status === "open" && !myOffer && canTake && missing.length > 0) {
+    line = t("conditions.youMiss");
+    primary = (
+      <Link href={missing.includes("language") && missing.length === 1 ? "/profile" : "/helper/badges"} className={`${btn.secondary} w-full`}>
+        {t("conditions.getThem")}
+      </Link>
+    );
+  } else if (deal.status === "open" && !myOffer && !canTake) {
     line = viewer.actor.helperApproved
       ? specialized ? t("specialized.qualified") : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
@@ -187,7 +199,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   } else if (mine && deal.status === "awaiting_payment") {
     line = deal.payBy ? <Countdown until={deal.payBy} serverNow={now} template={t("job.waitingPay")} /> : null;
   } else if (mine && deal.status === "matched") {
-    line = t("job.paidGo");
+    line = deal.payMode === "direct" ? t("direct.helper.paidGo") : t("job.paidGo");
     // the start photo starts the job (it's below); care work starts with the plain button, no photo
     primary = startPhoto ? (
       <ProofUploader dealId={deal.id} kind="start" done={false} compact />
@@ -199,7 +211,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     const ready = handoverLive && !needReceipt && deal.topUp?.status !== "pending";
     if (ready) {
       primary = (
-        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`} />
+        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`}>
+          {deal.details.require?.handoverCode && (
+            <label className={fieldLabel}>
+              🔢 {t("conditions.codeAsk")}
+              <input name="code" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required autoComplete="off" className={`${field} text-center text-[24px] font-bold tracking-[0.3em] tabular-nums`} />
+            </label>
+          )}
+        </InlineAction>
       );
       line = t("proof.finishSub", { hours: deal.checkHours });
     }
@@ -291,11 +310,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {!startPhoto && <Note tone="info">{t(deal.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
         {!startPhoto && mine && firstMeeting && <Note tone="info">{t("care.meetFirstHelper")}</Note>}
         {line && <p className="text-[16px]">{line}</p>}
-        {mine && deal.heldAmount > 0 && <HeldBadge>{t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
+        {mine && deal.heldAmount > 0 && (
+          <HeldBadge>{deal.payMode === "direct" ? t("direct.helperBadge", { amount: fmtMoney(owedToHelper(deal)) }) : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>
+        )}
       </DetailTitle>
 
       {unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
       {payee && <Note tone="info"><Link href={`/orgs/${payee.id}`} className="font-semibold underline">{t("org.payee", { name: payee.name })}</Link><br />{t("org.workerPay")}</Note>}
+      {mine && directPayOpen(deal) && <DirectPayHelperCard dealId={deal.id} state={await directPayState(deal)} action={jobAction} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
       {mine && <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />}
 
@@ -308,7 +330,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             deal.itemBudget > 0 ? (
               <>
                 <span className="block text-[18px] font-bold tabular-nums">{t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}</span>
-                <span className="block text-sm text-ink-2">{t("job.itemsHow")}</span>
+                <span className="block text-sm text-ink-2">{t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}</span>
               </>
             ) : (
               <span className="text-[18px] font-bold">{t("job.noItems")}</span>
@@ -323,6 +345,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <ConditionChips require={deal.details.require} t={t} missing={missing} />
         <TaskPhotoGrid photos={photos} t={t} />
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && (

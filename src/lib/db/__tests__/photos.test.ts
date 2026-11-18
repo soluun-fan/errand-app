@@ -130,3 +130,20 @@ describe("rules from the database", () => {
     }
   });
 });
+
+describe("fee-only payments (wire.mn)", () => {
+  it("tasks remember their payment mode; new tasks default to fee-only; payment tables are server-only", async () => {
+    expect((await db.query<{ v: string }>("select pay_mode as v from public.platform_rules")).rows[0].v).toBe("direct");
+    expect((await db.query<{ v: string }>("select pay_mode as v from public.deals where id = $1", [dealId])).rows[0].v).toBe("held"); // posted by the engine default here
+    expect((await sqlError(svc("update public.platform_rules set pay_mode = 'free'"))).message).toMatch(/check constraint/);
+    for (const table of ["provider_payments", "provider_events", "provider_refunds", "direct_payments"]) {
+      const e = await sqlError(as(db, "authenticated", customerId, (tx) => tx.query(`select * from public.${table}`)));
+      expect(e.message).toMatch(/permission denied/);
+    }
+    // one live payment attempt per task and purpose
+    await svc("insert into public.provider_payments (id, provider, deal_id, purpose, amount) values ('pi_a', 'wire', $1, 'fee-1', 1000)", [dealId]);
+    const dup = await sqlError(svc("insert into public.provider_payments (id, provider, deal_id, purpose, amount) values ('pi_b', 'wire', $1, 'fee-1', 1000)", [dealId]));
+    expect(dup.message).toMatch(/provider_payments_one_pending|duplicate/);
+    expect((await sqlError(svc("insert into public.provider_payments (id, provider, deal_id, purpose, amount, checkout_url) values ('pi_c', 'wire', $1, 'fee-2', 1000, 'http://evil')", [dealId]))).message).toMatch(/check constraint/);
+  });
+});

@@ -67,9 +67,9 @@ export function buyerFeeFor(price: number, cfg: EngineConfig = DEFAULT_CONFIG): 
 
 /** What the payer must put into the hold. */
 export function amountDue(deal: Deal): number {
-  return deal.type === "errand"
-    ? deal.itemBudget + deal.fee + deal.serviceFee
-    : deal.price + deal.buyerFee;
+  if (deal.type !== "errand") return deal.price + deal.buyerFee;
+  // direct: only our service fee goes through the provider; the helper is paid by the customer
+  return deal.payMode === "direct" ? deal.serviceFee : deal.itemBudget + deal.fee + deal.serviceFee;
 }
 
 /** True if `atMs` falls in the night window in local (Ulaanbaatar) time. */

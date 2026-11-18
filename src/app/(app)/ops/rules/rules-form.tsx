@@ -7,7 +7,7 @@ import { useT } from "@/i18n/client";
 import type { PlatformRules } from "@/lib/rules";
 import { saveRules } from "../actions";
 
-type NumKey = Exclude<keyof PlatformRules, "dispatchWaves">;
+type NumKey = Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">;
 
 const GROUPS: { title: "money" | "search" | "backOut" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour"][] }[] = [
   { title: "money", fields: [["paymentWindowMinutes", "min"], ["checkHours", "h"]] },
@@ -84,6 +84,18 @@ export function RulesForm({ r }: { r: PlatformRules }) {
             </button>
           )}
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-bold">{t("opsRules.g.pay")}</h2>
+        <label className={fieldLabel}>
+          {t("opsRules.payMode")}
+          <select name="payMode" defaultValue={r.payMode} className={field}>
+            <option value="direct">{t("opsRules.payDirect")}</option>
+            <option value="held">{t("opsRules.payHeld")}</option>
+          </select>
+        </label>
+        <p className="text-sm text-ink-2">{t("opsRules.payHelp")}</p>
       </section>
 
       <Note tone="info">{t("opsRules.appliesNew")}</Note>

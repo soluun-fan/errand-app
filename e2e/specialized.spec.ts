@@ -88,7 +88,7 @@ test("a plumbing job: only the company's worker can take it, and the company is 
   await h.getByRole("button", { name: /^Хийж чадна/ }).click();
   await expect.poll(async () => (await errand(id)).offers[0]?.orgId).toBe(orgId);
 
-  // customer chooses, pays (mock bank), Bat does the job, customer confirms → the company is paid
+  // customer chooses, pays our fee (simulated), Bat does the job, customer confirms
   const solActor = actorFromProfile(sol, Date.now());
   const batActor = { ...actorFromProfile(bat, Date.now()), qualified: await qualificationsFor(bat.id, bat.kyc_level) };
   await runCommand(db, id, { type: "choose", helperId: bat.id }, solActor);
@@ -102,15 +102,17 @@ test("a plumbing job: only the company's worker can take it, and the company is 
   d = await errand(id);
   expect(d.status).toBe("released");
   const { data: rows } = await db.from("ledger_entries").select("kind, to_account, amount").eq("deal_id", id);
-  expect(rows?.some((r) => r.kind === "release_fee" && r.to_account === `payable:${orgId}`)).toBe(true);
-  expect(rows?.some((r) => r.to_account === `payable:${bat.id}`)).toBe(false);
+  // fee-only (docs/decisions.md 2026-11-18): only our fee went through the app; nobody is paid by the app
+  expect(rows?.filter((r) => r.to_account.startsWith("payable:"))).toEqual([]);
+  expect(rows?.some((r) => r.kind === "platform_fee")).toBe(true);
 
-  // the customer's breakdown names the company; the service fee keeps its own label
+  // the customer pays the COMPANY directly: its name and its account, not the worker's
   const customer = await browser.newContext();
   await loginAs(customer, PHONES.solongo);
   const c = await customer.newPage();
   await c.goto(`/tasks/${id}`);
   await expect(c.getByText(/Ус Сантехник/).first()).toBeVisible();
+  await expect(c.getByText("5000123456")).toBeVisible();
   await Promise.all([helper.close(), customer.close()]);
 });
 

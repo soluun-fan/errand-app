@@ -9,7 +9,6 @@ import { PhotoIdsJson, Uuid, parseOr } from "@/lib/input";
 import { attachTaskPhotos, photosEditable, removeTaskPhoto } from "@/lib/task-photos";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
-import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { EngineError, amountDue, categoryTrust, type Command } from "@/lib/engine";
@@ -18,6 +17,9 @@ import { getRules } from "@/lib/rules";
 import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
+import { activeProvider, afterPaymentBooked, startWirePayment } from "@/lib/payments/service";
+import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
+import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
 import { parsePrice } from "@/lib/price-input";
 import { adminIds, getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
@@ -40,6 +42,35 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
 
   try {
     switch (intent) {
+      case "direct_paid": {
+        // fee-only task: the customer says they paid the helper directly
+        const deal = await loadDeal(db, dealId);
+        if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
+        if (!(await markDirectPay(deal, "customer_paid"))) return { error: t("error.changed") };
+        if (deal.helperId) {
+          await notify([deal.helperId], { title: "push.directPaidTitle", body: "push.directPaidBody", params: { title: deal.title, amount: fmtMoney(owedToHelper(deal)) }, url: `/jobs/${deal.id}`, tag: `job-${deal.id}` });
+        }
+        break;
+      }
+      case "pay": {
+        // the real payment: wire.mn's checkout page (our service fee in the fee-only mode)
+        if (activeProvider() !== "wire") return { error: t("error.generic") };
+        const deal = await loadDeal(db, dealId);
+        if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
+        if (deal.status !== "awaiting_payment") return { error: t("error.changed") };
+        const blocked = await payinBlock(deal.id, viewer.profile.id, amountDue(deal));
+        if (blocked) return { error: await payinMessage(blocked, t) };
+        const h = await headers();
+        const origin = h.get("origin") ?? `https://${h.get("x-forwarded-host") ?? h.get("host")}`;
+        let url: string;
+        try {
+          url = await startWirePayment(deal, origin);
+        } catch (e) {
+          console.error("wire payment start failed", e);
+          return { error: t("pay.unavailable") };
+        }
+        redirect(url);
+      }
       case "simulate_payment": {
         // Stands in for the bank's webhook (CLAUDE.md §6). Exists only with the mock provider.
         if (!mockPaymentsEnabled()) return { error: t("error.generic") };
@@ -49,18 +80,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (blocked) return { error: await payinMessage(blocked, t) };
         const invoice = await paymentProvider().createInvoice(deal.id, amountDue(deal));
         const paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
-        if (paid.deal.type === "errand" && paid.deal.helperId) {
-          // the helper is busy now: their other applications / unpaid matches step back
-          await releaseOtherCommitments(paid.deal.helperId, deal.id);
-          await runDispatch(deal.id); // marks the winner, closes the other offers
-          await notify([paid.deal.helperId], {
-            title: "push.paidTitle",
-            body: "push.paidBody",
-            params: { title: paid.deal.title },
-            url: `/jobs/${deal.id}`,
-            tag: `job-${deal.id}`,
-          });
-        }
+        if (paid.deal.type === "errand") await afterPaymentBooked(paid.deal);
         // No refresh here: the pay sheet shows "held safely" first, then refreshes itself.
         return { done: true };
       }
@@ -160,6 +180,10 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         // care work (children, patients): talk first — a real call with that person before choosing them
         if (cmd.type === "choose") {
           const before = await loadDeal(db, dealId);
+          // "talk first" as a condition on any task: the same call rule (the database checks it too)
+          if (before?.type === "errand" && categoryTrust(before.category) !== "care" && before.details.require?.call) {
+            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("conditions.callFirst", { seconds: (await getRules()).careCallMinSeconds }) };
+          }
           if (before?.type === "errand" && categoryTrust(before.category) === "care") {
             if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("care.callFirst", { seconds: (await getRules()).careCallMinSeconds }) };
             // meet first: with a new sitter, a parent / family member stays at home for this session

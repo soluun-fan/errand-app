@@ -13,7 +13,7 @@ import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
-import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange, type TaskRules } from "./types";
+import { DEFAULT_DETAILS, LANGUAGES, type ErrandDetails, type GeoPoint, type HelperBadges, type Invite, type Language, type PriceChange, type TaskConditions, type TaskRules } from "./types";
 import type {
   Account,
   Command,
@@ -117,7 +117,31 @@ function requireEligibleHelper(ctx: Ctx, d: ErrandDeal): UserActor {
     fail("FORBIDDEN", trust === "care" ? "Only background-checked helpers cleared for care work can take this task" : "This kind of task needs a checked certificate or an approved organisation");
   }
   if (u.id === d.customerId) fail("FORBIDDEN", "You cannot take your own task");
+  const missing = missingConditions(d.details.require, u.badges);
+  if (missing.length) fail("FORBIDDEN", `This task needs: ${missing.join(", ")}`);
   return u;
+}
+
+/** Which of a task's conditions the helper doesn't meet (same rule as private.meets_conditions). */
+export function missingConditions(req: TaskConditions | undefined, b: HelperBadges | undefined): (keyof TaskConditions)[] {
+  if (!req) return [];
+  const out: (keyof TaskConditions)[] = [];
+  if (req.driver && !b?.driver) out.push("driver");
+  if (req.car && !b?.car) out.push("car");
+  if (req.checked && !b?.checked) out.push("checked");
+  if (req.onTime && !(b?.onTimeOk ?? true)) out.push("onTime");
+  if (req.language && !b?.languages.includes(req.language)) out.push("language");
+  return out;
+}
+
+/** A task's conditions as given by the client: only known keys, only true flags, a known language. */
+function cleanConditions(raw: unknown): TaskConditions | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const c: TaskConditions = {};
+  for (const k of ["driver", "car", "checked", "onTime", "call", "handoverCode"] as const) if (r[k] === true) c[k] = true;
+  if (typeof r.language === "string" && (LANGUAGES as readonly string[]).includes(r.language)) c.language = r.language as Language;
+  return Object.keys(c).length ? c : undefined;
 }
 
 /** Through whom the helper takes specialized work: the organisation that vouches for them, else themselves (null). */
@@ -150,7 +174,13 @@ function refundAll(tx: Tx<Deal>, reason: string): void {
 
 function release(tx: Tx<Deal>, how: "confirmed" | "auto" | "ops"): void {
   const d = tx.d;
-  if (d.type === "errand") {
+  if (d.type === "errand" && d.payMode === "direct") {
+    // only our fee was held: it becomes ours; the helper was paid by the customer directly
+    if (d.helperId === null) fail("INVARIANT_BROKEN", `Errand ${d.id} has no helper`);
+    if (d.heldAmount !== d.serviceFee) fail("INVARIANT_BROKEN", `Errand ${d.id}: fee ${d.serviceFee} != held ${d.heldAmount}`);
+    tx.fromHold("platform_fee", d.heldAmount, "platform");
+    tx.ev("released", { how, helperNet: 0, refund: 0, platform: d.serviceFee, direct: 1 });
+  } else if (d.type === "errand") {
     if (d.helperId === null) fail("INVARIANT_BROKEN", `Errand ${d.id} has no helper to release to`);
     const s = errandSplit({
       fee: d.fee,
@@ -241,6 +271,7 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
     // set below by createErrand, never taken from the client
     quotedFee: 0,
     counterMax: 0,
+    require: cleanConditions(d.require),
   };
 }
 
@@ -326,6 +357,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     // fixed at posting from the posted price; a counter-offer doesn't change it
     serviceFee: serviceFeeFor(input.fee, cfg),
     commissionBps: cfg.commissionBps,
+    payMode: cfg.payMode,
     cancelFee: cfg.cancelFee,
     maxApplicants: cfg.maxApplicants,
     matchWindowMinutes,
@@ -547,7 +579,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       if (payer === null) fail("ILLEGAL_TRANSITION", "No buyer has opened this deal yet");
       tx.payIn(cmd.amount, payer as string, cmd.providerRef);
       d.paymentRef = cmd.providerRef;
-      tx.ev("paid", { amount: cmd.amount });
+      tx.ev("paid", d.type === "errand" && d.payMode === "direct" ? { amount: cmd.amount, direct: 1 } : { amount: cmd.amount });
       if (d.type === "errand") {
         if (d.helperId === null) fail("INVARIANT_BROKEN", `Errand ${d.id} awaiting payment without a helper`);
         d.status = "matched";
@@ -736,7 +768,11 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       if (d.type === "errand") {
         if (u.id === d.customerId) {
           requireStatus(d, "cancel", "open", "awaiting_payment", "matched");
-          if (d.status === "matched") {
+          if (d.status === "matched" && d.payMode === "direct") {
+            // direct: cancelling after the helper was chosen and the fee paid — our fee is kept (owner, 2026-11-18)
+            tx.fromHold("platform_fee", d.heldAmount, "platform");
+            tx.ev("fee_kept", { amount: d.serviceFee });
+          } else if (d.status === "matched") {
             const helperId = d.helperId as string;
             const fee = Math.min(d.cancelFee, d.heldAmount);
             tx.fromHold("cancel_fee", fee, payable(d.payeeOrgId ?? helperId));
@@ -826,7 +862,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       assertMoney(cmd.amount, "receipt amount");
       e.receiptAmount = cmd.amount;
       tx.ev("receipt_recorded", { amount: cmd.amount });
-      if (cmd.amount > e.itemBudget) {
+      if (e.payMode === "direct") {
+        // direct: nothing held for items — the customer repays the receipt to the helper at handover
+      } else if (cmd.amount > e.itemBudget) {
         // Over budget: ask the customer to approve and pay the difference (docs/rules.md §Buy-for-me).
         e.topUp = { amount: cmd.amount - e.itemBudget, status: "pending", providerRef: null, at: ctx.now };
         tx.ev("topup_requested", { amount: e.topUp.amount, receipt: cmd.amount });
@@ -895,7 +933,12 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
         break;
       }
       const diff = proposal.fee - e.fee;
-      if (diff < 0) {
+      if (e.payMode === "direct") {
+        // direct: the helper's price isn't held, so an agreed change simply counts
+        e.fee = proposal.fee;
+        e.priceChange = null;
+        tx.ev("price_agreed", { from: proposal.from, to: proposal.fee, refund: 0 });
+      } else if (diff < 0) {
         // lower: the difference goes back to the customer straight from the hold
         tx.fromHold("refund", -diff, ext(e.customerId));
         e.fee = proposal.fee;

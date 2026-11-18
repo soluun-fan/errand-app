@@ -55,7 +55,7 @@ test("counter-offers before matching and a price change after", async ({ browser
   // the bank confirms (mock webhook, as the pay button does)
   await runCommand(db, id, { type: "confirm_payment", providerRef: `e2e-${id}`, amount: amountDue(d) }, { kind: "provider" });
 
-  // helper proposes more after matching; customer accepts; the difference is paid
+  // helper proposes more after matching; customer accepts; the new price counts
   await h.goto(`/jobs/${id}`);
   await h.getByRole("button", { name: "Шинэ үнэ санал болгох" }).click();
   await h.locator("dialog[open] input[name=price]").fill(String(base + 3000));
@@ -63,14 +63,10 @@ test("counter-offers before matching and a price change after", async ({ browser
   await expect.poll(async () => (await errand(id)).priceChange?.status).toBe("proposed");
   await c.goto(`/tasks/${id}`);
   await c.getByRole("button", { name: "Зөвшөөрөх" }).click();
-  await expect.poll(async () => (await errand(id)).priceChange?.status).toBe("awaiting_payment");
+  // fee-only tasks (docs/decisions.md 2026-11-18): the helper's price isn't held, so the agreed price simply counts
+  await expect.poll(async () => (await errand(id)).fee).toBe(base + 3000);
   d = await errand(id);
-  await runCommand(db, id, { type: "confirm_price", providerRef: `e2e-price-${id}`, amount: (d.priceChange?.fee ?? 0) - d.fee }, { kind: "provider" });
-  // a replayed webhook changes nothing
-  const replay = await runCommand(db, id, { type: "confirm_price", providerRef: `e2e-price-${id}`, amount: 2000 }, { kind: "provider" });
-  expect(replay.duplicate).toBe(true);
-  d = await errand(id);
-  expect(d.fee).toBe(base + 3000);
-  expect(d.heldAmount).toBe(amountDue({ ...d, fee: base + 3000 }));
+  expect(d.priceChange).toBeNull();
+  expect(d.heldAmount).toBe(d.serviceFee); // only our fee went through the app
   await Promise.all([customer.close(), helper.close()]);
 });

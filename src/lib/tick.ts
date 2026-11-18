@@ -6,6 +6,7 @@ import { openDealIds, runDispatch } from "@/lib/dispatch/run";
 import { purgeIncidentLocations, repingSos } from "@/lib/incidents";
 import { purgeKycFiles } from "@/lib/kyc";
 import { purgeLooseTaskPhotos } from "@/lib/task-photos";
+import { sweepRefunds } from "@/lib/payments/service";
 
 export interface TickResult {
   settled: number;
@@ -47,5 +48,7 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   const chatsPurged = await purgeExpiredChats(now).catch((e) => (console.error("chat purge failed", e), 0));
   await purgeIncidentLocations(now).catch((e) => console.error("incident purge failed", e));
   const photosPurged = await purgeLooseTaskPhotos(now).catch((e) => (console.error("task photo purge failed", e), 0));
+  // refunds the ledger holds that wire hasn't done yet (new ones and retries)
+  await sweepRefunds().catch((e) => console.error("refund sweep failed", e));
   return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, photosPurged, sosReminders, ms: Date.now() - t0 };
 }

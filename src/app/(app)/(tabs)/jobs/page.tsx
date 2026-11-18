@@ -15,6 +15,7 @@ import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
 import { NewKindsCard } from "./new-kinds-card";
+import { ConditionChips } from "@/components/conditions";
 import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
 
@@ -64,6 +65,7 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
         {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
+      <ConditionChips require={d.details.require} t={t} />
       <span className="flex gap-3">
         <span className="flex min-w-0 flex-1 flex-col gap-2.5">
           <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
