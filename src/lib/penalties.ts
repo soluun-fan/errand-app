@@ -1,18 +1,19 @@
 import "server-only";
+import type { PlatformRules } from "@/lib/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Backing out late (docs/decisions.md 2026-11-17 "Backing out"): the database records each late
- * back-out and pauses the helper — 1st in 30 days 1 day, 2nd 3 days, 3rd or more 7 days; care work
- * 7 days at once (apply_transition v8). This module only reads, to warn the helper beforehand and alert Ops.
+ * back-out and pauses the helper by the Ops rules (platform_rules: 1st / 2nd / 3rd-or-more in 30 days,
+ * care at once; apply_transition v9). This module only reads, to warn the helper beforehand and alert Ops.
  */
 export const OPS_ALERT_AT = 3;
 const WINDOW_MS = 30 * 86_400_000;
 
-/** Same rule as apply_transition v8: care work 7 days at once; otherwise 1, 3, then 7. */
-export function pauseDaysFor(nth: number, care = false): number {
-  if (care) return 7;
-  return nth <= 1 ? 1 : nth === 2 ? 3 : 7;
+/** Same rule as apply_transition v9, from the same settings. */
+export function pauseDaysFor(nth: number, care: boolean, r: Pick<PlatformRules, "pauseDaysFirst" | "pauseDaysSecond" | "pauseDaysMore" | "carePauseDays">): number {
+  if (care) return r.carePauseDays;
+  return nth <= 1 ? r.pauseDaysFirst : nth === 2 ? r.pauseDaysSecond : r.pauseDaysMore;
 }
 
 /** Late back-outs by this helper in the last 30 days. */

@@ -57,11 +57,12 @@ export function score(c: Candidate): number {
 }
 
 /** The helpers to offer the task to in `wave`: not offered before, best first. */
-export function pickWave(candidates: readonly Candidate[], wave: number, alreadyOffered: ReadonlySet<string>) {
-  const w = WAVES[wave];
+export function pickWave(candidates: readonly Candidate[], wave: number, alreadyOffered: ReadonlySet<string>, waves: readonly Wave[] = WAVES) {
+  const w = waves[wave];
   return candidates
     .filter((c) => !alreadyOffered.has(c.helperId))
-    .filter((c) => (c.distanceKm === null ? wave === CITY_WAVE : c.distanceKm <= w.radiusKm))
+    // helpers or tasks without a position are only reached by the last (widest) wave
+    .filter((c) => (c.distanceKm === null ? wave === waves.length - 1 : c.distanceKm <= w.radiusKm))
     .map((c) => ({ ...c, score: score(c) }))
     .sort((a, b) => b.score - a.score || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.helperId.localeCompare(b.helperId))
     .slice(0, w.max);
@@ -71,10 +72,10 @@ export function pickWave(candidates: readonly Candidate[], wave: number, already
  * Which wave should go out now, or null if the current one still has time.
  * `current` is the last wave sent (-1 = none yet).
  */
-export function dueWave(current: number, startedAt: number | null, now: number): number | null {
+export function dueWave(current: number, startedAt: number | null, now: number, waves: readonly Wave[] = WAVES): number | null {
   if (current < 0 || startedAt === null) return 0;
-  if (current >= CITY_WAVE) return null;
-  return now >= startedAt + WAVES[current].seconds * 1000 ? current + 1 : null;
+  if (current >= waves.length - 1) return null;
+  return now >= startedAt + waves[current].seconds * 1000 ? current + 1 : null;
 }
 
 /** Great-circle distance in km (same formula as the SQL in dispatch_candidates). */

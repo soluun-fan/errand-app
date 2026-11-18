@@ -62,6 +62,21 @@ export interface ErrandDetails {
    * hours, plus distance and night). Every later price is checked against it. 0 on older deals.
    */
   minFee?: number;
+  /**
+   * Set by the engine at posting: the timings this task runs by (Ops settings at that moment), so a
+   * later change never moves a running task. Absent on older tasks (the engine defaults apply).
+   */
+  rules?: TaskRules;
+}
+
+/** Timings copied onto a task when it's posted (platform_rules via the engine config). */
+export interface TaskRules {
+  paymentWindowMinutes: number;
+  backOutGraceMinutes: number;
+  /** Search window when a helper backs out and the task is posted anew. */
+  rematchWindowMinutes: number;
+  applicationMinutes: number;
+  autoPickMinutes: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {

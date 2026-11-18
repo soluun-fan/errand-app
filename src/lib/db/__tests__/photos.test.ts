@@ -113,3 +113,20 @@ describe("taking back a photo", () => {
     expect(half.message).toMatch(/proofs_removed_pair|proofs_removable_kind/);
   });
 });
+
+describe("rules from the database", () => {
+  it("has one settings row with safe defaults, and refuses nonsense", async () => {
+    const r = await db.query<{ payment_window_minutes: number; pause_days_first: number; care_call_min_seconds: number; waves: number }>(
+      "select payment_window_minutes, pause_days_first, care_call_min_seconds, jsonb_array_length(dispatch_waves) as waves from public.platform_rules",
+    );
+    expect(r.rows).toEqual([{ payment_window_minutes: 10, pause_days_first: 1, care_call_min_seconds: 30, waves: 4 }]);
+    expect((await sqlError(svc("insert into public.platform_rules (id) values (false)"))).message).toMatch(/check constraint|duplicate/);
+    expect((await sqlError(svc("update public.platform_rules set payment_window_minutes = 0"))).message).toMatch(/check constraint/);
+    expect((await sqlError(svc("update public.platform_rules set pause_days_first = 5, pause_days_second = 3"))).message).toMatch(/platform_rules_pauses_grow/);
+    expect((await sqlError(svc("update public.platform_rules set care_day_start_hour = 20, care_day_end_hour = 9"))).message).toMatch(/platform_rules_care_window/);
+    for (const role of ["anon", "authenticated"] as const) {
+      const e = await sqlError(as(db, role, role === "anon" ? null : customerId, (tx) => tx.query("select * from public.platform_rules")));
+      expect(e.message).toMatch(/permission denied/);
+    }
+  });
+});

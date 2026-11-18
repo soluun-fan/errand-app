@@ -16,7 +16,8 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { DEFAULT_CONFIG, categoryTrust, errandSplit, invitedOnly } from "@/lib/engine";
+import { categoryTrust, errandSplit, invitedOnly, ruleOf } from "@/lib/engine";
+import { getRules } from "@/lib/rules";
 import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
@@ -206,8 +207,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   if (mine && (deal.status === "awaiting_payment" || deal.status === "matched" || deal.status === "in_progress")) {
     // Backing out (docs/decisions.md 2026-11-17): free within 10 minutes of being chosen, then an
     // escalating pause; either way the task is posted anew and the customer is refunded.
-    const late = deal.assignedAt === null || now - deal.assignedAt > DEFAULT_CONFIG.backOutGraceMinutes * 60_000;
-    const days = late ? pauseDaysFor((await recentBackOuts(me, now)) + 1, categoryTrust(deal.category) === "care") : 0;
+    const late = deal.assignedAt === null || now - deal.assignedAt > ruleOf(deal, "backOutGraceMinutes") * 60_000;
+    const days = late ? pauseDaysFor((await recentBackOuts(me, now)) + 1, categoryTrust(deal.category) === "care", await getRules()) : 0;
     secondary.push(
       <ConfirmSheet
         key="cancel"
@@ -216,7 +217,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         trigger={t("job.cancelLate")}
         triggerClass={late ? btn.textDanger : btn.text}
         title={t("job.cancelLateTitle")}
-        body={late ? t("job.cancelLateBody", { days: days === 1 ? t("job.pauseDay") : t("job.pauseDays", { n: days }) }) : t("job.cancelFreeBody")}
+        body={
+          late
+            ? t("job.cancelLateBody", { days: days === 1 ? t("job.pauseDay") : t("job.pauseDays", { n: days }), minutes: ruleOf(deal, "backOutGraceMinutes") })
+            : t("job.cancelFreeBody", { minutes: ruleOf(deal, "backOutGraceMinutes") })
+        }
         confirmLabel={t("job.cancelLate")}
         confirmClass={btn.danger}
       />,

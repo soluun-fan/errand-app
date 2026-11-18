@@ -275,7 +275,9 @@ export function PostFlow({
         ? t("price.line.distance", { km: l.qty ?? 0 })
         : l.key === "stairs"
           ? t("price.line.stairs", { n: l.qty ?? 0 })
-          : t(`price.line.${l.key}`);
+          : l.key === "base"
+            ? t("price.line.base", { min: cfg.includedMinutes, km: cfg.includedKm })
+            : t(`price.line.${l.key}`);
   const breakdown: MoneyRow[] = [
     { label: t("price.yourPrice"), amount: fee },
     ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
@@ -603,7 +605,7 @@ export function PostFlow({
                 </button>
               ))}
             </div>
-            <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour) })}</p>
+            <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour), min: cfg.includedMinutes })}</p>
             {travelMinutes > 0 && (
               <p className="text-sm text-ink-2">
                 {t(d.roundTrip ? "price.travelBoth" : "price.travelOne", { min: travelMinutes })}
@@ -764,7 +766,7 @@ export function PostFlow({
               onChange={setOpenAfter}
             />
           ) : care ? <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p> : (
-            <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub")} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
+            <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
           )}
 
           {care && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p>}

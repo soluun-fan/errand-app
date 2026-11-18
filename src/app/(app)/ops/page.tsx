@@ -71,6 +71,7 @@ export default async function OpsHome() {
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
+        {row("/ops/rules", "⏱️", t("opsRules.title"), null)}
         {row("/ops/orgs", "🏢", t("opsOrgs.title"), orgsPending ? String(orgsPending) : null)}
         {row("/ops/certificates", "📜", t("opsCerts.title"), certs.length ? String(certs.length) : null)}
         {row("/ops/content", "✏️", t("opsContent.title"), null)}

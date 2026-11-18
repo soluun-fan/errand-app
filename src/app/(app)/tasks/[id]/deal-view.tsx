@@ -61,6 +61,8 @@ export interface DealViewProps {
   careCalls?: Set<string>;
   /** Care: applicants this family already had a finished care job with (no "meet first" needed). */
   careKnown?: Set<string>;
+  /** Care: the required call length (Ops rule). */
+  careCallSeconds?: number;
   /** Care: applicants with an Ops-approved first-aid certificate. */
   firstAid?: Set<string>;
   /** SOS / report-a-problem row (client component, passed in by the page). */
@@ -586,7 +588,7 @@ export function DealView(p: DealViewProps) {
                   {/* talk before choosing: each applicant has their own chat and call */}
                   <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall t={t} />
                   {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">🩹 {t("care.firstAidBadge")}</p>}
-                  {care && !p.careCalls?.has(o.helperId) && <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">{t("care.callFirst")}</p>}
+                  {care && !p.careCalls?.has(o.helperId) && <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">{t("care.callFirst", { seconds: p.careCallSeconds ?? 30 })}</p>}
                   <div className="flex items-center justify-between gap-2">
                     {!waiting && (!care || p.careCalls?.has(o.helperId)) && (
                       <ConfirmSheet

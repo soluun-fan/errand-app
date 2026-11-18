@@ -13,7 +13,7 @@ import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
-import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange } from "./types";
+import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type Invite, type PriceChange, type TaskRules } from "./types";
 import type {
   Account,
   Command,
@@ -276,6 +276,13 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const min = taskMinFee(input.category, details, startsAt, cfg);
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
   details.minFee = min; // later prices (counters, changes) are checked against this, not today's settings
+  details.rules = {
+    paymentWindowMinutes: cfg.paymentWindowMinutes,
+    backOutGraceMinutes: cfg.backOutGraceMinutes,
+    rematchWindowMinutes: cfg.nowMatchWindowMinutes,
+    applicationMinutes: cfg.applicationMinutes,
+    autoPickMinutes: cfg.autoPickMinutes,
+  };
   details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
   details.counterMax = 0;
   // care work: the customer always chooses the person themselves
@@ -354,6 +361,20 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   };
 }
 
+/** A timing this task runs by: copied at posting (`details.rules`); older tasks use the engine default. */
+export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
+  const v = e.details.rules?.[key];
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const fallback: TaskRules = {
+    paymentWindowMinutes: DEFAULT_CONFIG.paymentWindowMinutes,
+    backOutGraceMinutes: DEFAULT_CONFIG.backOutGraceMinutes,
+    rematchWindowMinutes: DEFAULT_CONFIG.nowMatchWindowMinutes,
+    applicationMinutes: DEFAULT_CONFIG.applicationMinutes,
+    autoPickMinutes: DEFAULT_CONFIG.autoPickMinutes,
+  };
+  return fallback[key];
+}
+
 /**
  * A helper is assigned: the customer now has the payment window to pay (the bank holds it).
  * Legacy deals that were paid at posting go straight to "matched".
@@ -368,7 +389,7 @@ function assignHelper(tx: Tx<Deal>, e: ErrandDeal, helperId: string, fee: number
   }
   e.fee = fee;
   e.status = "awaiting_payment";
-  e.payBy = tx.ctx.now + DEFAULT_CONFIG.paymentWindowMinutes * MINUTE_MS;
+  e.payBy = tx.ctx.now + ruleOf(e, "paymentWindowMinutes") * MINUTE_MS;
 }
 
 /** A price either side may name: a whole tögrög amount, at least today's minimum. */
@@ -381,7 +402,7 @@ function checkPrice(e: ErrandDeal, price: number, now: number): void {
 /** Applications still standing: on Instant tasks they lapse after `applicationMinutes`. */
 export function liveOffers(e: ErrandDeal, now: number): ErrandDeal["offers"] {
   if (e.mode !== "now") return e.offers;
-  return e.offers.filter((o) => now - o.at < DEFAULT_CONFIG.applicationMinutes * MINUTE_MS);
+  return e.offers.filter((o) => now - o.at < ruleOf(e, "applicationMinutes") * MINUTE_MS);
 }
 
 /** When "Choose for me" may pick (first live application + autoPickMinutes), or null. */
@@ -389,7 +410,7 @@ export function autoPickAt(e: ErrandDeal, now: number): number | null {
   if (categoryTrust(e.category) === "care" || !e.details.autoPick || e.status !== "open") return null;
   const live = liveOffers(e, now);
   if (!live.length) return null;
-  return Math.min(...live.map((o) => o.at)) + DEFAULT_CONFIG.autoPickMinutes * MINUTE_MS;
+  return Math.min(...live.map((o) => o.at)) + ruleOf(e, "autoPickMinutes") * MINUTE_MS;
 }
 
 /**
@@ -731,7 +752,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           // a full search window starts, and helpers are notified again. Free within the grace
           // after being chosen; later it counts against the helper (escalating pause, in the DB).
           requireStatus(d, "cancel", "awaiting_payment", "matched", "in_progress");
-          const late = d.assignedAt === null || ctx.now - d.assignedAt > DEFAULT_CONFIG.backOutGraceMinutes * MINUTE_MS;
+          const late = d.assignedAt === null || ctx.now - d.assignedAt > ruleOf(d, "backOutGraceMinutes") * MINUTE_MS;
           refundAll(tx, "helper_backed_out");
           if (d.topUp?.status === "paid") d.itemBudget -= d.topUp.amount; // the extra was refunded with the rest
           d.topUp = null;
@@ -741,7 +762,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           d.paymentRef = null;
           d.offers = d.offers.filter((o) => o.helperId !== u.id); // they can't be chosen again
           unassignHelper(d);
-          d.matchBy = Math.max(d.scheduledAt ?? 0, ctx.now + DEFAULT_CONFIG.nowMatchWindowMinutes * MINUTE_MS);
+          d.matchBy = Math.max(d.scheduledAt ?? 0, ctx.now + ruleOf(d, "rematchWindowMinutes") * MINUTE_MS);
           // a direct request to this helper opens to everyone now
           if (d.invite?.helperId === u.id) d.invite = { ...d.invite, until: ctx.now, openAfter: true };
           if (late) {

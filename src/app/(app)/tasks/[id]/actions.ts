@@ -14,6 +14,7 @@ import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { EngineError, amountDue, categoryTrust, type Command } from "@/lib/engine";
 import { workedTogether } from "@/lib/care";
+import { getRules } from "@/lib/rules";
 import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
@@ -160,7 +161,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (cmd.type === "choose") {
           const before = await loadDeal(db, dealId);
           if (before?.type === "errand" && categoryTrust(before.category) === "care") {
-            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("care.callFirst") };
+            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("care.callFirst", { seconds: (await getRules()).careCallMinSeconds }) };
             // meet first: with a new sitter, a parent / family member stays at home for this session
             const known = await workedTogether(before.customerId, [cmd.helperId]);
             if (!known.has(cmd.helperId) && form.get("familyHome") !== "on") return { error: t("care.meetFirstNeeded") };

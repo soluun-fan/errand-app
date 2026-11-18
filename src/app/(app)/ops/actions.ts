@@ -15,6 +15,8 @@ import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { Uuid, parseOr } from "@/lib/input";
 import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/orgs";
 import { createCoverSlot, setCover } from "@/lib/covers";
+import { updateRules, type PlatformRules } from "@/lib/rules";
+import type { Wave } from "@/lib/dispatch/plan";
 
 async function requireAdmin() {
   const viewer = await getViewer();
@@ -93,6 +95,7 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     nightFee: amt("nightFee"),
     roundTripBps: percentToBps(form.get("roundTripPct"), 100),
     travelMinPerKm: amt("travelMinPerKm", 0, 15),
+    cancelFee: amt("cancelFee", 0, 100_000),
     priceDownBps: percentToBps(form.get("priceDownPct"), 50),
     priceUpBps: percentToBps(form.get("priceUpPct"), 100),
     counterUpBps: percentToBps(form.get("counterUpPct"), 100),
@@ -243,6 +246,59 @@ export async function saveKindMinimum(_prev: ActionResult, form: FormData): Prom
     minFee: mode === "fixed" ? amount : null,
     minHourly: mode === "hourly" ? amount : null,
   });
+  refresh();
+  return { done: true };
+}
+
+/* ---------- rules: timings and limits (docs/decisions.md 2026-11-18 "Rules from the database") ---------- */
+
+/** Each field with its allowed range (the database checks the same ranges). */
+const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves">, [number, number]> = {
+  paymentWindowMinutes: [3, 60],
+  backOutGraceMinutes: [0, 60],
+  nowMatchWindowMinutes: [10, 240],
+  scheduleMatchWindowHours: [1, 168],
+  applicationMinutes: [5, 240],
+  autoPickMinutes: [1, 60],
+  inviteMinutes: [5, 120],
+  inviteMinutesScheduled: [15, 1440],
+  maxApplicants: [1, 20],
+  checkHours: [2, 168],
+  pauseDaysFirst: [0, 30],
+  pauseDaysSecond: [0, 60],
+  pauseDaysMore: [0, 90],
+  carePauseDays: [0, 90],
+  careDayStartHour: [0, 23],
+  careDayEndHour: [1, 24],
+  careMaxMinutes: [60, 720],
+  careCallMinSeconds: [10, 600],
+};
+
+export async function saveRules(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const next: Partial<PlatformRules> = {};
+  for (const [k, [lo, hi]] of Object.entries(RULE_RANGES) as [keyof typeof RULE_RANGES, [number, number]][]) {
+    const v = wholeAmount(form.get(k), lo, hi);
+    if (v === null) return { error: t("opsRules.invalid", { field: t(`opsRules.f.${k}`), lo, hi }) };
+    next[k] = v;
+  }
+  const r = next as PlatformRules;
+  if (r.careMaxMinutes % 30 !== 0 || r.careDayStartHour >= r.careDayEndHour) return { error: t("opsRules.careInvalid") };
+  if (!(r.pauseDaysFirst <= r.pauseDaysSecond && r.pauseDaysSecond <= r.pauseDaysMore)) return { error: t("opsRules.pausesInvalid") };
+  const count = Number(form.get("waveCount"));
+  if (!Number.isInteger(count) || count < 1 || count > 8) return { error: t("opsRules.wavesInvalid") };
+  const waves = Array.from({ length: count }, (_, i) => ({
+    radiusKm: wholeAmount(form.get(`waveKm${i}`), 1, 1000),
+    max: wholeAmount(form.get(`waveMax${i}`), 1, 200),
+    seconds: wholeAmount(form.get(`waveSec${i}`), 0, 3600),
+  }));
+  if (waves.some((w) => w.radiusKm === null || w.max === null || w.seconds === null)) return { error: t("opsRules.wavesInvalid") };
+  const clean = waves as Wave[];
+  if (clean.some((w, i) => i > 0 && w.radiusKm < clean[i - 1].radiusKm)) return { error: t("opsRules.wavesInvalid") };
+  r.dispatchWaves = clean;
+  await updateRules(viewer.profile.id, r);
   refresh();
   return { done: true };
 }

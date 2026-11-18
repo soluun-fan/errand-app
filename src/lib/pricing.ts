@@ -2,6 +2,7 @@ import "server-only";
 import { DbError } from "@/lib/db/deals";
 import { DEFAULT_CONFIG, type CategoryId, type EngineConfig, type FeeTier } from "@/lib/engine";
 import { cleanTiers } from "@/lib/pricing-rules";
+import { getRules } from "@/lib/rules";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -22,6 +23,7 @@ export interface PricingSettings {
   nightFee: number;
   roundTripBps: number;
   travelMinPerKm: number;
+  cancelFee: number;
   priceDownBps: number;
   priceUpBps: number;
   counterUpBps: number;
@@ -40,6 +42,7 @@ interface Row {
   night_fee: number;
   round_trip_bps: number;
   travel_min_per_km: number;
+  cancel_fee: number;
   price_down_bps: number;
   price_up_bps: number;
   counter_up_bps: number;
@@ -61,6 +64,7 @@ export async function getPricing(): Promise<PricingSettings> {
     nightFee: data.night_fee,
     roundTripBps: data.round_trip_bps,
     travelMinPerKm: data.travel_min_per_km ?? DEFAULT_CONFIG.travelMinPerKm,
+    cancelFee: data.cancel_fee ?? DEFAULT_CONFIG.cancelFee,
     priceDownBps: data.price_down_bps,
     priceUpBps: data.price_up_bps,
     counterUpBps: data.counter_up_bps,
@@ -86,11 +90,28 @@ export async function kindMinimums(): Promise<KindMinimum[]> {
   return (data ?? []).map((r) => ({ category: r.category, minFee: r.min_fee, minHourly: r.min_hourly }));
 }
 
+/**
+ * Everything the engine needs from the database for a new task: today's prices, each kind's
+ * minimum, and the Ops rules (timings, limits, care hours).
+ */
 export async function pricingConfig(): Promise<EngineConfig> {
-  const [p, kinds] = await Promise.all([getPricing(), kindMinimums()]);
+  const [p, kinds, r] = await Promise.all([getPricing(), kindMinimums(), getRules()]);
   const cfg = withPricing(p);
   return {
     ...cfg,
+    paymentWindowMinutes: r.paymentWindowMinutes,
+    backOutGraceMinutes: r.backOutGraceMinutes,
+    nowMatchWindowMinutes: r.nowMatchWindowMinutes,
+    scheduleMatchWindowMinutes: r.scheduleMatchWindowHours * 60,
+    applicationMinutes: r.applicationMinutes,
+    autoPickMinutes: r.autoPickMinutes,
+    inviteMinutes: r.inviteMinutes,
+    inviteMinutesScheduled: r.inviteMinutesScheduled,
+    maxApplicants: r.maxApplicants,
+    errandCheckHours: r.checkHours,
+    careDayStartHour: r.careDayStartHour,
+    careDayEndHour: r.careDayEndHour,
+    careMaxMinutes: r.careMaxMinutes,
     kindMinFee: Object.fromEntries(kinds.filter((k) => k.minFee !== null).map((k) => [k.category, k.minFee as number])),
     kindMinHourly: Object.fromEntries(kinds.filter((k) => k.minHourly !== null).map((k) => [k.category, k.minHourly as number])),
   };
@@ -121,6 +142,7 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       night_fee: next.nightFee,
       round_trip_bps: next.roundTripBps,
       travel_min_per_km: next.travelMinPerKm,
+      cancel_fee: next.cancelFee,
       price_down_bps: next.priceDownBps,
       price_up_bps: next.priceUpBps,
       counter_up_bps: next.counterUpBps,

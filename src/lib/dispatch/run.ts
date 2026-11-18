@@ -1,10 +1,11 @@
 import "server-only";
 import { loadDeal, runCommand } from "@/lib/db/deals";
-import { autoPickAt, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { autoPickAt, errandSplit, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CITY_WAVE, dueWave, pickWave, WAVES, type Candidate } from "./plan";
+import { dueWave, pickWave, WAVES, type Candidate } from "./plan";
+import { getRules } from "@/lib/rules";
 import { rankApplicants } from "./rank";
 
 interface CandidateRow {
@@ -90,20 +91,21 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
   let startedAt = state ? Date.parse(state.wave_started_at) : null;
   let notified = state?.notified ?? 0;
 
+  const waves = (await getRules().catch(() => null))?.dispatchWaves ?? WAVES; // Ops setting; built-in waves if unreadable
   const full = liveOffers(deal, now).length >= deal.maxApplicants;
   for (;;) {
     if (full) break;
-    const due = dueWave(wave, startedAt, now);
+    const due = dueWave(wave, startedAt, now, waves);
     if (due === null) break;
     const { data, error } = await db.rpc("dispatch_candidates", {
       p_deal_id: dealId,
-      p_max_km: WAVES[due].radiusKm,
+      p_max_km: waves[due].radiusKm,
       p_now: new Date(now).toISOString(),
     });
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as CandidateRow[];
     const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId);
-    const picks = pickWave(rows.map(toCandidate), due, new Set((offered ?? []).map((o) => o.helper_id as string)));
+    const picks = pickWave(rows.map(toCandidate), due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves);
 
     // Notified helpers may apply until the task closes; the wave timer only paces the widening.
     const expires = deal.matchBy ?? now + 30 * 60_000;
@@ -186,7 +188,7 @@ export async function notifyChosen(deal: ErrandDeal, auto: boolean) {
     await notify([deal.customerId], {
       title: "push.autoChosenTitle",
       body: "push.acceptedBody",
-      params: { title: deal.title },
+      params: { title: deal.title, minutes: ruleOf(deal, "paymentWindowMinutes") },
       url: `/tasks/${deal.id}`,
       tag: `task-${deal.id}`,
     });

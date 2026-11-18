@@ -1,4 +1,5 @@
 import "server-only";
+import { getRules } from "@/lib/rules";
 import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, type ChatAccess } from "@/lib/chat-rules";
 import { hadRealCall } from "@/lib/call-rules";
 import { liveOffers, type ErrandDeal } from "@/lib/engine";
@@ -57,7 +58,9 @@ export async function hadCareCall(dealId: string, helperId: string): Promise<boo
     .eq("is_system", true)
     .like("text", "call:ended:%")
     .returns<{ text: string }[]>();
-  return hadRealCall((data ?? []).map((m) => m.text));
+  // the required length is an Ops setting (platform_rules), the same number the database checks
+  const min = (await getRules().catch(() => null))?.careCallMinSeconds;
+  return hadRealCall((data ?? []).map((m) => m.text), min);
 }
 
 /** The viewer's conversation, oldest first, with 1-hour signed photo URLs. */

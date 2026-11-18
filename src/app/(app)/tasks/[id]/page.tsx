@@ -10,6 +10,7 @@ import { accessFor, hadCareCall, unreadCount } from "@/lib/chat";
 import { categoryTrust, liveOffers } from "@/lib/engine";
 import { proofsFor } from "@/lib/proofs";
 import { firstAidHelpers, workedTogether } from "@/lib/care";
+import { getRules } from "@/lib/rules";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SafetyBar } from "@/components/safety-bar";
@@ -102,6 +103,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       applicantUnread={applicantUnread}
       careCalls={careCalls}
       careKnown={careKnown}
+      careCallSeconds={isCare ? (await getRules()).careCallMinSeconds : undefined}
       firstAid={firstAid}
       safety={safety}
       photos={await taskPhotosFor(deal.id)}

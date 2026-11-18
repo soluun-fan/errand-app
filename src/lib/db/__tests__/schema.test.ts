@@ -301,6 +301,23 @@ describe("engine → database round trip", () => {
   });
 });
 
+describe("pause lengths come from the Ops rules", () => {
+  it("a late back-out pauses for the number of days Ops set", async () => {
+    await db.query("delete from public.helper_penalties where helper_id = $1", [U.h2]);
+    await db.query("update public.platform_rules set pause_days_first = 2");
+    const h = helper(U.h2, ["shop"]);
+    let d = await postErrand({ itemBudget: 0 });
+    d = await step(d, { type: "accept" }, h, T0);
+    d = await pay(d);
+    d = await step(d, { type: "cancel" }, h, T0 + 11 * 60_000);
+    const r = await db.query<{ pause_days: number }>("select pause_days from public.helper_penalties where deal_id = $1", [d.id]);
+    expect(r.rows).toEqual([{ pause_days: 2 }]);
+    await db.query("update public.platform_rules set pause_days_first = 1");
+    await db.query("update public.profiles set suspended_until = null where id = $1", [U.h2]);
+    await db.query("delete from public.helper_penalties where helper_id = $1", [U.h2]);
+  });
+});
+
 describe("database safety nets (even if app code is wrong)", () => {
   it("rejects a stale write (optimistic locking) with PT409", async () => {
     const d = await postErrand();

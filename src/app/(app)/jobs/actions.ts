@@ -11,9 +11,10 @@ import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
 import { MAX_PENDING_APPLICATIONS, pendingApplications } from "@/lib/dispatch/rank";
 import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
-import { OPS_ALERT_AT, recentBackOuts } from "@/lib/penalties";
+import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
+import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
-import { EngineError, OPEN_CATEGORIES, categoryTrust, minFeeAt, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
+import { EngineError, OPEN_CATEGORIES, categoryTrust, minFeeAt, ruleOf, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
 import { hadCareCall } from "@/lib/chat";
 import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
@@ -314,7 +315,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       await notify([deal.customerId], {
         title: "push.counterAcceptedTitle",
         body: "push.acceptedBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee) },
+        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee), minutes: ruleOf(deal, "paymentWindowMinutes") },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
@@ -381,7 +382,7 @@ async function afterBackOut(deal: ErrandDeal, before: Deal | null, helperId: str
     await notify(await adminIds(), {
       title: "push.repeatBackOutTitle",
       body: "push.repeatBackOutBody",
-      params: { n, name: helperName },
+      params: { n, name: helperName, days: pauseDaysFor(n, categoryTrust(deal.category) === "care", await getRules()) },
       url: `/ops/helpers/${helperId}`,
       tag: `backout-${helperId}`,
     }).catch((e) => console.error("ops back-out alert failed", e));
