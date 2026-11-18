@@ -67,6 +67,8 @@ export interface ErrandDetails {
    * later change never moves a running task. Absent on older tasks (the engine defaults apply).
    */
   rules?: TaskRules;
+  /** Set by the engine at posting: the extra service fee for posting beyond the free active tasks (0 = none). */
+  extraFee?: number;
   /** What the customer requires of the helper (set at posting; docs/decisions.md 2026-11-18 "Task conditions"). */
   require?: TaskConditions;
 }

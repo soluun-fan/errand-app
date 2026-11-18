@@ -12,7 +12,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -113,11 +113,14 @@ export function PostFlow({
   cfg,
   invite = null,
   live,
+  openTasks = 0,
 }: {
   live: CategoryId[];
   invite?: InviteTarget | null;
   /** Today's prices (engine defaults + the live Ops settings). */
   cfg: EngineConfig;
+  /** The customer's active tasks right now; beyond the free ones the service fee is a little higher. */
+  openTasks?: number;
   initial: Partial<Draft>;
   startStep?: number;
   defaultAddress: string;
@@ -255,7 +258,9 @@ export function PostFlow({
   const typed = Number(digits(d.price ?? ""));
   const fee = typed > 0 ? typed : minFee;
   const belowMin = typed > 0 && typed < minFee;
-  const serviceFee = serviceFeeFor(fee, cfg);
+  // beyond the free active tasks the service fee is a little higher (same engine function as the server)
+  const extraFee = extraTaskFeeFor(openTasks ?? 0, cfg);
+  const serviceFee = serviceFeeFor(fee, cfg) + extraFee;
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
@@ -290,13 +295,15 @@ export function PostFlow({
     ? [
         { label: t("direct.money.toHelperLater"), amount: fee },
         ...(itemBudget > 0 ? [{ label: t("direct.money.itemsLater"), amount: itemBudget, muted: true }] : []),
-        { label: t("direct.money.feeNow"), amount: serviceFee },
+        { label: t("direct.money.feeNow"), amount: serviceFee - extraFee },
+        ...(extraFee > 0 ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee }] : []),
       ]
     : [
         { label: t("price.yourPrice"), amount: fee },
         ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
         ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
-        { label: t("money.serviceFee"), amount: serviceFee, muted: true },
+        { label: t("money.serviceFee"), amount: serviceFee - extraFee, muted: true },
+        ...(extraFee > 0 ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee, muted: true }] : []),
       ];
 
   return (
@@ -811,6 +818,7 @@ export function PostFlow({
             <p className="text-[13px] text-ink-2">{t("price.bargainHint")}</p>
           </div>
 
+          {extraFee > 0 && <Note tone="info">{t("post.extraTaskNote", { n: openTasks, free: cfg.freeOpenTasks, amount: fmtMoney(extraFee) })}</Note>}
           <details className="group">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium">
               {t("task.breakdown")}

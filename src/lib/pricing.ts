@@ -25,6 +25,8 @@ export interface PricingSettings {
   roundTripBps: number;
   travelMinPerKm: number;
   cancelFee: number;
+  freeOpenTasks: number;
+  extraTaskFee: number;
   priceDownBps: number;
   priceUpBps: number;
   counterUpBps: number;
@@ -44,6 +46,8 @@ interface Row {
   round_trip_bps: number;
   travel_min_per_km: number;
   cancel_fee: number;
+  free_open_tasks: number;
+  extra_task_fee: number;
   price_down_bps: number;
   price_up_bps: number;
   counter_up_bps: number;
@@ -66,6 +70,8 @@ export async function getPricing(): Promise<PricingSettings> {
     roundTripBps: data.round_trip_bps,
     travelMinPerKm: data.travel_min_per_km ?? DEFAULT_CONFIG.travelMinPerKm,
     cancelFee: data.cancel_fee ?? DEFAULT_CONFIG.cancelFee,
+    freeOpenTasks: data.free_open_tasks ?? DEFAULT_CONFIG.freeOpenTasks,
+    extraTaskFee: data.extra_task_fee ?? DEFAULT_CONFIG.extraTaskFee,
     priceDownBps: data.price_down_bps,
     priceUpBps: data.price_up_bps,
     counterUpBps: data.counter_up_bps,
@@ -146,6 +152,8 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       round_trip_bps: next.roundTripBps,
       travel_min_per_km: next.travelMinPerKm,
       cancel_fee: next.cancelFee,
+      free_open_tasks: next.freeOpenTasks,
+      extra_task_fee: next.extraTaskFee,
       price_down_bps: next.priceDownBps,
       price_up_bps: next.priceUpBps,
       counter_up_bps: next.counterUpBps,

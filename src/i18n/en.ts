@@ -525,6 +525,8 @@ export const en = {
     explainer3Body: "Then pay the helper directly. A problem? Our team steps in.",
   },
   post: {
+    extraTaskFee: "More active tasks (your {n}th)",
+    extraTaskNote: "You already have {n} active tasks. The first {free} are at the normal fee; each one more adds {amount}.",
     title: "Post a task",
     stepOf: "{n} / {total}",
     steps: {
@@ -1554,6 +1556,9 @@ export const en = {
     saved: "Saved. New tasks use these rules.",
   },
   opsPricing: {
+    freeOpenTasks: "Active tasks at the normal fee",
+    extraTaskFee: "Each one more adds",
+    tasksSuffix: "tasks",
     cancelFee: "Cancellation fee",
     kindsTitle: "Minimum price by kind of work",
     kindsHelp: "The customer names the price; this is only the floor. Easy work can be lower, hard work higher; day jobs and care by the hour (× hours). Longer trips and night add on top. Tasks keep the minimum they were posted with.",

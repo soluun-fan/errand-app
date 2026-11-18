@@ -110,6 +110,11 @@ export function taskMinFee(category: CategoryId, d: Pick<ErrandDetails, "km" | "
   return labour + trip + (atMs !== undefined && isNight(atMs, cfg) ? cfg.nightFee : 0);
 }
 
+/** The extra service fee for a customer who already has `openTasks` active tasks (0 within the free ones). */
+export function extraTaskFeeFor(openTasks: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  return Number.isInteger(openTasks) && openTasks >= cfg.freeOpenTasks ? cfg.extraTaskFee : 0;
+}
+
 /** A kind's advertised "from": its fixed minimum, or its hourly floor (shown per hour). */
 export function kindFromLabel(category: CategoryId, cfg: EngineConfig = DEFAULT_CONFIG): { amount: number; hourly: boolean } {
   const h = cfg.kindMinHourly[category];

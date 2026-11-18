@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, categoryConfi
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, careTimeOk, errandSplit, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
+import { amountDue, buyerFeeFor, careTimeOk, errandSplit, extraTaskFeeFor, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
 import { DEFAULT_DETAILS, LANGUAGES, type ErrandDetails, type GeoPoint, type HelperBadges, type Invite, type Language, type PriceChange, type TaskConditions, type TaskRules } from "./types";
 import type {
   Account,
@@ -213,6 +213,8 @@ function release(tx: Tx<Deal>, how: "confirmed" | "auto" | "ops"): void {
 
 export interface NewErrandInput {
   id: string;
+  /** How many active tasks the customer already has (the server counts them); beyond the free ones costs extra. */
+  openTasks?: number;
   title: string;
   description: string;
   category: CategoryId;
@@ -307,6 +309,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const min = taskMinFee(input.category, details, startsAt, cfg);
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
   details.minFee = min; // later prices (counters, changes) are checked against this, not today's settings
+  const extra = extraTaskFeeFor(input.openTasks ?? 0, cfg);
+  if (extra > 0) details.extraFee = extra; // shown in the breakdown: "more active tasks"
   details.rules = {
     paymentWindowMinutes: cfg.paymentWindowMinutes,
     backOutGraceMinutes: cfg.backOutGraceMinutes,
@@ -355,7 +359,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     fee: input.fee,
     postedFee: input.fee,
     // fixed at posting from the posted price; a counter-offer doesn't change it
-    serviceFee: serviceFeeFor(input.fee, cfg),
+    serviceFee: serviceFeeFor(input.fee, cfg) + extraTaskFeeFor(input.openTasks ?? 0, cfg),
     commissionBps: cfg.commissionBps,
     payMode: cfg.payMode,
     cancelFee: cfg.cancelFee,

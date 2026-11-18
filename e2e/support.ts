@@ -1,7 +1,6 @@
 import type { BrowserContext, Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { loadDeal, runCommand } from "@/lib/db/deals";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
@@ -34,7 +33,7 @@ export async function loginAs(context: BrowserContext, phone: string): Promise<v
  * Sessions kept between runs (git-ignored): each test phone signs in with a code once, later runs
  * refresh that session instead — Supabase limits how many login codes may be sent per hour.
  */
-const SAVED = join(dirname(fileURLToPath(import.meta.url)), ".auth", "sessions.json");
+const SAVED = join(process.cwd(), "e2e", ".auth", "sessions.json"); // tests run from the repo root
 function saved(): Record<string, string> {
   try {
     return JSON.parse(readFileSync(SAVED, "utf8")) as Record<string, string>;

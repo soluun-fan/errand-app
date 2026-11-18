@@ -84,6 +84,12 @@ export interface FeeTier {
 export interface EngineConfig {
   /** Lowest task price by day (night adds `nightFee`) — for kinds without their own minimum. */
   minFee: number;
+  /**
+   * More active tasks cost a little more (owner, 2026-11-18): a customer's first `freeOpenTasks`
+   * active tasks pay the normal service fee; each one beyond adds `extraTaskFee`. Ops: pricing.
+   */
+  freeOpenTasks: number;
+  extraTaskFee: number;
   /** New tasks: "held" (escrow) or "direct" (only our fee through the provider). Ops: platform_rules.pay_mode. */
   payMode: "held" | "direct";
   /** A kind's own lowest price (easy work lower, hard work higher). Ops: category_settings.min_fee. */
@@ -160,6 +166,8 @@ export interface EngineConfig {
 export const DEFAULT_CONFIG: EngineConfig = {
   minFee: 5000,
   payMode: "held",
+  freeOpenTasks: 3,
+  extraTaskFee: 500,
   // per-kind minimums live in the database (category_settings.min_fee / min_hourly, edited at
   // /ops/pricing; starting values in migration 20261117070000) — the engine default is flat
   kindMinFee: {},

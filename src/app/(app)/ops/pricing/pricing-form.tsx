@@ -37,6 +37,8 @@ export function PricingForm({ p }: { p: PricingSettings }) {
           {num("roundTripPct", t("opsPricing.roundTrip"), p.roundTripBps / 100, "%")}
           {num("travelMinPerKm", t("opsPricing.travelMinPerKm"), p.travelMinPerKm, t("opsPricing.minSuffix"))}
           {num("cancelFee", t("opsPricing.cancelFee"), p.cancelFee)}
+          {num("freeOpenTasks", t("opsPricing.freeOpenTasks"), p.freeOpenTasks, t("opsPricing.tasksSuffix"))}
+          {num("extraTaskFee", t("opsPricing.extraTaskFee"), p.extraTaskFee)}
         </div>
       </section>
 
