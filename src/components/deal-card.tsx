@@ -82,7 +82,7 @@ export function DealCard({
       </span>
       <span className="flex items-center gap-1.5 text-[13px] text-white/75">
         <CategoryIcon id={deal.category} size={14} />
-        {t(`categoryShort.${deal.category}`)} · {deal.scheduledAt ? when : t("task.whenNow")}
+        {t(`categoryShort.${deal.category}`)} · {deal.scheduledAt ? when : deal.mode === "schedule" && deal.matchBy ? t("task.whenFlexibleUntil", { time: fmtDateTime(deal.matchBy, locale) }) : t("task.whenNow")}
         {deal.status === "open" && deal.mode === "schedule" ? ` · ${t("deal.offers", { n: offerCount, max: deal.maxApplicants })}` : ""}
       </span>
     </Link>

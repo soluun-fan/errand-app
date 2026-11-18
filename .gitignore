@@ -49,3 +49,6 @@ next-env.d.ts
 
 # copied from node_modules on install (scripts/copy-map-worker.mjs)
 /public/vendor/
+
+# test sessions kept between browser-test runs (e2e/support.ts)
+/e2e/.auth/

@@ -252,7 +252,9 @@ export function DealView(p: DealViewProps) {
   const duration = deal.details.minutes >= 60 ? t("price.hours", { n: deal.details.minutes / 60 }) : t("price.min", { n: deal.details.minutes });
   const when = deal.scheduledAt
     ? t("job.startsAt", { time: fmtDateTime(deal.scheduledAt, locale), dur: duration })
-    : t("job.nowFor", { dur: duration });
+    : deal.mode === "schedule" && deal.matchBy
+      ? t("job.flexibleFor", { time: fmtDateTime(deal.matchBy, locale), dur: duration }) // not urgent: open until then
+      : t("job.nowFor", { dur: duration });
   const waiting = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"].includes(deal.status);
 
   /* ---------- money: where it is now ---------- */

@@ -1,4 +1,7 @@
 import type { BrowserContext, Page } from "@playwright/test";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { loadDeal, runCommand } from "@/lib/db/deals";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
@@ -27,14 +30,39 @@ export async function loginAs(context: BrowserContext, phone: string): Promise<v
   await context.addCookies(sessions.get(phone)!);
 }
 
+/**
+ * Sessions kept between runs (git-ignored): each test phone signs in with a code once, later runs
+ * refresh that session instead — Supabase limits how many login codes may be sent per hour.
+ */
+const SAVED = join(dirname(fileURLToPath(import.meta.url)), ".auth", "sessions.json");
+function saved(): Record<string, string> {
+  try {
+    return JSON.parse(readFileSync(SAVED, "utf8")) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+function save(phone: string, refreshToken: string) {
+  mkdirSync(dirname(SAVED), { recursive: true });
+  writeFileSync(SAVED, JSON.stringify({ ...saved(), [phone]: refreshToken }), { mode: 0o600 });
+}
+
 async function signIn(phone: string): Promise<Cookie[]> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const c = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
-  const sent = await c.auth.signInWithOtp({ phone: `+${phone}` });
-  if (sent.error) throw new Error(sent.error.message);
-  const { data: code } = await db.rpc("dev_latest_sms_code", { p_phone: phone });
-  const { data, error } = await c.auth.verifyOtp({ phone: `+${phone}`, token: String(code), type: "sms" });
-  if (error || !data.session) throw new Error(error?.message ?? "no session");
+  let session = null;
+  const token = saved()[phone];
+  if (token) session = (await c.auth.refreshSession({ refresh_token: token })).data.session;
+  if (!session) {
+    const sent = await c.auth.signInWithOtp({ phone: `+${phone}` });
+    if (sent.error) throw new Error(sent.error.message);
+    const { data: code } = await db.rpc("dev_latest_sms_code", { p_phone: phone });
+    const { data, error } = await c.auth.verifyOtp({ phone: `+${phone}`, token: String(code), type: "sms" });
+    if (error || !data.session) throw new Error(error?.message ?? "no session");
+    session = data.session;
+  }
+  save(phone, session.refresh_token);
+  const data = { session };
   const value = "base64-" + Buffer.from(JSON.stringify(data.session)).toString("base64url");
   const name = `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
   const chunks: Cookie[] = [];

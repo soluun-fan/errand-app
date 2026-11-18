@@ -46,6 +46,8 @@ export interface PublicOpenRequest {
   minutes: number;
   /** Scheduled start, or null for "now". */
   startsAt: number | null;
+  /** not urgent (no set time): open until then */
+  openUntil: number | null;
   buysItems: boolean;
   /** Only for signed-in browsing (`withTitles`); the public landing never gets the customer's words. */
   title?: string;
@@ -58,7 +60,7 @@ export async function openRequests(
 ): Promise<PublicOpenRequest[]> {
   let q = createAdminClient()
     .from("deals")
-    .select("id, title, category, fee, commission_bps, details, scheduled_at, item_budget")
+    .select("id, title, category, fee, commission_bps, details, scheduled_at, item_budget, mode, match_by")
     .eq("type", "errand")
     .eq("status", "open")
     .not("title", "ilike", "[verify]%")
@@ -70,7 +72,7 @@ export async function openRequests(
   const { data, error } = await q
     .order(opts.sort === "pay" ? "fee" : "created_at", { ascending: false })
     .limit(limit)
-    .returns<{ id: string; title: string; category: CategoryId; fee: number; commission_bps: number; details: { people?: number; km?: number; minutes?: number } | null; scheduled_at: string | null; item_budget: number }[]>();
+    .returns<{ id: string; title: string; category: CategoryId; fee: number; commission_bps: number; details: { people?: number; km?: number; minutes?: number } | null; scheduled_at: string | null; item_budget: number; mode: string; match_by: string | null }[]>();
   if (error) return [];
   return (data ?? []).map((r) => {
     return {
@@ -82,6 +84,7 @@ export async function openRequests(
       km: Number(r.details?.km ?? 0),
       minutes: Number(r.details?.minutes ?? 30),
       startsAt: r.scheduled_at ? Date.parse(r.scheduled_at) : null,
+      openUntil: !r.scheduled_at && r.mode === "schedule" && r.match_by ? Date.parse(r.match_by) : null,
       buysItems: Number(r.item_budget) > 0,
       ...(opts.withTitles ? { title: r.title } : {}),
     };

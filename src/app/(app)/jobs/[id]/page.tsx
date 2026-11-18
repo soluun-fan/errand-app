@@ -78,7 +78,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const duration = dt.minutes >= 60 ? t("price.hours", { n: dt.minutes / 60 }) : t("price.min", { n: dt.minutes });
   const when = deal.scheduledAt
     ? t("job.startsAt", { time: fmtDateTime(deal.scheduledAt, locale), dur: duration })
-    : t("job.nowFor", { dur: duration });
+    : deal.mode === "schedule" && deal.matchBy
+      ? t("job.flexibleFor", { time: fmtDateTime(deal.matchBy, locale), dur: duration }) // not urgent: open until then
+      : t("job.nowFor", { dur: duration });
   const effort = [
     dt.km > 0 && t("job.trip", { km: dt.km.toFixed(1) }),
     dt.heavy && t("task.heavy"),

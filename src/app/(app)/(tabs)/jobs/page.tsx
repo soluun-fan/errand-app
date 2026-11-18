@@ -75,10 +75,10 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
               {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
               {d.details.km > 0 ? ` · ${t("job.trip", { km: d.details.km.toFixed(1) })}` : ""}
             </span>
-            {d.scheduledAt ? (
+            {d.scheduledAt || (d.mode === "schedule" && d.matchBy) ? (
               <span className="flex items-center gap-1.5">
                 <CalendarClock aria-hidden size={14} className="flex-none" />
-                {fmtDateTime(d.scheduledAt, locale)} · {dur}
+                {d.scheduledAt ? fmtDateTime(d.scheduledAt, locale) : t("task.whenFlexibleUntil", { time: fmtDateTime(d.matchBy as number, locale) })} · {dur}
               </span>
             ) : (
               <span className="flex items-center gap-1.5">

@@ -23,7 +23,8 @@ const KM = [1, 3, 5, 10];
 /** "About how long?" choices, in minutes. */
 const DURATIONS = [30, 60, 90, 120, 180, 240, 360, 480];
 
-type When = "now" | "today" | "tomorrow" | "pick";
+/** "flexible": not urgent — the post stays open for the Ops search window (24 h), offers don't lapse. */
+type When = "now" | "today" | "tomorrow" | "pick" | "flexible";
 const KIND_ICON: Record<AddressKind, string> = { home: "🏠", work: "💼", other: "📍" };
 
 export interface Draft {
@@ -86,7 +87,7 @@ const digits = (s: string) => s.replace(/[^\d]/g, "");
 
 /** The scheduled start as a UB wall-time string, or "" for "now". */
 function startString(d: Draft, now: number): string {
-  if (d.when === "now") return "";
+  if (d.when === "now" || d.when === "flexible") return "";
   if (d.when === "pick") return d.date;
   const day = toUbLocal(now + (d.when === "tomorrow" ? 86_400_000 : 0)).slice(0, 10);
   return d.time ? `${day}T${d.time}` : "";
@@ -232,7 +233,8 @@ export function PostFlow({
     heavy: d.heavy,
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
-    autoPick: invite || care ? false : d.autoPick, // a direct request: the customer answers that helper themselves
+    // a direct request: the customer answers that helper themselves; not urgent: they compare at leisure
+    autoPick: invite || care || d.when === "flexible" ? false : d.autoPick,
     minutes: d.minutes ?? autoMinutes,
     tools: d.tools,
     quotedFee: 0,
@@ -267,7 +269,7 @@ export function PostFlow({
   if (STEPS[step] === "what" && (!d.title.trim() || !d.description.trim())) reason = t("task.reasonWhat");
   if (STEPS[step] === "where") {
     if (!d.address.trim()) reason = t("task.reasonWhere");
-    else if (d.when !== "now" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
+    else if (d.when !== "now" && d.when !== "flexible" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
   }
   if (STEPS[step] === "review" && belowMin) reason = t("post.reason.fee", { amount: fmtMoney(minFee) });
@@ -344,6 +346,7 @@ export function PostFlow({
       <input type="hidden" name="pickup" value={twoPoint ? d.pickup : ""} />
       <input type="hidden" name="address" value={d.address} />
       <input type="hidden" name="scheduledAt" value={start} />
+      <input type="hidden" name="mode" value={d.when === "flexible" ? "schedule" : "now"} />
       <input type="hidden" name="details" value={JSON.stringify(details)} />
       <input type="hidden" name="fee" value={fee} />
       <input type="hidden" name="buyForMe" value={buys && d.buyForMe ? "on" : ""} />
@@ -585,13 +588,16 @@ export function PostFlow({
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.when")}</legend>
             <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
-              {(["now", "today", "tomorrow", "pick"] as const).map((w) => (
+              {(["now", "flexible", "today", "tomorrow", "pick"] as const).map((w) => (
                 <button key={w} type="button" role="radio" aria-checked={d.when === w} onClick={() => set("when", w)} className={chipClass(d.when === w)}>
                   {w === "pick" ? "🗓 " : ""}
-                  {t(w === "now" ? "task.whenNow" : w === "today" ? "task.whenToday" : w === "tomorrow" ? "task.whenTomorrow" : "task.whenPick")}
+                  {w === "flexible"
+                    ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })
+                    : t(w === "now" ? "task.whenNow" : w === "today" ? "task.whenToday" : w === "tomorrow" ? "task.whenTomorrow" : "task.whenPick")}
                 </button>
               ))}
             </div>
+            {d.when === "flexible" && <Note tone="info">{t("task.whenFlexibleNote", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })}</Note>}
             {(d.when === "today" || d.when === "tomorrow") && (
               <label className={fieldLabel}>
                 {t("task.time")}
@@ -727,7 +733,7 @@ export function PostFlow({
           {startStep === STEPS.indexOf("review") && <Note tone="info">{t("task.repeatNote")}</Note>}
           <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
             <p className="text-sm text-ink-2">
-              <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : start.replace("T", " ")}
+              <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : d.when === "flexible" ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) }) : start.replace("T", " ")}
             </p>
             <p className="text-[18px] font-semibold">{d.title}</p>
             {twoPoint && d.pickup && <p className="text-[15px] text-ink-2">● {d.pickup}</p>}
@@ -827,7 +833,7 @@ export function PostFlow({
               checked={openAfter}
               onChange={setOpenAfter}
             />
-          ) : care ? <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p> : (
+          ) : care ? <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p> : d.when === "flexible" ? null : (
             <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
           )}
 

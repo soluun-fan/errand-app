@@ -113,7 +113,9 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         title,
         description,
         category,
-        mode: "now", // helpers accept the price or counter once (docs/decisions.md 2026-11-15 "Pricing")
+        // "schedule" = not urgent (2026-11-18): open for the Ops search window (24 h), offers don't lapse;
+        // with a time it's simply booked for then
+        mode: form.get("mode") === "schedule" ? "schedule" : "now",
         scheduledAt,
         pickupAddress,
         pickupLocation,
