@@ -105,17 +105,21 @@ export interface ProofView {
   note: string | null;
   flags: string[];
   at: number;
+  uploadedBy: string;
+  /** Taken back by the helper (hidden from the customer; shown to Ops, marked). */
+  removed: boolean;
 }
 
 /** A deal's proofs with signed read URLs (valid 1 h). Call only after checking the viewer may see the deal. */
-export async function proofsFor(dealId: string): Promise<ProofView[]> {
+export async function proofsFor(dealId: string, { includeRemoved = false } = {}): Promise<ProofView[]> {
   const db = createAdminClient();
-  const { data } = await db
+  let q = db
     .from("proofs")
-    .select("id, kind, file_path, mime, amount, note, flags, created_at")
+    .select("id, kind, file_path, mime, amount, note, flags, created_at, uploaded_by, removed_at")
     .eq("deal_id", dealId)
-    .order("created_at")
-    .returns<{ id: string; kind: ProofKind; file_path: string | null; mime: string | null; amount: number | null; note: string | null; flags: string[]; created_at: string }[]>();
+    .order("created_at");
+  if (!includeRemoved) q = q.is("removed_at", null);
+  const { data } = await q.returns<{ id: string; kind: ProofKind; file_path: string | null; mime: string | null; amount: number | null; note: string | null; flags: string[]; created_at: string; uploaded_by: string; removed_at: string | null }[]>();
   const rows = data ?? [];
   const paths = rows.map((r) => r.file_path).filter((x): x is string => Boolean(x));
   const signed = paths.length ? (await db.storage.from(PROOF_BUCKET).createSignedUrls(paths, 3600)).data ?? [] : [];
@@ -129,13 +133,29 @@ export async function proofsFor(dealId: string): Promise<ProofView[]> {
     note: r.note ?? null,
     flags: r.flags ?? [],
     at: Date.parse(r.created_at),
+    uploadedBy: r.uploaded_by,
+    removed: r.removed_at !== null,
   }));
 }
 
 /** How many proofs of one kind a task has (start photo present? progress cap). */
 export async function proofCount(dealId: string, kind: ProofKind, uploadedBy?: string): Promise<number> {
-  let q = createAdminClient().from("proofs").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("kind", kind);
+  let q = createAdminClient().from("proofs").select("id", { count: "exact", head: true }).eq("deal_id", dealId).eq("kind", kind).is("removed_at", null);
   if (uploadedBy) q = q.eq("uploaded_by", uploadedBy); // a task posted anew: the earlier helper's photos don't count
   const { count } = await q;
   return count ?? 0;
+}
+
+/** The helper takes back their own progress / handover photo (hidden, kept for Ops). True if it was theirs and live. */
+export async function removeProof(proofId: string, dealId: string, helperId: string): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from("proofs")
+    .update({ removed_at: new Date().toISOString(), removed_by: helperId })
+    .eq("id", proofId)
+    .eq("deal_id", dealId)
+    .eq("uploaded_by", helperId)
+    .in("kind", ["progress", "handover"])
+    .is("removed_at", null)
+    .select("id");
+  return Boolean(data?.length);
 }

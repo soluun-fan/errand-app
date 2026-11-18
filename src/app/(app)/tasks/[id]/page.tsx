@@ -105,7 +105,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       firstAid={firstAid}
       safety={safety}
       photos={await taskPhotosFor(deal.id)}
-      proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id) : []}
+      photosEditable={isCustomer && deal.status === "open" && categoryTrust(deal.category) !== "care"}
+      proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id, { includeRemoved: viewer.profile.role === "admin" }) : []}
     />
     </>
   );

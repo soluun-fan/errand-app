@@ -99,3 +99,17 @@ describe("minimum price per kind", () => {
     expect(silly.message).toMatch(/check constraint/);
   });
 });
+
+describe("taking back a photo", () => {
+  it("only progress / handover photos can be marked removed, always with who and when", async () => {
+    const p = await svc(`insert into public.proofs (deal_id, kind, uploaded_by) values ($1, 'progress', $2) returning id`, [dealId, customerId]);
+    const s = await svc(`insert into public.proofs (deal_id, kind, uploaded_by) values ($1, 'start', $2) returning id`, [dealId, customerId]);
+    const pid = (p.rows[0] as { id: string }).id;
+    const sid = (s.rows[0] as { id: string }).id;
+    await svc(`update public.proofs set removed_at = now(), removed_by = $2 where id = $1`, [pid, customerId]);
+    const start = await sqlError(svc(`update public.proofs set removed_at = now(), removed_by = $2 where id = $1`, [sid, customerId]));
+    expect(start.message).toMatch(/proofs_removable_kind/);
+    const half = await sqlError(svc(`update public.proofs set removed_at = now() where id = $1`, [sid]));
+    expect(half.message).toMatch(/proofs_removed_pair|proofs_removable_kind/);
+  });
+});

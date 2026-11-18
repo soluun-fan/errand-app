@@ -32,4 +32,10 @@ test("a task's map loads without errors", async ({ page, context }) => {
   await expect(page.locator("canvas.maplibregl-canvas").first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Газрын зураг ачааллагдсангүй")).toHaveCount(0);
   expect(errors.filter((e) => /worker|maplibre/i.test(e))).toEqual([]);
+
+  // one tap on the map opens Google Maps at the task's place (a drag would just move the map)
+  const [google] = await Promise.all([page.waitForEvent("popup"), page.locator("canvas.maplibregl-canvas").first().click({ position: { x: 60, y: 200 } })]);
+  await expect.poll(() => google.url(), { timeout: 20_000 }).toMatch(/google\.[a-z.]+\/maps/);
+  await google.close();
+  await expect(page.getByRole("link", { name: /Google Maps-д нээх/ })).toBeVisible();
 });

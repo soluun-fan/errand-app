@@ -1,4 +1,5 @@
 import "server-only";
+import { categoryTrust, type CategoryId } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -101,4 +102,23 @@ export async function firstPhotoUrls(dealIds: readonly string[]): Promise<Map<st
   const signed = (await db.storage.from(TASK_PHOTO_BUCKET).createSignedUrls([...first.values()], 3600)).data ?? [];
   const urlOf = new Map(signed.map((s) => [s.path, s.signedUrl]));
   return new Map([...first].flatMap(([deal, path]) => (urlOf.get(path) ? [[deal, urlOf.get(path) as string]] : [])));
+}
+
+/** The customer removes one of their task's photos while the task is still open (file and row). */
+export async function removeTaskPhoto(photoId: string, dealId: string, userId: string): Promise<boolean> {
+  const db = createAdminClient();
+  const { data: deal } = await db.from("deals").select("status, customer_id").eq("id", dealId).maybeSingle<{ status: string; customer_id: string }>();
+  if (!deal || deal.customer_id !== userId || deal.status !== "open") return false;
+  const { data: row } = await db.from("task_photos").select("file_path").eq("id", photoId).eq("deal_id", dealId).eq("uploaded_by", userId).maybeSingle<{ file_path: string }>();
+  if (!row) return false;
+  await db.from("task_photos").delete().eq("id", photoId).throwOnError();
+  await db.storage.from(TASK_PHOTO_BUCKET).remove([row.file_path]);
+  return true;
+}
+
+/** Whether this customer may still change the photos of this task (theirs, and open). */
+export async function photosEditable(dealId: string, userId: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("deals").select("status, customer_id, category").eq("id", dealId).maybeSingle<{ status: string; customer_id: string; category: CategoryId }>();
+  // no pictures on care tasks (children, elders)
+  return Boolean(data && data.customer_id === userId && data.status === "open" && categoryTrust(data.category) !== "care");
 }

@@ -59,6 +59,7 @@ export function TaskMap({
   rounded = true,
   route = [],
   routeFromMe = false,
+  openUrl,
 }: {
   markers: MapMarker[];
   className?: string;
@@ -68,6 +69,8 @@ export function TaskMap({
   route?: RoutePoint[];
   /** Start the route at the viewer's position (needs `showMe`). */
   routeFromMe?: boolean;
+  /** A tap on the map (not a drag, not a marker link) opens this — e.g. Google Maps directions. */
+  openUrl?: string;
 }) {
   const t = useT();
   const router = useRouter();
@@ -77,6 +80,8 @@ export function TaskMap({
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const openUrlRef = useRef(openUrl);
+  openUrlRef.current = openUrl;
   const key = JSON.stringify(markers) + JSON.stringify(me) + JSON.stringify(route) + String(routeFromMe);
 
   useEffect(() => {
@@ -92,6 +97,10 @@ export function TaskMap({
           attributionControl: { compact: true },
         });
         m.on("error", () => setFailed(true));
+        // one tap opens the navigation app; dragging and pinching still move the map
+        m.on("click", () => {
+          if (openUrlRef.current) window.open(openUrlRef.current, "_blank", "noopener,noreferrer");
+        });
         m.on("load", () => setReady(true));
         map.current = m;
       })
@@ -144,7 +153,10 @@ export function TaskMap({
         if (mk.label && mk.kind !== "job") el.title = mk.label;
         if (mk.href) {
           el.setAttribute("aria-label", mk.label ?? t("map.open"));
-          el.addEventListener("click", () => router.push(mk.href as string));
+          el.addEventListener("click", (e) => {
+            e.stopPropagation(); // a marker link wins over "open in Google Maps"
+            router.push(mk.href as string);
+          });
         }
         placed.current.push(new Marker({ element: el }).setLngLat([mk.lng, mk.lat]).addTo(m));
       }
@@ -165,7 +177,17 @@ export function TaskMap({
   if (failed) return <div className={`flex items-center justify-center bg-fill p-4 text-center text-sm text-ink-2 ${className}`}>{t("map.failed")}</div>;
   return (
     <div className={`relative overflow-hidden ${rounded ? "rounded-card border border-line" : ""} ${className}`}>
-      <div ref={box} className="absolute inset-0 h-full w-full" role="region" aria-label={t("map.label")} />
+      <div ref={box} className={`absolute inset-0 h-full w-full ${openUrl ? "cursor-pointer" : ""}`} role="region" aria-label={t("map.label")} />
+      {openUrl && (
+        <a
+          href={openUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="press absolute right-3 top-3 z-10 flex min-h-10 items-center gap-1 rounded-full bg-bg/95 px-3 text-[13px] font-semibold text-ink shadow-card"
+        >
+          {t("map.openGoogle")} ↗
+        </a>
+      )}
     </div>
   );
 }

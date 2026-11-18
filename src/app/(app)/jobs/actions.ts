@@ -18,7 +18,7 @@ import { hadCareCall } from "@/lib/chat";
 import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { fmtMoney } from "@/lib/format";
-import { MAX_PROGRESS_PROOFS, MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, proofCount, recordProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
+import { MAX_PROGRESS_PROOFS, MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, proofCount, recordProof, removeProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
 import { LatLng, ProofKindInput, ProofSubmitInput, PushSubscriptionInput, Uuid, parseOr } from "@/lib/input";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -274,7 +274,11 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start", viewer.profile.id)) === 0) return { error: t("proof.startNeeded") };
       cmd = { type: "start" };
     }
-    else if (intent === "finish") cmd = { type: "finish" };
+    else if (intent === "finish") {
+      // a handover photo (or care check-out) that is still there — one taken back doesn't count
+      if ((await proofCount(dealId, "handover", viewer.profile.id)) === 0) return { error: t("proof.missing") };
+      cmd = { type: "finish" };
+    }
     else return { error: t("error.generic") };
 
     // care work: the customer must have talked to this helper before they're matched (also for accepting the customer's price)
@@ -422,4 +426,17 @@ async function taskFloor(dealId: string): Promise<number> {
   const d = await loadDeal(createAdminClient(), dealId).catch(() => null);
   if (d?.type === "errand" && d.details.minFee) return d.details.minFee;
   return minFeeAt(Date.now(), await pricingConfig());
+}
+
+/** The helper takes back one of their own progress / handover photos while the job runs (kept for Ops). */
+export async function removeMyProof(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const viewer = await helperViewer();
+  const t = await getT();
+  const dealId = String(form.get("dealId") ?? "");
+  const proofId = String(form.get("proofId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(dealId) || !/^[0-9a-f-]{36}$/i.test(proofId)) return { error: t("error.generic") };
+  const deal = await assignedFor(dealId, viewer.profile.id, "progress"); // in progress, and theirs
+  if (!deal || !(await removeProof(proofId, dealId, viewer.profile.id))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
 }

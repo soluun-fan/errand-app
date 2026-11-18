@@ -14,14 +14,15 @@ import { amountDue, autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOff
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
+import { googleDirectionsUrl, googlePlaceUrl } from "@/lib/maps";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { callParty } from "@/lib/calls";
 import { AddressBox, DetailSection, DetailTitle, MapHero } from "@/components/detail";
-import { googlePlaceUrl } from "@/lib/maps";
 import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
 import type { TaskPhotoView } from "@/lib/task-photos";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
+import { TaskPhotoManager } from "@/components/task-photo-manager";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
 import { PriceChangeCard } from "@/components/price-change-card";
@@ -50,6 +51,8 @@ export interface DealViewProps {
   proofs?: ProofView[];
   /** The customer's own photos of the task (signed URLs). */
   photos?: TaskPhotoView[];
+  /** The customer may still change them (their task, still open). */
+  photosEditable?: boolean;
   /** Chat entry (null when there's no conversation for this viewer). */
   chat?: { unread: number } | null;
   /** Unread messages per applicant (while choosing). */
@@ -479,6 +482,12 @@ export function DealView(p: DealViewProps) {
             ]}
             // the trip: helper → pickup → drop-off
             route={[...(p.helperPos ? [p.helperPos] : []), ...(deal.pickupLocation ? [deal.pickupLocation] : []), deal.location]}
+            // tap the map: Google Maps with the same trip (from the helper while they're on the way)
+            openUrl={
+              p.helperPos || deal.pickupLocation
+                ? googleDirectionsUrl(deal.location, p.helperPos ? deal.pickupLocation : null, p.helperPos ?? deal.pickupLocation)
+                : googlePlaceUrl(deal.location)
+            }
           />
         </MapHero>
       )}
@@ -697,7 +706,7 @@ export function DealView(p: DealViewProps) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
-        {p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
+        {p.photosEditable ? <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} /> : p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}
           <AddressBox

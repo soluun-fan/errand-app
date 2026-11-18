@@ -40,4 +40,10 @@ describe("helperStart", () => {
     const u = new URL(googleDirectionsUrl({ lat: 47.9186, lng: 106.9177 }, { lat: 47.95, lng: 106.95 }));
     expect(u.searchParams.get("waypoints")).toBe("47.95,106.95");
   });
+  it("can start the route somewhere else (where the helper is) instead of the phone's position", () => {
+    const u = new URL(googleDirectionsUrl({ lat: 47.92, lng: 106.92 }, { lat: 47.91, lng: 106.9 }, { lat: 47.9, lng: 106.88 }));
+    expect(u.searchParams.get("origin")).toBe("47.9,106.88");
+    expect(u.searchParams.get("waypoints")).toBe("47.91,106.9");
+    expect(new URL(googleDirectionsUrl("8th khoroo")).searchParams.has("origin")).toBe(false);
+  });
 });

@@ -992,6 +992,10 @@ export const en = {
     pauseDay: "1 day",
   },
   proof: {
+    remove: "Remove",
+    removeTitle: "Remove this photo?",
+    removeBody: "The customer won't see it any more. Take a new one if needed. (It stays on record for Ops in case of a dispute.)",
+    removedTag: "Removed by the helper",
     title: "Proof",
     receiptTitle: "Receipt photo",
     receiptSub: "Photograph the whole receipt so the total is readable.",
@@ -1030,6 +1034,10 @@ export const en = {
     careHandover: "For the handover photo, show the place or a written note. Never the child or the person you care for.",
   },
   taskPhotos: {
+    locked: "Photos can only be changed while the task is open, before you choose a helper.",
+    full: "A task can have at most 5 photos.",
+    removeN: "Remove photo {n}",
+    editableUntil: "You can change the photos until you choose a helper.",
     title: "Photos (optional)",
     sub: "Up to 5. Helpers nearby will see them: no faces, documents or house numbers.",
     add: "📷 Add photos",

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { Uuid, parseOr } from "@/lib/input";
+import { PhotoIdsJson, Uuid, parseOr } from "@/lib/input";
+import { attachTaskPhotos, photosEditable, removeTaskPhoto } from "@/lib/task-photos";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
 import { releaseOtherCommitments } from "@/lib/dispatch/rank";
@@ -223,4 +224,33 @@ export async function pokeTask(dealId: string): Promise<void> {
   if (deal?.type === "errand" && deal.customerId === viewer.profile.id && deal.status === "open") {
     await runDispatch(deal.id);
   }
+}
+
+/* ---------- the customer's own task photos, while the task is open ---------- */
+
+export async function removeTaskPhotoAction(dealId: string, photoId: string): Promise<{ error?: string }> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  if (!/^[0-9a-f-]{36}$/i.test(dealId) || !/^[0-9a-f-]{36}$/i.test(photoId)) return { error: t("error.generic") };
+  if (!(await removeTaskPhoto(photoId, dealId, viewer.profile.id))) return { error: t("taskPhotos.locked") };
+  refresh();
+  return {};
+}
+
+/** Attach freshly uploaded photos (from prepareTaskPhoto) to the customer's open task; at most 5 in all. */
+export async function addTaskPhotosAction(dealId: string, ids: string[]): Promise<{ error?: string }> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  const parsed = parseOr(PhotoIdsJson, JSON.stringify(Array.isArray(ids) ? ids : []));
+  if (!/^[0-9a-f-]{36}$/i.test(dealId) || !parsed) return { error: t("error.generic") };
+  if (!(await photosEditable(dealId, viewer.profile.id))) return { error: t("taskPhotos.locked") };
+  try {
+    await attachTaskPhotos(dealId, viewer.profile.id, parsed);
+  } catch {
+    return { error: t("taskPhotos.full") }; // the database allows at most 5 per task
+  }
+  refresh();
+  return {};
 }

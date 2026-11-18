@@ -14,12 +14,23 @@ const clock = (ms: number) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit"
 import type { ProofView } from "@/lib/proofs";
 
 /** Proof photos / videos of a deal (signed URLs, valid 1 h), with reuse flags shown as warnings. */
-export function ProofGallery({ proofs, t, showFlags = true }: { proofs: ProofView[]; t: T; showFlags?: boolean }) {
+export function ProofGallery({
+  proofs,
+  t,
+  showFlags = true,
+  action,
+}: {
+  proofs: ProofView[];
+  t: T;
+  showFlags?: boolean;
+  /** Per-photo control (e.g. the helper's "remove"), rendered under the caption. */
+  action?: (p: ProofView) => React.ReactNode;
+}) {
   if (!proofs.length) return <p className="text-[15px] text-ink-2">{t("proof.noneYet")}</p>;
   return (
     <div className="grid grid-cols-2 gap-2">
       {proofs.map((p) => (
-        <figure key={p.id} className="flex flex-col gap-1">
+        <figure key={p.id} className={`flex flex-col gap-1 ${p.removed ? "opacity-60" : ""}`}>
           {p.url ? (
             p.isVideo ? (
               <video src={p.url} controls playsInline preload="metadata" className="aspect-square w-full rounded-input bg-fill object-cover" />
@@ -39,6 +50,8 @@ export function ProofGallery({ proofs, t, showFlags = true }: { proofs: ProofVie
           <figcaption className="text-sm text-ink-2">
             <span className="tabular-nums">{clock(p.at)}</span> · {caption(p, t)}
           </figcaption>
+          {p.removed && <span className="rounded-input bg-fill px-2 py-1 text-xs font-medium text-ink-2">{t("proof.removedTag")}</span>}
+          {action?.(p)}
           {showFlags &&
             p.flags.map((f) => (
               <span key={f} className="rounded-input bg-warn-bg px-2 py-1 text-xs font-medium text-warn">

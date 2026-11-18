@@ -11,12 +11,13 @@ export interface LatLng {
 const pt = (p: LatLng) => `${p.lat},${p.lng}`;
 
 /**
- * Google Maps directions from the user's current position. `via` (e.g. the store to pick up from)
- * becomes a waypoint; text works too — Google geocodes it.
+ * Google Maps directions from the user's current position (or `origin`, e.g. where the helper is).
+ * `via` (e.g. the store to pick up from) becomes a waypoint; text works too — Google geocodes it.
  */
-export function googleDirectionsUrl(destination: LatLng | string, via?: LatLng | string | null): string {
+export function googleDirectionsUrl(destination: LatLng | string, via?: LatLng | string | null, origin?: LatLng | null): string {
   const q = new URLSearchParams({ api: "1", destination: typeof destination === "string" ? destination : pt(destination), travelmode: "driving" });
   if (via) q.set("waypoints", typeof via === "string" ? via : pt(via));
+  if (origin) q.set("origin", pt(origin)); // otherwise Google starts from the phone's own position
   return `https://www.google.com/maps/dir/?${q}`;
 }
 

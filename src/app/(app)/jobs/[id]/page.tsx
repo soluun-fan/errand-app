@@ -19,7 +19,7 @@ import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
 import { DEFAULT_CONFIG, categoryTrust, errandSplit, invitedOnly } from "@/lib/engine";
 import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { fuzz, googleDirectionsUrl } from "@/lib/maps";
+import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
@@ -32,7 +32,7 @@ import { SOS_STATUSES } from "@/lib/incident-rules";
 import { liveSos } from "@/lib/incidents";
 import { organizationNames } from "@/lib/orgs";
 import { ContactRow } from "../../tasks/[id]/deal-view";
-import { jobAction } from "../actions";
+import { jobAction, removeMyProof } from "../actions";
 
 /**
  * The helper's view of one task (docs/screens-helper-ops.md): what it pays, how far, and the
@@ -54,6 +54,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const onTable = deal.status === "open" && myOffer?.price != null ? myOffer.price : deal.fee;
   const net = errandSplit({ fee: onTable, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet;
   const fields = { dealId: deal.id };
+  const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
+  /** a handover photo (or care check-out) by this helper that is still there */
+  const handoverLive = proofs.some((p) => p.kind === "handover" && p.uploadedBy === me);
   // no start or progress photos on care work (never photograph the child or the person cared for)
   const startPhoto = categoryTrust(deal.category) !== "care";
   const dt = deal.details;
@@ -192,7 +195,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     );
   } else if (mine && deal.status === "in_progress") {
     const needReceipt = deal.itemBudget > 0 && deal.receiptAmount === null && deal.topUp?.status !== "declined";
-    const ready = deal.handoverProofAt !== null && !needReceipt && deal.topUp?.status !== "pending";
+    const ready = handoverLive && !needReceipt && deal.topUp?.status !== "pending";
     if (ready) {
       primary = (
         <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`} />
@@ -233,7 +236,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   // the pickup pin beats its text for the Google Maps waypoint
   const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupLocation ?? deal.pickupAddress);
 
-  const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
+
   const photos = await taskPhotosFor(deal.id);
   const firstMeeting = !startPhoto && mine && !(await workedTogether(deal.customerId, [me])).has(me);
   const chatAccess = await accessFor(deal, me);
@@ -257,6 +260,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             route={markers}
             routeFromMe={deal.status === "open" || deal.status === "awaiting_payment" || onJob}
             className="h-[44vh] min-h-64"
+            // tap the map: Google Maps with the route (approximate area until the helper is matched)
+            openUrl={exact ? directions : helperStart(deal) ? googleDirectionsUrl(fuzz(helperStart(deal) as { lat: number; lng: number })) : undefined}
           />
         </MapHero>
       )}
@@ -352,14 +357,35 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             {deal.topUp?.status === "pending" && <Note tone="warn">{t("proof.waitTopUp")}</Note>}
             {startPhoto && <ProofUploader dealId={deal.id} kind="progress" done={false} />}
             {startPhoto ? (
-              <ProofUploader dealId={deal.id} kind="handover" done={deal.handoverProofAt !== null} />
+              <ProofUploader dealId={deal.id} kind="handover" done={handoverLive} />
             ) : (
-              <CareCheckOut dealId={deal.id} done={deal.handoverProofAt !== null} />
+              <CareCheckOut dealId={deal.id} done={handoverLive} />
             )}
           </div>
         </DetailSection>
       )}
-      {proofs.length > 0 && <ProofGallery proofs={proofs} t={t} showFlags={false} />}
+      {proofs.length > 0 && (
+        <ProofGallery
+          proofs={proofs}
+          t={t}
+          showFlags={false}
+          action={(p) =>
+            // while the job runs, the helper can take back their own progress / handover photo and take another
+            mine && deal.status === "in_progress" && p.uploadedBy === me && (p.kind === "progress" || p.kind === "handover") && p.url ? (
+              <ConfirmSheet
+                action={removeMyProof}
+                fields={{ dealId: deal.id, proofId: p.id }}
+                trigger={t("proof.remove")}
+                triggerClass={`${btn.text} min-h-9 self-start px-1 text-[13px] text-danger`}
+                title={t("proof.removeTitle")}
+                body={t("proof.removeBody")}
+                confirmLabel={t("proof.remove")}
+                confirmClass={btn.danger}
+              />
+            ) : null
+          }
+        />
+      )}
 
       {customer && (
         <DetailSection label={t("job.customerLabel")}>
