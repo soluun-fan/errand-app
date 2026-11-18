@@ -121,7 +121,7 @@ export async function callSetup(dealId: string, withHelper: string | null = null
   const t = await getT();
   const ctx = await callContext(dealId, withHelper);
   if (!ctx) return { error: t("call.notAllowed") };
-  return iceConfig(ctx.viewer.profile.id);
+  return await iceConfig(ctx.viewer.profile.id);
 }
 
 export async function placeCall(dealId: string, callId: string, video: boolean, sdp: string, withHelper: string | null = null): Promise<{ error?: string }> {

@@ -34,11 +34,50 @@ export function callParty(deal: ErrandDeal, viewerId: string, withHelper: string
   return null;
 }
 
+/** Cloudflare TURN credentials, shared for a while (they aren't tied to a person; the call is). */
+let cfCache: { at: number; servers: RTCIceServer[] } | null = null;
+const CF_TTL_S = 4 * 3600;
+
 /**
- * ICE servers for a call. Public STUN always (no key); our own TURN relay when TURN_URLS +
- * TURN_SECRET are set — then calls are relay-only, so neither side ever sees the other's address.
+ * Cloudflare's managed TURN relay (docs/deploy.md "Calls"): CLOUDFLARE_TURN_KEY_ID +
+ * CLOUDFLARE_TURN_API_TOKEN. Short-lived credentials, refreshed every ~2 h; port-53 URLs are dropped
+ * (browsers block them and they'd only slow the call down). Null if not set up or Cloudflare fails.
  */
-export function iceConfig(userId: string, now = Date.now()): { iceServers: RTCIceServer[]; relayOnly: boolean } {
+async function cloudflareIce(now: number): Promise<RTCIceServer[] | null> {
+  const keyId = process.env.CLOUDFLARE_TURN_KEY_ID;
+  const token = process.env.CLOUDFLARE_TURN_API_TOKEN;
+  if (!keyId || !token) return null;
+  if (cfCache && now - cfCache.at < (CF_TTL_S / 2) * 1000) return cfCache.servers;
+  try {
+    const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ttl: CF_TTL_S }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) throw new Error(`Cloudflare TURN ${res.status}`);
+    const body = (await res.json()) as { iceServers?: RTCIceServer[] | RTCIceServer };
+    const list = Array.isArray(body.iceServers) ? body.iceServers : body.iceServers ? [body.iceServers] : [];
+    const servers = list
+      .map((s) => ({ ...s, urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter((u) => !/:53(\?|$)/.test(u)) }))
+      .filter((s) => s.urls.length > 0);
+    if (!servers.some((s) => s.urls.some((u) => u.startsWith("turn")))) throw new Error("Cloudflare TURN: no relay in the answer");
+    cfCache = { at: now, servers };
+    return servers;
+  } catch (e) {
+    console.error("cloudflare turn failed", e);
+    return null;
+  }
+}
+
+/**
+ * ICE servers for a call. Public STUN always (no key). With a relay — Cloudflare's managed TURN, or
+ * our own (TURN_URLS + TURN_SECRET) — calls are relay-only: they work on mobile networks and neither
+ * side ever sees the other's address. If the relay can't be reached, the call still tries directly.
+ */
+export async function iceConfig(userId: string, now = Date.now()): Promise<{ iceServers: RTCIceServer[]; relayOnly: boolean }> {
+  const cf = await cloudflareIce(now);
+  if (cf) return { iceServers: cf, relayOnly: true };
   const iceServers: RTCIceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }];
   const urls = (process.env.TURN_URLS ?? "").split(",").map((u) => u.trim()).filter(Boolean);
   const secret = process.env.TURN_SECRET;

@@ -27,6 +27,10 @@ const sessions = new Map<string, Cookie[]>();
 export async function loginAs(context: BrowserContext, phone: string): Promise<void> {
   if (!sessions.has(phone)) sessions.set(phone, await signIn(phone));
   await context.addCookies(sessions.get(phone)!);
+  // test browsers can't hold a real push subscription: the test server (E2E_DEVICE_BYPASS=1) skips
+  // the phone / notifications / location check for this cookie. Production ignores it.
+  // work-ready.spec.ts removes it to test the check itself.
+  await context.addCookies([{ name: "e2e-device", value: "ok", domain: "localhost", path: "/" }]);
 }
 
 /**

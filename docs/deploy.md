@@ -65,37 +65,67 @@ Every `git push` to `main` redeploys automatically. Changed environment variable
 - **SOS** on every live task: 102 / 103 and an alert to Ops with the phone's position. Turn on notifications for your admin account at **Profile → Operations** on the phone you carry.
 - Secrets are only in Vercel's encrypted settings and Supabase Vault (the scheduler secret), never in git.
 
-## Before real users (not done yet)
+## Go-live checklist (100-person pilot)
 
-- [ ] **Real SMS provider** (a Mongolian SMS gateway). Then set `SMS_PROVIDER`, remove `DEV_SHOW_SMS_CODES` and `TEST_PHONES`.
-- [ ] **Real payments:** a QPay / partner-bank adapter and verified webhooks; `PAYMENT_PROVIDER` ≠ `mock`.
-- [ ] **Call relay:** our own coturn server; set 🔒 `TURN_URLS` and 🔒 `TURN_SECRET`.
-- [ ] Your own domain, for example `tuslamj.mn` (Vercel → Domains), then run `scheduler:configure` again with it.
-- [ ] Terms of service and a privacy policy (ID documents, location, chat retention).
+Do these in order. Each step says who does it. Values are pasted into Vercel → Settings → Environment Variables (🔒 = tick **Sensitive**), never into chat or git. After changing variables: Deployments → ⋯ → **Redeploy**.
+
+### 1. Plans (you, ~10 min)
+- [ ] **Supabase Pro** (≈ $25/month): Supabase → Organization → Billing. Free projects pause after a week without use and have no proper backups.
+- [ ] **Vercel Pro** (≈ $20/month): the free plan doesn't allow commercial use. The region is already Seoul (`vercel.json`).
+- [ ] Deploy as in "On vercel.com" above, then run `npm run scheduler:configure -- https://<your address>` and check `--status`. Without this, nothing auto-confirms, expires, refunds or pays out.
+- [ ] Optional but recommended: your own domain (Vercel → Domains), then run `scheduler:configure` again with it.
+
+### 2. Real SMS (you + gateway, ~1 hour)
+1. Open an account with a Mongolian SMS gateway and get its "send one SMS" API (URL, key, parameters).
+2. Fill these in (`src/lib/sms.ts` explains each; `{phone}` = 976XXXXXXXX, `{phone_local}` = XXXXXXXX, `{text}` = the message):
+
+   | Name | Example |
+   |---|---|
+   | `SMS_PROVIDER` | `http` |
+   | 🔒 `SMS_HTTP_URL` | `https://api.gateway.mn/send?key=KEY&to={phone_local}&text={text}` |
+   | `SMS_HTTP_METHOD` | `GET` (or `POST` + `SMS_HTTP_BODY`) |
+   | 🔒 `SMS_HTTP_HEADERS` | `{"Authorization":"Bearer KEY"}` (only if the gateway wants it) |
+   | `SMS_HTTP_OK` | text the gateway's reply contains on success (optional) |
+
+3. Supabase → **Authentication → Hooks → Send SMS** → type **HTTPS**, URL `https://<your address>/api/auth/sms` → **Generate secret** → copy it into 🔒 `SEND_SMS_HOOK_SECRET` (starts with `v1,whsec_`).
+4. Remove `TEST_PHONES` and `DEV_SHOW_SMS_CODES`, redeploy, `npm run check:deploy` must pass.
+5. Test with your own phone. A failed send shows up at **Ops → Алдаа** (the code itself is never logged).
+
+### 3. Call relay (you, ~10 min) — so calls work on mobile data
+1. Cloudflare dashboard → **Realtime → TURN Server** → **Create** → copy the **Turn Token ID** and **API Token**.
+2. Set `CLOUDFLARE_TURN_KEY_ID` and 🔒 `CLOUDFLARE_TURN_API_TOKEN`, redeploy. Calls then go through Cloudflare's relay (works behind mobile networks; neither side sees the other's address). If Cloudflare can't be reached, a call still tries directly.
+3. Test: a call between two phones on mobile data (Wi-Fi off).
+
+### 4. Payments: wire.mn (you + wire.mn)
+See "Going live with wire.mn" below. The customer prepays the full amount (managed service); helpers withdraw their earnings, which Ops sends at **Ops → Татан авалт**.
+
+### 5. Watching it (you, ~5 min, then daily)
+- [ ] On the phone you carry: log in as Ops, add the app to the Home Screen, **Profile → Operations → notifications on**. You then get a push for: SOS, new helper applications, withdrawals to send, "not paid" reports, reported photos and **every new kind of error** (built in; listed at **Ops → Алдаа**).
+- [ ] A free uptime monitor (e.g. UptimeRobot) on `https://<your address>/api/health` — it alerts you if the background jobs stop.
+- [ ] Someone checks **Ops** at least morning, noon and evening: withdrawals (target 15 min in opening hours), applications, disputes, errors.
+
+### 6. Rules already enforced by the app
+- Helpers work only from a **phone** with **notifications and location on** — otherwise they see a "get ready" checklist instead of the online switch, and the server refuses going online, applying and starting. iPhones need the app added to the Home Screen first (the checklist explains it).
+- Customers are asked to turn on notifications on Home (they can still post from a laptop).
+- `E2E_DEVICE_BYPASS` exists only for browser tests; `check:deploy` refuses it.
+
+### Still for you / the lawyer
+- [ ] Terms of service and the privacy policy (lawyer); company details in the footer.
 - [ ] Native review of the Mongolian text.
-- [ ] **Someone on duty for SOS** while tasks run (push on, phone charged), plus a written "what to do on an SOS" checklist. Consider an SMS fallback to Ops once the SMS provider exists.
-- [ ] Review the caps at `/ops/safety` for the beta size (defaults: 300,000₮ per task, 600,000₮ per customer per day, 5,000,000₮ held in total, 3 active tasks).
+- [ ] Caps at `/ops/safety` for the pilot size.
 
 ## Health check
-- `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-release and SOS reminders aren't happening.
-- `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details). Point a free uptime monitor at it after deploy so someone is alerted if it stops.
+- `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-confirm, refunds and payouts aren't happening.
+- `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details).
 
 ## Going live with wire.mn (payments)
 
-How money moves now (docs/decisions.md 2026-11-18 "Direct pay + wire.mn"): the customer pays **only our service fee** through wire.mn when choosing a helper, and pays the helper **directly** after the job (bank transfer to the account shown, QPay or cash). The app never holds the helper's money. The fee is refunded automatically if the helper backs out or Ops refunds a dispute; it's kept if the customer cancels after paying.
+How money moves (docs/decisions.md 2026-11-18 "Managed service"): when choosing a helper the customer pays **the full amount** — price + shopping budget + service & safety fee — through wire.mn. After they confirm, the helper's earnings grow; helpers withdraw to their own checked bank account and Ops sends it from the business bank app. Refunds (helper backs out, unused shopping money, disputes) go back through wire.mn automatically.
 
-1. Finish wire.mn's onboarding (request → review → e-contract) and connect the payment operators you want in the wire.mn dashboard.
-2. Add to `.env.local` and to Vercel (🔒 = Sensitive):
-   | Name | Value |
-   |---|---|
-   | `PAYMENT_PROVIDER` | `wire` |
-   | 🔒 `WIRE_SECRET_KEY` | `sk_live_…` from the wire.mn dashboard |
-3. Register the webhook (prints the signing secret once):
-   ```bash
-   npm run wire:webhook -- https://your-app.vercel.app
-   ```
-   Add the printed `whsec_…` as 🔒 `WIRE_WEBHOOK_SECRET` in `.env.local` and Vercel, redeploy, then **verify the endpoint** in the wire.mn dashboard.
-4. wire.mn has no test mode: make one real small payment yourself (post a task, have a test helper accept, pay the fee), check it shows "Хураамж төлөгдлөө ✓", then cancel via a helper back-out to see the refund arrive.
-5. Watch **Ops → Төлбөр** for helpers who weren't paid and refunds wire couldn't finish on its own.
+1. Finish wire.mn's onboarding (request → review → e-contract) and connect the payment operators you want.
+2. Set `PAYMENT_PROVIDER=wire` and 🔒 `WIRE_SECRET_KEY` (`sk_live_…`).
+3. Register the webhook (prints the signing secret once): `npm run wire:webhook -- https://<your address>`, put the `whsec_…` into 🔒 `WIRE_WEBHOOK_SECRET`, redeploy, **verify the endpoint** in the wire.mn dashboard.
+4. wire.mn has no test mode: make one small real payment yourself, confirm it shows as paid, then cancel with a helper back-out and check the refund arrives.
+5. Watch **Ops → Төлбөр** for refunds wire couldn't finish on its own.
 
 Safety: with `PAYMENT_PROVIDER=wire` and a missing key, paying fails with a message — it never falls back to the simulated button. A payment counts only when wire's signed notification (or our own check with wire) says so; a payment that arrives after the task moved on is refunded in full.

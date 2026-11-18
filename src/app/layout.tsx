@@ -3,6 +3,7 @@ import { Onest } from "next/font/google";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import "./globals.css";
+import { ErrorReporter } from "@/components/error-reporter";
 
 // Onest has every Mongolian letter. Ө ө Ү ү live in the cyrillic-ext subset — without it they
 // fall back to another font (UI-FLOWS §12: Mongolian renders in the same face as Latin).
@@ -25,6 +26,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang={locale} className={`${onest.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-canvas text-ink">
         <I18nProvider locale={locale}>{children}</I18nProvider>
+        {/* uncaught browser errors → the Ops error log */}
+        <ErrorReporter />
       </body>
     </html>
   );

@@ -1,6 +1,8 @@
 import { CalendarClock, Landmark, MapPin, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
+import { WorkReady } from "@/components/work-ready";
+import { deviceCheckBypassed } from "@/lib/work-ready";
 import { TodoCard } from "@/components/todo-card";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
@@ -225,7 +227,10 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {header}
         <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
-        <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
+        {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
+        <WorkReady enforce={!(await deviceCheckBypassed())}>
+          <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
+        </WorkReady>
         <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
 
         {active.length > 0 && (

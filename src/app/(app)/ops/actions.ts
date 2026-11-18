@@ -19,6 +19,7 @@ import { updateRules, type PlatformRules } from "@/lib/rules";
 import { resolveUnpaid } from "@/lib/direct-pay";
 import { decideBadge } from "@/lib/badges";
 import { decideWithdrawal, markAccountChecked } from "@/lib/withdrawals";
+import { resolveError } from "@/lib/error-log";
 import type { Wave } from "@/lib/dispatch/plan";
 
 async function requireAdmin() {
@@ -372,6 +373,18 @@ export async function checkAccountAction(_prev: ActionResult, form: FormData): P
   if (!viewer) return { error: t("ops.notAdmin") };
   const userId = parseOr(Uuid, String(form.get("userId") ?? ""));
   if (!userId || !(await markAccountChecked(userId, viewer.profile.id))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+/* ---------- error log (docs/decisions.md 2026-11-18 "Launch readiness") ---------- */
+
+export async function resolveErrorAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const fp = String(form.get("fingerprint") ?? "");
+  if (!/^[0-9a-f]{16,64}$/.test(fp) || !(await resolveError(fp, viewer.profile.id))) return { error: t("error.changed") };
   refresh();
   return { done: true };
 }

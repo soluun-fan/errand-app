@@ -15,6 +15,7 @@ import { runRefunds } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { checkHandoverCode } from "@/lib/handover-code";
 import { hasPayout } from "@/lib/payout";
+import { workReadyMissing } from "@/lib/work-ready";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
@@ -47,6 +48,12 @@ export async function setPresence(form: FormData): Promise<void> {
   if (!viewer.actor.helperApproved) return;
   // no bank account, no work: going online waits until there is one
   if (form.get("online") === "on" && !(await hasPayout(viewer.profile.id))) redirect("/helper/bank");
+  // a phone with notifications and location on (the position comes with this request)
+  if (form.get("online") === "on") {
+    const hasPos = coord(form.get("lat"), 90) !== null && coord(form.get("lng"), 180) !== null;
+    const missing = (await workReadyMissing(viewer.profile.id)).filter((s) => !(s === "location" && hasPos));
+    if (missing.length) return; // the page shows the checklist; nothing goes online
+  }
   const radius = Number(form.get("radius"));
   const row: Record<string, unknown> = {
     user_id: viewer.profile.id,
@@ -59,6 +66,16 @@ export async function setPresence(form: FormData): Promise<void> {
   if (lat !== null && lng !== null) Object.assign(row, { lat, lng });
   await createAdminClient().from("helper_presence").upsert(row).throwOnError();
   refresh();
+}
+
+/** The helper's position when they turn location on (work-ready check), online or not. */
+export async function reportPosition(rawLat: number, rawLng: number): Promise<void> {
+  const viewer = await helperViewer();
+  const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
+  if (!viewer.actor.helperApproved || !pos) return;
+  await createAdminClient()
+    .from("helper_presence")
+    .upsert({ user_id: viewer.profile.id, lat: pos.lat, lng: pos.lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 }
 
 /** Position heartbeat while online (the client sends it at most once a minute). */
@@ -147,6 +164,11 @@ export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; f
   const t = await getT();
   const p = parseOr(ProofSubmitInput, raw);
   if (!p) return { error: t("proof.failed") };
+  // the start photo starts the job: the same phone / notifications / location check as "start"
+  if (p.kind === "start") {
+    const missing = await workReadyMissing(viewer.profile.id);
+    if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
+  }
   const deal = await assignedFor(p.dealId, viewer.profile.id, p.kind);
   if (!deal) return { error: t("error.changed") };
   if (p.kind === "progress" && (await proofCount(p.dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
@@ -251,6 +273,11 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       }
       refresh();
       return { done: true };
+    }
+    // a phone with notifications and location on — applying, taking a price, starting
+    if (["apply", "quote", "add_kind_apply", "accept_counter", "start"].includes(intent)) {
+      const missing = await workReadyMissing(viewer.profile.id);
+      if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
     }
     // no bank account, no work (the database refuses it too)
     if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && !(await hasPayout(viewer.profile.id))) {

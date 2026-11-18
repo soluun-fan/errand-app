@@ -26,15 +26,32 @@ const testPhones = (env.TEST_PHONES ?? "").split(",").map((p) => p.trim()).filte
 if (!smsLive) {
   if (!testPhones.length) problems.push("No real SMS provider yet → set TEST_PHONES (comma-separated) or nobody can sign in");
   else warnings.push(`Private testing: only ${testPhones.length} TEST_PHONES number(s) can sign in`);
-} else if (env.DEV_SHOW_SMS_CODES === "true") {
-  problems.push("DEV_SHOW_SMS_CODES must be off once real SMS is live");
+} else {
+  if (env.DEV_SHOW_SMS_CODES === "true") problems.push("DEV_SHOW_SMS_CODES must be off once real SMS is live");
+  if (env.SMS_PROVIDER !== "http") problems.push("SMS_PROVIDER must be 'http' (the only real provider; see docs/deploy.md \"SMS\")");
+  if (!/^https:\/\//.test(env.SMS_HTTP_URL ?? "")) problems.push("SMS_HTTP_URL must be the gateway's https URL");
+  if (!/^v1,whsec_/.test(env.SEND_SMS_HOOK_SECRET ?? "")) problems.push("SEND_SMS_HOOK_SECRET must be the 'v1,whsec_…' secret from Supabase → Auth Hooks");
+  if (env.SMS_HTTP_HEADERS) {
+    try {
+      JSON.parse(env.SMS_HTTP_HEADERS);
+    } catch {
+      problems.push("SMS_HTTP_HEADERS is not valid JSON");
+    }
+  }
 }
+if (env.E2E_DEVICE_BYPASS) problems.push("E2E_DEVICE_BYPASS is for browser tests only — remove it (it would let helpers skip the phone / location / notification check)");
 if ((env.PAYMENT_PROVIDER ?? "mock") === "mock") warnings.push("PAYMENT_PROVIDER=mock — payments are simulated (fine for testing, NOT for real users)");
-if (!env.TURN_URLS || !env.TURN_SECRET) warnings.push("No TURN relay — calls are direct (may fail on mobile data; each side can see the other's IP)");
+const cfTurn = Boolean(env.CLOUDFLARE_TURN_KEY_ID && env.CLOUDFLARE_TURN_API_TOKEN);
+if (!cfTurn && (!env.TURN_URLS || !env.TURN_SECRET)) warnings.push("No call relay — calls are direct (often fail on mobile data; each side can see the other's IP). Set CLOUDFLARE_TURN_KEY_ID + 🔒 CLOUDFLARE_TURN_API_TOKEN");
 
 console.log("\nSet these in Vercel → Project → Settings → Environment Variables (values from your .env.local):");
 for (const [name, kind] of required) console.log(`  ${kind === "secret" ? "🔒" : "  "} ${name}${kind === "secret" ? "   (mark as Sensitive)" : ""}`);
-console.log("     TEST_PHONES, DEV_SHOW_SMS_CODES, PAYMENT_PROVIDER" + (env.TURN_URLS ? ", 🔒 TURN_URLS, 🔒 TURN_SECRET" : ""));
+console.log(
+  "     PAYMENT_PROVIDER" +
+    (smsLive ? ", SMS_PROVIDER, 🔒 SMS_HTTP_URL, SMS_HTTP_METHOD/BODY, 🔒 SMS_HTTP_HEADERS, 🔒 SEND_SMS_HOOK_SECRET" : ", TEST_PHONES, DEV_SHOW_SMS_CODES") +
+    (cfTurn ? ", CLOUDFLARE_TURN_KEY_ID, 🔒 CLOUDFLARE_TURN_API_TOKEN" : env.TURN_URLS ? ", 🔒 TURN_URLS, 🔒 TURN_SECRET" : "") +
+    (env.PAYMENT_PROVIDER === "wire" ? ", 🔒 WIRE_SECRET_KEY, 🔒 WIRE_WEBHOOK_SECRET" : ""),
+);
 if (warnings.length) console.log("\nWarnings:\n" + warnings.map((w) => `  ⚠ ${w}`).join("\n"));
 if (problems.length) {
   console.log("\nNot ready:\n" + problems.map((p) => `  ✗ ${p}`).join("\n"));

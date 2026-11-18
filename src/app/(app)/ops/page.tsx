@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { reportedPhotoCount } from "@/lib/work-photos";
 import { withdrawalQueue } from "@/lib/withdrawals";
+import { openErrorCount } from "@/lib/error-log";
 import { notFound } from "next/navigation";
 import { PushToggle } from "@/components/push-toggle";
 import { FlowHeader, Note } from "@/components/ui";
@@ -18,7 +19,7 @@ import { tickHeartbeat } from "@/lib/scheduler";
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts] = await Promise.all([
+  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts, errorsOpen] = await Promise.all([
     getT(),
     reviewQueue(),
     openIncidentCounts(),
@@ -28,6 +29,7 @@ export default async function OpsHome() {
     certificateQueue(),
     reportedPhotoCount(),
     withdrawalQueue(),
+    openErrorCount(),
   ]);
   const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());
@@ -73,6 +75,7 @@ export default async function OpsHome() {
           incidents.sos > 0,
         )}
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
+        {row("/ops/errors", "🧯", t("opsErrors.title"), errorsOpen ? String(errorsOpen) : null, errorsOpen > 0)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
         {row("/ops/rules", "⏱️", t("opsRules.title"), null)}

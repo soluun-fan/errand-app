@@ -27,6 +27,7 @@ import { latestWork, portfolioThumbs } from "@/lib/work-photos";
 import { WorkCard } from "@/components/work-photos";
 import { DraftChip } from "./draft-chip";
 import { TodoCard } from "@/components/todo-card";
+import { NotifyHint } from "@/components/notify-hint";
 import { customerTodos } from "@/lib/todo";
 
 const REFUND_KINDS = ["refund", "budget_refund"];
@@ -107,6 +108,7 @@ export default async function Home() {
     <Wide className="flex flex-col gap-6 md:gap-10">
       {/* what the app is waiting for from you, each with the page to do it — first thing on the screen */}
       <TodoCard items={todos} t={t} />
+      <NotifyHint />
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web */}
       <section className="grid grid-cols-1 gap-5 md:rounded-[28px] md:bg-brand-bg/50 md:p-8 lg:grid-cols-[1.35fr_1fr] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">

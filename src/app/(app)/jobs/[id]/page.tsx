@@ -28,6 +28,8 @@ import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { portfolioCandidates } from "@/lib/work-photos";
+import { WorkReady } from "@/components/work-ready";
+import { deviceCheckBypassed } from "@/lib/work-ready";
 import { PortfolioAskSection } from "@/components/portfolio-cards";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { workedTogether } from "@/lib/care";
@@ -126,6 +128,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const canTake = viewer.actor.helperApproved && (specialized ? Boolean(qualification) : (viewer.actor.categories ?? []).includes(deal.category));
   // the customer's conditions this helper doesn't meet (docs/decisions.md 2026-11-18 "Task conditions")
   const missing = deal.status === "open" && viewer.actor.helperApproved ? missingConditions(deal.details.require, viewer.actor.badges) : [];
+  const gateActions =
+    viewer.actor.helperApproved && ((deal.status === "open" && canTake && missing.length === 0) || (mine && deal.status === "matched"));
   // Sent straight to this helper from their profile (docs/decisions.md 2026-11-16 "Direct requests")
   const invitedMe = deal.status === "open" && invitedOnly(deal, now) === me;
   const declineSheet = invitedMe && deal.invite && (
@@ -449,7 +453,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
-          {primary}
+          {/* applying, taking a price or starting needs a phone with notifications + location on */}
+          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed())}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
         </PrimaryBar>
       )}
