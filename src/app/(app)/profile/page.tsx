@@ -1,4 +1,6 @@
 import { ChevronRight, Heart, UserRound } from "lucide-react";
+import { TodoCard } from "@/components/todo-card";
+import { helperTodos } from "@/lib/todo";
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
 import { Card, FlowHeader, btn } from "@/components/ui";
@@ -52,9 +54,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
       <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
+      {(mode === "helper" || profile.role === "helper" || profile.helper_status) && <TodoCard items={await helperTodos(viewer)} t={t} />}
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
       {actor.helperApproved && (
-        <section className="flex flex-col gap-2">
+        <section id="work-kinds" className="flex scroll-mt-20 flex-col gap-2">
           <h2 className="text-[17px] font-bold">{t("workKinds.title")}</h2>
           <WorkKinds all={OPEN_CATEGORIES} mine={profile.categories} />
         </section>
@@ -83,6 +86,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         )}
         {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
         <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
+        {actor.helperApproved && <Link href="/helper/bank" className={btn.secondary}>{t("payout.title")}</Link>}
         {actor.helperApproved && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
         {actor.helperApproved && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
       </section>

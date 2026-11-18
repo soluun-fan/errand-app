@@ -12,7 +12,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
@@ -256,12 +256,16 @@ export function PostFlow({
   const minFee = taskMinFee(d.category, details, startsAt, cfg);
   const hourly = cfg.kindMinHourly[d.category];
   const typed = Number(digits(d.price ?? ""));
-  const fee = typed > 0 ? typed : minFee;
+  // pre-filled with the suggested price (minimum × 1.25, Ops-editable — V1 spec C3); any price from the minimum
+  const suggested = suggestedPrice(minFee, cfg);
+  const fee = typed > 0 ? typed : suggested;
   const belowMin = typed > 0 && typed < minFee;
   // beyond the free active tasks the service fee is a little higher (same engine function as the server)
   const extraFee = extraTaskFeeFor(openTasks ?? 0, cfg);
-  const serviceFee = serviceFeeFor(fee, cfg) + extraFee;
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
+  // the "service & safety fee" is on the job total: price + shopping budget (V1 spec C4)
+  const serviceFee = serviceFeeFor(fee + itemBudget, cfg) + extraFee;
+  const overMax = fee + itemBudget > cfg.maxJobTotal;
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
   const total = fee + heldItems + serviceFee;
@@ -278,6 +282,7 @@ export function PostFlow({
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
   }
   if (STEPS[step] === "review" && belowMin) reason = t("post.reason.fee", { amount: fmtMoney(minFee) });
+  if (STEPS[step] === "review" && overMax) reason = t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) });
 
   const lineLabel = (l: QuoteLine) =>
     l.key === "time"
@@ -790,7 +795,7 @@ export function PostFlow({
                   id="price"
                   inputMode="numeric"
                   value={d.price ? Number(digits(d.price)).toLocaleString("en-US") : ""}
-                  placeholder={fmtMoney(minFee).replace("₮", "")}
+                  placeholder={fmtMoney(suggested).replace("₮", "")}
                   onChange={(e) => set("price", digits(e.target.value).slice(0, 8))}
                   className={`${field} pr-9 text-center text-[24px] font-bold tabular-nums text-brand-ink`}
                 />
@@ -802,15 +807,15 @@ export function PostFlow({
                 +
               </button>
             </div>
-            {belowMin ? (
+            {belowMin || overMax ? (
               <p role="alert" className="text-[13px] font-medium text-danger">
-                {t("post.reason.fee", { amount: fmtMoney(minFee) })}
+                {belowMin ? t("post.reason.fee", { amount: fmtMoney(minFee) }) : t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) })}
               </p>
             ) : (
-              <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee) })}</p>
+              <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee), suggested: fmtMoney(suggested) })}</p>
             )}
-            {/* hourly kinds (day jobs, care): what the price means per hour */}
-            {hourly && details.minutes > 0 && (
+            {/* care: what the price means per hour. Day jobs are priced per job, never per hour (contractor work, V1 spec A3) */}
+            {hourly && d.category !== "dayjob" && details.minutes > 0 && (
               <p className="text-[13px] font-medium text-ink-2">
                 {t("price.perHour", { amount: fmtMoney(Math.floor(fee / (details.minutes / 60))), floor: fmtMoney(hourly) })}
               </p>

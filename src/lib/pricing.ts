@@ -3,7 +3,6 @@ import { DbError } from "@/lib/db/deals";
 import { DEFAULT_CONFIG, type CategoryId, type EngineConfig, type FeeTier } from "@/lib/engine";
 import { cleanTiers } from "@/lib/pricing-rules";
 import { getRules } from "@/lib/rules";
-import { activeProvider } from "@/lib/payments/service";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -31,6 +30,10 @@ export interface PricingSettings {
   priceUpBps: number;
   counterUpBps: number;
   serviceFeeTiers: FeeTier[];
+  /** Suggested price = minimum × this (12500 = ×1.25), pre-filled on posting (V1 spec C3). */
+  suggestBps: number;
+  /** Highest job total (price + shopping budget), V1 spec C3. */
+  maxJobTotal: number;
 }
 
 interface Row {
@@ -52,6 +55,8 @@ interface Row {
   price_up_bps: number;
   counter_up_bps: number;
   service_fee_tiers: unknown;
+  suggest_bps: number;
+  max_job_total: number;
 }
 
 export async function getPricing(): Promise<PricingSettings> {
@@ -76,6 +81,8 @@ export async function getPricing(): Promise<PricingSettings> {
     priceUpBps: data.price_up_bps,
     counterUpBps: data.counter_up_bps,
     serviceFeeTiers: cleanTiers(data.service_fee_tiers) ?? [...DEFAULT_CONFIG.serviceFeeTiers],
+    suggestBps: data.suggest_bps ?? DEFAULT_CONFIG.suggestBps,
+    maxJobTotal: data.max_job_total ?? DEFAULT_CONFIG.maxJobTotal,
   };
 }
 
@@ -107,6 +114,7 @@ export async function pricingConfig(): Promise<EngineConfig> {
   return {
     ...cfg,
     paymentWindowMinutes: r.paymentWindowMinutes,
+    paymentWindowBookedMinutes: r.paymentWindowBookedMinutes,
     backOutGraceMinutes: r.backOutGraceMinutes,
     nowMatchWindowMinutes: r.nowMatchWindowMinutes,
     scheduleMatchWindowMinutes: r.scheduleMatchWindowHours * 60,
@@ -119,8 +127,8 @@ export async function pricingConfig(): Promise<EngineConfig> {
     careDayStartHour: r.careDayStartHour,
     careDayEndHour: r.careDayEndHour,
     careMaxMinutes: r.careMaxMinutes,
-    // wire.mn can't hold money: with it, new tasks are always fee-only
-    payMode: activeProvider() === "wire" ? "direct" : r.payMode,
+    // managed service (V1 spec A1): the full amount comes to us, through wire.mn or the mock alike
+    payMode: r.payMode,
     kindMinFee: Object.fromEntries(kinds.filter((k) => k.minFee !== null).map((k) => [k.category, k.minFee as number])),
     kindMinHourly: Object.fromEntries(kinds.filter((k) => k.minHourly !== null).map((k) => [k.category, k.minHourly as number])),
   };
@@ -158,6 +166,8 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       price_up_bps: next.priceUpBps,
       counter_up_bps: next.counterUpBps,
       service_fee_tiers: next.serviceFeeTiers,
+      suggest_bps: next.suggestBps,
+      max_job_total: next.maxJobTotal,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

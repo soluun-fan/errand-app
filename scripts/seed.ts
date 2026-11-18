@@ -39,7 +39,7 @@ const USERS: DemoUser[] = [
     profile: {
       name: "Bat-Erdene G.", role: "helper", helper_status: "approved", kyc_level: 3, verified_name: "Bat-Erdene G.",
       categories: ALL, rating_sum: 627, rating_count: 128, completed_count: 128,
-      payout_bank: "M Bank", payout_account_last4: "4417", payout_holder_name: "Bat-Erdene G.",
+      payout_bank: "М банк", payout_account_last4: "4417", payout_holder_name: "Bat-Erdene G.",
     },
   },
   {
@@ -48,7 +48,7 @@ const USERS: DemoUser[] = [
     profile: {
       name: "Nomin A.", role: "helper", helper_status: "approved", kyc_level: 3, verified_name: "Nomin A.",
       categories: ["shop", "queue", "deliver", "carry"], rating_sum: 293, rating_count: 61, completed_count: 61,
-      payout_bank: "Khan Bank", payout_account_last4: "2290", payout_holder_name: "Nomin A.",
+      payout_bank: "Хаан банк", payout_account_last4: "2290", payout_holder_name: "Nomin A.",
     },
   },
   {
@@ -56,7 +56,7 @@ const USERS: DemoUser[] = [
     phone: "97688000013",
     profile: {
       name: "Temuulen M.", role: "helper", helper_status: "pending", kyc_level: 3, verified_name: "Temuulen M.",
-      categories: ["carry", "repair"], payout_bank: "Golomt", payout_account_last4: "0815", payout_holder_name: "Temuulen M.",
+      categories: ["carry", "repair"], payout_bank: "Голомт банк", payout_account_last4: "0815", payout_holder_name: "Temuulen M.",
     },
   },
   { key: "ops", phone: "97688000099", profile: { name: "Ops team", role: "admin", kyc_level: 2 } },
@@ -87,6 +87,17 @@ async function main() {
     const { error } = await db.from("profiles").update(u.profile).eq("id", ids[u.key]);
     if (error) throw error;
     console.log(`user  ${u.profile.name.padEnd(14)} +${u.phone}  ${u.profile.role}`);
+    // helpers need a bank account to work (docs/decisions.md 2026-11-18); demo numbers end in the shown last 4
+    const p = u.profile as { payout_bank?: string; payout_account_last4?: string; payout_holder_name?: string };
+    if (p.payout_bank && p.payout_account_last4 && p.payout_holder_name) {
+      const { error: payErr } = await db
+        .from("payout_accounts")
+        .upsert(
+          { user_id: ids[u.key], bank: p.payout_bank, account_number: `500000${p.payout_account_last4}`, holder_name: p.payout_holder_name, verified_at: new Date().toISOString() },
+          { onConflict: "user_id", ignoreDuplicates: true },
+        );
+      if (payErr) throw payErr;
+    }
   }
 
   const { count, error } = await db.from("deals").select("id", { count: "exact", head: true });

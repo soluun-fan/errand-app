@@ -102,18 +102,11 @@ test("a plumbing job: only the company's worker can take it, and the company is 
   d = await errand(id);
   expect(d.status).toBe("released");
   const { data: rows } = await db.from("ledger_entries").select("kind, to_account, amount").eq("deal_id", id);
-  // fee-only (docs/decisions.md 2026-11-18): only our fee went through the app; nobody is paid by the app
-  expect(rows?.filter((r) => r.to_account.startsWith("payable:"))).toEqual([]);
+  // managed service (docs/decisions.md 2026-11-18): the price is owed to the COMPANY, never the worker
+  expect(rows?.filter((r) => r.to_account.startsWith("payable:")).map((r) => r.to_account)).toEqual([`payable:${orgId}`]);
+  expect(rows?.some((r) => r.to_account === `payable:${bat.id}`)).toBe(false);
   expect(rows?.some((r) => r.kind === "platform_fee")).toBe(true);
-
-  // the customer pays the COMPANY directly: its name and its account, not the worker's
-  const customer = await browser.newContext();
-  await loginAs(customer, PHONES.solongo);
-  const c = await customer.newPage();
-  await c.goto(`/tasks/${id}`);
-  await expect(c.getByText(/Ус Сантехник/).first()).toBeVisible();
-  await expect(c.getByText("5000123456")).toBeVisible();
-  await Promise.all([helper.close(), customer.close()]);
+  await helper.close();
 });
 
 test("care work is off: not offered to customers, and the database refuses it", async ({ page, context }) => {

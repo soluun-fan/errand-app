@@ -39,6 +39,8 @@ export function PricingForm({ p }: { p: PricingSettings }) {
           {num("cancelFee", t("opsPricing.cancelFee"), p.cancelFee)}
           {num("freeOpenTasks", t("opsPricing.freeOpenTasks"), p.freeOpenTasks, t("opsPricing.tasksSuffix"))}
           {num("extraTaskFee", t("opsPricing.extraTaskFee"), p.extraTaskFee)}
+          {num("suggestPct", t("opsPricing.suggestPct"), p.suggestBps / 100, "%")}
+          {num("maxJobTotal", t("opsPricing.maxJobTotal"), p.maxJobTotal)}
         </div>
       </section>
 

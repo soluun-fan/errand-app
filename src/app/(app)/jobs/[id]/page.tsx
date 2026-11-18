@@ -27,6 +27,8 @@ import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
+import { portfolioCandidates } from "@/lib/work-photos";
+import { PortfolioAskSection } from "@/components/portfolio-cards";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { workedTogether } from "@/lib/care";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
@@ -149,6 +151,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     line = viewer.actor.helperApproved
       ? specialized ? t("specialized.qualified") : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
+    // every "you need…" has the page to do it
+    if (!viewer.actor.helperApproved) {
+      primary = (
+        <Link href="/helper/apply" className={`${btn.primary} w-full`}>
+          {t("job.needApprovalGo")}
+        </Link>
+      );
+    } else if (specialized) {
+      primary = (
+        <Link href="/helper/certificates" className={`${btn.primary} w-full`}>
+          {t("job.needCertGo")}
+        </Link>
+      );
+    }
     // an everyday kind they just haven't picked yet: add it and apply in one tap
     if (viewer.actor.helperApproved && !specialized && !invitedOnly(deal, now)) {
       primary = (
@@ -415,6 +431,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             ) : null
           }
         />
+      )}
+
+      {/* finished: put some of these photos in the portfolio (the customer is asked first) */}
+      {mine && deal.status === "released" && startPhoto && (
+        <PortfolioAskSection dealId={deal.id} candidates={await portfolioCandidates(deal.id, me)} t={t} />
       )}
 
       {customer && (

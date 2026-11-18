@@ -308,11 +308,14 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
   const min = taskMinFee(input.category, details, startsAt, cfg);
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
+  if (input.fee + input.itemBudget > cfg.maxJobTotal) fail("INVALID_INPUT", `Job total is over ₮${cfg.maxJobTotal}`);
+  details.maxTotal = cfg.maxJobTotal;
   details.minFee = min; // later prices (counters, changes) are checked against this, not today's settings
   const extra = extraTaskFeeFor(input.openTasks ?? 0, cfg);
   if (extra > 0) details.extraFee = extra; // shown in the breakdown: "more active tasks"
   details.rules = {
-    paymentWindowMinutes: cfg.paymentWindowMinutes,
+    // "now" tasks pay within minutes; booked / not-urgent ones get longer (V1 spec C5)
+    paymentWindowMinutes: input.mode === "now" && scheduledAt === null ? cfg.paymentWindowMinutes : cfg.paymentWindowBookedMinutes,
     backOutGraceMinutes: cfg.backOutGraceMinutes,
     rematchWindowMinutes: cfg.nowMatchWindowMinutes,
     applicationMinutes: cfg.applicationMinutes,
@@ -359,7 +362,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     fee: input.fee,
     postedFee: input.fee,
     // fixed at posting from the posted price; a counter-offer doesn't change it
-    serviceFee: serviceFeeFor(input.fee, cfg) + extraTaskFeeFor(input.openTasks ?? 0, cfg),
+    // on the job total (price + shopping budget), V1 spec C4; a counter-offer doesn't change it
+    serviceFee: serviceFeeFor(input.fee + input.itemBudget, cfg) + extraTaskFeeFor(input.openTasks ?? 0, cfg),
     commissionBps: cfg.commissionBps,
     payMode: cfg.payMode,
     cancelFee: cfg.cancelFee,
@@ -433,6 +437,8 @@ function checkPrice(e: ErrandDeal, price: number, now: number): void {
   assertMoney(price, "price");
   const min = e.details.minFee && e.details.minFee > 0 ? e.details.minFee : minFeeAt(e.scheduledAt ?? now);
   if (price < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
+  const max = e.details.maxTotal;
+  if (typeof max === "number" && max > 0 && price + e.itemBudget > max) fail("INVALID_INPUT", `Job total is over ₮${max}`);
 }
 
 /** Applications still standing: on Instant tasks they lapse after `applicationMinutes`. */

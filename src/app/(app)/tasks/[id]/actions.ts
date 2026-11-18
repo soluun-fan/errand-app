@@ -7,6 +7,7 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { PhotoIdsJson, Uuid, parseOr } from "@/lib/input";
 import { attachTaskPhotos, photosEditable, removeTaskPhoto } from "@/lib/task-photos";
+import { attachReviewPhotos } from "@/lib/work-photos";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
 import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
@@ -17,7 +18,7 @@ import { getRules } from "@/lib/rules";
 import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
-import { activeProvider, afterPaymentBooked, startWirePayment } from "@/lib/payments/service";
+import { activeProvider, afterPaymentBooked, paymentFor, startWirePayment } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
@@ -53,18 +54,21 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         break;
       }
       case "pay": {
-        // the real payment: wire.mn's checkout page (our service fee in the fee-only mode)
+        // the real payment: wire.mn's checkout page — the full amount (managed service), a shopping
+        // top-up, or an agreed higher price; older fee-only tasks pay just the fee
         if (activeProvider() !== "wire") return { error: t("error.generic") };
         const deal = await loadDeal(db, dealId);
         if (!deal || deal.type !== "errand" || deal.customerId !== viewer.profile.id) return { error: t("common.notFound") };
-        if (deal.status !== "awaiting_payment") return { error: t("error.changed") };
-        const blocked = await payinBlock(deal.id, viewer.profile.id, amountDue(deal));
+        const what = form.get("what") === "topup" ? "topup" : form.get("what") === "price" ? "price" : "first";
+        const need = paymentFor(deal, what);
+        if (!need) return { error: t("error.changed") };
+        const blocked = await payinBlock(deal.id, viewer.profile.id, need.amount);
         if (blocked) return { error: await payinMessage(blocked, t) };
         const h = await headers();
         const origin = h.get("origin") ?? `https://${h.get("x-forwarded-host") ?? h.get("host")}`;
         let url: string;
         try {
-          url = await startWirePayment(deal, origin);
+          url = await startWirePayment(deal, origin, what);
         } catch (e) {
           console.error("wire payment start failed", e);
           return { error: t("pay.unavailable") };
@@ -134,6 +138,9 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           p_note: String(form.get("note") ?? "").slice(0, 500),
         });
         if (error) return { error: error.code === "23505" ? t("error.changed") : t("error.generic") };
+        // photos added while rating go public with the review (a failure never loses the rating)
+        const reviewPhotos = parseOr(PhotoIdsJson, String(form.get("reviewPhotos") ?? "")) ?? [];
+        if (reviewPhotos.length) await attachReviewPhotos(dealId, viewer.profile.id, reviewPhotos, stars).catch((e) => console.error("review photos failed", e));
         // care pilot: Ops looks at every care job a family rates below 4 stars
         if (stars < 4) {
           const rated = await loadDeal(db, dealId);
@@ -216,6 +223,8 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
       refresh();
       const min = /Minimum fee is ₮(\d+)/.exec(e.message);
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }) };
+      const over = /Job total is over ₮(\d+)/.exec(e.message);
+      if (over) return { error: t("post.reason.overMax", { amount: fmtMoney(Number(over[1])) }) };
       if (/Waiting for the helper/.test(e.message)) return { error: t("price.waitingHelper") };
       return { error: e.code === "FORBIDDEN" ? t("error.forbidden") : t("error.changed") };
     }

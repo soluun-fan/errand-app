@@ -14,6 +14,7 @@ import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
 import { runRefunds } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { checkHandoverCode } from "@/lib/handover-code";
+import { hasPayout } from "@/lib/payout";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
@@ -44,6 +45,8 @@ const coord = (v: FormDataEntryValue | null, lim: number) => {
 export async function setPresence(form: FormData): Promise<void> {
   const viewer = await helperViewer();
   if (!viewer.actor.helperApproved) return;
+  // no bank account, no work: going online waits until there is one
+  if (form.get("online") === "on" && !(await hasPayout(viewer.profile.id))) redirect("/helper/bank");
   const radius = Number(form.get("radius"));
   const row: Record<string, unknown> = {
     user_id: viewer.profile.id,
@@ -249,6 +252,10 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       refresh();
       return { done: true };
     }
+    // no bank account, no work (the database refuses it too)
+    if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && !(await hasPayout(viewer.profile.id))) {
+      return { error: t("payout.needed") };
+    }
     if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
       return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
     }
@@ -370,6 +377,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (e.code === "FORBIDDEN") return { error: t("error.forbidden") };
       const floor = /Minimum fee is ₮(\d+)/.exec(e.message);
       if (floor) return { error: t("job.quoteInvalid", { amount: fmtMoney(Number(floor[1])) }) };
+      const over = /Job total is over ₮(\d+)/.exec(e.message);
+      if (over) return { error: t("post.reason.overMax", { amount: fmtMoney(Number(over[1])) }) };
       if (e.code === "PROOF_MISSING") return { error: t("proof.missing") };
       if (/approve the extra/.test(e.message)) return { error: t("proof.waitTopUp") };
       if (/applicants/.test(e.message)) return { error: t("job.full") };

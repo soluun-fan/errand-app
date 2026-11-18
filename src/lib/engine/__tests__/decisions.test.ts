@@ -162,7 +162,7 @@ describe("customer chooses (applications on every task)", () => {
   it("bargaining is open both ways, any number of rounds, per helper; only the minimum is fixed", () => {
     const w = new World(DEFAULT_CONFIG);
     const id = w.post({ fee: 6000 });
-    expect(w.get(id)).toMatchObject({ serviceFee: 500 });
+    expect(w.get(id)).toMatchObject({ serviceFee: 1000 });
     w.do(id, { type: "apply", note: "5 min away" }, h1);
     w.do(id, { type: "apply", note: "", price: 6000 }, h2); // same as the posted price = just taking it
     w.do(id, { type: "apply", note: "Heavier than it looks", price: 12000 }, helper("h3")); // no cap
@@ -182,9 +182,9 @@ describe("customer chooses (applications on every task)", () => {
 
     // h3 accepts 9,500 → matched at that price; the customer pays it (service fee fixed at posting)
     w.do(id, { type: "accept_counter" }, helper("h3"));
-    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h3", fee: 9500, serviceFee: 500 });
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h3", fee: 9500, serviceFee: 1000 });
     w.pay(id);
-    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 10000 });
+    expect(w.get(id)).toMatchObject({ status: "matched", heldAmount: 10500 });
   });
 
   it("the customer may change the posted price while open; earlier yeses keep their own price", () => {

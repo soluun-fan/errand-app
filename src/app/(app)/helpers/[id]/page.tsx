@@ -12,6 +12,9 @@ import { Uuid, parseOr } from "@/lib/input";
 import { getMode } from "@/lib/mode";
 import { getPricing } from "@/lib/pricing";
 import { ListingEditor } from "../listing-editor";
+import { PhotoStrip, PortfolioGrid } from "@/components/work-photos";
+import { WorkPhotoRemove, WorkPhotoReport } from "@/components/portfolio-cards";
+import { portfolio } from "@/lib/work-photos";
 import { SaveButton } from "../save-button";
 
 /** Ulaanbaatar calendar date as "2026.11" (month) or "2026.11.16" (day) — short, same in both languages. */
@@ -33,7 +36,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
   const [t, p] = await Promise.all([getT(), helperProfile(id)]);
   if (!p) notFound();
   const me = viewer.profile.id === p.id;
-  const [reviews, highlights, saved, mode, typical, invitable, pricing] = await Promise.all([
+  const [reviews, highlights, saved, mode, typical, invitable, pricing, work] = await Promise.all([
     helperReviews(p.id),
     helperHighlights(p.id),
     me ? false : isSaved(viewer.profile.id, p.id),
@@ -41,6 +44,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
     typicalPrice(p.id),
     me ? null : invitableHelper(p.id),
     me ? getPricing() : null,
+    portfolio(p.id),
   ]);
 
   const stat = (value: React.ReactNode, label: string) => (
@@ -146,6 +150,18 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
         </section>
       )}
 
+      {/* portfolio: photos of finished jobs, each one agreed by that job's customer */}
+      {(work.length > 0 || me) && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[17px] font-bold">{t("workPhotos.portfolioTitle", { n: work.length })}</h2>
+          {work.length === 0 ? (
+            <p className="rounded-card bg-bg p-4 text-[14px] text-ink-2 shadow-card">{t("workPhotos.portfolioEmptyMine")}</p>
+          ) : (
+            <PortfolioGrid photos={work} t={t} action={(ph) => (me ? <WorkPhotoRemove photoId={ph.id} t={t} /> : <WorkPhotoReport photoId={ph.id} t={t} />)} />
+          )}
+        </section>
+      )}
+
       <section className="flex flex-col gap-2">
         <h2 className="text-[17px] font-bold">{t("helperProfile.reviewsTitle", { n: p.ratingCount })}</h2>
         {reviews.length === 0 ? (
@@ -175,6 +191,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
                   </span>
                 )}
                 {r.note && <p className="text-[15px] leading-relaxed">{r.note}</p>}
+                <PhotoStrip urls={r.photos} t={t} size="h-24" />
                 <span className="text-[12px] font-medium text-ink-2">{r.reviewer}</span>
               </li>
             ))}

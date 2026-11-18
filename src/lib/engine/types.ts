@@ -69,6 +69,8 @@ export interface ErrandDetails {
   rules?: TaskRules;
   /** Set by the engine at posting: the extra service fee for posting beyond the free active tasks (0 = none). */
   extraFee?: number;
+  /** Highest job total (price + shopping budget) when posted (managed-service pilot cap, Ops: pricing). */
+  maxTotal?: number;
   /** What the customer requires of the helper (set at posting; docs/decisions.md 2026-11-18 "Task conditions"). */
   require?: TaskConditions;
 }

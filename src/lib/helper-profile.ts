@@ -4,6 +4,7 @@ import { qualificationsForMany } from "@/lib/qualifications";
 import { RATING_TAGS } from "@/lib/labels";
 import { MAX_SAVED_HELPERS, cleanBio, maskName, median, publicNote, tagCounts } from "@/lib/profile-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { reviewPhotoUrls } from "@/lib/work-photos";
 
 /**
  * Public helper profiles (docs/decisions.md 2026-11-16): what a customer may see before choosing —
@@ -66,6 +67,8 @@ export interface PublicReview {
   reviewer: string;
   category: CategoryId | null;
   at: number;
+  /** Photos the customer added to this review (public). */
+  photos: string[];
 }
 
 /** POSITIVE tags make the profile's highlights; every tag still shows on its own review. */
@@ -88,10 +91,12 @@ export async function helperProfile(id: string): Promise<HelperProfile | null> {
   return (await approvedHelper(id))?.profile ?? null;
 }
 
-/** The helper if customers can send them a request right now (approved, not suspended). */
+/** The helper if customers can send them a request right now (approved, not suspended, has a bank account). */
 export async function invitableHelper(id: string): Promise<HelperProfile | null> {
   const h = await approvedHelper(id);
-  return h && !h.suspended ? h.profile : null;
+  if (!h || h.suspended) return null;
+  const { count } = await createAdminClient().from("payout_accounts").select("user_id", { count: "exact", head: true }).eq("user_id", id);
+  return count ? h.profile : null;
 }
 
 /**
@@ -136,9 +141,10 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
     .returns<{ deal_id: string; from_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
   const rows = data ?? [];
   if (rows.length === 0) return [];
-  const [deals, people] = await Promise.all([
+  const [deals, people, pics] = await Promise.all([
     db.from("deals").select("id, category").in("id", [...new Set(rows.map((r) => r.deal_id))]).returns<{ id: string; category: CategoryId | null }[]>(),
     db.from("profiles").select("id, name").in("id", [...new Set(rows.map((r) => r.from_user_id))]).returns<{ id: string; name: string | null }[]>(),
+    reviewPhotoUrls(rows.map((r) => r.deal_id)),
   ]);
   const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
   const who = new Map((people.data ?? []).map((p) => [p.id, p.name]));
@@ -149,6 +155,7 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
     reviewer: maskName(who.get(r.from_user_id)),
     category: cat.get(r.deal_id) ?? null,
     at: Date.parse(r.created_at),
+    photos: pics.get(r.deal_id) ?? [],
   }));
 }
 
@@ -212,26 +219,29 @@ export async function recentReviews(limit = 4): Promise<RecentReview[]> {
     .not("note", "is", null)
     .gte("stars", 4)
     .order("created_at", { ascending: false })
-    .limit(limit)
+    .limit(limit * 3) // then reviews with photos first (PleaseHelp-style), newest first within each
     .returns<{ deal_id: string; from_user_id: string; to_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
   const rows = (data ?? []).filter((r) => publicNote(r.note));
   if (!rows.length) return [];
-  const [deals, people] = await Promise.all([
+  const [deals, people, pics] = await Promise.all([
     db.from("deals").select("id, category").in("id", rows.map((r) => r.deal_id)).returns<{ id: string; category: CategoryId | null }[]>(),
     db.from("profiles").select("id, name").in("id", [...new Set(rows.flatMap((r) => [r.from_user_id, r.to_user_id]))]).returns<{ id: string; name: string | null }[]>(),
+    reviewPhotoUrls(rows.map((r) => r.deal_id)),
   ]);
   const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
   const who = new Map((people.data ?? []).map((p) => [p.id, p.name]));
-  return rows.map((r) => ({
+  const out = rows.map((r) => ({
     stars: Number(r.stars),
     tags: (r.tags ?? []).filter((x) => (RATING_TAGS as readonly string[]).includes(x)),
     note: publicNote(r.note),
     reviewer: maskName(who.get(r.from_user_id)),
     category: cat.get(r.deal_id) ?? null,
     at: Date.parse(r.created_at),
+    photos: pics.get(r.deal_id) ?? [],
     helperId: r.to_user_id,
     helperName: who.get(r.to_user_id)?.trim() || "—",
   }));
+  return [...out.filter((r) => r.photos.length), ...out.filter((r) => !r.photos.length)].slice(0, limit);
 }
 
 /* ---------- ♡ saved helpers ---------- */

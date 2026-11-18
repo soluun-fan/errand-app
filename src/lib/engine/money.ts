@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, type CategoryId, type EngineConfig } from "./config";
+import { DEFAULT_CONFIG, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
 import { assertMoney } from "./errors";
 import type { Deal, ErrandDetails } from "./types";
 
@@ -60,6 +60,13 @@ export function serviceFeeFor(amount: number, cfg: EngineConfig = DEFAULT_CONFIG
   return tier.fee;
 }
 
+/** The price pre-filled on posting: the minimum × suggestBps, rounded up to the price step (V1 spec C3). */
+export function suggestedPrice(min: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
+  assertMoney(min, "min");
+  const step = cfg.feeStep > 0 ? cfg.feeStep : 1;
+  return Math.ceil((min * cfg.suggestBps) / 10_000 / step) * step;
+}
+
 /** SafePay buyer protection: the same flat steps as the errand service fee. */
 export function buyerFeeFor(price: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
   return serviceFeeFor(price, cfg);
@@ -118,7 +125,11 @@ export function extraTaskFeeFor(openTasks: number, cfg: EngineConfig = DEFAULT_C
 /** A kind's advertised "from": its fixed minimum, or its hourly floor (shown per hour). */
 export function kindFromLabel(category: CategoryId, cfg: EngineConfig = DEFAULT_CONFIG): { amount: number; hourly: boolean } {
   const h = cfg.kindMinHourly[category];
-  return h ? { amount: h, hourly: true } : { amount: cfg.kindMinFee[category] ?? cfg.minFee, hourly: false };
+  if (!h) return { amount: cfg.kindMinFee[category] ?? cfg.minFee, hourly: false };
+  // everyday hourly kinds (day jobs) are advertised per job — the usual length × the hourly floor —
+  // never "per hour": helpers are contractors paid per task (V1 spec A3). Care keeps its hourly label.
+  if (categoryTrust(category) !== "care") return { amount: h * Math.max(1, Math.round(categoryConfig(category).minutes / 60)), hourly: false };
+  return { amount: h, hourly: true };
 }
 
 /** The lowest "from" price to advertise: the cheapest fixed minimum among these kinds. */

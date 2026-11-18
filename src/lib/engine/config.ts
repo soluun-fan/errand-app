@@ -90,7 +90,16 @@ export interface EngineConfig {
    */
   freeOpenTasks: number;
   extraTaskFee: number;
-  /** New tasks: "held" (escrow) or "direct" (only our fee through the provider). Ops: platform_rules.pay_mode. */
+  /**
+   * Highest job total = price + shopping budget (V1 spec C3: pilot cap 200,000₮). Ops: pricing.
+   * Counter-offers and price changes are held to the cap saved on the task at posting.
+   */
+  maxJobTotal: number;
+  /** Suggested price pre-filled on posting = minimum × this (12500 = ×1.25), rounded up. Ops: pricing. */
+  suggestBps: number;
+  /** Payment window for tasks booked for later / not urgent (V1 spec C5: 30 min; "now" keeps paymentWindowMinutes). */
+  paymentWindowBookedMinutes: number;
+  /** New tasks: "held" (we take the full amount — managed service) or "direct" (only our fee). Ops: platform_rules.pay_mode. */
   payMode: "held" | "direct";
   /** A kind's own lowest price (easy work lower, hard work higher). Ops: category_settings.min_fee. */
   kindMinFee: Partial<Record<CategoryId, number>>;
@@ -165,6 +174,9 @@ export interface EngineConfig {
 
 export const DEFAULT_CONFIG: EngineConfig = {
   minFee: 5000,
+  maxJobTotal: 200_000,
+  suggestBps: 12_500,
+  paymentWindowBookedMinutes: 30,
   payMode: "held",
   freeOpenTasks: 3,
   extraTaskFee: 500,
@@ -172,10 +184,11 @@ export const DEFAULT_CONFIG: EngineConfig = {
   // /ops/pricing; starting values in migration 20261117070000) — the engine default is flat
   kindMinFee: {},
   kindMinHourly: {},
+  // "Service & safety fee" on the job total (V1 spec C4); live values in pricing_settings
   serviceFeeTiers: [
-    { below: 10000, fee: 500 },
-    { below: 30000, fee: 1000 },
-    { below: 100000, fee: 2000 },
+    { below: 10000, fee: 1000 },
+    { below: 30000, fee: 1500 },
+    { below: 60000, fee: 2000 },
     { below: null, fee: 3000 },
   ],
   commissionBps: 0,

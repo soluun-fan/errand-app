@@ -63,10 +63,12 @@ test("counter-offers before matching and a price change after", async ({ browser
   await expect.poll(async () => (await errand(id)).priceChange?.status).toBe("proposed");
   await c.goto(`/tasks/${id}`);
   await c.getByRole("button", { name: "Зөвшөөрөх" }).click();
-  // fee-only tasks (docs/decisions.md 2026-11-18): the helper's price isn't held, so the agreed price simply counts
-  await expect.poll(async () => (await errand(id)).fee).toBe(base + 3000);
+  // managed service (docs/decisions.md 2026-11-18): a higher price counts once the customer pays the difference
+  await expect.poll(async () => (await errand(id)).priceChange?.status).toBe("awaiting_payment");
+  expect((await errand(id)).fee).toBe(base + 1000); // the agreed price until the difference is paid
+  await runCommand(db, id, { type: "confirm_price", providerRef: `e2e-pc-${id}`, amount: 2000 }, { kind: "provider" });
   d = await errand(id);
-  expect(d.priceChange).toBeNull();
-  expect(d.heldAmount).toBe(d.serviceFee); // only our fee went through the app
+  expect(d.fee).toBe(base + 3000);
+  expect(d.heldAmount).toBe(amountDue(d)); // the full amount went through the app
   await Promise.all([customer.close(), helper.close()]);
 });

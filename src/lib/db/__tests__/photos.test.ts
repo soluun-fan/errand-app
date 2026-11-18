@@ -132,8 +132,8 @@ describe("rules from the database", () => {
 });
 
 describe("fee-only payments (wire.mn)", () => {
-  it("tasks remember their payment mode; new tasks default to fee-only; payment tables are server-only", async () => {
-    expect((await db.query<{ v: string }>("select pay_mode as v from public.platform_rules")).rows[0].v).toBe("direct");
+  it("tasks remember their payment mode; new tasks take the full amount (managed service); payment tables are server-only", async () => {
+    expect((await db.query<{ v: string }>("select pay_mode as v from public.platform_rules")).rows[0].v).toBe("held");
     expect((await db.query<{ v: string }>("select pay_mode as v from public.deals where id = $1", [dealId])).rows[0].v).toBe("held"); // posted by the engine default here
     expect((await sqlError(svc("update public.platform_rules set pay_mode = 'free'"))).message).toMatch(/check constraint/);
     for (const table of ["provider_payments", "provider_events", "provider_refunds", "direct_payments"]) {

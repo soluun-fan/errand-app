@@ -5,10 +5,12 @@ import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fmtMoney } from "@/lib/format";
 import { cancelIntent, chargeOf, createCheckout, createIntent, getIntent, refundCharge, WireError } from "./wire";
 
 /**
- * Payments through wire.mn (docs/decisions.md 2026-11-18 "Direct pay + wire.mn"). The engine stays
+ * Payments through wire.mn (docs/decisions.md 2026-11-18 "Direct pay + wire.mn", then "Managed
+ * service": the customer prepays the full amount to us). The engine stays
  * the judge: a payment counts only when `confirm_payment` accepts it (right amount, right state,
  * never twice). This module talks to wire, remembers each payment, and turns the engine's refunds
  * into real refunds — retried by the background job until wire has done them.
@@ -26,16 +28,27 @@ export function activeProvider(): ProviderName {
 /** Which payment this is: the first one after being chosen (a re-chosen task pays again). */
 export const firstPaymentPurpose = (d: ErrandDeal) => `fee-${d.assignedAt ?? 0}`;
 
+/** What a payment is for: the first one, a shopping top-up, or an agreed higher price. */
+export type PaymentKind = "first" | "topup" | "price";
+
+/** The purpose (one live payment per purpose) and amount the task needs now, or null if it needs none. */
+export function paymentFor(d: ErrandDeal, kind: PaymentKind): { purpose: string; amount: number } | null {
+  if (kind === "first") return d.status === "awaiting_payment" ? { purpose: firstPaymentPurpose(d), amount: amountDue(d) } : null;
+  if (kind === "topup") return d.topUp?.status === "pending" ? { purpose: `topup-${d.topUp.at}`, amount: d.topUp.amount } : null;
+  const pc = d.priceChange;
+  return pc && pc.status === "awaiting_payment" && pc.fee > d.fee ? { purpose: `price-${pc.at}`, amount: pc.fee - d.fee } : null;
+}
+
 /**
  * Start (or resume) the customer's payment for what the task needs now. Returns wire's checkout URL.
  * `origin` is our site's address, for wire to send the customer back to.
  */
-export async function startWirePayment(d: ErrandDeal, origin: string): Promise<string> {
-  if (d.status !== "awaiting_payment") throw new Error("not awaiting payment");
-  if (d.payMode !== "direct") throw new Error("only the fee-only mode goes through wire for now");
+export async function startWirePayment(d: ErrandDeal, origin: string, kind: PaymentKind = "first"): Promise<string> {
+  const need = paymentFor(d, kind);
+  if (!need) throw new Error("nothing to pay");
+  if (kind !== "first" && d.payMode === "direct") throw new Error("fee-only tasks pay only the fee");
   const db = createAdminClient();
-  const purpose = firstPaymentPurpose(d);
-  const amount = amountDue(d);
+  const { purpose, amount } = need;
   const { data: open } = await db.from("provider_payments").select("id, amount, checkout_url, created_at").eq("deal_id", d.id).eq("purpose", purpose).eq("status", "pending").maybeSingle<{ id: string; amount: number; checkout_url: string | null; created_at: string }>();
   // resume a recent one (wire's checkout lives ~10 minutes); otherwise cancel it and start afresh
   if (open && open.amount === amount && open.checkout_url && Date.now() - Date.parse(open.created_at) < 8 * 60_000) return open.checkout_url;
@@ -59,13 +72,20 @@ export async function startWirePayment(d: ErrandDeal, origin: string): Promise<s
  */
 export async function handlePaid(intentId: string, amount: number, charge: string | null): Promise<"booked" | "already" | "refunded" | "unknown"> {
   const db = createAdminClient();
-  const { data: row } = await db.from("provider_payments").select("id, deal_id, status, amount").eq("id", intentId).maybeSingle<{ id: string; deal_id: string; status: string; amount: number }>();
+  const { data: row } = await db.from("provider_payments").select("id, deal_id, status, amount, purpose").eq("id", intentId).maybeSingle<{ id: string; deal_id: string; status: string; amount: number; purpose: string }>();
   if (!row) return "unknown"; // not ours (or another project's); never book unknown money
   if (row.status === "succeeded" || row.status === "refunded_late") return "already";
   await db.from("provider_payments").update({ status: "succeeded", charge_id: charge, succeeded_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", intentId);
   try {
-    const paid = await runCommand(db, row.deal_id, { type: "confirm_payment", providerRef: intentId, amount }, { kind: "provider" });
-    if (paid.deal.type === "errand") await afterPaymentBooked(paid.deal);
+    // the purpose says which payment this was (first / shopping top-up / agreed higher price)
+    const type = row.purpose.startsWith("topup-") ? "confirm_topup" : row.purpose.startsWith("price-") ? "confirm_price" : "confirm_payment";
+    const paid = await runCommand(db, row.deal_id, { type, providerRef: intentId, amount }, { kind: "provider" });
+    if (paid.deal.type === "errand") {
+      if (type === "confirm_payment") await afterPaymentBooked(paid.deal);
+      else if (type === "confirm_price" && paid.deal.helperId) {
+        await notify([paid.deal.helperId], { title: "push.pricePaidTitle", body: "push.pricePaidBody", params: { fee: fmtMoney(paid.deal.fee), title: paid.deal.title }, url: `/jobs/${paid.deal.id}`, tag: `job-${paid.deal.id}` }).catch(() => undefined);
+      }
+    }
     return "booked";
   } catch (e) {
     if (!(e instanceof EngineError)) throw e; // a database hiccup: wire retries the webhook

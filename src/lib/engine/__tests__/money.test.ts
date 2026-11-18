@@ -68,11 +68,14 @@ describe("errandSplit", () => {
 
 describe("flat service fee (docs/decisions.md 2026-11-15 Pricing)", () => {
   it("is a fixed amount by price step, never a percentage; SafePay uses the same steps", () => {
-    expect(serviceFeeFor(5000)).toBe(500);
-    expect(serviceFeeFor(9999)).toBe(500);
-    expect(serviceFeeFor(10000)).toBe(1000);
-    expect(serviceFeeFor(29999)).toBe(1000);
+    // V1 spec C4 with the owner's split: 1,000₮ under 10,000₮ · 1,500₮ under 30,000₮ · 2,000₮ under 60,000₮ · 3,000₮ from 60,000₮ (job total)
+    expect(serviceFeeFor(5000)).toBe(1000);
+    expect(serviceFeeFor(9999)).toBe(1000);
+    expect(serviceFeeFor(10000)).toBe(1500);
+    expect(serviceFeeFor(29999)).toBe(1500);
     expect(serviceFeeFor(30000)).toBe(2000);
+    expect(serviceFeeFor(59999)).toBe(2000);
+    expect(serviceFeeFor(60000)).toBe(3000);
     expect(serviceFeeFor(100000)).toBe(3000);
     expect(buyerFeeFor(1_350_000)).toBe(3000);
     expect(DEFAULT_CONFIG.commissionBps).toBe(0); // helpers keep 100%

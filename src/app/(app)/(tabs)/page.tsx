@@ -23,7 +23,11 @@ import { qsTitle } from "@/lib/content-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 import { helperDirectory, recentReviews } from "@/lib/helper-profile";
+import { latestWork, portfolioThumbs } from "@/lib/work-photos";
+import { WorkCard } from "@/components/work-photos";
 import { DraftChip } from "./draft-chip";
+import { TodoCard } from "@/components/todo-card";
+import { customerTodos } from "@/lib/todo";
 
 const REFUND_KINDS = ["refund", "budget_refund"];
 /** Past tasks shown straight away; the rest open in place ("Show all"), no separate page. */
@@ -45,7 +49,7 @@ export default async function Home() {
   const holding = all.filter((x) => x.deal.heldAmount > 0);
   const heldNow = holding.reduce((a, x) => a + x.deal.heldAmount, 0);
   const refunds = entries.filter((e) => REFUND_KINDS.includes(e.kind) && e.amount > 0).reduce((a, e) => a + e.amount, 0);
-  const [ownPics, covers] = await Promise.all([firstPhotoUrls(past.map((x) => x.deal.id)), kindCovers()]);
+  const [ownPics, covers, todos] = await Promise.all([firstPhotoUrls(past.map((x) => x.deal.id)), kindCovers(), customerTodos(viewer.profile.id, all.map((x) => x.deal))]);
   const pastRow = (x: (typeof past)[number]) => (
     <DealCard
       key={x.deal.id}
@@ -75,6 +79,7 @@ export default async function Home() {
     popularStarts(),
     seasonalStarts(),
   ]);
+  const [work, thumbs] = await Promise.all([latestWork(8), portfolioThumbs(helpers.map((h) => h.id))]);
   const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
@@ -100,6 +105,8 @@ export default async function Home() {
 
   return (
     <Wide className="flex flex-col gap-6 md:gap-10">
+      {/* what the app is waiting for from you, each with the page to do it — first thing on the screen */}
+      <TodoCard items={todos} t={t} />
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web */}
       <section className="grid grid-cols-1 gap-5 md:rounded-[28px] md:bg-brand-bg/50 md:p-8 lg:grid-cols-[1.35fr_1fr] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
@@ -211,7 +218,21 @@ export default async function Home() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {helpers.map((h) => (
               <li key={h.id}>
-                <HelperCard h={h} t={t} />
+                <HelperCard h={h} t={t} photos={thumbs.get(h.id)} />
+              </li>
+            ))}
+          </ul>,
+        )}
+
+      {/* helpers' finished work (PleaseHelp "portfolio" row): every photo agreed by that job's customer */}
+      {work.length > 0 &&
+        section(
+          t("workPhotos.homeTitle"),
+          null,
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {work.map((p) => (
+              <li key={p.id}>
+                <WorkCard p={p} t={t} href={`/helpers/${p.helperId}`} />
               </li>
             ))}
           </ul>,

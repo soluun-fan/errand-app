@@ -20,6 +20,8 @@ import { SOS_STATUSES } from "@/lib/incident-rules";
 import { isParty, liveSos } from "@/lib/incidents";
 import { pokeTask, taskAction } from "./actions";
 import { DealView } from "./deal-view";
+import { PortfolioConsentCard } from "@/components/portfolio-cards";
+import { taskWorkPhotos } from "@/lib/work-photos";
 import { activeProvider, checkWirePayments } from "@/lib/payments/service";
 import { directPayOpen, directPayState, payeeAccount } from "@/lib/direct-pay";
 
@@ -30,7 +32,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   let deal = await getDealForViewer(id, viewer);
   if (!deal || deal.type !== "errand") notFound();
   // back from wire's payment page (or still waiting): ask wire directly, in case its webhook is slow
-  if (deal.status === "awaiting_payment" && deal.customerId === viewer.profile.id && activeProvider() === "wire") {
+  const owes = deal.status === "awaiting_payment" || deal.topUp?.status === "pending" || deal.priceChange?.status === "awaiting_payment";
+  if (owes && deal.customerId === viewer.profile.id && activeProvider() === "wire") {
     await checkWirePayments(deal.id).catch((e) => console.error("wire check failed", e));
     deal = (await getDealForViewer(id, viewer)) ?? deal;
     if (deal.type !== "errand") notFound();
@@ -125,6 +128,11 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       directPay={isCustomer && directPayOpen(deal) ? { state: await directPayState(deal), account: await payeeAccount(deal) } : null}
       photos={await taskPhotosFor(deal.id)}
       photosEditable={isCustomer && deal.status === "open" && categoryTrust(deal.category) !== "care"}
+      workPhotos={
+        isCustomer && deal.status === "released" && !isCare ? (
+          <PortfolioConsentCard dealId={deal.id} photos={await taskWorkPhotos(deal.id)} helperName={(deal.helperId && people.get(deal.helperId)?.name) || t("deal.helperIs")} t={t} />
+        ) : null
+      }
       proofs={["in_progress", "check", "disputed", "released", "refunded"].includes(deal.status) ? await proofsFor(deal.id, { includeRemoved: viewer.profile.role === "admin" }) : []}
     />
     </>

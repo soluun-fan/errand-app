@@ -144,7 +144,7 @@ describe("scheduled errands", () => {
     w.do(id, { type: "choose", helperId: "h1" }, c1);
     expect(w.get(id)).toMatchObject({ fee: 22000, postedFee: 15000 });
     expect(amountDue(w.get(id))).toBe(23000);
-    w.now += 10 * MINUTE_MS;
+    w.now += 30 * MINUTE_MS; // booked tasks: 30 minutes to pay (V1 spec C5)
     w.tick(); // not paid → h1's offer is dropped, fee restored
     const d = w.get(id) as ErrandDeal;
     expect(d).toMatchObject({ status: "open", fee: 15000 });

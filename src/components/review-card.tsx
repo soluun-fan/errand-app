@@ -8,7 +8,11 @@ export function ReviewCard({ r, t }: { r: RecentReview; t: T }) {
   const d = new Date(r.at + 8 * 3_600_000);
   const date = `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${String(d.getUTCDate()).padStart(2, "0")}`;
   return (
-    <article className="flex h-full flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
+    <article className="flex h-full flex-col gap-2 overflow-hidden rounded-card bg-bg p-4 shadow-card">
+      {r.photos[0] && (
+        // eslint-disable-next-line @next/next/no-img-element -- public review photo in Supabase Storage
+        <img src={r.photos[0]} alt={t("workPhotos.reviewPhoto")} loading="lazy" className="-mx-4 -mt-4 mb-1 aspect-[4/3] w-[calc(100%+2rem)] max-w-none bg-fill object-cover" />
+      )}
       <span className="flex items-center gap-1.5">
         <span className="flex" aria-label={t("helperProfile.stars", { n: r.stars })}>
           {[1, 2, 3, 4, 5].map((s) => (

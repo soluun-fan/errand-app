@@ -1,5 +1,7 @@
 import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
 import { kindCovers } from "@/lib/covers";
+import { latestWork } from "@/lib/work-photos";
+import { WorkCard } from "@/components/work-photos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -43,6 +45,7 @@ export default async function Welcome() {
     popularStarts(),
     seasonalStarts(),
   ]);
+  const work = await latestWork(8);
   const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
@@ -171,6 +174,23 @@ export default async function Welcome() {
               </div>
               <OpenBoard items={board} t={t} locale={locale} covers={await kindCovers()} />
             </div>
+          </section>
+        )}
+
+        {/* helpers' finished work: real photos, each agreed by that job's customer */}
+        {work.length > 0 && (
+          <section className={`${wrap} flex flex-col gap-5 py-12`}>
+            <div>
+              <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("workPhotos.homeTitle")}</h2>
+              <p className="mt-1 text-[15px] text-ink-2">{t("workPhotos.homeSub")}</p>
+            </div>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {work.map((p) => (
+                <li key={p.id}>
+                  <WorkCard p={p} t={t} href={`/helpers/${p.helperId}`} />
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

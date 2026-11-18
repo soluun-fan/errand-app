@@ -17,6 +17,8 @@ beforeAll(async () => {
   for (const id of [customerId, helperId]) await db.query("insert into auth.users (id, phone) values ($1, $2)", [id, `9768800000${id.slice(-1)}`]);
   await db.query("insert into public.organizations(id, name, reg_number, kind, owner_id, categories, requested_categories, status) values ($1, 'Test agency', '1234567', 'agency', $2, '{plumbing,childcare}', '{plumbing,childcare}', 'approved')", [orgId, customerId]);
   await db.query("insert into public.org_members(org_id, helper_id, categories, status) values ($1, $2, '{plumbing,childcare}', 'active')", [orgId, helperId]);
+  // a worker needs a bank account to work (migration 20261118050000)
+  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
 });
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {

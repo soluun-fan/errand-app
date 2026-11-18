@@ -5,9 +5,10 @@ import { fmtMoney } from "@/lib/format";
 import type { HelperProfile } from "@/lib/helper-profile";
 import { CategoryIcon } from "./category-icon";
 import { Avatar } from "./ui";
+import { PhotoStrip } from "./work-photos";
 
 /** A helper in the directory (PleaseHelp "recommended helpers" style): who, trust, what they do. */
-export function HelperCard({ h, t, saved = false }: { h: HelperProfile; t: T; saved?: boolean }) {
+export function HelperCard({ h, t, saved = false, photos = [] }: { h: HelperProfile; t: T; saved?: boolean; photos?: string[] }) {
   const shown = h.categories.slice(0, 3);
   return (
     <Link href={`/helpers/${h.id}`} className="press flex h-full flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
@@ -30,6 +31,7 @@ export function HelperCard({ h, t, saved = false }: { h: HelperProfile; t: T; sa
         {saved && <Heart aria-label={t("helperProfile.saved")} size={18} className="flex-none fill-current text-brand-ink" />}
       </span>
       {h.bio && <span className="line-clamp-2 text-[13px] leading-snug text-ink-2">{h.bio}</span>}
+      <PhotoStrip urls={photos} t={t} />
       <span className="flex flex-wrap gap-1.5">
         {h.fromPrice && (
           <span className="rounded-[8px] bg-brand-bg px-2 py-1 text-[12px] font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(h.fromPrice) })}</span>

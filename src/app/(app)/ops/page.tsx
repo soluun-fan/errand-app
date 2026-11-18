@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { reportedPhotoCount } from "@/lib/work-photos";
+import { withdrawalQueue } from "@/lib/withdrawals";
 import { notFound } from "next/navigation";
 import { PushToggle } from "@/components/push-toggle";
 import { FlowHeader, Note } from "@/components/ui";
@@ -16,7 +18,7 @@ import { tickHeartbeat } from "@/lib/scheduler";
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls, hb, orgs, certs] = await Promise.all([
+  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts] = await Promise.all([
     getT(),
     reviewQueue(),
     openIncidentCounts(),
@@ -24,6 +26,8 @@ export default async function OpsHome() {
     tickHeartbeat().catch(() => null),
     orgQueue(),
     certificateQueue(),
+    reportedPhotoCount(),
+    withdrawalQueue(),
   ]);
   const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());
@@ -73,10 +77,12 @@ export default async function OpsHome() {
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
         {row("/ops/rules", "⏱️", t("opsRules.title"), null)}
         {row("/ops/payments", "💳", t("opsPay.title"), null)}
+        {row("/ops/withdrawals", "🏦", t("opsWithdraw.title"), payouts.length ? String(payouts.length) : null, payouts.length > 0)}
         {row("/ops/badges", "🚗", t("opsBadges.title"), null)}
         {row("/ops/orgs", "🏢", t("opsOrgs.title"), orgsPending ? String(orgsPending) : null)}
         {row("/ops/certificates", "📜", t("opsCerts.title"), certs.length ? String(certs.length) : null)}
         {row("/ops/content", "✏️", t("opsContent.title"), null)}
+        {row("/ops/photos", "🖼️", t("opsPhotos.title"), reported ? String(reported) : null, reported > 0)}
       </nav>
       {/* SOS alerts arrive as push: Ops must switch it on for the phone they carry */}
       <section className="flex flex-col gap-2">

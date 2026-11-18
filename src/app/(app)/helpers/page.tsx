@@ -7,6 +7,7 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
 import { helperDirectory, savedHelperIds, type HelperSort } from "@/lib/helper-profile";
+import { portfolioThumbs } from "@/lib/work-photos";
 
 /**
  * /helpers — browse verified helpers (PleaseHelp "내 주변 헬퍼" / Unegui-style listing): category,
@@ -21,6 +22,7 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
   const onlySaved = sp.saved === "1";
   const [t, saved] = await Promise.all([getT(), savedHelperIds(viewer.profile.id)]);
   const people = (await helperDirectory({ category: cat, sort, ids: onlySaved ? saved : undefined })).filter((h) => h.id !== viewer.profile.id);
+  const thumbs = await portfolioThumbs(people.map((h) => h.id));
   const savedSet = new Set(saved);
   const href = (p: { cat?: string; sort?: string; saved?: boolean }) => {
     const q = new URLSearchParams();
@@ -72,7 +74,7 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {people.map((h) => (
             <li key={h.id}>
-              <HelperCard h={h} t={t} saved={savedSet.has(h.id)} />
+              <HelperCard h={h} t={t} saved={savedSet.has(h.id)} photos={thumbs.get(h.id)} />
             </li>
           ))}
         </ul>

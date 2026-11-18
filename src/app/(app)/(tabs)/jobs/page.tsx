@@ -1,4 +1,7 @@
-import { CalendarClock, MapPin, Zap } from "lucide-react";
+import { CalendarClock, Landmark, MapPin, Zap } from "lucide-react";
+import { hasPayout } from "@/lib/payout";
+import { helperTodos } from "@/lib/todo";
+import { TodoCard } from "@/components/todo-card";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -183,6 +186,23 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       </Link>
     </header>
   );
+  // no bank account, no work: customers pay the helper straight into it (docs/decisions.md 2026-11-18)
+  if (actor.helperApproved && !(await hasPayout(profile.id))) {
+    return (
+      <>
+        {header}
+        <section className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">
+          <Landmark aria-hidden size={28} className="text-brand-ink" />
+          <h2 className="text-[18px] font-bold">{t("payout.gateTitle")}</h2>
+          <p className="text-[15px] text-ink-2">{t("payout.gateBody")}</p>
+          <Link href="/helper/bank" className={`${btn.primary} w-full`}>
+            {t("payout.add")}
+          </Link>
+        </section>
+      </>
+    );
+  }
+  const todos = await helperTodos(viewer);
   if (actor.helperApproved) {
     const now = Date.now();
     const [presence, offersAll, nearby, mine, applied] = await Promise.all([
@@ -203,6 +223,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     return (
       <>
         {header}
+        <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
         <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
         <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
@@ -291,14 +312,27 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   return (
     <>
       {header}
+      <TodoCard items={todos} t={t} />
       <p className="text-[16px] text-ink-2">{t("helper.becomeBody")}</p>
       <Card>
         <h2 className="font-bold">{t("helper.checklist")}</h2>
         <ul className="flex flex-col divide-y divide-line">
           {rows.map(([label, state]) => (
-            <li key={label} className="flex min-h-12 items-center justify-between gap-3">
-              <span className="text-[15px]">{label}</span>
-              {chip(state)}
+            <li key={label}>
+              {state === "needed" && !pending ? (
+                <Link href="/helper/apply" className="press flex min-h-12 items-center justify-between gap-3">
+                  <span className="text-[15px]">{label}</span>
+                  <span className="flex items-center gap-2">
+                    {chip(state)}
+                    <span className="text-[14px] font-semibold text-brand-ink underline underline-offset-4">{t("helper.stepGo")} ›</span>
+                  </span>
+                </Link>
+              ) : (
+                <span className="flex min-h-12 items-center justify-between gap-3">
+                  <span className="text-[15px]">{label}</span>
+                  {chip(state)}
+                </span>
+              )}
             </li>
           ))}
         </ul>

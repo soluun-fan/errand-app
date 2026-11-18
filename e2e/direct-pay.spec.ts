@@ -16,12 +16,15 @@ const SECRET = process.env.WIRE_WEBHOOK_SECRET ?? "";
 const created: string[] = [];
 let batId = "";
 let hadAccount = false;
+/** Bat's account number, as the customer should see it once the job is done. */
+let batAccount = "5000999888";
 
 test.beforeAll(async () => {
   const bat = await profile(NAMES.bat);
   batId = bat.id;
   hadAccount = Boolean((await db.from("payout_accounts").select("user_id").eq("user_id", batId).maybeSingle()).data);
-  if (!hadAccount) await db.from("payout_accounts").insert({ user_id: batId, bank: "Khan Bank", account_number: "5000999888", holder_name: "Bat-Erdene G." }).throwOnError();
+  if (!hadAccount) await db.from("payout_accounts").insert({ user_id: batId, bank: "Khan Bank", account_number: batAccount, holder_name: "Bat-Erdene G." }).throwOnError();
+  batAccount = (await db.from("payout_accounts").select("account_number").eq("user_id", batId).single<{ account_number: string }>()).data!.account_number;
 });
 test.afterAll(async () => {
   await cancelIfOpen(created);
@@ -36,8 +39,8 @@ test.afterAll(async () => {
 
 async function task(title: string) {
   const sol = await profile(NAMES.solongo);
-  const cfg = await pricingConfig();
-  expect(cfg.payMode).toBe("direct"); // new tasks are fee-only
+  // new tasks are managed-service now (docs/decisions.md 2026-11-18); fee-only tasks still running must keep working
+  const cfg = { ...(await pricingConfig()), payMode: "direct" as const };
   const now = Date.now();
   const t = createErrand(
     { id: crypto.randomUUID(), title, description: "x", category: "queue", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 2000, customerId: sol.id },
@@ -87,7 +90,7 @@ test("the customer pays only our fee, then pays the helper directly; both mark i
 
   await finishJob(id);
   await c.goto(`/tasks/${id}`);
-  await expect(c.getByText("5000999888")).toBeVisible(); // the helper's account, to pay directly
+  await expect(c.getByText(batAccount)).toBeVisible(); // the helper's account, to pay directly
   await c.getByRole("button", { name: "Би төлсөн" }).click();
   await expect.poll(async () => (await db.from("direct_payments").select("customer_paid_at").eq("deal_id", id).maybeSingle()).data?.customer_paid_at).toBeTruthy();
 

@@ -57,6 +57,9 @@ beforeAll(async () => {
       categories = '{shop,carry,queue,deliver,repair,other}' where id = '${U.h1}';
     update public.profiles set role = 'helper', helper_status = 'approved', categories = '{shop}' where id = '${U.h2}';
     update public.profiles set role = 'admin' where id = '${U.ops}';
+    -- a worker needs a bank account to work (migration 20261118050000)
+    insert into public.payout_accounts (user_id, bank, account_number, holder_name) values
+      ('${U.h1}', 'Хаан банк', '5012345678', 'Helper One'), ('${U.h2}', 'Голомт банк', '1234567890', 'Helper Two');
   `);
 });
 
@@ -196,13 +199,13 @@ describe("engine → database round trip", () => {
     await noViolations();
   });
 
-  it("a match not paid in 10 min reopens the task: fee, pay_by and the dropped offer persist", async () => {
+  it("a match not paid in time reopens the task (booked: 30 min): fee, pay_by and the dropped offer persist", async () => {
     let d = await postErrand({ mode: "schedule", scheduledAt: T0 + 30 * HOUR_MS, itemBudget: 0, location: { lat: 47.9184, lng: 106.9177 } });
     expect(d.type === "errand" && d.location).toEqual({ lat: 47.9184, lng: 106.9177 });
     d = await step(d, { type: "apply", note: "quote", price: 20000 }, helper(U.h1), T0 + 1000);
     d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
     expect(d).toMatchObject({ status: "awaiting_payment", fee: 20000 });
-    const later = T0 + 2000 + 10 * 60_000;
+    const later = T0 + 2000 + 30 * 60_000;
     d = await persist(d, runDue(d, later) as Transition, later); // persist() asserts DB == engine
     expect(d).toMatchObject({ status: "open", fee: 9000, payBy: null, helperId: null, offers: [] });
     await noViolations();
@@ -698,7 +701,7 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
       { now: T0, actor: customer(U.c1) },
     );
     let d = await persist(null, t, T0);
-    expect(d).toMatchObject({ serviceFee: 1000, commissionBps: 0 });
+    expect(d).toMatchObject({ serviceFee: 1500, commissionBps: 0 }); // 14,000₮ job total → 1,500₮ (V1 spec C4)
     expect(d.type === "errand" && d.details).toMatchObject({ minutes: 120, quotedFee: 14000, counterMax: 0 });
     // bargaining round-trips through the database: helper asks 18,000, customer 15,000, helper 16,000
     d = await step(d, { type: "apply", note: "", price: 18000 }, helper(U.h1), T0 + 1000);
@@ -707,14 +710,14 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
     d = await step(d, { type: "reprice", price: 16000 }, helper(U.h1), T0 + 1500);
     d = await step(d, { type: "choose", helperId: U.h1 }, customer(U.c1), T0 + 2000);
     d = await pay(d, T0 + 3000);
-    expect(d.heldAmount).toBe(17000);
+    expect(d.heldAmount).toBe(17500);
     d = await step(d, { type: "start" }, helper(U.h1), T0 + 4000);
     d = await step(d, { type: "record_handover" }, helper(U.h1), T0 + 5000);
     d = await step(d, { type: "finish" }, helper(U.h1), T0 + 6000);
     d = await step(d, { type: "confirm" }, customer(U.c1), T0 + 7000);
     const bal = (acc: string) => scalar<string>(db, `select public.account_balance($1, $2)::text as v`, [acc, d.id]);
     expect(await bal(`payable:${U.h1}`)).toBe("16000");
-    expect(await bal("platform")).toBe("1000");
+    expect(await bal("platform")).toBe("1500");
     await noViolations();
   });
 
@@ -733,11 +736,11 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
     d = await step(d, { type: "propose_price", price: 8000 }, helper(U.h1), T0 + 4000);
     expect(d.type === "errand" && d.priceChange).toMatchObject({ fee: 8000, by: "helper", status: "proposed" });
     d = await step(d, { type: "answer_price", accept: true }, customer(U.c1), T0 + 5000);
-    expect(d).toMatchObject({ fee: 8000, heldAmount: 9000 });
+    expect(d).toMatchObject({ fee: 8000, heldAmount: 9500 });
     d = await step(d, { type: "propose_price", price: 12000 }, customer(U.c1), T0 + 6000);
     d = await step(d, { type: "answer_price", accept: true }, helper(U.h1), T0 + 7000);
     d = await step(d, { type: "confirm_price", providerRef: `pc-${d.id}`, amount: 4000 }, provider, T0 + 8000);
-    expect(d).toMatchObject({ fee: 12000, heldAmount: 13000 });
+    expect(d).toMatchObject({ fee: 12000, heldAmount: 13500 });
     expect(d.type === "errand" && d.priceChange).toMatchObject({ status: "paid", providerRef: `pc-${d.id}` });
     await noViolations(); // ledger hold == held_amount, sums intact
   });

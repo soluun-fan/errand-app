@@ -78,10 +78,11 @@ export function PaySheet({
             <Countdown until={payBy} serverNow={serverNow} template={t("pay.validFor")} />
           </p>
         )}
-        {wire && intent === "simulate_payment" ? (
+        {wire ? (
           <form action={formAction} className="relative flex flex-col gap-3">
             <input type="hidden" name="dealId" value={dealId} />
             <input type="hidden" name="intent" value="pay" />
+            <input type="hidden" name="what" value={intent === "simulate_topup" ? "topup" : intent === "simulate_price_payment" ? "price" : "first"} />
             <WireButton label={t("pay.wireButton", { amount: amountLabel })} />
             <p className="text-sm text-ink-2">{t("pay.wireSub")}</p>
             {state.error && (

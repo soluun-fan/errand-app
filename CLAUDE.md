@@ -2,7 +2,7 @@
 
 # Tuslamj Hub
 
-Mongolian (UB-first) errand marketplace + held payments. Customers post small physical tasks; verified helpers do them; payment is held by a partner bank until the customer confirms. **SafePay** reuses the same hold engine for buying from strangers. One deal engine powers both.
+Mongolian (UB-first) errand service. Customers post small physical tasks; verified helpers (independent providers) do them. **Managed service (V1, 2026-11-18):** the customer buys the service from us and prepays the full amount through wire.mn; we pay the helper per task after the customer confirms, into withdraw-only Earnings. **SafePay** reuses the same engine for buying from strangers (later).
 
 **New here? Read `docs/CONTEXT.md` first** — the whole picture (product, architecture, lifecycle, dispatch, status, weak spots) on one page.
 
@@ -26,7 +26,7 @@ Mongolian (UB-first) errand marketplace + held payments. Customers post small ph
 - Deal status changes on a **payment-provider webhook only**, never on a screenshot. Webhooks are idempotent.
 - Invariant on every release: `helperNet + refund + platform == held`. Sum of held deals == bank hold balance.
 - Reject illegal state transitions server-side. Each transition writes a timeline event (+ a ledger entry if money moves).
-- We never hold funds ourselves: all money calls go through the `PaymentProvider` interface (`MockProvider` first).
+- Money in only through the payment provider (wire.mn; mock in dev). Helper earnings are withdraw-only, paid only to their own checked bank account; never call them "wallet/balance", never "цалин/ажилтан" (helpers are contractors). Every amount is an Ops setting, not a constant.
 - Phone numbers never shown in plain text; chat masks them.
 - All strings via i18n (`mn` default, `en`).
 

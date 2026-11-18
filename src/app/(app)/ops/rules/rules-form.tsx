@@ -9,8 +9,9 @@ import { saveRules } from "../actions";
 
 type NumKey = Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">;
 
-const GROUPS: { title: "money" | "search" | "backOut" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour"][] }[] = [
-  { title: "money", fields: [["paymentWindowMinutes", "min"], ["checkHours", "h"]] },
+const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour" | "mnt" | "times"][] }[] = [
+  { title: "money", fields: [["paymentWindowMinutes", "min"], ["paymentWindowBookedMinutes", "min"], ["checkHours", "h"]] },
+  { title: "payouts", fields: [["withdrawMin", "mnt"], ["withdrawalsPerDay", "times"], ["autoPayoutDays", "days"], ["dayjobPairMonthCap", "times"]] },
   {
     title: "search",
     fields: [

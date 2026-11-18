@@ -29,8 +29,16 @@ export interface PlatformRules {
   careMaxMinutes: number;
   careCallMinSeconds: number;
   dispatchWaves: Wave[];
-  /** New tasks: "direct" (only our fee through the provider) or "held" (escrow — needs legal clearance). */
+  /** New tasks: "held" (the full amount to us — managed service, V1 spec A1) or "direct" (only our fee; older tasks). */
   payMode: "held" | "direct";
+  /** Booked / not-urgent tasks: minutes to pay after choosing (V1 spec C5). */
+  paymentWindowBookedMinutes: number;
+  /** Withdrawals (V1 spec C10): smallest amount, how many a day, unclaimed earnings paid out after N days. */
+  withdrawMin: number;
+  withdrawalsPerDay: number;
+  autoPayoutDays: number;
+  /** Day jobs stay one-off help (V1 spec A3): same poster + helper, at most this many in 30 days. */
+  dayjobPairMonthCap: number;
 }
 
 interface Row {
@@ -54,6 +62,11 @@ interface Row {
   care_call_min_seconds: number;
   dispatch_waves: unknown;
   pay_mode: string;
+  payment_window_booked_minutes: number;
+  withdraw_min: number;
+  withdrawals_per_day: number;
+  auto_payout_days: number;
+  dayjob_pair_month_cap: number;
 }
 
 /** Waves as stored, checked; anything odd falls back to the built-in waves (never breaks dispatch). */
@@ -92,7 +105,12 @@ export async function getRules(): Promise<PlatformRules> {
     careMaxMinutes: data.care_max_minutes,
     careCallMinSeconds: data.care_call_min_seconds,
     dispatchWaves: cleanWaves(data.dispatch_waves),
-    payMode: data.pay_mode === "held" ? "held" : "direct",
+    payMode: data.pay_mode === "direct" ? "direct" : "held",
+    paymentWindowBookedMinutes: data.payment_window_booked_minutes ?? 30,
+    withdrawMin: data.withdraw_min ?? 3000,
+    withdrawalsPerDay: data.withdrawals_per_day ?? 2,
+    autoPayoutDays: data.auto_payout_days ?? 30,
+    dayjobPairMonthCap: data.dayjob_pair_month_cap ?? 8,
   };
 }
 
@@ -122,6 +140,11 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       care_call_min_seconds: next.careCallMinSeconds,
       dispatch_waves: next.dispatchWaves,
       pay_mode: next.payMode,
+      payment_window_booked_minutes: next.paymentWindowBookedMinutes,
+      withdraw_min: next.withdrawMin,
+      withdrawals_per_day: next.withdrawalsPerDay,
+      auto_payout_days: next.autoPayoutDays,
+      dayjob_pair_month_cap: next.dayjobPairMonthCap,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

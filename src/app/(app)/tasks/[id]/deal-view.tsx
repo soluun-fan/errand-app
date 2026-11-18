@@ -31,6 +31,7 @@ import type { HelperBadges } from "@/lib/engine";
 import type { OnTime } from "@/lib/badges";
 import type { DirectPayState, PayeeAccount } from "@/lib/direct-pay";
 import { PriceChangeCard } from "@/components/price-change-card";
+import { ReviewPhotoPicker } from "@/components/review-photo-picker";
 
 export interface DealViewProps {
   deal: ErrandDeal;
@@ -82,6 +83,8 @@ export interface DealViewProps {
   firstAid?: Set<string>;
   /** SOS / report-a-problem row (client component, passed in by the page). */
   safety?: ReactNode;
+  /** Finished task: the helper's request to show photos + the task's public photos. */
+  workPhotos?: ReactNode;
 }
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
@@ -486,6 +489,8 @@ export function DealView(p: DealViewProps) {
                 {t("rating.note")}
                 <textarea name="note" maxLength={500} rows={2} className={field} />
               </label>
+              {/* no public photos of care work (children, elders) */}
+              {categoryTrust(deal.category) !== "care" && <ReviewPhotoPicker dealId={deal.id} />}
               <p className="text-[13px] text-ink-2">{t("helperProfile.reviewPublic")}</p>
             </ConfirmSheet>
           );
@@ -699,6 +704,8 @@ export function DealView(p: DealViewProps) {
           </ConfirmSheet>
         </section>
       )}
+
+      {p.workPhotos}
 
       {p.proofs && p.proofs.length > 0 && (
         <section className="flex flex-col gap-2">

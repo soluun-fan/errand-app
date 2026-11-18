@@ -12,7 +12,7 @@ function matched() {
   w.do(id, { type: "apply", note: "" }, h1);
   w.do(id, { type: "choose", helperId: "h1" }, c1);
   w.pay(id);
-  expect(w.get(id)).toMatchObject({ status: "matched", fee: 10000, heldAmount: 11000 });
+  expect(w.get(id)).toMatchObject({ status: "matched", fee: 10000, heldAmount: 11500 });
   return { w, id };
 }
 const pc = (w: World, id: string) => (w.get(id) as ErrandDeal).priceChange;
@@ -24,8 +24,8 @@ describe("price change after matching (docs/decisions.md 2026-11-16)", () => {
     expect(pc(w, id)).toMatchObject({ fee: 8000, from: 10000, by: "helper", status: "proposed" });
     w.reject(id, { type: "answer_price", accept: true }, h1, "FORBIDDEN"); // can't accept your own
     w.do(id, { type: "answer_price", accept: true }, c1);
-    expect(w.get(id)).toMatchObject({ fee: 8000, heldAmount: 9000, priceChange: null });
-    expect(w.bal("ext:c1")).toBe(-11000 + 2000);
+    expect(w.get(id)).toMatchObject({ fee: 8000, heldAmount: 9500, priceChange: null });
+    expect(w.bal("ext:c1")).toBe(-11500 + 2000);
   });
 
   it("higher: accepted, then it counts only once the customer pays the difference (webhook idempotent)", () => {
@@ -33,12 +33,12 @@ describe("price change after matching (docs/decisions.md 2026-11-16)", () => {
     w.do(id, { type: "start" }, h1);
     w.do(id, { type: "propose_price", price: 15000 }, h1); // turned out bigger
     w.do(id, { type: "answer_price", accept: true }, c1);
-    expect(w.get(id)).toMatchObject({ fee: 10000, heldAmount: 11000 });
+    expect(w.get(id)).toMatchObject({ fee: 10000, heldAmount: 11500 });
     expect(pc(w, id)).toMatchObject({ status: "awaiting_payment" });
     w.reject(id, { type: "propose_price", price: 12000 }, c1, "ILLEGAL_TRANSITION"); // pay or drop it first
     w.reject(id, { type: "confirm_price", providerRef: "p1", amount: 4000 }, provider, "PAYMENT_MISMATCH");
     w.do(id, { type: "confirm_price", providerRef: "p1", amount: 5000 }, provider);
-    expect(w.get(id)).toMatchObject({ fee: 15000, heldAmount: 16000 });
+    expect(w.get(id)).toMatchObject({ fee: 15000, heldAmount: 16500 });
     expect(w.do(id, { type: "confirm_price", providerRef: "p1", amount: 5000 }, provider).duplicate).toBe(true);
     // release pays the helper the new price; the invariant holds (World checks it every step)
     w.do(id, { type: "record_handover" }, h1);
@@ -91,10 +91,10 @@ describe("replayed payment webhooks across several price changes", () => {
     w.do(id, { type: "answer_price", accept: true }, c1);
     const replay = w.do(id, { type: "confirm_price", providerRef: "pc-1", amount: 2000 }, provider);
     expect(replay.duplicate).toBe(true);
-    expect(w.get(id)).toMatchObject({ fee: 12000, heldAmount: 13000 });
+    expect(w.get(id)).toMatchObject({ fee: 12000, heldAmount: 13500 });
     // the first payment's ref can't pay for it either
     expect(w.do(id, { type: "confirm_price", providerRef: `qpay-${id}`, amount: 2000 }, provider).duplicate).toBe(true);
     w.do(id, { type: "confirm_price", providerRef: "pc-2", amount: 2000 }, provider);
-    expect(w.get(id)).toMatchObject({ fee: 14000, heldAmount: 15000, providerRefs: [`qpay-${id}`, "pc-1", "pc-2"] });
+    expect(w.get(id)).toMatchObject({ fee: 14000, heldAmount: 15500, providerRefs: [`qpay-${id}`, "pc-1", "pc-2"] });
   });
 });

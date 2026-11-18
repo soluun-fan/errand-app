@@ -18,6 +18,7 @@ import { createCoverSlot, setCover } from "@/lib/covers";
 import { updateRules, type PlatformRules } from "@/lib/rules";
 import { resolveUnpaid } from "@/lib/direct-pay";
 import { decideBadge } from "@/lib/badges";
+import { decideWithdrawal, markAccountChecked } from "@/lib/withdrawals";
 import type { Wave } from "@/lib/dispatch/plan";
 
 async function requireAdmin() {
@@ -104,7 +105,10 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     priceUpBps: percentToBps(form.get("priceUpPct"), 100),
     counterUpBps: percentToBps(form.get("counterUpPct"), 100),
     serviceFeeTiers: cleanTiers(rawTiers),
+    suggestBps: percentToBps(form.get("suggestPct"), 300),
+    maxJobTotal: amt("maxJobTotal", 5000, 10_000_000),
   };
+  if (next.suggestBps !== null && next.suggestBps < 10_000) return { error: t("opsPricing.invalid") }; // never below the minimum
   if (Object.values(next).some((v) => v === null) || (next.includedMinutes as number) % 30 !== 0) {
     return { error: t("opsPricing.invalid") };
   }
@@ -259,6 +263,11 @@ export async function saveKindMinimum(_prev: ActionResult, form: FormData): Prom
 /** Each field with its allowed range (the database checks the same ranges). */
 const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">, [number, number]> = {
   paymentWindowMinutes: [3, 60],
+  paymentWindowBookedMinutes: [5, 240],
+  withdrawMin: [0, 100000],
+  withdrawalsPerDay: [1, 20],
+  autoPayoutDays: [1, 365],
+  dayjobPairMonthCap: [1, 31],
   backOutGraceMinutes: [0, 60],
   nowMatchWindowMinutes: [10, 240],
   scheduleMatchWindowHours: [1, 168],
@@ -302,7 +311,7 @@ export async function saveRules(_prev: ActionResult, form: FormData): Promise<Ac
   const clean = waves as Wave[];
   if (clean.some((w, i) => i > 0 && w.radiusKm < clean[i - 1].radiusKm)) return { error: t("opsRules.wavesInvalid") };
   r.dispatchWaves = clean;
-  r.payMode = form.get("payMode") === "held" ? "held" : "direct";
+  r.payMode = form.get("payMode") === "direct" ? "direct" : "held";
   await updateRules(viewer.profile.id, r);
   refresh();
   return { done: true };
@@ -335,6 +344,34 @@ export async function decideBadgeAction(_prev: ActionResult, form: FormData): Pr
   const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
   if (!(await decideBadge(viewer.profile.id, id, approve, note))) return { error: t("error.changed") };
   await audit(viewer.profile.id, approve ? "badge.approve" : "badge.reject", id, { note });
+  refresh();
+  return { done: true };
+}
+
+/* ---------- withdrawals (owner's V1 Master Spec C10) ---------- */
+
+/** Ops sent a withdrawal from the bank app ("sent") or couldn't ("failed": the money goes back to the helper's earnings). */
+export async function decideWithdrawalAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = parseOr(Uuid, String(form.get("id") ?? ""));
+  const sent = form.get("sent") === "1";
+  const note = String(form.get("note") ?? "").trim().slice(0, 300) || null;
+  if (!id) return { error: t("error.generic") };
+  if (!sent && !note) return { error: t("opsWithdraw.noteNeeded") };
+  if (!(await decideWithdrawal(id, viewer.profile.id, sent, note))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+/** Ops compared the account holder with the helper's ID. */
+export async function checkAccountAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const userId = parseOr(Uuid, String(form.get("userId") ?? ""));
+  if (!userId || !(await markAccountChecked(userId, viewer.profile.id))) return { error: t("error.changed") };
   refresh();
   return { done: true };
 }
