@@ -32,15 +32,16 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
   if (verifyMnLoginEnabled()) {
     if (!process.env.VERIFY_MN_API_KEY) return { step: "phone", error: t("login.verifySetup") };
     if (prev.step === "verify-mn") {
+      let result: Awaited<ReturnType<typeof checkVerifyMnLogin>>;
       try {
-        const result = await checkVerifyMnLogin(prev.view.sessionId);
-        if (result.status === "pending") return { step: "verify-mn", view: result.view };
-        if (result.status === "expired") return { step: "phone", error: t("verifyRecipient.expired") };
-        return finishLogin(result.userId, formData);
+        result = await checkVerifyMnLogin(prev.view.sessionId);
       } catch {
         const view = await pendingLogin();
         return view ? { step: "verify-mn", view, error: t("verifyRecipient.statusFailed") } : { step: "phone", error: t("verifyRecipient.expired") };
       }
+      if (result.status === "pending") return { step: "verify-mn", view: result.view };
+      if (result.status === "expired") return { step: "phone", error: t("verifyRecipient.expired") };
+      return finishLogin(result.userId, formData);
     }
     const raw = String(formData.get("phone") ?? "");
     const phone = normalizeMnPhone(raw);

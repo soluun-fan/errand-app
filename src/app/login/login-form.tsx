@@ -18,10 +18,18 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
   useEffect(() => {
     if (state.step !== "verify-mn") return;
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
-    const poll = window.setInterval(() => {
+    const check = () => {
       if (!busy && document.visibilityState === "visible") checkForm.current?.requestSubmit();
-    }, 3000);
-    return () => { window.clearInterval(clock); window.clearInterval(poll); };
+    };
+    const poll = window.setInterval(check, 3000);
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("pageshow", check);
+    return () => {
+      window.clearInterval(clock);
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("pageshow", check);
+    };
   }, [busy, state]);
 
   if (state.step === "verify-mn") {
@@ -32,6 +40,7 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
         {expired ? <Note tone="warn">{t("verifyRecipient.expired")}</Note> : <>
           <p>{state.view.displayInstruction}</p>
           <a href={state.view.smsUri} className={btn.primary}>{t("verifyRecipient.openSms")}</a>
+          <p className="text-sm text-ink-2">{t("login.smsReturn")}</p>
           <p role="status" className="text-sm text-ink-2">{t("verifyRecipient.waiting")}</p>
         </>}
         {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
