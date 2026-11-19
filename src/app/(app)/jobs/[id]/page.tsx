@@ -285,7 +285,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   const photos = await taskPhotosFor(deal.id);
   const firstMeeting = !startPhoto && mine && !(await workedTogether(deal.customerId, [me])).has(me);
-  const chatAccess = await accessFor(deal, me);
+  const chatAccess = await accessFor(deal, viewer);
   const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
   const sos = mine ? await liveSos(deal.id, me) : null;
 
@@ -337,7 +337,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         )}
       </DetailTitle>
 
-      {unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
+      {chatAccess.inquiry ? (
+        <Link href={`/chat/${deal.id}`} className={btn.secondary}>{t("chat.askQuestion")}{unread ? ` · ${t("chat.unread", { n: unread })}` : ""}</Link>
+      ) : unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
       {payee && <Note tone="info"><Link href={`/orgs/${payee.id}`} className="font-semibold underline">{t("org.payee", { name: payee.name })}</Link><br />{t("org.workerPay")}</Note>}
       {mine && directPayOpen(deal) && <DirectPayHelperCard dealId={deal.id} state={await directPayState(deal)} action={jobAction} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
@@ -367,7 +369,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
-        <ConditionChips require={deal.details.require} t={t} missing={missing} />
+        <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} missing={missing} />
         <TaskPhotoGrid photos={photos} t={t} />
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && (

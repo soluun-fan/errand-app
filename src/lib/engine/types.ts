@@ -1,3 +1,4 @@
+import type { JobVariety } from "./job-varieties";
 import type { CategoryId } from "./config";
 
 export type ErrandStatus =
@@ -30,6 +31,7 @@ export type Lift = "yes" | "no" | "unknown";
 
 /** Task details that drive the system price and eligibility (docs/rules.md, DESIGN §8.2). */
 export interface ErrandDetails {
+  variety?: JobVariety;
   /** Distance pickup → drop-off: from the two pins when both are set, else the customer's estimate; 0 for single-location tasks. */
   km: number;
   entrance: string | null;
@@ -79,7 +81,25 @@ export interface ErrandDetails {
 export const LANGUAGES = ["en", "ru", "zh", "ko", "ja", "de", "kk"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
+export const CONDITION_FLAGS = ["driver", "car", "checked", "onTime", "call", "handoverCode", "priorExperience", "elderCareExperience", "childCareExperience",
+  "insulatedBag", "askSubstitutions", "protectSurfaces", "updates", "fragranceFree", "references", "followRoutine"] as const;
+export type ConditionFlag = (typeof CONDITION_FLAGS)[number];
+export const CUSTOM_CONDITION_LIMIT = 5;
+export const CUSTOM_CONDITION_LENGTH = 48;
+
 export interface TaskConditions {
+  /** Experience and custom requests are discussed with the customer, not verified credentials. */
+  insulatedBag?: boolean;
+  askSubstitutions?: boolean;
+  protectSurfaces?: boolean;
+  updates?: boolean;
+  fragranceFree?: boolean;
+  references?: boolean;
+  followRoutine?: boolean;
+  priorExperience?: boolean;
+  elderCareExperience?: boolean;
+  childCareExperience?: boolean;
+  custom?: string[];
   /** a driver's licence checked by Ops */
   driver?: boolean;
   /** an own car, its registration checked by Ops */

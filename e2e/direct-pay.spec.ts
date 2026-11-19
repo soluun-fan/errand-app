@@ -127,7 +127,7 @@ test("'not paid' blocks the customer from posting until Ops settles it", async (
   await c.evaluate(() => localStorage.clear());
   await c.locator("textarea").first().fill("x");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
-  await c.getByPlaceholder("Хаяг").fill("Test");
+  await c.getByRole("textbox", { name: "Хаана?", exact: true }).fill("Test");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
   await c.getByRole("button", { name: /^Даалгавар нийтлэх/ }).click();
   await expect(c.getByText(/туслагч төлбөр аваагүй гэж мэдэгдсэн/)).toBeVisible();

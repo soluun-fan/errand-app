@@ -22,6 +22,7 @@ export function ChatRoom({
   dealId,
   messages,
   canSend,
+  textOnly,
   me,
   name,
   canCall,
@@ -33,6 +34,7 @@ export function ChatRoom({
   dealId: string;
   messages: ChatMessage[];
   canSend: boolean;
+  textOnly: boolean;
   me: string;
   name: string;
   canCall: boolean;
@@ -101,7 +103,7 @@ export function ChatRoom({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />
+      {!textOnly && <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />}
       <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
@@ -159,13 +161,15 @@ export function ChatRoom({
             if (text.trim() && !busy) void send(null);
           }}
         >
+          {!textOnly && <>
           <input ref={file} type="file" accept="image/*" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} />
           <VoiceRecorder ref={voice} dealId={dealId} withHelper={withHelper} disabled={busy} onRecording={setRecording} onError={(text) => setNotice({ tone: "bad", text })} />
+          </>}
           {!recording && (
           <>
-          <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
+          {!textOnly && <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
             📷
-          </button>
+          </button>}
           <label className="sr-only" htmlFor="chat-text">
             {t("chat.placeholder")}
           </label>

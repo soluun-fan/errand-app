@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { getLocale, getT } from "@/i18n/server";
@@ -6,7 +7,7 @@ import { getDealForViewer, myRating, publicProfiles, timeline } from "@/lib/deal
 import { mockPaymentsEnabled } from "@/lib/payments/provider";
 import { organizationNames } from "@/lib/orgs";
 import { rankApplicants } from "@/lib/dispatch/rank";
-import { accessFor, hadCareCall, unreadCount } from "@/lib/chat";
+import { accessFor, hadCareCall, questionThreads, unreadCount } from "@/lib/chat";
 import { categoryTrust, liveOffers } from "@/lib/engine";
 import { proofsFor } from "@/lib/proofs";
 import { firstAidHelpers, workedTogether } from "@/lib/care";
@@ -40,7 +41,9 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   }
 
   const [events, rated, t, locale] = await Promise.all([timeline(deal.id), myRating(deal.id, viewer.profile.id), getT(), getLocale()]);
+  const questions = await questionThreads(deal, viewer.profile.id);
   const people = await publicProfiles([
+    ...questions.keys(),
     deal.customerId,
     deal.helperId,
     ...deal.offers.map((o) => o.helperId),
@@ -54,7 +57,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     .maybeSingle<{ notified: number }>();
   const isCustomer = deal.customerId === viewer.profile.id;
   const ranked = isCustomer && deal.status === "open" ? await rankApplicants(deal) : [];
-  const chatAccess = await accessFor(deal, viewer.profile.id);
+  const chatAccess = await accessFor(deal, viewer);
   const chat = chatAccess.canRead && chatAccess.threadHelperId
     ? { unread: await unreadCount(deal.id, chatAccess.threadHelperId, viewer.profile.id) }
     : null;
@@ -97,6 +100,15 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   return (
     <>
     {live && <AutoRefresh seconds={deal.status === "open" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
+    {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
+      <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
+      {[...questions].map(([helper, unread]) => (
+        <Link key={helper} href={`/chat/${deal.id}?with=${helper}`} className="flex min-h-12 items-center justify-between gap-3 border-b border-line text-sm last:border-0">
+          <span>{people.get(helper)?.name || t("deal.newHelper")}</span>
+          <span className="font-semibold text-brand-ink">{unread ? t("chat.unread", { n: unread }) : t("chat.open")}</span>
+        </Link>
+      ))}
+    </section>}
     <DealView
       deal={deal}
       events={events}

@@ -1,19 +1,25 @@
 "use client";
 
-import { ArrowLeft, Info, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Info, MapPin, PencilLine, X } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
-import { Fragment, useActionState, useEffect, useState } from "react";
+import { AddressInput, type AddressChoice } from "@/components/address-input";
+import { JOB_VARIETIES, type JobVariety } from "@/lib/engine/job-varieties";
+import { ConditionPicker } from "@/components/condition-picker";
+import { ConditionChips } from "@/components/conditions";
+import { TaskBrief } from "@/components/task-brief";
+import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/choice";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
-import { PinMap, type Pin } from "@/components/pin-map";
+import type { Pin } from "@/components/pin-map";
 import { SubmitButton } from "@/components/sheet";
 import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picker";
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, LANGUAGES, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
+import { titleFromBrief } from "@/lib/task-brief";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { postTask, type PostState } from "./actions";
 
@@ -28,8 +34,11 @@ type When = "now" | "today" | "tomorrow" | "pick" | "flexible";
 const KIND_ICON: Record<AddressKind, string> = { home: "🏠", work: "💼", other: "📍" };
 
 export interface Draft {
+  variety?: JobVariety;
   category: CategoryId;
   title: string;
+  /** An explicitly chosen title is preserved; otherwise it follows the request message. */
+  customTitle?: boolean;
   description: string;
   pickup: string;
   address: string;
@@ -77,7 +86,7 @@ function fromSaved(a: SavedAddress): Partial<Draft> {
     unit: a.unit ?? "",
     lift: a.lift,
     note: a.note ?? "",
-    showDetails: Boolean(a.entrance || a.floor !== null || a.unit || a.lift || a.note),
+    showDetails: false,
     saveAs: "",
     pin: a.lat !== null && a.lng !== null ? { lat: a.lat, lng: a.lng } : null,
   };
@@ -132,7 +141,7 @@ export function PostFlow({
   const blank: Draft = {
     category: (invite?.categories ?? live)[0] ?? "shop",
     title: "",
-    description: "",
+    customTitle: Boolean(initial.title),
     pickup: "",
     address: defaultAddress,
     showDetails: false,
@@ -162,16 +171,18 @@ export function PostFlow({
     autoPick: true,
     ...(home && !initial.address ? fromSaved(home) : {}),
     ...initial,
+    description: initial.description || initial.title || "",
   };
   const [d, setD] = useState<Draft>(blank);
+  const [pendingCondition, setPendingCondition] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
   /** Direct request: if the helper says no or doesn't answer in time, let everyone apply. */
   const [openAfter, setOpenAfter] = useState(true);
   /** Photos uploaded while filling in (not part of the saved draft: uploads expire after a day). */
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const kinds = CATEGORIES.filter((c) => live.includes(c.id) && (!invite || invite.categories.includes(c.id)));
   const [step, setStep] = useState(startStep);
-  /** Which point the map is placing (two-point tasks). */
-  const [pinTarget, setPinTarget] = useState<"pickup" | "drop">("drop");
+  const heading = useRef<HTMLHeadingElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const [state, action] = useActionState<PostState, FormData>(postTask, {});
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -183,8 +194,8 @@ export function PostFlow({
 
   // Draft: restore unless arriving with a prefilled title; save on every change (DESIGN §7).
   useEffect(() => {
-    if (initial.title) return;
     try {
+      if (initial.title) return;
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<Draft>;
@@ -192,22 +203,29 @@ export function PostFlow({
         if (initial.category && draft.category && draft.category !== initial.category) return;
         // a direct request keeps to the kinds of task that helper does
         if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) delete draft.category;
-        setD((x) => ({ ...x, ...draft }));
+        setD((x) => ({ ...x, ...draft, description: draft.description || (draft.customTitle === undefined ? draft.title ?? "" : ""), customTitle: draft.customTitle ?? Boolean(draft.title) }));
       }
     } catch {
       /* storage unavailable */
+    } finally {
+      setDraftReady(true);
     }
   }, [initial.title, initial.category, invite, live]);
   useEffect(() => {
+    // Do not replace a stored request with the blank initial render before restoration finishes.
+    if (!draftReady) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
     } catch {
       /* ignore */
     }
-  }, [d]);
+  }, [d, draftReady]);
   useEffect(() => {
     if (state.step !== undefined) setStep(state.step);
   }, [state]);
+  useEffect(() => {
+    heading.current?.scrollIntoView({ block: "start" });
+  }, [step]);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
@@ -227,6 +245,7 @@ export function PostFlow({
   const autoMinutes = Math.min(care ? cfg.careMaxMinutes : 480, suggestedMinutes(usualMinutes, tripKm, twoPoint && d.roundTrip, cfg));
   const travelMinutes = Math.round(tripKm * cfg.travelMinPerKm * (twoPoint && d.roundTrip ? 2 : 1));
   const details: ErrandDetails = {
+    variety: d.variety,
     km: tripKm,
     entrance: d.entrance || null,
     floor: d.floor ? Number(d.floor) : null,
@@ -275,9 +294,25 @@ export function PostFlow({
   const backLeg = quoteFee(d.category, { ...details, roundTrip: true }, cfg, startsAt).lines.find((l) => l.key === "roundTrip");
   const savedMatch = saved.find((a) => a.address === d.address.trim());
   const savedName = (a: SavedAddress) => (a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`));
+  const brief = d.description;
+  const title = d.customTitle && d.title.trim() ? d.title : titleFromBrief(brief, cfg.titleMax);
+  const addressChoices: AddressChoice[] = [
+    ...saved.map((a) => ({ id: a.id, label: savedName(a), address: a.address, kind: a.kind })),
+    ...recent.map((address, i) => ({ id: `recent-${i}`, label: address, address, kind: "recent" as const })),
+  ];
+  const chooseAddress = (choice: AddressChoice, pickup = false) => {
+    const a = saved.find((s) => s.id === choice.id);
+    if (pickup) {
+      setD((x) => ({ ...x, pickup: choice.address, pickupPin: a?.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null }));
+    } else {
+      setD((x) => ({ ...x, ...(a ? fromSaved(a) : { address: choice.address, pin: null, entrance: "", floor: "", unit: "", lift: null, note: "", saveAs: "" as const, showDetails: false }) }));
+    }
+  };
+  const arrivalSummary = [d.entrance && t("details.entrance", { v: d.entrance }), d.floor && t("details.floor", { v: d.floor }), d.unit && t("details.unit", { v: d.unit })].filter(Boolean).join(" · ");
 
   let reason: string | null = null;
-  if (STEPS[step] === "what" && (!d.title.trim() || !d.description.trim())) reason = t("task.reasonWhat");
+  if (STEPS[step] === "what" && !brief.trim()) reason = t("task.reasonWhat");
+  if (STEPS[step] === "what" && pendingCondition.trim()) reason = t("conditions.finishAdding");
   if (STEPS[step] === "where") {
     if (!d.address.trim()) reason = t("task.reasonWhere");
     else if (d.when !== "now" && d.when !== "flexible" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
@@ -317,7 +352,13 @@ export function PostFlow({
     <form
       action={action}
       className="flex flex-1 flex-col gap-5"
-      onSubmit={() => {
+      onSubmit={(event) => {
+        // Enter in an address field advances the form; only the review step can post the task.
+        if (STEPS[step] !== "review") {
+          event.preventDefault();
+          if (!reason) setStep(step + 1);
+          return;
+        }
         try {
           localStorage.removeItem(DRAFT_KEY);
         } catch {
@@ -333,7 +374,7 @@ export function PostFlow({
               <X aria-hidden size={20} />
             </Link>
           ) : (
-            <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+            <button type="button" aria-label={t("common.back")} onClick={() => { setPendingCondition(""); setStep(step - 1); }} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
               <ArrowLeft aria-hidden size={20} />
             </button>
           )}
@@ -344,7 +385,7 @@ export function PostFlow({
         <span aria-hidden className="h-1 overflow-hidden rounded-full bg-line">
           <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
         </span>
-        <h1 className="text-[22px] font-bold leading-tight tracking-tight">{t(`task.steps.${STEPS[step]}`)}</h1>
+        <h1 ref={heading} className="scroll-mt-24 text-[22px] font-bold leading-tight tracking-tight">{t(`task.steps.${STEPS[step]}`)}</h1>
         {invite && (
           <p className="flex items-center gap-2.5 rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">
             <Avatar name={invite.name} size={32} />
@@ -355,8 +396,8 @@ export function PostFlow({
 
       {/* every answer travels with the final submit */}
       <input type="hidden" name="category" value={d.category} />
-      <input type="hidden" name="title" value={d.title} />
-      <input type="hidden" name="description" value={d.description} />
+      <input type="hidden" name="title" value={title} />
+      <input type="hidden" name="description" value={brief} />
       <input type="hidden" name="pickup" value={twoPoint ? d.pickup : ""} />
       <input type="hidden" name="address" value={d.address} />
       <input type="hidden" name="scheduledAt" value={start} />
@@ -387,7 +428,7 @@ export function PostFlow({
                 aria-checked={on}
                 // one tap answers this screen's question and moves on
                 onClick={() => {
-                  setD((x) => ({ ...x, category: c.id }));
+                  setD((x) => ({ ...x, category: c.id, variety: x.category === c.id ? x.variety : undefined }));
                   setStep(1);
                 }}
                 className={`press flex items-center gap-3 rounded-card border-2 bg-bg p-3.5 text-left shadow-card ${on ? "border-brand" : "border-transparent"}`}
@@ -411,123 +452,59 @@ export function PostFlow({
 
       {STEPS[step] === "what" && (
         <>
-          <button type="button" onClick={() => setStep(0)} className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
+          <button type="button" onClick={() => { setPendingCondition(""); setStep(0); }} className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
             <CategoryIcon id={d.category} size={16} />
             {t(`categoryShort.${d.category}`)} · {t("task.change")}
           </button>
-          <label className={fieldLabel}>
-            <span className="flex justify-between">
-              {t("post.taskTitle")}
-              <span className="tabular-nums">{t("post.counter", { n: d.title.length, max: cfg.titleMax })}</span>
-            </span>
-            <input className={field} value={d.title} maxLength={cfg.titleMax} onChange={(e) => set("title", e.target.value)} placeholder={t(`categoryExample.${d.category}`)} />
-          </label>
-          <label className={fieldLabel}>
-            <span className="flex justify-between">
-              {t("post.description")}
-              <span className="tabular-nums">{t("post.counter", { n: d.description.length, max: cfg.descriptionMax })}</span>
-            </span>
-            <textarea className={`${field} min-h-32`} value={d.description} maxLength={cfg.descriptionMax} onChange={(e) => set("description", e.target.value)} placeholder={t("post.descriptionPh")} />
-          </label>
+          <TaskBrief category={d.category} value={brief} title={title} titleValue={d.customTitle ? d.title : title} maxLength={cfg.descriptionMax} titleMax={cfg.titleMax}
+            onChange={(description) => setD((x) => ({ ...x, description, ...(!x.customTitle ? { title: "" } : {}) }))}
+            onTitleChange={(title) => setD((x) => ({ ...x, title, customTitle: true }))} />
+          <fieldset>
+            <legend className="mb-2 text-sm font-semibold">{t("varietyLabel")}</legend>
+            <div className="flex flex-wrap gap-2">
+              {JOB_VARIETIES[d.category].map(id => (
+                <button key={id} type="button" aria-pressed={d.variety === id} className={chipClass(d.variety === id)}
+                  onClick={() => set("variety", d.variety === id ? undefined : id)}>{t(`varieties.${id}`)}</button>
+              ))}
+            </div>
+          </fieldset>
+          <ConditionPicker variety={d.variety} category={d.category} value={d.require ?? {}} onChange={value => set("require", value)} pending={pendingCondition} setPending={setPendingCondition} />
           {/* no pictures on care tasks (children, elders) */}
           {categoryTrust(d.category) !== "care" && <TaskPhotoPicker value={photos} onChange={setPhotos} />}
           {categoryTrust(d.category) === "care" && <Note tone="warn">{t(d.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
-          <Note tone="info">{t("post.rules")}</Note>
+          <details className="group text-[13px] text-ink-2">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2"><Info aria-hidden size={15} />{t("addressEntry.rules")}<ChevronDown aria-hidden size={14} className="ml-auto group-open:rotate-180" /></summary>
+            <p className="pb-2 leading-relaxed">{t("post.rules")}</p>
+          </details>
         </>
       )}
 
       {STEPS[step] === "where" && (
         <>
-          <section className="flex flex-col gap-2">
-            <div>
-              <h2 className="text-[15px] font-semibold">{twoPoint ? t("map.pinTitleTwo") : t("map.pinTitle")}</h2>
-              <p className="text-sm text-ink-2">{twoPoint ? t("map.pinSubTwo") : t("map.pinSub")}</p>
-            </div>
-            {twoPoint && (
-              <div className="grid grid-cols-2 gap-1 rounded-full bg-fill p-1" role="radiogroup" aria-label={t("map.pinTitleTwo")}>
-                {(["pickup", "drop"] as const).map((k) => {
-                  const done = k === "pickup" ? d.pickupPin : d.pin;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      role="radio"
-                      aria-checked={pinTarget === k}
-                      onClick={() => setPinTarget(k)}
-                      className={`min-h-11 rounded-full text-[15px] font-semibold ${pinTarget === k ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
-                    >
-                      {k === "pickup" ? "● " : "↘ "}
-                      {t(k === "pickup" ? "map.setPickup" : "map.setDrop")}
-                      {done ? " ✓" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {twoPoint && pinTarget === "pickup" ? (
-              <PinMap
-                key="pickup"
-                kind="pickup"
-                value={d.pickupPin}
-                start={d.pin}
-                onChange={(p) => set("pickupPin", p)}
-                other={d.pin ? { ...d.pin, kind: "drop" } : null}
-              />
-            ) : (
-              <PinMap
-                key="drop"
-                value={d.pin}
-                start={twoPoint ? d.pickupPin : null}
-                onChange={(p) => set("pin", p)}
-                other={twoPoint && d.pickupPin ? { ...d.pickupPin, kind: "pickup" } : null}
-              />
-            )}
-            {twoPoint && d.pickupPin && (
-              <button type="button" onClick={() => set("pickupPin", null)} className="self-start text-sm font-medium text-ink-2 underline underline-offset-4">
-                {t("map.clearPickup")}
-              </button>
-            )}
-          </section>
-          {/* RouteCard (DESIGN §4.5) */}
-          <div className="rounded-card border border-line bg-bg">
-            {twoPoint && (
-              <label className="flex items-center gap-3 border-b border-line px-4 py-2.5">
-                <span aria-hidden className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-ink text-white">
-                  ●
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-xs text-ink-2">{t("task.pickup")}</span>
-                  <input className="min-h-8 bg-transparent text-[17px] font-medium outline-none placeholder:text-ink-3" value={d.pickup} onChange={(e) => set("pickup", e.target.value)} placeholder={t("task.pickupPh")} />
-                </span>
-              </label>
-            )}
-            <label className="flex items-center gap-3 px-4 py-2.5">
-              <span aria-hidden className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-danger text-white">
-                ↘
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-xs text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</span>
-                <input className="min-h-8 bg-transparent text-[17px] font-medium outline-none placeholder:text-ink-3" value={d.address} onChange={(e) => set("address", e.target.value)} placeholder={twoPoint ? t("task.dropPh") : t("task.wherePh")} />
-              </span>
-            </label>
+          <p className="-mt-2 text-[14px] leading-relaxed text-ink-2">{t("addressEntry.intro")}</p>
+          <div className="flex flex-col gap-3">
+            {twoPoint && <AddressInput
+              label={t("task.pickup")} hint={t("addressEntry.pickupHelp")} placeholder={t("addressEntry.pickupExample")}
+              value={d.pickup} pin={d.pickupPin} kind="pickup" optional choices={addressChoices}
+              other={d.pin ? { ...d.pin, kind: "drop" } : null}
+              onChange={(pickup) => setD((x) => ({ ...x, pickup, pickupPin: pickup.trim() === x.pickup.trim() ? x.pickupPin : null }))}
+              onChoose={(choice) => chooseAddress(choice, true)} onPinChange={(pin) => set("pickupPin", pin)}
+            />}
+            <AddressInput
+              label={twoPoint ? t("task.drop") : t("task.where")} hint={t("addressEntry.destinationHelp")} placeholder={t("addressEntry.destinationExample")}
+              value={d.address} pin={d.pin} choices={addressChoices}
+              other={twoPoint && d.pickupPin ? { ...d.pickupPin, kind: "pickup" } : null}
+              onChange={(address) => setD((x) => ({ ...x, address, ...(address.trim() !== x.address.trim() ? { pin: null, entrance: "", floor: "", unit: "", lift: null, note: "", saveAs: "" } : {}) }))}
+              onChoose={(choice) => chooseAddress(choice)} onPinChange={(pin) => set("pin", pin)}
+            />
           </div>
-          {(saved.length > 0 || recent.length > 0) && (
-            <div className="-mx-5 -mt-2 flex gap-2 overflow-x-auto px-5">
-              {saved.map((a) => (
-                <button key={a.id} type="button" aria-pressed={savedMatch?.id === a.id} onClick={() => setD((x) => ({ ...x, ...fromSaved(a) }))} className={chipClass(savedMatch?.id === a.id)}>
-                  <span aria-hidden>{KIND_ICON[a.kind]}</span> <span className="max-w-40 truncate">{savedName(a)}</span>
-                </button>
-              ))}
-              {recent.map((a) => (
-                <button key={a} type="button" onClick={() => set("address", a)} className={chipClass(false)}>
-                  🕘 <span className="max-w-48 truncate">{a}</span>
-                </button>
-              ))}
-            </div>
-          )}
 
-          {d.showDetails || isCarry || d.floor || d.entrance ? (
+          {d.showDetails || isCarry ? (
             <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div><h2 className="font-semibold">{t("addressEntry.details")}</h2><p className="text-sm text-ink-2">{t("addressEntry.detailsHelp")}</p></div>
+                {!isCarry && <button type="button" onClick={() => set("showDetails", false)} className="min-h-11 text-[13px] font-medium text-brand-ink">{t("addressEntry.hideDetails")}</button>}
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 {(["entrance", "floor", "unit"] as const).map((k) => (
                   <label key={k} className={fieldLabel}>
@@ -553,7 +530,10 @@ export function PostFlow({
               </label>
             </div>
           ) : (
-            <DashedAdd label={t("task.addDetails")} onClick={() => set("showDetails", true)} />
+            <div className="flex flex-col gap-1">
+              <DashedAdd label={t("addressEntry.details")} onClick={() => set("showDetails", true)} />
+              {arrivalSummary && <p className="px-1 text-[13px] text-ink-2">{arrivalSummary}</p>}
+            </div>
           )}
 
           {d.address.trim() && !savedMatch && (
@@ -601,7 +581,7 @@ export function PostFlow({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.when")}</legend>
-            <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
+            <div className="flex flex-wrap gap-2" role="radiogroup">
               {(["now", "flexible", "today", "tomorrow", "pick"] as const).map((w) => (
                 <button key={w} type="button" role="radio" aria-checked={d.when === w} onClick={() => set("when", w)} className={chipClass(d.when === w)}>
                   {w === "pick" ? "🗓 " : ""}
@@ -645,52 +625,17 @@ export function PostFlow({
               </p>
             )}
             {care && <Note tone="info">{t("care.pilotHours", { from: cfg.careDayStartHour, to: cfg.careDayEndHour, hours: cfg.careMaxMinutes / 60 })}</Note>}
-            <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
-            <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
           </fieldset>
 
-          {/* conditions for the helper (docs/decisions.md 2026-11-18): only helpers who meet them can apply */}
-          <details className="group flex flex-col gap-3" open={Object.values(d.require ?? {}).some(Boolean)}>
+          <details className="group rounded-card border border-line bg-bg px-4" open={d.heavy || d.tools || undefined}>
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium text-ink-2">
-              {t("conditions.postTitle")}
+              {t("addressEntry.extraOptions")}
               <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
             </summary>
-            <p className="pb-2 text-sm text-ink-2">{t("conditions.postSub")}</p>
-            <div className="flex flex-col gap-3">
-              {(
-                [
-                  ["driver", "🚗"],
-                  ["car", "🚙"],
-                  ["call", "📞"],
-                  ["onTime", "⏰"],
-                  ["checked", "🛡️"],
-                  ["handoverCode", "🔢"],
-                ] as const
-              ).map(([k, icon]) => (
-                <ToggleRow
-                  key={k}
-                  icon={icon}
-                  title={t(`conditions.k.${k}`)}
-                  sub={t(`conditions.sub.${k}`)}
-                  checked={Boolean(d.require?.[k])}
-                  onChange={(v) => set("require", { ...(d.require ?? {}), [k]: v || undefined })}
-                />
-              ))}
-              <label className={fieldLabel}>
-                🌐 {t("conditions.k.language")}
-                <select
-                  className={field}
-                  value={d.require?.language ?? ""}
-                  onChange={(e) => set("require", { ...(d.require ?? {}), language: (e.target.value || null) as TaskConditions["language"] })}
-                >
-                  <option value="">{t("conditions.anyLanguage")}</option>
-                  {LANGUAGES.map((l) => (
-                    <option key={l} value={l}>
-                      {t(`conditions.lang.${l}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <p className="pb-3 text-sm text-ink-2">{t("addressEntry.extraHelp")}</p>
+            <div className="mb-4 flex flex-col gap-3">
+              <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
+              <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
             </div>
           </details>
 
@@ -746,12 +691,24 @@ export function PostFlow({
         <>
           {startStep === STEPS.indexOf("review") && <Note tone="info">{t("task.repeatNote")}</Note>}
           <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewRequest")}</h2>
+              <button type="button" onClick={() => setStep(1)} aria-label={t("addressEntry.editRequest")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
+            </div>
             <p className="text-sm text-ink-2">
               <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : d.when === "flexible" ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) }) : start.replace("T", " ")}
             </p>
-            <p className="text-[18px] font-semibold">{d.title}</p>
-            {twoPoint && d.pickup && <p className="text-[15px] text-ink-2">● {d.pickup}</p>}
-            <p className="text-[15px] text-ink-2">↘ {d.address}</p>
+            <p className="text-[18px] font-semibold">{title}</p>
+            <ConditionChips variety={d.variety} require={d.require} t={t} />
+            {brief.trim() !== title.trim() && <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-2">{brief}</p>}
+          </div>
+          <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewPlaces")}</h2>
+              <button type="button" onClick={() => setStep(2)} aria-label={t("addressEntry.editPlaces")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
+            </div>
+            {twoPoint && d.pickup && <div className="flex items-start gap-2"><MapPin aria-hidden size={17} className="mt-1 flex-none" /><div><p className="text-xs text-ink-2">{t("task.pickup")}</p><p className="text-[15px]">{d.pickup}</p></div></div>}
+            <div className="flex items-start gap-2"><MapPin aria-hidden size={17} className="mt-1 flex-none text-brand-ink" /><div><p className="text-xs text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</p><p className="text-[15px]">{d.address}</p>{arrivalSummary && <p className="text-sm text-ink-2">{arrivalSummary}</p>}{d.note && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{d.note}</p>}</div></div>
           </div>
 
           {isCarry && (
@@ -870,7 +827,7 @@ export function PostFlow({
         {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
-            <button type="button" aria-label={t("common.back")} onClick={() => setStep(step - 1)} className={`${btn.square} bg-bg shadow-card`}>
+            <button type="button" aria-label={t("common.back")} onClick={() => { setPendingCondition(""); setStep(step - 1); }} className={`${btn.square} bg-bg shadow-card`}>
               <ArrowLeft aria-hidden size={20} />
             </button>
           )}

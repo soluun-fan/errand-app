@@ -1,5 +1,6 @@
 import { CalendarClock, MapPin, Zap } from "lucide-react";
 import Link from "next/link";
+import { ConditionChips } from "./conditions";
 import type { Locale, T } from "@/i18n";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import type { PublicOpenRequest } from "@/lib/public-snapshot";
@@ -59,6 +60,7 @@ export function OpenBoard({
               <span className={`${tag} bg-brand-bg text-brand-ink`}>{t("job.available")}</span>
             </span>
             <span className="line-clamp-2 text-[16px] font-bold leading-snug">{r.title ?? t(`landing.ask.${r.category}`)}</span>
+            <ConditionChips variety={r.variety} require={r.require} t={t} />
             <span className="flex flex-col gap-1 text-[13px] text-ink-2">
               <span className="flex items-center gap-1.5">
                 <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />

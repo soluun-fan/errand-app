@@ -483,6 +483,27 @@ describe("proof storage", () => {
 });
 
 describe("chat privacy", () => {
+  it("delivers a helper's question and the owner's reply on an open job without creating an application", async () => {
+    const d = await postErrand({ itemBudget: 0 });
+    const send = (from: string, text: string) => as(db, "service_role", null, tx => tx.query(
+      `insert into public.messages (deal_id, helper_id, from_user_id, text, flags)
+       values ($1, $2, $3, $4, '{inquiry}')`, [d.id, U.h1, from, text],
+    ));
+    await send(U.h1, "Does the parcel fit in a backpack?");
+    const inbox = await as(db, "authenticated", U.c1, tx => tx.query(
+      `select helper_id from public.messages where deal_id = $1 and flags @> '{inquiry}' and from_user_id <> $2 and seen_at is null`, [d.id, U.c1],
+    ));
+    expect(inbox.rows).toEqual([{ helper_id: U.h1 }]);
+    await send(U.c1, "Yes, it is a paperback book.");
+    const conversation = (who: string) => as(db, "authenticated", who, tx => tx.query(
+      `select text from public.messages where deal_id = $1 and helper_id = $2 order by created_at`, [d.id, U.h1],
+    ));
+    expect((await conversation(U.h1)).rows).toHaveLength(2);
+    expect((await conversation(U.h2)).rows).toEqual([]);
+    expect(await scalar<number>(db, `select count(*)::int as v from public.offers where deal_id = $1`, [d.id])).toBe(0);
+    expect(await scalar<string>(db, `select status as v from public.deals where id = $1`, [d.id])).toBe("open");
+  });
+
   it("each helper sees only their own conversation; customer sees theirs; strangers and clients-writing are refused", async () => {
     const d = await postErrand({ itemBudget: 0 });
     const msg = (helperId: string, from: string, text: string) =>

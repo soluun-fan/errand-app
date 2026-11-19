@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { ConditionChips } from "./conditions";
 import { CategoryIcon } from "@/components/category-icon";
 import type { ReactNode } from "react";
 import type { Locale, T } from "@/i18n";
@@ -53,6 +54,7 @@ export function DealCard({
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold">{deal.title}</span>
+          <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
           <span className="block text-[13px] text-ink-2">{when}</span>
         </span>
         <span className="flex flex-col items-end gap-1">
@@ -77,6 +79,7 @@ export function DealCard({
         <ChevronRight aria-hidden size={18} className="text-white/70" />
       </div>
       <b className="truncate text-[17px]">{deal.title}</b>
+      <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
       <span className="h-1.5 overflow-hidden rounded-full bg-white/15" aria-hidden>
         <span className="block h-full rounded-full bg-brand" style={{ width: `${Math.round(PROGRESS[deal.status] * 100)}%` }} />
       </span>

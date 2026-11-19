@@ -65,7 +65,7 @@ test("a customer sends Bat a request; only Bat sees it; Bat declines and it open
   await expect(c.getByText("Bat-Erdene G.-д шууд илгээнэ")).toBeVisible();
   await c.locator("textarea").first().fill("Татварын албанд дараалалд зогсох");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
-  await c.getByPlaceholder("Хаяг").fill("Татварын газар, 1-р хороо");
+  await c.getByRole("textbox", { name: "Хаана?", exact: true }).fill("Татварын газар, 1-р хороо");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
   await expect(c.getByText("Bat-Erdene G. боломжгүй бол бусад туслагчдад нээх")).toBeVisible();
   await c.getByRole("button", { name: /^Даалгавар нийтлэх/ }).click();

@@ -12,7 +12,7 @@ import { devToolsEnabled } from "@/lib/dev";
 import type { DealStatus } from "@/lib/engine";
 import { DealView } from "../../tasks/[id]/deal-view";
 import { galleryAction } from "./actions";
-import { GalleryChoices } from "./gallery-choices";
+import { GalleryChoices, GalleryPosting } from "./gallery-choices";
 import { FIXTURE_PEOPLE, FIXTURE_STATES, FX, buildFixture, type FixtureState } from "./fixtures";
 
 const STATUSES: DealStatus[] = [
@@ -150,6 +150,8 @@ export default async function Gallery({ searchParams }: PageProps<"/dev/componen
         </MapSlot>
       </div>
       <GalleryChoices />
+      <h2 className="font-bold">Posting · message & address</h2>
+      <GalleryPosting />
 
       <h2 className="font-bold">Notes</h2>
       {(["held", "warn", "bad", "info", "grey"] as const).map((tone) => (

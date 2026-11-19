@@ -33,7 +33,7 @@ test("photos added while posting reach the task; only people who may see the tas
   await c.locator("input[type=file]").setInputFiles({ name: "queue.png", mimeType: "image/png", buffer: PNG });
   await expect(c.getByRole("img", { name: "Ажлын зураг 1" })).toBeVisible(UPLOAD);
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
-  await c.getByPlaceholder("Хаяг").fill("Татварын газар, 1-р хороо");
+  await c.getByRole("textbox", { name: "Хаана?", exact: true }).fill("Татварын газар, 1-р хороо");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
   await c.getByRole("button", { name: /^Даалгавар нийтлэх/ }).click();
   await c.waitForURL(/\/tasks\//, UPLOAD);

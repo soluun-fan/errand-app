@@ -50,6 +50,8 @@ function draftFrom(d: ErrandDeal): Partial<Draft> {
     pickupPin: d.pickupLocation,
     price: String(d.postedFee),
     autoPick: x.autoPick,
+    variety: x.variety,
+    require: x.require ?? {},
   };
 }
 

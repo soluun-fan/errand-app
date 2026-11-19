@@ -13,7 +13,9 @@ import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
 import { amountDue, buyerFeeFor, careTimeOk, errandSplit, extraTaskFeeFor, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
-import { DEFAULT_DETAILS, LANGUAGES, type ErrandDetails, type GeoPoint, type HelperBadges, type Invite, type Language, type PriceChange, type TaskConditions, type TaskRules } from "./types";
+import { varietyFor } from "./job-varieties";
+import { cleanConditions } from "./conditions";
+import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type HelperBadges, type Invite, type PriceChange, type TaskConditions, type TaskRules } from "./types";
 import type {
   Account,
   Command,
@@ -134,16 +136,6 @@ export function missingConditions(req: TaskConditions | undefined, b: HelperBadg
   return out;
 }
 
-/** A task's conditions as given by the client: only known keys, only true flags, a known language. */
-function cleanConditions(raw: unknown): TaskConditions | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as Record<string, unknown>;
-  const c: TaskConditions = {};
-  for (const k of ["driver", "car", "checked", "onTime", "call", "handoverCode"] as const) if (r[k] === true) c[k] = true;
-  if (typeof r.language === "string" && (LANGUAGES as readonly string[]).includes(r.language)) c.language = r.language as Language;
-  return Object.keys(c).length ? c : undefined;
-}
-
 /** Through whom the helper takes specialized work: the organisation that vouches for them, else themselves (null). */
 function orgFor(u: UserActor, category: CategoryId): string | null {
   if (categoryTrust(category) === "open") return null;
@@ -246,7 +238,7 @@ const clean = (s: string | null | undefined, max = 200) => {
   return v === "" ? null : v;
 };
 
-function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetails {
+function normalizeDetails(category: CategoryId, raw: Partial<ErrandDetails> | undefined): ErrandDetails {
   const d = { ...DEFAULT_DETAILS, ...raw };
   if (!Number.isFinite(d.km) || d.km < 0 || d.km > 100) fail("INVALID_INPUT", "Distance must be between 0 and 100 km");
   if (d.floor !== null && (!Number.isInteger(d.floor) || d.floor < 0 || d.floor > 60)) fail("INVALID_INPUT", "Floor must be 0–60");
@@ -256,6 +248,7 @@ function normalizeDetails(raw: Partial<ErrandDetails> | undefined): ErrandDetail
     fail("INVALID_INPUT", "Duration must be 30 minutes to 8 hours, in 30-minute steps");
   }
   return {
+    variety: varietyFor(category, d.variety),
     km: d.km,
     entrance: clean(d.entrance, 20),
     floor: d.floor,
@@ -297,6 +290,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const pickupLocation = TWO_POINT_CATEGORIES.includes(input.category) ? validLocation(input.pickupLocation) : null;
   // Both pins: the distance comes from the map, never from the client's number.
   const details = normalizeDetails(
+    input.category,
     location && pickupLocation ? { ...input.details, km: roadKm(pickupLocation, location) } : input.details,
   );
   const startsAt = scheduledAt ?? ctx.now;

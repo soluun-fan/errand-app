@@ -56,6 +56,7 @@ export function PinMap({
   changed.current = onChange;
   const [failed, setFailed] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export function PinMap({
     if (!m || !value) return;
     const c = m.getCenter();
     if (Math.abs(c.lat - value.lat) > 1e-5 || Math.abs(c.lng - value.lng) > 1e-5) m.jumpTo({ center: [value.lng, value.lat], zoom: Math.max(m.getZoom(), 15) });
-  }, [value]);
+  }, [value, ready]);
 
   // the other point, as a fixed marker
   const otherKey = other ? `${other.kind}:${other.lat},${other.lng}` : "";
@@ -119,20 +120,23 @@ export function PinMap({
   }, [otherKey, ready]);
 
   const locate = () => {
-    if (!("geolocation" in navigator)) return;
+    setLocationError(false);
+    if (!("geolocation" in navigator)) { setLocationError(true); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (p) => {
         setLocating(false);
+        changed.current({ lat: Math.round(p.coords.latitude * 1e6) / 1e6, lng: Math.round(p.coords.longitude * 1e6) / 1e6 });
         map.current?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
       },
-      () => setLocating(false),
+      () => { setLocating(false); setLocationError(true); },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   };
 
   if (failed) return <p className="rounded-card bg-fill p-4 text-sm text-ink-2">{t("map.failed")}</p>;
   return (
+    <div>
     <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
       <div ref={box} className="absolute inset-0 h-full w-full" aria-label={t("map.pinLabel")} role="application" />
       {/* the fixed centre pin */}
@@ -141,14 +145,17 @@ export function PinMap({
       </span>
       <button
         type="button"
+        disabled={locating}
         onClick={locate}
-        className="absolute bottom-3 right-3 flex min-h-11 items-center gap-1.5 rounded-full bg-bg px-4 text-sm font-semibold shadow-float"
+        className="absolute bottom-10 right-3 z-10 flex min-h-11 items-center gap-1.5 rounded-full bg-bg px-4 text-sm font-semibold shadow-float"
       >
         {locating ? "…" : "◎"} {t("map.myLocation")}
       </button>
       {!value && (
         <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">{t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}</span>
       )}
+    </div>
+    {locationError && <p role="status" className="mt-2 text-sm text-ink-2">{t("addressEntry.locationFailed")}</p>}
     </div>
   );
 }

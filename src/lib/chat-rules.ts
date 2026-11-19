@@ -3,7 +3,7 @@
  * - A conversation is one (task, helper) pair: a helper released before payment keeps read access
  *   to *their* messages, and the next helper never sees them.
  * - Open from "helper chosen" (awaiting_payment) through check/dispute; read-only 24 h after the
- *   task ends. Applicants can't chat (they use the request note).
+ *   task ends. Open jobs support private enquiries before application.
  * - Contact details are masked: phone numbers, e-mails and links (off-app deals lose the held-money
  *   protection, and phone numbers are never shown — CLAUDE.md non-negotiables).
  */
@@ -29,9 +29,12 @@ export interface ChatDealView {
   endedAt: number | null;
   /** Helpers with a live application while the task is open (they may talk to the customer before being chosen). */
   applicants?: readonly string[];
+  /** Server-resolved candidate for a private pre-application question on this open job. */
+  inquiryHelper?: string | null;
 }
 
 export interface ChatAccess {
+  inquiry?: boolean;
   canRead: boolean;
   canSend: boolean;
   /** The helper whose conversation this viewer sees (the thread key), or null. */
@@ -54,6 +57,10 @@ export function chatAccess(deal: ChatDealView, viewerId: string, now: number, ha
     const applicants = deal.applicants ?? [];
     if (applicants.includes(viewerId)) return { canRead: true, canSend: true, threadHelperId: viewerId, counterpartId: deal.customerId };
     if (isCustomer && withHelper && applicants.includes(withHelper)) return { canRead: true, canSend: true, threadHelperId: withHelper, counterpartId: withHelper };
+    const helper = deal.inquiryHelper;
+    if (helper && helper !== deal.customerId && (viewerId === helper || (isCustomer && withHelper === helper && hadThread))) {
+      return { canRead: true, canSend: true, inquiry: true, threadHelperId: helper, counterpartId: isCustomer ? helper : deal.customerId };
+    }
   }
   // Once someone is chosen, the customer can still read (not write) a conversation with another applicant.
   if (isCustomer && withHelper && withHelper !== deal.helperId && hadThread) {

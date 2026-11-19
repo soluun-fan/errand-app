@@ -13,6 +13,7 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
 - Motion: sheets 250ms, snap 30/55/92%. Haptic on paid / matched / released. Respect reduced motion.
 
 ## Layouts
+- **Posting update 2026-11-19:** one expanding message box with category-specific examples and an optional editable title. Pickup and destination each show a map inline. Moving the map previews a pin, and confirming saves it. Entrance details and extra conditions expand on demand. Review exposes edits for the request and addresses/time. Preview these controls at `/dev/components`.
 - **Redesign 2026-11-16** (research: Toss "one decision per screen", on-demand apps "task first", bottom-anchored actions): Home = greeting → "Танд юугаар туслах вэ?" → search → live task cards (dark, orange progress) → 6 category cards with today's "from" price → money card → past tasks; the main button fixed at the bottom. Posting = 4 steps, one question each (type → what → where → review). Task screens = tall map with a floating back button, the title card overlapping it as a sheet.
 - **A Map+Sheet**: home, review, searching, live.
 - **B Form**: ✕/← header, cards, sticky CTA. Post steps, SafePay create, dispute, verification.

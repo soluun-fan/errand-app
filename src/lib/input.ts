@@ -1,5 +1,6 @@
+import { JOB_VARIETIES } from "@/lib/engine/job-varieties";
 import { z } from "zod";
-import { LANGUAGES } from "@/lib/engine/types";
+import { CUSTOM_CONDITION_LENGTH, CUSTOM_CONDITION_LIMIT, LANGUAGES } from "@/lib/engine/types";
 import { CATEGORIES, type ErrandDetails } from "@/lib/engine";
 
 /**
@@ -61,6 +62,7 @@ const text = (max: number) => z.string().max(max).nullable();
 /** The post form's task details (types only; the engine checks ranges and prices). */
 export const DetailsInput = z
   .object({
+    variety: z.enum(Object.values(JOB_VARIETIES).flat()),
     km: z.number().finite(),
     entrance: text(40),
     floor: z.number().int().nullable(),
@@ -84,6 +86,17 @@ export const DetailsInput = z
         onTime: z.boolean(),
         call: z.boolean(),
         handoverCode: z.boolean(),
+        insulatedBag: z.boolean(),
+        askSubstitutions: z.boolean(),
+        protectSurfaces: z.boolean(),
+        updates: z.boolean(),
+        fragranceFree: z.boolean(),
+        references: z.boolean(),
+        followRoutine: z.boolean(),
+        priorExperience: z.boolean(),
+        elderCareExperience: z.boolean(),
+        childCareExperience: z.boolean(),
+        custom: z.array(z.string().trim().min(1).max(CUSTOM_CONDITION_LENGTH)).max(CUSTOM_CONDITION_LIMIT),
         language: z.enum(LANGUAGES).nullable(),
       })
       .partial()

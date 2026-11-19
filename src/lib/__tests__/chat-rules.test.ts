@@ -22,6 +22,17 @@ describe("chatAccess", () => {
     expect(chatAccess(open, "stranger", NOW).canRead).toBe(false);
     expect(chatAccess(deal({ status: "open", helperId: null }), "a1", NOW).canRead).toBe(false); // application lapsed
   });
+  it("keeps pre-application questions private and lets the owner reply to an existing thread", () => {
+    const open = deal({ status: "open", helperId: null, inquiryHelper: "h" });
+    expect(chatAccess(open, "h", NOW)).toMatchObject({ canSend: true, threadHelperId: "h", counterpartId: "c", inquiry: true });
+    expect(chatAccess(open, "c", NOW, false, "h").canSend).toBe(false);
+    expect(chatAccess(open, "c", NOW, true, "h")).toMatchObject({ canSend: true, inquiry: true, counterpartId: "h" });
+    expect(chatAccess(open, "h2", NOW, false, "h").canRead).toBe(false);
+    expect(chatAccess(open, "c", NOW, false, "h2").canRead).toBe(false);
+    const matched = { ...open, status: "matched" as const, helperId: "h2" };
+    expect(chatAccess(matched, "h", NOW, true)).toMatchObject({ canRead: true, canSend: false });
+    expect(chatAccess(matched, "c", NOW, true, "h")).toMatchObject({ canRead: true, canSend: false });
+  });
   it("after choosing, the customer can still read (not write) another applicant's conversation", () => {
     const chosen = deal({ status: "matched", helperId: "a1" });
     expect(chatAccess(chosen, "c", NOW, true, "a2")).toMatchObject({ canRead: true, canSend: false, threadHelperId: "a2" });

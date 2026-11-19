@@ -2,7 +2,8 @@ import "server-only";
 import { getRules } from "@/lib/rules";
 import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, type ChatAccess } from "@/lib/chat-rules";
 import { hadRealCall } from "@/lib/call-rules";
-import { liveOffers, type ErrandDeal } from "@/lib/engine";
+import type { Viewer } from "@/lib/auth";
+import { invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -31,21 +32,57 @@ async function endedAt(dealId: string): Promise<number | null> {
 }
 
 /** What this viewer may do in this task's chat (and which conversation is theirs). */
-export async function accessFor(deal: ErrandDeal, viewerId: string, now = Date.now(), withHelper: string | null = null): Promise<ChatAccess> {
+export async function accessFor(deal: ErrandDeal, viewer: Viewer, now = Date.now(), withHelper: string | null = null): Promise<ChatAccess> {
+  const viewerId = viewer.profile.id;
   const ended = ["released", "refunded", "cancelled", "expired"].includes(deal.status) ? await endedAt(deal.id) : null;
   // whose old conversation might be readable: the viewer's own (a released helper) or the one the customer asked for
   const threadOwner = viewerId === deal.customerId ? withHelper : viewerId !== deal.helperId ? viewerId : null;
   let hadThread = false;
   if (threadOwner) {
-    const { count } = await createAdminClient()
+    const { count, error } = await createAdminClient()
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("deal_id", deal.id)
       .eq("helper_id", threadOwner);
+    if (error) throw new Error(error.message);
     hadThread = Boolean(count);
   }
   const applicants = deal.status === "open" ? liveOffers(deal, now).map((o) => o.helperId) : [];
-  return chatAccess({ status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended, applicants }, viewerId, now, hadThread, withHelper);
+  let inquiryHelper: string | null = null;
+  const openForQuestions = deal.status === "open" && (deal.matchBy === null || now < deal.matchBy);
+  if (openForQuestions && threadOwner && !deal.offers.some(o => o.helperId === threadOwner)) {
+    const invited = invitedOnly(deal, now);
+    if (invited === null || invited === threadOwner) {
+      // An approved helper can initiate their own thread. An owner can reply only after a helper asked.
+      if (viewerId !== deal.customerId && viewer.actor.helperApproved && !hadThread) {
+        inquiryHelper = viewerId;
+      } else if (hadThread && (viewerId === deal.customerId || viewer.actor.helperApproved)) {
+        const { data } = await createAdminClient().from("messages").select("id").eq("deal_id", deal.id)
+          .eq("helper_id", threadOwner).eq("from_user_id", threadOwner).contains("flags", ["inquiry"]).limit(1);
+        if (data?.length) inquiryHelper = threadOwner;
+      }
+    }
+  }
+  return chatAccess({ status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended, applicants, inquiryHelper }, viewerId, now, hadThread, withHelper);
+}
+
+/** Called for the task owner. Each helper starts one private conversation per task. */
+export async function questionThreads(deal: ErrandDeal, viewerId: string): Promise<Map<string, number>> {
+  const threads = new Map<string, number>();
+  if (viewerId !== deal.customerId || deal.status !== "open") return threads;
+  const db = createAdminClient();
+  // Page through messages so a busy conversation cannot hide another helper's question.
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await db.from("messages").select("helper_id, from_user_id, seen_at")
+      .eq("deal_id", deal.id).contains("flags", ["inquiry"]).neq("from_user_id", viewerId)
+      .order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      if (row.helper_id === row.from_user_id) threads.set(row.helper_id, (threads.get(row.helper_id) ?? 0) + (row.seen_at ? 0 : 1));
+    }
+    if (!data || data.length < 500) break;
+  }
+  return threads;
 }
 
 /** Whether the customer and this helper have had a real call on this task (care work needs one before choosing). */
@@ -138,6 +175,7 @@ export async function storeMessage(p: {
   fromUserId: string;
   text: string;
   imagePath?: string | null;
+  inquiry?: boolean;
   audioPath?: string | null;
   audioSeconds?: number | null;
 }): Promise<SendResult> {
@@ -163,7 +201,7 @@ export async function storeMessage(p: {
       image_path: p.imagePath ?? null,
       audio_path: p.audioPath ?? null,
       audio_seconds: p.audioPath ? (p.audioSeconds ?? null) : null,
-      flags: masked ? ["contact_masked"] : [],
+      flags: [...(masked ? ["contact_masked"] : []), ...(p.inquiry ? ["inquiry"] : [])],
     })
     .throwOnError();
   return { ok: true, masked };

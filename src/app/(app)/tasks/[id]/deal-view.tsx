@@ -774,7 +774,7 @@ export function DealView(p: DealViewProps) {
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
-        <ConditionChips require={deal.details.require} t={t} />
+        <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
         {p.photosEditable ? <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} /> : p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}

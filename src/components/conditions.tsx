@@ -1,11 +1,22 @@
+import type { JobVariety } from "@/lib/engine/job-varieties";
 import type { T } from "@/i18n";
-import type { HelperBadges, TaskConditions } from "@/lib/engine";
+import { CONDITION_FLAGS, type ConditionFlag, type HelperBadges, type TaskConditions } from "@/lib/engine";
 
 /**
  * Task conditions and helper badges (docs/decisions.md 2026-11-18 "Task conditions"). Shared by the
  * customer's task, the helper's job, the feed cards and the applicant cards.
  */
-const ICON: Record<Exclude<keyof TaskConditions, "language">, string> = {
+const ICON: Record<ConditionFlag, string> = {
+  insulatedBag: "•",
+  askSubstitutions: "•",
+  protectSurfaces: "•",
+  updates: "•",
+  fragranceFree: "•",
+  references: "•",
+  followRoutine: "•",
+  priorExperience: "✦",
+  elderCareExperience: "✦",
+  childCareExperience: "✦",
   driver: "🚗",
   car: "🚙",
   checked: "🛡️",
@@ -15,10 +26,9 @@ const ICON: Record<Exclude<keyof TaskConditions, "language">, string> = {
 };
 
 /** The task's conditions; with `missing`, the ones this helper doesn't meet are marked. */
-export function ConditionChips({ require, t, missing = [] }: { require: TaskConditions | undefined; t: T; missing?: readonly (keyof TaskConditions)[] }) {
-  if (!require) return null;
-  const keys = (Object.keys(ICON) as (keyof typeof ICON)[]).filter((k) => require[k]);
-  if (!keys.length && !require.language) return null;
+export function ConditionChips({ require = {}, variety, t, missing = [] }: { variety?: JobVariety; require: TaskConditions | undefined; t: T; missing?: readonly (keyof TaskConditions)[] }) {
+  const keys = CONDITION_FLAGS.filter((k) => require[k]);
+  if (!variety && !keys.length && !require.language && !require.custom?.length) return null;
   const chip = (k: keyof TaskConditions, label: string) => (
     <span key={k} className={`inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold ${missing.includes(k) ? "bg-warn-bg text-warn" : "bg-fill text-ink-2"}`}>
       {label}
@@ -27,7 +37,9 @@ export function ConditionChips({ require, t, missing = [] }: { require: TaskCond
   );
   return (
     <span className="flex flex-wrap gap-1.5" aria-label={t("conditions.title")}>
+      {variety && <span className="rounded-[8px] bg-brand-bg px-2 py-1 text-xs font-semibold text-brand-ink">{t(`varieties.${variety}`)}</span>}
       {keys.map((k) => chip(k, `${ICON[k]} ${t(`conditions.k.${k}`)}`))}
+      {require.custom?.map((label) => <span key={`custom:${label}`} className="max-w-full rounded-[8px] bg-fill px-2 py-1 text-xs font-semibold text-ink-2 [overflow-wrap:anywhere]">{label}</span>)}
       {require.language && chip("language", `🌐 ${t(`conditions.lang.${require.language}`)}`)}
     </span>
   );

@@ -17,7 +17,7 @@ test("a customer posts a not-urgent task: it stays open for 24 hours and says so
   await c.evaluate(() => localStorage.clear());
   await c.locator("textarea").first().fill("Номын санд ном буцаах, өнөөдөр эсвэл маргааш");
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
-  await c.getByPlaceholder("Хаяг").fill("Төв номын сан");
+  await c.getByRole("textbox", { name: "Хаана?", exact: true }).fill("Төв номын сан");
   await c.getByRole("radio", { name: /Яаралгүй · 24 цаг/ }).click();
   await expect(c.getByText(/24 цаг нээлттэй байна/)).toBeVisible();
   await c.getByRole("button", { name: "Үргэлжлүүлэх" }).click();

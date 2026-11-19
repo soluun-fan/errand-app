@@ -70,7 +70,7 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
         {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
-      <ConditionChips require={d.details.require} t={t} />
+      <ConditionChips variety={d.details.variety} require={d.details.require} t={t} />
       <span className="flex gap-3">
         <span className="flex min-w-0 flex-1 flex-col gap-2.5">
           <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
@@ -163,7 +163,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
           ),
         )}
       </nav>
-      {items.some((i) => helperStart(i.deal)) && <TaskMap markers={jobPins(items)} showMe className="h-64" />}
+      <TaskMap markers={jobPins(items)} showMe className="h-64" />
       {items.length === 0 ? (
         <p className="text-[15px] text-ink-2">{t("job.allEmpty")}</p>
       ) : (
@@ -275,9 +275,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <Board sp={sp} viewerId={profile.id} from={from} mine={actor.categories ?? []} t={t} locale={locale} />
         ) : (
           <section className="flex flex-col gap-2">
-            {[...offers, ...applied, ...feed].some((i) => helperStart(i.deal)) && (
-              <TaskMap markers={jobPins([...offers, ...applied, ...feed])} showMe className="h-64" />
-            )}
+            <TaskMap markers={jobPins([...offers, ...applied, ...feed])} showMe className="h-64" />
             {feed.length === 0 ? (
               <p className="text-[15px] text-ink-2">
                 {t("job.nearbyEmpty")}{" "}

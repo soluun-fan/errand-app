@@ -24,7 +24,7 @@ async function senderContext(dealId: string, withHelper: string | null) {
   if (!parseOr(Uuid, dealId)) return null;
   const deal = await loadDeal(createAdminClient(), dealId);
   if (!deal || deal.type !== "errand") return null;
-  const access = await accessFor(deal, viewer.profile.id, Date.now(), helperParam(withHelper));
+  const access = await accessFor(deal, viewer, Date.now(), helperParam(withHelper));
   if (!access.canSend || !access.threadHelperId || !access.counterpartId) return null;
   return { viewer, deal: deal as ErrandDeal, access };
 }
@@ -33,7 +33,7 @@ async function senderContext(dealId: string, withHelper: string | null) {
 export async function prepareChatImage(dealId: string, bytes: number, withHelper: string | null = null): Promise<{ path: string; token: string } | { error: string }> {
   const t = await getT();
   const ctx = await senderContext(dealId, withHelper);
-  if (!ctx) return { error: t("chat.closed") };
+  if (!ctx || ctx.access.inquiry) return { error: t("chat.closed") };
   if (!(typeof bytes === "number" && bytes > 0 && bytes <= MAX_CHAT_IMAGE_BYTES)) return { error: t("proof.tooBig") };
   return createChatImageSlot(dealId);
 }
@@ -45,7 +45,7 @@ export async function prepareChatImage(dealId: string, bytes: number, withHelper
 export async function sendChat(dealId: string, text: string, imagePath: string | null, withHelper: string | null = null): Promise<{ error?: string; masked?: boolean }> {
   const t = await getT();
   const ctx = await senderContext(dealId, withHelper);
-  if (!ctx) return { error: t("chat.closed") };
+  if (!ctx || (ctx.access.inquiry && imagePath !== null)) return { error: t("chat.closed") };
   if (typeof text !== "string" || !isValid(UploadPath.nullable(), imagePath)) return { error: t("chat.empty") };
   if (imagePath && !(await chatImageExists(dealId, imagePath))) return { error: t("proof.failed") };
   const r = await storeMessage({
@@ -54,6 +54,7 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
     fromUserId: ctx.viewer.profile.id,
     text: String(text ?? "").slice(0, 2000),
     imagePath,
+    inquiry: ctx.access.inquiry,
   });
   if (!r.ok) return { error: t(r.reason === "rate" ? "chat.slowDown" : r.reason === "closed" ? "chat.closed" : "chat.empty") };
   const toCustomer = ctx.access.counterpartId === ctx.deal.customerId;
@@ -74,7 +75,7 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
 export async function prepareVoice(dealId: string, mime: string, bytes: number, withHelper: string | null = null): Promise<{ path: string; token: string } | { error: string }> {
   const t = await getT();
   const ctx = await senderContext(dealId, withHelper);
-  if (!ctx) return { error: t("chat.closed") };
+  if (!ctx || ctx.access.inquiry) return { error: t("chat.closed") };
   if (typeof mime !== "string" || typeof bytes !== "number") return { error: t("call.unsupported") };
   const base = mime.split(";")[0];
   if (!CHAT_AUDIO_MIME.includes(base)) return { error: t("call.unsupported") };
@@ -85,7 +86,7 @@ export async function prepareVoice(dealId: string, mime: string, bytes: number, 
 export async function sendVoice(dealId: string, path: string, seconds: number, withHelper: string | null = null): Promise<{ error?: string }> {
   const t = await getT();
   const ctx = await senderContext(dealId, withHelper);
-  if (!ctx) return { error: t("chat.closed") };
+  if (!ctx || ctx.access.inquiry) return { error: t("chat.closed") };
   if (!parseOr(UploadPath, path) || !(await chatImageExists(dealId, path))) return { error: t("proof.failed") };
   const secs = Math.min(MAX_VOICE_SECONDS, Math.max(1, Math.round(Number(seconds) || 1)));
   const r = await storeMessage({ dealId, helperId: ctx.access.threadHelperId as string, fromUserId: ctx.viewer.profile.id, text: "", audioPath: path, audioSeconds: secs });

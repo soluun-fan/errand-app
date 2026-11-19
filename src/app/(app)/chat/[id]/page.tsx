@@ -24,7 +24,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
   const deal = await loadDeal(createAdminClient(), id);
   if (!deal || deal.type !== "errand") notFound();
   const me = viewer.profile.id;
-  const access = await accessFor(deal, me, Date.now(), withHelper);
+  const access = await accessFor(deal, viewer, Date.now(), withHelper);
   if (!access.canRead || !access.threadHelperId || !access.counterpartId) notFound();
 
   const [t, people, messages] = await Promise.all([
@@ -43,16 +43,17 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         <Avatar name={other?.name ?? "?"} size={40} />
         <div className="min-w-0">
           <p className="truncate font-semibold">{other?.name ?? t("deal.newHelper")}</p>
-          <p className="text-sm text-ink-2">{deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
+          <p className="text-sm text-ink-2">{access.inquiry ? t("chat.beforeApplying") : deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
         </div>
       </div>
       <ChatRoom
         dealId={deal.id}
         messages={messages}
         canSend={access.canSend}
+        textOnly={!!access.inquiry}
         me={me}
         name={other?.name ?? t("deal.newHelper")}
-        canCall={callParty(deal, me, withHelper) !== null}
+        canCall={access.canSend && callParty(deal, me, withHelper)?.helperId === access.threadHelperId}
         initialCallId={initialCallId}
         withHelper={me === deal.customerId ? access.threadHelperId : null}
       />
