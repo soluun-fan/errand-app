@@ -6,7 +6,7 @@ import { safeNext } from "@/lib/next-path";
 import { OnboardingForm } from "./onboarding-form";
 
 /**
- * /onboarding — the step after sign-in for new people (name, date of birth, Terms + Privacy),
+ * /onboarding — the step after the SMS code for new people (name, date of birth, Terms + Privacy),
  * and the "we've updated our terms" step for everyone when a document version changes.
  */
 export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {

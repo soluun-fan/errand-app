@@ -25,6 +25,8 @@ import { PortfolioConsentCard } from "@/components/portfolio-cards";
 import { taskWorkPhotos } from "@/lib/work-photos";
 import { activeProvider, checkWirePayments } from "@/lib/payments/service";
 import { directPayOpen, directPayState, payeeAccount } from "@/lib/direct-pay";
+import { recipientVerificationForOwner } from "@/lib/verify-mn";
+import { RecipientVerificationCard } from "./recipient-verification-card";
 
 export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
@@ -96,10 +98,15 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       />
     ) : null;
   const live = ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status);
+  const canVerifyRecipient = isCustomer && deal.category === "deliver" && live;
+  const recipientVerification = canVerifyRecipient
+    ? await recipientVerificationForOwner(deal.id, viewer.profile.id)
+    : null;
 
   return (
     <>
     {live && <AutoRefresh seconds={deal.status === "open" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
+    {canVerifyRecipient && <RecipientVerificationCard dealId={deal.id} verification={recipientVerification} />}
     {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
       {[...questions].map(([helper, unread]) => (

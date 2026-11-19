@@ -43,7 +43,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Every transition writes a timeline event,** plus ledger entries if money moved. Illegal transitions are rejected (engine and a DB trigger).
 - **Phone numbers are never shown** to the other party. Chat and calls stay inside the app.
 - **All user-facing strings go through i18n** (`src/i18n/mn.ts` and `en.ts`).
-- **Private-test login:** without real SMS, phone OTP is limited to `TEST_PHONES`; optional Google sign-in is limited to `GOOGLE_AUTH_ALLOWED_EMAILS` (`lib/login-policy.ts`, `lib/google-auth-policy.ts`).
+- **Private-test login:** without real SMS, phone OTP is limited to `TEST_PHONES` (`lib/login-policy.ts`). Verify.MN optionally verifies a delivery recipient through a private, shareable link; the recipient sends the MO SMS themselves. It is not login, OAuth or ДАН.
 - **Secrets live only in `.env.local`** (git-ignored). Never in code, never in git. Verified on 2026-11-13: nothing has ever leaked into history or the client bundle.
 - **Database changes only as migrations** in `supabase/migrations/`. Never use the dashboard's "autofix".
 
