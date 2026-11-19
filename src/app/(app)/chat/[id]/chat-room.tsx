@@ -25,6 +25,7 @@ export function ChatRoom({
   textOnly,
   me,
   name,
+  callsAvailable,
   canCall,
   initialCallId,
   withHelper,
@@ -37,6 +38,7 @@ export function ChatRoom({
   textOnly: boolean;
   me: string;
   name: string;
+  callsAvailable: boolean;
   canCall: boolean;
   initialCallId: string | null;
 }) {
@@ -103,7 +105,8 @@ export function ChatRoom({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      {!textOnly && <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />}
+      {!callsAvailable && !textOnly && <p className="rounded-input bg-fill p-3 text-sm text-ink-2">{t("call.temporarilyUnavailable")}</p>}
+      {!textOnly && canCall && <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />}
       <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">

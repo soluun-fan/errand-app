@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Avatar, FlowHeader } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { callParty } from "@/lib/calls";
+import { callParty, callsEnabled } from "@/lib/calls";
 import { accessFor, loadThread, markSeen } from "@/lib/chat";
 import { loadDeal } from "@/lib/db/deals";
 import { publicProfiles } from "@/lib/deals/queries";
@@ -53,7 +53,8 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         textOnly={!!access.inquiry}
         me={me}
         name={other?.name ?? t("deal.newHelper")}
-        canCall={access.canSend && callParty(deal, me, withHelper)?.helperId === access.threadHelperId}
+        callsAvailable={callsEnabled()}
+        canCall={callsEnabled() && access.canSend && callParty(deal, me, withHelper)?.helperId === access.threadHelperId}
         initialCallId={initialCallId}
         withHelper={me === deal.customerId ? access.threadHelperId : null}
       />

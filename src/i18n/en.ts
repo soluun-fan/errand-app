@@ -1243,6 +1243,8 @@ export const en = {
     busy: "{name} is on another call.",
     ended: "Call ended.",
     failed: "The call couldn't connect on this network.",
+    temporarilyUnavailable: "Voice and video calls are temporarily unavailable while the private relay is being set up. You can still chat and send voice messages.",
+    requiredUnavailable: "A call is required before choosing this helper, but calls are temporarily unavailable. Try again after the private relay is ready.",
     tryVoice: "Send a voice message instead",
     permission: "Allow the microphone (and camera for video) in your browser to call.",
     unsupported: "This browser can't make calls. Try Chrome or Safari, or send a voice message.",

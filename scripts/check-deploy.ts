@@ -47,13 +47,19 @@ if (!smsLive) {
 if (env.E2E_DEVICE_BYPASS) problems.push("E2E_DEVICE_BYPASS is for browser tests only — remove it (it would let helpers skip the phone / location / notification check)");
 if ((env.PAYMENT_PROVIDER ?? "mock") === "mock") warnings.push("PAYMENT_PROVIDER=mock — payments are simulated (fine for testing, NOT for real users)");
 const cfTurn = Boolean(env.CLOUDFLARE_TURN_KEY_ID && env.CLOUDFLARE_TURN_API_TOKEN);
-if (!cfTurn && (!env.TURN_URLS || !env.TURN_SECRET)) warnings.push("No call relay — calls are direct (often fail on mobile data; each side can see the other's IP). Set CLOUDFLARE_TURN_KEY_ID + 🔒 CLOUDFLARE_TURN_API_TOKEN");
+const ownTurn = Boolean(env.TURN_URLS && env.TURN_SECRET);
+if (env.CALLS_ENABLED && !["true", "false"].includes(env.CALLS_ENABLED)) problems.push("CALLS_ENABLED must be true or false");
+if (env.CALLS_ENABLED === "true" && !cfTurn && !ownTurn) {
+  problems.push("CALLS_ENABLED=true requires Cloudflare TURN credentials or both TURN_URLS and TURN_SECRET");
+}
+if (env.CALLS_ENABLED !== "true") warnings.push("In-app voice/video calls are disabled; text chat and voice messages remain available");
 
 console.log("\nSet these in Vercel → Project → Settings → Environment Variables (values from your .env.local):");
 for (const [name, kind] of required) console.log(`  ${kind === "secret" ? "🔒" : "  "} ${name}${kind === "secret" ? "   (mark as Sensitive)" : ""}`);
 console.log(
   "     PAYMENT_PROVIDER" +
     (env.SMS_PROVIDER === "verify-mn" ? ", SMS_PROVIDER, 🔒 VERIFY_MN_API_KEY" : smsLive ? ", SMS_PROVIDER, 🔒 SMS_HTTP_URL, SMS_HTTP_METHOD/BODY, 🔒 SMS_HTTP_HEADERS, 🔒 SEND_SMS_HOOK_SECRET" : ", TEST_PHONES, DEV_SHOW_SMS_CODES") +
+    ", CALLS_ENABLED" +
     (cfTurn ? ", CLOUDFLARE_TURN_KEY_ID, 🔒 CLOUDFLARE_TURN_API_TOKEN" : env.TURN_URLS ? ", 🔒 TURN_URLS, 🔒 TURN_SECRET" : "") +
     (env.PAYMENT_PROVIDER === "wire" ? ", 🔒 WIRE_SECRET_KEY, 🔒 WIRE_WEBHOOK_SECRET" : ""),
 );

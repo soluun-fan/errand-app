@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { MAX_VOICE_SECONDS, type CallLog } from "@/lib/call-rules";
-import { callParty, iceConfig, incomingCall, logCall, sendSignal, signalsToMe, type IncomingCall, type SignalToMe } from "@/lib/calls";
+import { callParty, callsEnabled, iceConfig, incomingCall, logCall, sendSignal, signalsToMe, type IncomingCall, type SignalToMe } from "@/lib/calls";
 import { CHAT_AUDIO_MIME, accessFor, chatImageExists, createChatImageSlot, storeMessage } from "@/lib/chat";
 import { loadDeal } from "@/lib/db/deals";
 import type { ErrandDeal } from "@/lib/engine";
@@ -122,13 +122,16 @@ export async function callSetup(dealId: string, withHelper: string | null = null
   const t = await getT();
   const ctx = await callContext(dealId, withHelper);
   if (!ctx) return { error: t("call.notAllowed") };
-  return await iceConfig(ctx.viewer.profile.id);
+  if (!callsEnabled()) return { error: t("call.temporarilyUnavailable") };
+  const config = await iceConfig(ctx.viewer.profile.id);
+  return config.relayOnly ? config : { error: t("call.temporarilyUnavailable") };
 }
 
 export async function placeCall(dealId: string, callId: string, video: boolean, sdp: string, withHelper: string | null = null): Promise<{ error?: string }> {
   const t = await getT();
   const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId) || !sdpOk(sdp)) return { error: t("call.notAllowed") };
+  if (!callsEnabled() || !(await iceConfig(ctx.viewer.profile.id)).relayOnly) return { error: t("call.temporarilyUnavailable") };
   const r = await sendSignal({ dealId, callId, from: ctx.party.me, to: ctx.party.other, kind: "offer", video: Boolean(video), sdp });
   if (!r.ok) return { error: t(r.reason === "rate" ? "chat.slowDown" : "call.failed") };
   await notify([ctx.party.other], {
@@ -146,6 +149,7 @@ export async function answerCall(dealId: string, callId: string, sdp: string, wi
   const t = await getT();
   const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId) || !sdpOk(sdp)) return { error: t("call.notAllowed") };
+  if (!callsEnabled() || !(await iceConfig(ctx.viewer.profile.id)).relayOnly) return { error: t("call.temporarilyUnavailable") };
   const r = await sendSignal({ dealId, callId, from: ctx.party.me, to: ctx.party.other, kind: "answer", video: false, sdp });
   return r.ok ? {} : { error: t("call.failed") };
 }
@@ -177,6 +181,7 @@ export async function endCall(dealId: string, callId: string, rawKind: "hangup" 
 
 /** The ringing offer behind a "?call=" link (from the push), if it's still ringing. */
 export async function getIncoming(dealId: string, callId: string, withHelper: string | null = null): Promise<IncomingCall | null> {
+  if (!callsEnabled()) return null;
   const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId)) return null;
   return incomingCall(dealId, callId, ctx.party.me);
@@ -184,6 +189,7 @@ export async function getIncoming(dealId: string, callId: string, withHelper: st
 
 /** What the other side has sent for this call (answer / decline / hangup / busy). */
 export async function callStatus(dealId: string, callId: string): Promise<SignalToMe[]> {
+  if (!callsEnabled()) return [];
   const viewer = await getViewer();
   if (!viewer || !uuid(dealId) || !uuid(callId)) return [];
   return signalsToMe(dealId, callId, viewer.profile.id);

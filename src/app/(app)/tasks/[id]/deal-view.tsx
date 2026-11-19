@@ -16,7 +16,7 @@ import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { googleDirectionsUrl, googlePlaceUrl } from "@/lib/maps";
 import { distanceKm } from "@/lib/dispatch/plan";
-import { callParty } from "@/lib/calls";
+import { callParty, callsEnabled } from "@/lib/calls";
 import { AddressBox, DetailSection, DetailTitle, MapHero } from "@/components/detail";
 import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
@@ -570,7 +570,7 @@ export function DealView(p: DealViewProps) {
           organization={deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId) : undefined}
           href={`/helpers/${deal.helperId}`}
           t={t}
-          action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
+          action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callsEnabled() && callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
         />
       )}
 
@@ -636,12 +636,16 @@ export function DealView(p: DealViewProps) {
                 action={
                   <div className="flex flex-col gap-2">
                   {/* talk before choosing: each applicant has their own chat and call */}
-                  <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall t={t} />
+                  <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall={callsEnabled()} t={t} />
                   {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">🩹 {t("care.firstAidBadge")}</p>}
                   {p.applicantBadges?.get(o.helperId) && <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />}
                   {p.needsCall && !p.careCalls?.has(o.helperId) && (
                     <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
-                      {care ? t("care.callFirst", { seconds: p.careCallSeconds ?? 30 }) : t("conditions.callFirst", { seconds: p.careCallSeconds ?? 30 })}
+                      {!callsEnabled()
+                        ? t("call.requiredUnavailable")
+                        : care
+                          ? t("care.callFirst", { seconds: p.careCallSeconds ?? 30 })
+                          : t("conditions.callFirst", { seconds: p.careCallSeconds ?? 30 })}
                     </p>
                   )}
                   <div className="flex items-center justify-between gap-2">

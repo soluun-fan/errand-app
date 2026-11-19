@@ -276,7 +276,7 @@ Migrations, in order:
 - **Photo/video proof:** receipt photo with its total, handover photo or video, a private bucket with signed upload and read links, sha256 + perceptual-hash reuse flags, then "Дууслаа" → check. The helper's earnings list shows finished jobs.
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
 - **Helper verification:** `/helper/apply` asks for ID front/back, a selfie with ID, and a same-name payout account. Ops manually reviews identity and payout details; ID images and birth date are deleted 30 days after the decision. Criminal-record certificates are not collected or shown as a badge. Legacy level-4 data and old task requirements remain for historical compatibility (`lib/kyc.ts`, `lib/kyc-rules.ts`).
-- **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
+- **Calls and voice messages:** WebRTC calls are off unless `CALLS_ENABLED=true` and a TURN relay is configured; they fail closed instead of falling back to direct connections. Text chat and voice messages remain available. Calls are not recorded; signals are deleted after 1 h.
 - **Pricing:**
   - Build-up recommended price with each extra shown; the customer adjusts −20%…+30% (green/orange hint).
   - Helpers accept or counter once (≤ +30%, never lower).
@@ -291,7 +291,7 @@ Migrations, in order:
 - Dev gallery.
 
 **Not built yet** (rough priority):
-1. **Own TURN relay before real users:** a small server running coturn; set `TURN_URLS` and `TURN_SECRET` and calls become relay-only (connect everywhere, no IP exposure). The code is ready.
+1. **TURN relay before enabling calls:** configure Cloudflare TURN or a coturn relay, then set `CALLS_ENABLED=true`. Calls are relay-only and fail closed if relay setup fails.
 2. **AI proof checks (deferred, optional):** read receipt totals and judge "does this show the job done?". The owner doesn't want new keys, so options are a hosted vision API later, or open-source models (PaddleOCR, an open vision model) on our own server. Results go in `proofs.ai` as flags only; Ops decides.
 3. **Two-way ratings** (helpers rate customers; each side's rating hidden until both submit).
 4. **SafePay screens** (the engine exists).

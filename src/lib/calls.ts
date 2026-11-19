@@ -16,6 +16,8 @@ export interface CallParty {
   helperId: string;
 }
 
+export const callsEnabled = () => process.env.CALLS_ENABLED === "true";
+
 /**
  * Who may call whom on this task right now: while choosing, the customer ⇄ one applicant
  * (`withHelper` says which, for the customer); after that, customer ⇄ chosen helper.
@@ -71,21 +73,17 @@ async function cloudflareIce(now: number): Promise<RTCIceServer[] | null> {
 }
 
 /**
- * ICE servers for a call. Public STUN always (no key). With a relay — Cloudflare's managed TURN, or
- * our own (TURN_URLS + TURN_SECRET) — calls are relay-only: they work on mobile networks and neither
- * side ever sees the other's address. If the relay can't be reached, the call still tries directly.
+ * ICE servers for a call. Calls require TURN; never fall back to direct connections when it is absent.
  */
 export async function iceConfig(userId: string, now = Date.now()): Promise<{ iceServers: RTCIceServer[]; relayOnly: boolean }> {
   const cf = await cloudflareIce(now);
   if (cf) return { iceServers: cf, relayOnly: true };
-  const iceServers: RTCIceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }];
   const urls = (process.env.TURN_URLS ?? "").split(",").map((u) => u.trim()).filter(Boolean);
   const secret = process.env.TURN_SECRET;
   if (urls.length && secret) {
-    iceServers.push({ urls, ...turnCredentials(secret, userId, now) });
-    return { iceServers, relayOnly: true };
+    return { iceServers: [{ urls, ...turnCredentials(secret, userId, now) }], relayOnly: true };
   }
-  return { iceServers, relayOnly: false };
+  return { iceServers: [], relayOnly: false };
 }
 
 export type SignalResult = { ok: true } | { ok: false; reason: "rate" | "invalid" };

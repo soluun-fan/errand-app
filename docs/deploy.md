@@ -117,8 +117,10 @@ Do these in order. Each step says who does it. Values are pasted into Vercel →
 
 ### 3. Call relay (you, ~10 min) — so calls work on mobile data
 1. Cloudflare dashboard → **Realtime → TURN Server** → **Create** → copy the **Turn Token ID** and **API Token**.
-2. Set `CLOUDFLARE_TURN_KEY_ID` and 🔒 `CLOUDFLARE_TURN_API_TOKEN`, redeploy. Calls then go through Cloudflare's relay (works behind mobile networks; neither side sees the other's address). If Cloudflare can't be reached, a call still tries directly.
+2. Set `CLOUDFLARE_TURN_KEY_ID`, 🔒 `CLOUDFLARE_TURN_API_TOKEN`, and `CALLS_ENABLED=true`, then redeploy. Calls use TURN relay-only. If the relay can't be reached, calls fail rather than falling back to a direct connection.
 3. Test: a call between two phones on mobile data (Wi-Fi off).
+
+Until a TURN relay is configured and tested, leave `CALLS_ENABLED` unset or `false`. Text chat and voice messages remain available.
 
 ### 4. Payments: wire.mn (you + wire.mn)
 See "Going live with wire.mn" below. The customer prepays the full amount (managed service); helpers withdraw their earnings, which Ops sends at **Ops → Татан авалт**.

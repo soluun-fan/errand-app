@@ -26,7 +26,7 @@ import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
-import { callParty } from "@/lib/calls";
+import { callParty, callsEnabled } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { portfolioCandidates } from "@/lib/work-photos";
 import { WorkReady } from "@/components/work-ready";
@@ -359,7 +359,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {chatAccess.inquiry ? (
         <Link href={`/chat/${deal.id}`} className={btn.secondary}>{t("chat.askQuestion")}{unread ? ` · ${t("chat.unread", { n: unread })}` : ""}</Link>
-      ) : unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callParty(deal, me) !== null} t={t} />}
+      ) : unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callsEnabled() && callParty(deal, me) !== null} t={t} />}
       {payee && <Note tone="info"><Link href={`/orgs/${payee.id}`} className="font-semibold underline">{t("org.payee", { name: payee.name })}</Link><br />{t("org.workerPay")}</Note>}
       {mine && directPayOpen(deal) && <DirectPayHelperCard dealId={deal.id} state={await directPayState(deal)} action={jobAction} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}

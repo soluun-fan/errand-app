@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
+import { callsEnabled } from "@/lib/calls";
 import { PhotoIdsJson, Uuid, parseOr } from "@/lib/input";
 import { attachTaskPhotos, photosEditable, removeTaskPhoto } from "@/lib/task-photos";
 import { attachReviewPhotos } from "@/lib/work-photos";
@@ -191,10 +192,14 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           const before = await loadDeal(db, dealId);
           // "talk first" as a condition on any task: the same call rule (the database checks it too)
           if (before?.type === "errand" && categoryTrust(before.category) !== "care" && before.details.require?.call) {
-            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("conditions.callFirst", { seconds: (await getRules()).careCallMinSeconds }) };
+            if (!(await hadCareCall(dealId, cmd.helperId))) {
+              return { error: callsEnabled() ? t("conditions.callFirst", { seconds: (await getRules()).careCallMinSeconds }) : t("call.requiredUnavailable") };
+            }
           }
           if (before?.type === "errand" && categoryTrust(before.category) === "care") {
-            if (!(await hadCareCall(dealId, cmd.helperId))) return { error: t("care.callFirst", { seconds: (await getRules()).careCallMinSeconds }) };
+            if (!(await hadCareCall(dealId, cmd.helperId))) {
+              return { error: callsEnabled() ? t("care.callFirst", { seconds: (await getRules()).careCallMinSeconds }) : t("call.requiredUnavailable") };
+            }
             // meet first: with a new sitter, a parent / family member stays at home for this session
             const known = await workedTogether(before.customerId, [cmd.helperId]);
             if (!known.has(cmd.helperId) && form.get("familyHome") !== "on") return { error: t("care.meetFirstNeeded") };
