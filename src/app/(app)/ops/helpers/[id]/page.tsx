@@ -10,7 +10,7 @@ import { applicationForOps } from "@/lib/kyc";
 import { KYC_DOCS } from "@/lib/kyc-rules";
 import { decideKyc } from "../actions";
 
-const CHECKS = ["name", "last4", "age", "selfie", "record", "payout"] as const;
+const CHECKS = ["name", "last4", "age", "selfie", "payout"] as const;
 
 /**
  * One application for Ops: documents through 5-minute links, the entered details, a checklist, and

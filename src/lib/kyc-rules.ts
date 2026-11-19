@@ -1,17 +1,18 @@
 /**
- * Helper verification rules (docs/decisions.md 2026-11-15) — pure, unit-tested.
+ * Helper verification rules (docs/decisions.md 2026-11-18) — pure, unit-tested.
  * Ops checks documents by hand (no ДАН integration yet); these rules make the form honest and the
  * stored data minimal.
  */
 import { namesMatch } from "@/lib/engine/payouts";
 
-export const KYC_DOCS = ["id_front", "id_back", "selfie", "record"] as const;
+export const KYC_DOCS = ["id_front", "id_back", "selfie"] as const;
 export type KycDoc = (typeof KYC_DOCS)[number];
-/** ID / certificate images are deleted this long after Ops decides. */
+/** ID images are deleted this long after Ops decides. */
 export const KYC_RETENTION_DAYS = 30;
 export const MIN_AGE = 18;
-/** kyc_level after approval: 3 = ID + selfie + payout checked; 4 = also criminal-record certificate. */
+/** kyc_level after approval: 3 = ID + selfie + payout checked. Level 4 is retained for legacy care records. */
 export const KYC_LEVEL_VERIFIED = 3;
+/** Legacy care qualification only; not collected or shown as a general badge for new helpers. */
 export const KYC_LEVEL_BACKGROUND = 4;
 
 export const BANKS = ["Хаан банк", "Голомт банк", "Худалдаа хөгжлийн банк", "Төрийн банк", "Хас банк", "Богд банк", "Капитрон банк", "М банк", "Ариг банк", "Тээвэр хөгжлийн банк", "Үндэсний хөрөнгө оруулалтын банк", "Чингис хаан банк"] as const;

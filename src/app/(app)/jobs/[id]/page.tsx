@@ -53,6 +53,22 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const { id } = await params;
   const [deal, t, locale] = await Promise.all([getJobForHelper(id, viewer), getT(), getLocale()]);
   if (!deal) notFound();
+  if (deal.status === "open" && categoryTrust(deal.category) === "care") {
+    const hasApplication = deal.offers.some((offer) => offer.helperId === viewer.profile.id);
+    return (
+      <>
+        <Note tone="info">{t("care.launchScope")}</Note>
+        {hasApplication && (
+          <InlineAction
+            action={jobAction}
+            fields={{ dealId: deal.id, intent: "unapply" }}
+            label={t("job.unapply")}
+            className={btn.text}
+          />
+        )}
+      </>
+    );
+  }
   const me = viewer.profile.id;
   const mine = deal.helperId === me;
   const myOffer = deal.offers.find((o) => o.helperId === me);

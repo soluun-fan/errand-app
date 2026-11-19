@@ -1,7 +1,7 @@
 import { listSavedAddresses } from "@/lib/addresses";
 import { getViewer } from "@/lib/auth";
 import { getDealForViewer, listMyTasks } from "@/lib/deals/queries";
-import { CATEGORIES, DEFAULT_CONFIG, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { CATEGORIES, categoryTrust, DEFAULT_CONFIG, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { EmptyState, FlowHeader, Note, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getControls } from "@/lib/safety";
@@ -115,6 +115,13 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
   // a category from a tile, or guessed from the search text ("буйдан зөөх" → carry); can be changed
   let cat = (CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined) ?? guessCategory(title, keywords) ?? undefined;
   let unavailable = Boolean(cat && !live.includes(cat));
+  const unavailableCategory = async (category: CategoryId) => {
+    const t = await getT();
+    return <EmptyState icon="⏸" title={t("specialized.unavailable")}
+      body={categoryTrust(category) === "care" ? t("care.launchScope") : undefined}
+      action={<Link href="/post" className={btn.secondary}>{t("common.back")}</Link>} />;
+  };
+  if (cat && unavailable && categoryTrust(cat) === "care") return unavailableCategory(cat);
   if (unavailable) cat = undefined;
   if (invite && cat && !invite.categories.includes(cat)) cat = undefined;
   if (invite && !cat && invite.categories.length === 1) cat = invite.categories[0];
@@ -125,6 +132,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
   if (typeof sp.again === "string") {
     const past = await getDealForViewer(sp.again, viewer);
     if (past?.type === "errand" && past.customerId === viewer.profile.id) {
+      if (!live.includes(past.category)) return unavailableCategory(past.category);
       initial = draftFrom(past);
       again = true;
     }

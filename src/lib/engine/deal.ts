@@ -8,7 +8,7 @@
  *
  * Illegal transitions throw `EngineError`; they never partially apply.
  */
-import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, customerChoosesHelper, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
@@ -317,8 +317,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   };
   details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
   details.counterMax = 0;
-  // care work: the customer always chooses the person themselves
-  if (categoryTrust(input.category) === "care") details.autoPick = false;
+  // Accompaniment and historical care bookings require the customer’s final choice.
+  if (customerChoosesHelper(input.category)) details.autoPick = false;
   if (input.itemBudget === 0) details.budgetBuffer = false;
   // `itemBudget` is what the customer typed; the deal holds it plus the optional buffer.
   const itemBudget = heldItemBudget(input.itemBudget, details.budgetBuffer, cfg);
@@ -443,7 +443,7 @@ export function liveOffers(e: ErrandDeal, now: number): ErrandDeal["offers"] {
 
 /** When "Choose for me" may pick (first live application + autoPickMinutes), or null. */
 export function autoPickAt(e: ErrandDeal, now: number): number | null {
-  if (categoryTrust(e.category) === "care" || !e.details.autoPick || e.status !== "open") return null;
+  if (customerChoosesHelper(e.category) || !e.details.autoPick || e.status !== "open") return null;
   const live = liveOffers(e, now);
   if (!live.length) return null;
   return Math.min(...live.map((o) => o.at)) + ruleOf(e, "autoPickMinutes") * MINUTE_MS;
@@ -610,7 +610,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "accept", "open");
       if (e.mode !== "now") fail("ILLEGAL_TRANSITION", "Scheduled tasks take applications, not instant accepts");
-      if (categoryTrust(e.category) === "care") fail("ILLEGAL_TRANSITION", "The customer chooses who does this task");
+      if (customerChoosesHelper(e.category)) fail("ILLEGAL_TRANSITION", "The customer chooses who does this task");
       requireInvited(e, u.id, ctx.now);
       assignHelper(tx, e, u.id, e.postedFee, orgFor(u, e.category));
       tx.ev("accepted", { helperId: u.id });
@@ -674,8 +674,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       if (categoryTrust(e.category) !== "open" && !u.qualified?.some((q) => q.category === e.category && q.orgId === offer.orgId)) {
         fail("FORBIDDEN", "The qualification used for this offer is no longer available");
       }
-      if (categoryTrust(e.category) === "care") {
-        // A price agreement is still subject to the customer's final choice of caregiver.
+      if (customerChoosesHelper(e.category)) {
+        // A price agreement is still subject to the customer's final choice of helper.
         offer.proposedBy = "helper";
         offer.at = ctx.now;
         tx.ev("offer_priced", { helperId: u.id, price: offer.price as number, by: "helper" });

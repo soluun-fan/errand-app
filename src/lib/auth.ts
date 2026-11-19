@@ -41,7 +41,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   if (actor.helperApproved) {
     const [qualified, badges] = await Promise.all([qualificationsFor(profile.id, profile.kyc_level), badgesFor(profile.id, profile.kyc_level)]);
     actor.qualified = qualified;
-    actor.badges = badges; // task conditions (driver, car, background check, on time, languages)
+    actor.badges = badges; // task conditions, including legacy checks on old tasks
   }
   return { profile, actor };
 });

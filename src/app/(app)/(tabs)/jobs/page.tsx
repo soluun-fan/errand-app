@@ -13,7 +13,7 @@ import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
-import { CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { fuzz, helperStart } from "@/lib/maps";
@@ -130,7 +130,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
   t: T;
   locale: Locale;
 }) {
-  const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id;
+  const cat = LAUNCH_CATEGORIES.find((c) => c.id === sp.cat)?.id;
   const sort: BoardSort = sp.sort === "new" || sp.sort === "pay" ? sp.sort : from ? "near" : "new";
   const items = await browseOpenDeals(viewerId, { category: cat, sort, from });
   const pics = await loadPics(items);
@@ -148,7 +148,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
         <Link href={href({ cat: undefined })} aria-current={!cat ? "page" : undefined} className={chipClass(!cat)}>
           {t("home.all")}
         </Link>
-        {CATEGORIES.map((c) => (
+        {LAUNCH_CATEGORIES.map((c) => (
           <Link key={c.id} href={href({ cat: c.id })} aria-current={cat === c.id ? "page" : undefined} className={chipClass(cat === c.id)}>
             <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
           </Link>
@@ -308,7 +308,6 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     [t("helper.stepPhone"), profile.phone ? "done" : "needed"],
     [t("helper.stepDan"), step(profile.kyc_level >= 3)],
     [t("helper.stepSelfie"), step(profile.kyc_level >= 3)],
-    [t("helper.stepRecord"), step(profile.kyc_level >= 4)],
     [t("helper.stepPayout"), step(profile.kyc_level >= 3)],
   ];
 

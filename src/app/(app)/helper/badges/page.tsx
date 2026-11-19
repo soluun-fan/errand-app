@@ -9,7 +9,7 @@ import { LanguagesForm } from "./languages-form";
 
 /**
  * /helper/badges — what lets a helper take tasks with conditions (docs/decisions.md 2026-11-18): a
- * driver's licence / own car checked by Ops, the criminal-record check, the on-time record, languages.
+ * driver's licence / own car checked by Ops, the on-time record, and self-declared languages.
  */
 export default async function BadgesPage() {
   const viewer = await getViewer();
@@ -42,7 +42,6 @@ export default async function BadgesPage() {
       <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
         <p>🚗 {t("conditions.b.driver")}: <b>{b?.driver ? t("badges.yes") : t("badges.no")}</b></p>
         <p>🚙 {t("conditions.b.car")}: <b>{b?.car ? t("badges.yes") : t("badges.no")}</b></p>
-        <p>🛡️ {t("conditions.b.checked")}: <b>{b?.checked ? t("badges.yes") : t("badges.no")}</b></p>
         <p>⏰ {pct === null ? t("badges.onTimeNew") : t("badges.onTime", { pct, n: record.jobs })}</p>
       </section>
 
@@ -61,7 +60,6 @@ export default async function BadgesPage() {
       {open("driver") && <BadgeForm kind="driver" />}
       {open("car") && <BadgeForm kind="car" />}
       <LanguagesForm current={me?.languages ?? []} />
-      {!b?.checked && <Note tone="info">{t("badges.checkedHow")}</Note>}
     </>
   );
 }

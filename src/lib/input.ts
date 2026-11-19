@@ -82,7 +82,6 @@ export const DetailsInput = z
       .object({
         driver: z.boolean(),
         car: z.boolean(),
-        checked: z.boolean(),
         onTime: z.boolean(),
         call: z.boolean(),
         handoverCode: z.boolean(),

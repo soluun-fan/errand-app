@@ -1,16 +1,16 @@
 import "server-only";
 import type { CategoryId } from "@/lib/engine";
-import { KYC_LEVEL_BACKGROUND, KYC_LEVEL_VERIFIED, KYC_RETENTION_DAYS, type KycDoc } from "@/lib/kyc-rules";
+import { KYC_LEVEL_VERIFIED, KYC_RETENTION_DAYS, type KycDoc } from "@/lib/kyc-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Helper verification (docs/decisions.md 2026-11-15). Everything here runs with the service role
+ * Helper verification (docs/decisions.md 2026-11-18). Everything here runs with the service role
  * AFTER the caller checked who is acting: the applicant for their own files and application, or an
  * admin for review. Documents live in the private `kyc` bucket; Ops sees them through 5-minute links;
  * they're deleted 30 days after the decision.
  */
 export const KYC_BUCKET = "kyc";
-const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
+const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 export type ApplicationStatus = "submitted" | "approved" | "rejected" | "changes_requested";
 
@@ -35,10 +35,10 @@ export async function latestApplication(userId: string): Promise<MyApplication |
     : null;
 }
 
-/** Upload slot inside the applicant's own folder. PDFs only for the record certificate. */
+/** Upload slot inside the applicant's own folder. */
 export async function createKycSlot(userId: string, doc: KycDoc, mime: string): Promise<{ path: string; token: string }> {
   const ext = EXT[mime];
-  if (!ext || (ext === "pdf" && doc !== "record")) throw new Error("Unsupported file type");
+  if (!ext || ext === "pdf") throw new Error("Unsupported file type");
   const path = `${userId}/${doc}-${crypto.randomUUID()}.${ext}`;
   const { data, error } = await createAdminClient().storage.from(KYC_BUCKET).createSignedUploadUrl(path);
   if (error || !data) throw new Error(error?.message ?? "Could not create upload URL");
@@ -65,7 +65,7 @@ export interface ApplicationInput {
 
 export type SubmitResult = { ok: true } | { ok: false; reason: "files" | "open" };
 
-/** Stores a complete application (all four files must really exist in the applicant's folder). */
+/** Stores a complete application (all required files must exist in the applicant's folder). */
 export async function submitApplication(userId: string, a: ApplicationInput): Promise<SubmitResult> {
   for (const path of Object.values(a.files)) if (!(await fileExists(userId, path))) return { ok: false, reason: "files" };
   const db = createAdminClient();
@@ -78,7 +78,6 @@ export async function submitApplication(userId: string, a: ApplicationInput): Pr
     id_front_path: a.files.id_front,
     id_back_path: a.files.id_back,
     selfie_path: a.files.selfie,
-    record_path: a.files.record,
     consent_at: new Date().toISOString(),
   });
   if (error) return error.code === "23505" ? { ok: false, reason: "open" } : Promise.reject(new Error(error.message));
@@ -134,7 +133,6 @@ export async function applicationForOps(id: string): Promise<ApplicationForOps |
     ["id_front", a.id_front_path],
     ["id_back", a.id_back_path],
     ["selfie", a.selfie_path],
-    ["record", a.record_path],
   ];
   const paths = docs.map(([, p]) => p).filter((p): p is string => Boolean(p));
   const signed = paths.length ? ((await db.storage.from(KYC_BUCKET).createSignedUrls(paths, 300)).data ?? []) : [];
@@ -164,7 +162,7 @@ export type Decision = "approve" | "reject" | "changes_requested";
 
 /**
  * Records Ops' decision. Approve = verified helper in the chosen categories: verified name, payout
- * account (last 4 only on the profile), kyc level 4 with the record certificate. The application
+ * account (last 4 only on the profile), and standard identity verification. The application
  * row is updated last, so a failure part-way leaves it in the queue to retry.
  */
 export async function decide(appId: string, opsId: string, decision: Decision, note: string | null, categories: CategoryId[]): Promise<boolean> {
@@ -181,7 +179,7 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
       .update({
         role: prof?.role === "admin" ? "admin" : "helper",
         helper_status: "approved",
-        kyc_level: a.record_path ? KYC_LEVEL_BACKGROUND : KYC_LEVEL_VERIFIED,
+        kyc_level: KYC_LEVEL_VERIFIED,
         verified_name: a.legal_name,
         categories: categories.length ? categories : a.categories,
         payout_bank: pay?.bank ?? null,
@@ -206,7 +204,7 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
   return true;
 }
 
-/** Deletes ID / certificate files 30 days after the decision; keeps name, last 4 digits, decision. */
+/** Deletes ID files and any legacy certificate files 30 days after the decision. */
 export async function purgeKycFiles(now = Date.now()): Promise<number> {
   const db = createAdminClient();
   const cutoff = new Date(now - KYC_RETENTION_DAYS * 24 * 3_600_000).toISOString();

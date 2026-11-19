@@ -5,7 +5,7 @@ import { HelperCard } from "@/components/helper-card";
 import { EmptyState, FlowHeader, Wide, chipClass } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { CATEGORIES, type CategoryId } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { helperDirectory, savedHelperIds, type HelperSort } from "@/lib/helper-profile";
 import { portfolioThumbs } from "@/lib/work-photos";
 
@@ -17,7 +17,7 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
   const viewer = await getViewer();
   if (!viewer) return null;
   const sp = await searchParams;
-  const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
+  const cat = LAUNCH_CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
   const sort: HelperSort = sp.sort === "jobs" ? "jobs" : sp.sort === "new" ? "new" : "rating";
   const onlySaved = sp.saved === "1";
   const [t, saved] = await Promise.all([getT(), savedHelperIds(viewer.profile.id)]);
@@ -56,7 +56,7 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
         <Link href={href({ cat: undefined })} className={chipClass(!cat)}>
           {t("web.all")}
         </Link>
-        {CATEGORIES.map((c) => (
+        {LAUNCH_CATEGORIES.map((c) => (
           <Link key={c.id} href={href({ cat: c.id })} className={chipClass(cat === c.id)}>
             <CategoryIcon id={c.id} size={15} /> {t(`categoryShort.${c.id}`)}
           </Link>

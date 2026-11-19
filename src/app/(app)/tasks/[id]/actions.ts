@@ -230,6 +230,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
       if (/Waiting for the helper/.test(e.message)) return { error: t("price.waitingHelper") };
       return { error: e.code === "FORBIDDEN" ? t("error.forbidden") : t("error.changed") };
     }
+    if (e instanceof DbError && e.message.includes("this kind of task is not available")) return { error: t("care.launchScope") };
     if (isPausedError(e)) return { error: t("safety.moneyFrozen") };
     if (e instanceof DbError) return { error: t("error.generic") };
     throw e;

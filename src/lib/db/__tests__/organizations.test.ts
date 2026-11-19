@@ -64,6 +64,20 @@ it("blocks posting disabled categories, including a forged care auto-pick settin
   await persist(null, post("childcare"));
 });
 
+it("closing care blocks new posts, applications and selection on older open posts", async () => {
+  await db.exec("update public.category_settings set live = true where category = 'childcare'");
+  const empty = await persist(null, post("childcare"));
+  const applied = await step(await persist(null, post("childcare")), { type: "apply", note: "" }, worker("childcare"));
+  await db.query("insert into public.messages (deal_id, helper_id, from_user_id, is_system, text) values ($1,$2,$3,true,'call:ended:voice:50')", [applied.id, helperId, customerId]);
+  await db.exec("update public.category_settings set live = false where trust = 'care'");
+  for (const category of ["childcare", "eldercare"] as const) {
+    expect((await sqlError(persist(null, post(category)))).message).toMatch(/not available/);
+  }
+  expect((await sqlError(step(empty, { type: "apply", note: "" }, worker("childcare")))).message).toMatch(/not available/);
+  expect((await sqlError(step(applied, { type: "choose", helperId }, customer))).message).toMatch(/not available/);
+  expect((await step(applied, { type: "cancel" }, customer)).status).toBe("cancelled");
+});
+
 it("care requires an active agency and background-checked approved helper", async () => {
   expect(await allowed("childcare")).toBe(true);
   await db.query("update public.profiles set kyc_level = 3 where id = $1", [helperId]);

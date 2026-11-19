@@ -74,6 +74,20 @@ describe("specialized work", () => {
     expect((w.get(id) as ErrandDeal).payeeOrgId).toBe("org1");
   });
 
+  it("an adult accompaniment booking stays open for multiple applicants until the poster chooses", () => {
+    const w = new World();
+    const id = w.post({ category: "escort", details: { autoPick: true } });
+    w.reject(id, { type: "accept" }, helper(), "ILLEGAL_TRANSITION");
+    offer(w, id, helper("h1"));
+    offer(w, id, helper("h2"));
+    w.do(id, { type: "counter", helperId: "h1", price: 12_000 }, customer());
+    w.do(id, { type: "accept_counter" }, helper("h1"));
+    expect(w.get(id)).toMatchObject({ status: "open", helperId: null, details: { autoPick: false } });
+    w.reject(id, { type: "choose", helperId: "h1" }, system, "ILLEGAL_TRANSITION");
+    w.do(id, { type: "choose", helperId: "h2" }, customer());
+    expect(w.get(id)).toMatchObject({ status: "awaiting_payment", helperId: "h2" });
+  });
+
   it.each(["childcare", "eldercare"] as const)("%s always requires the customer's final selection, even after bargaining", (category) => {
     const w = new World();
     const id = w.post({ category, details: { autoPick: true } });

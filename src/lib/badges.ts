@@ -5,8 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * What a helper has for task conditions (docs/decisions.md 2026-11-18 "Task conditions"): a driver's
- * licence / own car checked by Ops, the criminal-record check, their on-time record, the languages
- * they speak. The database checks the same things (private.meets_conditions).
+ * licence / own car checked by Ops, their on-time record, and the languages they speak. Legacy
+ * criminal-record status remains available only to enforce old task conditions.
  */
 export interface OnTime {
   jobs: number;

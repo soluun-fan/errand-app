@@ -5,7 +5,7 @@
  * src/lib/supabase/admin.ts) so scripts and tests can reuse it.
  */
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { EngineError, apply, type Actor, type Command, type Deal, type Transition } from "@/lib/engine";
+import { EngineError, apply, categoryTrust, type Actor, type Command, type Deal, type Transition } from "@/lib/engine";
 import { applyTransitionArgs, dealFromRow, insertDealArgs, type DealRow, type DisputeRow, type OfferRow } from "./mapping";
 
 export class DbError extends Error {
@@ -32,6 +32,9 @@ export async function loadDeal(db: SupabaseClient, id: string): Promise<Deal | n
 
 /** Persists a deal fresh from createErrand()/createGoods(). */
 export async function insertDeal(db: SupabaseClient, t: Transition): Promise<void> {
+  if (t.deal.type === "errand" && categoryTrust(t.deal.category) === "care") {
+    throw new DbError({ message: "this kind of task is not available right now" });
+  }
   const { error } = await db.rpc("insert_deal", insertDealArgs(t));
   if (error) throw new DbError(error);
 }
@@ -55,6 +58,10 @@ export async function runCommand(
     const before = await loadDeal(db, dealId);
     if (!before) throw new EngineError("INVALID_INPUT", "Deal not found");
     const now = opts.now?.() ?? Date.now();
+    if (before.type === "errand" && before.status === "open" && categoryTrust(before.category) === "care"
+        && ["choose", "accept", "apply", "reprice", "counter", "accept_counter", "open_to_all"].includes(cmd.type)) {
+      throw new DbError({ message: "this kind of task is not available right now" });
+    }
     const t = apply(before, cmd, { now, actor });
     if (t.duplicate) return t;
 

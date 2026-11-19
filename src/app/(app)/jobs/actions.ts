@@ -416,6 +416,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if (/applicants/.test(e.message)) return { error: t("job.full") };
       return { error: intent === "apply" || intent === "quote" || intent === "add_kind_apply" ? t("job.taken") : t("error.changed") };
     }
+    if (e instanceof DbError && e.message.includes("this kind of task is not available")) return { error: t("care.launchScope") };
     if (isPausedError(e)) return { error: t("safety.moneyFrozen") };
     if (e instanceof DbError) return { error: t("error.changed") };
     throw e;

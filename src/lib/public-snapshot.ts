@@ -2,7 +2,7 @@ import "server-only";
 import { varietyFor, type JobVariety } from "@/lib/engine/job-varieties";
 import { cleanConditions } from "@/lib/engine/conditions";
 import type { TaskConditions } from "@/lib/engine/types";
-import { errandSplit, type CategoryId, type DealStatus } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, errandSplit, type CategoryId, type DealStatus } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -26,6 +26,7 @@ export async function recentRequests(limit = 5): Promise<PublicRequest[]> {
     .from("deals")
     .select("category, fee, status, created_at")
     .eq("type", "errand")
+    .in("category", LAUNCH_CATEGORIES.map(c => c.id))
     .in("status", SHOWN)
     .gte("created_at", since)
     // the pilot's own test tasks are titled "[verify] …"; keep them out of public view
@@ -67,6 +68,7 @@ export async function openRequests(
     .from("deals")
     .select("id, title, category, fee, commission_bps, details, scheduled_at, item_budget, mode, match_by")
     .eq("type", "errand")
+    .in("category", LAUNCH_CATEGORIES.map(c => c.id))
     .eq("status", "open")
     .not("title", "ilike", "[verify]%")
     // a task sent to one helper first isn't on the board until it opens to everyone

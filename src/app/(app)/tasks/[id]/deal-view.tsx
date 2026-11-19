@@ -93,7 +93,6 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
   ratingCount: p?.rating_count ?? 0,
   completed: p?.completed_count ?? 0,
   verified: (p?.kyc_level ?? 0) >= 3,
-  backgroundChecked: (p?.kyc_level ?? 0) >= 4,
 });
 
 /**
@@ -330,7 +329,7 @@ export function DealView(p: DealViewProps) {
         );
         break;
       case "open":
-        if (invitedOnly(deal, serverNow) !== null) {
+        if (!care && invitedOnly(deal, serverNow) !== null) {
           secondary.push(
             <ConfirmSheet
               key="open_to_all"
@@ -603,9 +602,11 @@ export function DealView(p: DealViewProps) {
         />
       )}
 
-      {deal.status === "open" && isCustomer && (
+      {deal.status === "open" && isCustomer && care && <p className="rounded-input bg-fill p-3">{t("care.launchScope")}</p>}
+      {deal.status === "open" && isCustomer && !care && (
         <section className="flex flex-col gap-2" aria-live="polite">
           <h2 className="font-bold">{t("deal.offers", { n: applicants.length, max: deal.maxApplicants })}</h2>
+          {deal.category === "escort" && <p className="text-sm text-ink-2">{t("care.posterChoice")}</p>}
           {applicants.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
           {applicants.length > 0 && pickAt !== null && (
             <p className="self-start rounded-full bg-fill px-3 py-1 text-sm font-medium">

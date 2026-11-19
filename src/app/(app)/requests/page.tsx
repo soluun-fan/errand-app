@@ -5,7 +5,7 @@ import { OpenBoard } from "@/components/open-board";
 import { EmptyState, FlowHeader, Wide, btn, chipClass } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { CATEGORIES, type CategoryId } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { openRequests } from "@/lib/public-snapshot";
 
 /**
@@ -16,7 +16,7 @@ export default async function RequestsPage({ searchParams }: PageProps<"/request
   const viewer = await getViewer();
   if (!viewer) return null;
   const sp = await searchParams;
-  const cat = CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
+  const cat = LAUNCH_CATEGORIES.find((c) => c.id === sp.cat)?.id as CategoryId | undefined;
   const sort = sp.sort === "pay" ? "pay" : "new";
   const [t, locale, items] = await Promise.all([getT(), getLocale(), openRequests(60, { category: cat, sort, withTitles: true, excludeCustomer: viewer.profile.id })]);
   const href = (p: { cat?: string; sort?: string }) => {
@@ -46,7 +46,7 @@ export default async function RequestsPage({ searchParams }: PageProps<"/request
         <Link href={href({ cat: undefined })} className={chipClass(!cat)}>
           {t("web.all")}
         </Link>
-        {CATEGORIES.map((c) => (
+        {LAUNCH_CATEGORIES.map((c) => (
           <Link key={c.id} href={href({ cat: c.id })} className={chipClass(cat === c.id)}>
             <CategoryIcon id={c.id} size={15} /> {t(`categoryShort.${c.id}`)}
           </Link>

@@ -17,7 +17,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, customerChoosesHelper, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
 import { DRAFT_KEY } from "@/lib/draft";
 import { titleFromBrief } from "@/lib/task-brief";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
@@ -201,8 +201,8 @@ export function PostFlow({
         const draft = JSON.parse(raw) as Partial<Draft>;
         // arriving by tapping a kind: a draft of another kind isn't this task — keep it saved, don't mix it in
         if (initial.category && draft.category && draft.category !== initial.category) return;
-        // a direct request keeps to the kinds of task that helper does
-        if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) delete draft.category;
+        // An unavailable draft must never be restored under another category.
+        if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) return;
         setD((x) => ({ ...x, ...draft, description: draft.description || (draft.customTitle === undefined ? draft.title ?? "" : ""), customTitle: draft.customTitle ?? Boolean(draft.title) }));
       }
     } catch {
@@ -234,6 +234,7 @@ export function PostFlow({
   const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
   const isCarry = d.category === "carry";
   const buys = categoryConfig(d.category).items;
+  const posterChooses = customerChoosesHelper(d.category);
   const care = categoryTrust(d.category) === "care";
   const start = startString(d, now);
   const startsAt = start ? (parseUbLocal(start) ?? now) : now;
@@ -258,7 +259,7 @@ export function PostFlow({
     roundTrip: twoPoint && d.roundTrip,
     budgetBuffer: buys && d.buyForMe && d.budgetBuffer,
     // a direct request: the customer answers that helper themselves; not urgent: they compare at leisure
-    autoPick: invite || care || d.when === "flexible" ? false : d.autoPick,
+    autoPick: invite || posterChooses || d.when === "flexible" ? false : d.autoPick,
     minutes: d.minutes ?? autoMinutes,
     tools: d.tools,
     quotedFee: 0,
@@ -805,11 +806,11 @@ export function PostFlow({
               checked={openAfter}
               onChange={setOpenAfter}
             />
-          ) : care ? <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p> : d.when === "flexible" ? null : (
+          ) : posterChooses ? <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p> : d.when === "flexible" ? null : (
             <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
           )}
 
-          {care && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("specialized.care")}</p>}
+          {posterChooses && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>}
           {categoryConfig(d.category).checkHours && <p className="text-sm text-ink-2">{t("specialized.check", { hours: categoryConfig(d.category).checkHours! })}</p>}
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
             <span aria-hidden>🔒</span>

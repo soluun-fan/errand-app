@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { DbError } from "@/lib/db/deals";
-import { CATEGORIES, categoryTrust, type CategoryId, type Trust } from "@/lib/engine";
+import { CATEGORIES, LAUNCH_CATEGORIES, categoryTrust, type CategoryId, type Trust } from "@/lib/engine";
 import { helperDirectory, type HelperProfile } from "@/lib/helper-profile";
 import { maskContacts } from "@/lib/chat-rules";
 import { memberCategories, ubDay, type CertificateInput, type OrgApplicationInput, type OrgKind, type OrgStatus } from "@/lib/org-rules";
@@ -32,10 +32,10 @@ export const categorySettings = cache(async (): Promise<CategorySetting[]> => {
   if (error) {
     console.error("category settings failed", error.message);
     // fail closed for specialized work: only the original kinds stay available
-    return CATEGORIES.map((c) => ({ category: c.id, trust: c.trust, live: c.trust === "open" }));
+    return LAUNCH_CATEGORIES.map((c) => ({ category: c.id, trust: c.trust, live: c.trust === "open" }));
   }
   const byId = new Map((data ?? []).map((r) => [r.category, r]));
-  return CATEGORIES.map((c) => byId.get(c.id) ?? { category: c.id, trust: c.trust, live: false });
+  return LAUNCH_CATEGORIES.map((c) => byId.get(c.id) ?? { category: c.id, trust: c.trust, live: false });
 });
 
 export async function liveCategories(): Promise<CategoryId[]> {

@@ -1,6 +1,6 @@
 import "server-only";
 import { loadDeal, runCommand } from "@/lib/db/deals";
-import { autoPickAt, errandSplit, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
+import { autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -36,6 +36,8 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
   const db = createAdminClient();
   let deal = await loadDeal(db, dealId);
   if (!deal || deal.type !== "errand") return null;
+
+  if (deal.status === "open" && categoryTrust(deal.category) === "care") return null;
 
   const pickAt = autoPickAt(deal, now);
   if (pickAt !== null && now >= pickAt) {

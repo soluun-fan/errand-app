@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAcceptance } from "@/lib/legal";
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const MIME = ["image/jpeg", "image/png", "image/webp"];
 
 /** Upload slot for one verification document, in the applicant's own folder. */
 export async function prepareKycUpload(doc: string, mime: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
@@ -21,7 +21,7 @@ export async function prepareKycUpload(doc: string, mime: string, bytes: number)
   if (!viewer) redirect("/login");
   const t = await getT();
   if (typeof doc !== "string" || typeof mime !== "string" || typeof bytes !== "number") return { error: t("kyc.errors.type") };
-  if (!(KYC_DOCS as readonly string[]).includes(doc) || !MIME.includes(mime) || (mime === "application/pdf" && doc !== "record")) {
+  if (!(KYC_DOCS as readonly string[]).includes(doc) || !MIME.includes(mime)) {
     return { error: t("kyc.errors.type") };
   }
   if (!(bytes > 0 && bytes <= MAX_BYTES)) return { error: t("kyc.errors.type") };

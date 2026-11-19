@@ -13,8 +13,8 @@ export type OrgStatus = "pending" | "approved" | "rejected" | "suspended";
 
 /** The kinds an organisation or a certificate can cover (everything that isn't open work). */
 export const SPECIALIZED: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust !== "open").map((c) => c.id);
-/** Kinds an individual certificate (trades) or care clearance (care, after the background check) can cover. */
-export const CERTIFIABLE: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust !== "open").map((c) => c.id); // care = a care clearance (needs the background check)
+/** Trade categories accepting new credentials and organisation applications at launch. */
+export const CERTIFIABLE: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust === "pro").map((c) => c.id);
 
 export interface MembershipFact {
   orgId: string;
@@ -60,7 +60,7 @@ export function qualificationsFrom(f: { kycLevel: number; memberships: readonly 
 }
 
 const CategoryEnum = z.enum(CATEGORIES.map((c) => c.id) as [CategoryId, ...CategoryId[]]);
-const Specialized = CategoryEnum.refine((c) => SPECIALIZED.includes(c), "not a specialized kind");
+const Specialized = CategoryEnum.refine((c) => CERTIFIABLE.includes(c), "not an available trade");
 
 export const OrgApplicationInput = z.object({
   name: z.string().trim().min(2).max(80),
@@ -74,7 +74,7 @@ export const OrgApplicationInput = z.object({
   accountNumber: z.string().transform((v) => v.toUpperCase().replace(/[\s-]/g, "")).pipe(z.string().regex(/^(MN[0-9]{18}|[0-9]{6,20})$/)),
   holderName: z.string().trim().min(2).max(120),
   consent: z.literal(true),
-}).refine((a) => a.kind === "agency" || !a.categories.some((c) => categoryTrust(c) === "care"), "care requires an agency");
+});
 export type OrgApplicationInput = z.infer<typeof OrgApplicationInput>;
 
 export const CertificateInput = z.object({

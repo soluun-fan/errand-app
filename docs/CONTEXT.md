@@ -4,7 +4,7 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
-_Specialized-services update (2026-11-16): local implementation includes organisation registration/review, worker invitations, certificates, qualification-aware discovery and company payment routing. Care starts off and needs agency + background check + Ops legal-review acknowledgement. See `docs/decisions.md` “Specialized work”. The two `20261117…` migrations must be applied together, in order, before deploying the app; hosted rollout and browser verification remain pending._
+_Specialized-services update (2026-11-19): childcare, eldercare and personal/medical care are excluded from launch; ordinary adult accompaniment is supported only for adults who travel independently. New care posts, matching and care credentials are disabled; existing assigned care bookings keep their original terms. Apply `20261119000000_pause_direct_care.sql` after the earlier migrations. See `docs/decisions.md` “Launch scope for care and accompaniment”; hosted rollout and browser verification remain pending._
 
 
 ---
@@ -275,7 +275,7 @@ Migrations, in order:
 - Maps on both sides, live helper position, Google Maps directions.
 - **Photo/video proof:** receipt photo with its total, handover photo or video, a private bucket with signed upload and read links, sha256 + perceptual-hash reuse flags, then "Дууслаа" → check. The helper's earnings list shows finished jobs.
 - **Chat:** one conversation per task and helper, Realtime with a polling fallback, photos, contact masking, rate limit, seen marks, push without content, 90-day retention (`/chat/[id]`, `lib/chat.ts`, `lib/chat-rules.ts`).
-- **Helper verification:** `/helper/apply` form (ID front/back, selfie with ID, record certificate, payout account in the same name), Ops review at `/ops/helpers`, private `kyc` bucket with 5-minute links, documents deleted 30 days after the decision, badges "✓ Баталгаажсан" / "✓ Ял шийтгэлгүй" (`lib/kyc.ts`, `lib/kyc-rules.ts`).
+- **Helper verification:** `/helper/apply` asks for ID front/back, a selfie with ID, and a same-name payout account. Ops manually reviews identity and payout details; ID images and birth date are deleted 30 days after the decision. Criminal-record certificates are not collected or shown as a badge. Legacy level-4 data and old task requirements remain for historical compatibility (`lib/kyc.ts`, `lib/kyc-rules.ts`).
 - **Calls and voice messages:** WebRTC voice and video calls during a live task, with the handshake through `call_signals` (RLS, Realtime plus a 2 s poll). Not recorded; a call-log line goes into the chat. Signals are deleted after 1 h. Voice messages are the fallback. TURN relay-only once configured.
 - **Pricing:**
   - Build-up recommended price with each extra shown; the customer adjusts −20%…+30% (green/orange hint).

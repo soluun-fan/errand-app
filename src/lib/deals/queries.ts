@@ -4,7 +4,7 @@ import { loadDeal, runCommand } from "@/lib/db/deals";
 import { dealFromRow, type DealRow } from "@/lib/db/mapping";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { helperStart } from "@/lib/maps";
-import { dueCommand, invitedOnly, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, categoryTrust, dueCommand, invitedOnly, type CategoryId, type Deal, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM = { kind: "system" } as const;
@@ -238,7 +238,7 @@ export async function myOffers(helperId: string, now = Date.now()): Promise<JobL
   const deals = await dealsByIds((data ?? []).map((o) => o.deal_id));
   return (data ?? []).flatMap((o) => {
     const deal = deals.get(o.deal_id);
-    return deal?.status === "open"
+    return deal?.status === "open" && categoryTrust(deal.category) !== "care"
       ? [{ deal, distanceKm: o.distance_km === null ? null : Number(o.distance_km), expiresAt: Date.parse(o.expires_at) }]
       : [];
   });
@@ -252,7 +252,7 @@ export async function nearbyFeed(helperId: string): Promise<JobListItem[]> {
   const deals = await dealsByIds(rows.map((r) => r.deal_id));
   return rows.flatMap((r) => {
     const deal = deals.get(r.deal_id);
-    return deal ? [{ deal, distanceKm: r.distance_km === null ? null : Number(r.distance_km) }] : [];
+    return deal && categoryTrust(deal.category) !== "care" ? [{ deal, distanceKm: r.distance_km === null ? null : Number(r.distance_km) }] : [];
   });
 }
 
@@ -269,7 +269,7 @@ export async function getJobForHelper(id: string, viewer: Viewer): Promise<Erran
   // Open tasks are on the public board ("Бүх ажил"); accepting still needs an approved helper in that category.
   // A task sent to one helper first is only theirs to see while that stands.
   const only = invitedOnly(settled, Date.now());
-  return settled.status === "open" && settled.customerId !== viewer.profile.id && (only === null || only === viewer.profile.id) ? settled : null;
+  return settled.status === "open" && categoryTrust(settled.category) !== "care" && settled.customerId !== viewer.profile.id && (only === null || only === viewer.profile.id) ? settled : null;
 }
 
 export type BoardSort = "near" | "new" | "pay";
@@ -287,6 +287,7 @@ export async function browseOpenDeals(
     .select("*")
     .eq("type", "errand")
     .eq("status", "open")
+    .in("category", LAUNCH_CATEGORIES.map(c => c.id))
     .neq("customer_id", viewerId)
     .order("created_at", { ascending: false })
     .limit(100);

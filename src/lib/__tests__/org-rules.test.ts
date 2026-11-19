@@ -65,12 +65,12 @@ describe("input checks", () => {
     expect(OrgApplicationInput.safeParse({ ...app, categories: [] }).success).toBe(false);
     expect(OrgApplicationInput.safeParse({ ...app, consent: false }).success).toBe(false);
     expect(OrgApplicationInput.safeParse({ ...app, categories: ["childcare"] }).success).toBe(false);
-    expect(OrgApplicationInput.safeParse({ ...app, kind: "agency", categories: ["childcare"] }).success).toBe(true);
+    expect(OrgApplicationInput.safeParse({ ...app, kind: "agency", categories: ["childcare"] }).success).toBe(false);
   });
-  it("certificate: trades and care clearances (not everyday kinds), optional expiry date", () => {
+  it("certificate: launch trades only, optional expiry date", () => {
     const c = { category: "electrical", issuer: "Эрчим хүчний зохицуулах хороо", docPath: "docs/u/c.pdf", expiresOn: "" };
     expect(CertificateInput.parse(c)).toMatchObject({ expiresOn: null, number: null });
-    expect(CertificateInput.safeParse({ ...c, category: "childcare" }).success).toBe(true); // care clearance
+    expect(CertificateInput.safeParse({ ...c, category: "childcare" }).success).toBe(false);
     expect(CertificateInput.safeParse({ ...c, category: "shop" }).success).toBe(false);
     expect(CertificateInput.safeParse({ ...c, expiresOn: "next year" }).success).toBe(false);
     expect(CertificateInput.safeParse({ ...c, expiresOn: "2026-02-30" }).success).toBe(false);

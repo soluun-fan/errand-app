@@ -84,6 +84,9 @@ export type Language = (typeof LANGUAGES)[number];
 export const CONDITION_FLAGS = ["driver", "car", "checked", "onTime", "call", "handoverCode", "priorExperience", "elderCareExperience", "childCareExperience",
   "insulatedBag", "askSubstitutions", "protectSurfaces", "updates", "fragranceFree", "references", "followRoutine"] as const;
 export type ConditionFlag = (typeof CONDITION_FLAGS)[number];
+export const POSTABLE_CONDITION_FLAGS: readonly Exclude<ConditionFlag, "checked">[] = CONDITION_FLAGS.filter(
+  (flag): flag is Exclude<ConditionFlag, "checked"> => flag !== "checked",
+);
 export const CUSTOM_CONDITION_LIMIT = 5;
 export const CUSTOM_CONDITION_LENGTH = 48;
 
@@ -104,7 +107,7 @@ export interface TaskConditions {
   driver?: boolean;
   /** an own car, its registration checked by Ops */
   car?: boolean;
-  /** passed the criminal-record check */
+  /** Legacy task requirement; no longer accepted for new tasks. */
   checked?: boolean;
   /** a good on-time record on booked-for-later jobs */
   onTime?: boolean;

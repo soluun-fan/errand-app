@@ -203,10 +203,8 @@ export async function setLiveAction(_prev: ActionResult, form: FormData): Promis
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
   const category = String(form.get("category") ?? "") as CategoryId;
-  if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic") };
+  if (!CATEGORIES.some((c) => c.id === category && c.trust !== "care")) return { error: t("specialized.unavailable") };
   const live = form.get("live") === "1";
-  const care = CATEGORIES.find((c) => c.id === category)?.trust === "care";
-  if (live && care && form.get("legalReviewed") !== "on") return { error: t("specialized.legalNeeded") };
   await setCategoryLive(viewer.profile.id, category, live);
   refresh();
   return { done: true };

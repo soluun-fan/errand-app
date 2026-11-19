@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { CategoryIcon } from "@/components/category-icon";
 import { DocUpload } from "@/components/doc-upload";
-import { Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
+import { btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { categoryTrust, type CategoryId } from "@/lib/engine";
+import { type CategoryId } from "@/lib/engine";
 import { BANKS } from "@/lib/kyc-rules";
-import { ORG_KINDS, SPECIALIZED, type OrgKind } from "@/lib/org-rules";
+import { ORG_KINDS, CERTIFIABLE, type OrgKind } from "@/lib/org-rules";
 import { applyOrg, prepareDoc } from "../actions";
 
 /** Register an organisation (company, agency, NGO). Ops checks the registration certificate and approves it for some kinds of work. */
@@ -55,7 +55,7 @@ export function OrgForm() {
         <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("org.kind")}</legend>
         <div className="flex flex-wrap gap-2">
           {ORG_KINDS.map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => { setKind(k); if (k !== "agency") setKinds((cs) => cs.filter((c) => categoryTrust(c) !== "care")); }} className={chipClass(kind === k)}>
+            <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={chipClass(kind === k)}>
               {t(`org.kinds.${k}`)}
             </button>
           ))}
@@ -64,13 +64,12 @@ export function OrgForm() {
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("org.categories")}</legend>
         <div className="flex flex-wrap gap-2">
-          {SPECIALIZED.filter((c) => kind === "agency" || categoryTrust(c) !== "care").map((c) => (
+          {CERTIFIABLE.map((c) => (
             <button key={c} type="button" role="checkbox" aria-checked={kinds.includes(c)} onClick={() => toggle(c)} className={chipClass(kinds.includes(c))}>
               <CategoryIcon id={c} size={15} /> {t(`categoryShort.${c}`)}
             </button>
           ))}
         </div>
-        {kinds.some((c) => c === "childcare" || c === "eldercare") && <Note tone="warn">{t("org.careNote")}</Note>}
       </fieldset>
       <label className={fieldLabel}>
         {t("org.description")}

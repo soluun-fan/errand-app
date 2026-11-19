@@ -18,6 +18,8 @@ describe("conditions on a task", () => {
   it("keeps only known conditions and languages", () => {
     expect(post({ driver: true, car: false, hack: true, language: "xx" }).details.require).toEqual({ driver: true });
     expect(post({ language: "en", handoverCode: true }).details.require).toEqual({ handoverCode: true, language: "en" });
+    expect(DetailsJson.parse(JSON.stringify({ require: { checked: true } })).require).toEqual({});
+    expect(cleanConditions({ checked: true })).toEqual({ checked: true });
     expect(post({}).details.require).toBeUndefined();
   });
 

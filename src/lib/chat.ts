@@ -3,7 +3,7 @@ import { getRules } from "@/lib/rules";
 import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, type ChatAccess } from "@/lib/chat-rules";
 import { hadRealCall } from "@/lib/call-rules";
 import type { Viewer } from "@/lib/auth";
-import { invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { categoryTrust, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -49,7 +49,7 @@ export async function accessFor(deal: ErrandDeal, viewer: Viewer, now = Date.now
   }
   const applicants = deal.status === "open" ? liveOffers(deal, now).map((o) => o.helperId) : [];
   let inquiryHelper: string | null = null;
-  const openForQuestions = deal.status === "open" && (deal.matchBy === null || now < deal.matchBy);
+  const openForQuestions = deal.status === "open" && categoryTrust(deal.category) !== "care" && (deal.matchBy === null || now < deal.matchBy);
   if (openForQuestions && threadOwner && !deal.offers.some(o => o.helperId === threadOwner)) {
     const invited = invitedOnly(deal, now);
     if (invited === null || invited === threadOwner) {

@@ -15,16 +15,13 @@ function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | u
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const pdfOk = doc === "record";
-
   async function onFile(f: File | undefined) {
     if (!f) return;
     setBusy(true);
     try {
-      const isPdf = f.type === "application/pdf";
-      if (isPdf && !pdfOk) throw new Error(t("kyc.errors.type"));
-      const blob: Blob = isPdf ? f : (await compressImage(f)).blob;
-      const mime = isPdf ? "application/pdf" : "image/jpeg";
+      if (!f.type.startsWith("image/")) throw new Error(t("kyc.errors.type"));
+      const blob = (await compressImage(f)).blob;
+      const mime = "image/jpeg";
       const slot = await prepareKycUpload(doc, mime, blob.size);
       if ("error" in slot) throw new Error(slot.error);
       const up = await browserClient().storage.from("kyc").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: mime });
@@ -42,19 +39,18 @@ function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | u
     <div className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{t(`kyc.docs.${doc}`)}</span>
-        {doc === "record" && <span className="block text-sm text-ink-2">{t("kyc.recordHelp")}</span>}
         {path && <span className="block text-sm text-held">{t("kyc.uploaded")}</span>}
       </span>
       <input
         ref={input}
         type="file"
         className="sr-only"
-        accept={pdfOk ? "image/*,application/pdf" : "image/*"}
-        capture={doc === "selfie" ? "user" : doc === "record" ? undefined : "environment"}
+        accept="image/*"
+        capture={doc === "selfie" ? "user" : "environment"}
         onChange={(e) => onFile(e.target.files?.[0])}
       />
       <button type="button" disabled={busy} onClick={() => input.current?.click()} className={path ? btn.secondary : btn.small}>
-        {busy ? "…" : path ? t("kyc.replace") : pdfOk ? t("kyc.uploadPdf") : t("kyc.upload")}
+        {busy ? "…" : path ? t("kyc.replace") : t("kyc.upload")}
       </button>
     </div>
   );

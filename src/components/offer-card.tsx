@@ -10,8 +10,6 @@ export interface OfferPerson {
   ratingCount: number;
   completed: number;
   verified: boolean;
-  /** Criminal-record certificate checked by Ops (kyc_level 4). */
-  backgroundChecked?: boolean;
 }
 
 /** UI-FLOWS C4 offer card: name, ✓ level, ★ rating (count), jobs done, message, Choose. */
@@ -42,10 +40,9 @@ export function OfferCard({
         <Avatar name={person.name} size={52} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[17px] font-semibold">{person.name}</p>
-          {(person.verified || person.backgroundChecked) && (
+          {person.verified && (
             <p className="mt-0.5 flex flex-wrap gap-1">
               {person.verified && <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeVerified")}</span>}
-              {person.backgroundChecked && <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeRecord")}</span>}
             </p>
           )}
           <p className="text-sm text-ink-2">
@@ -64,7 +61,7 @@ export function OfferCard({
       {note && <p className="rounded-input bg-fill p-2.5 text-[15px] text-ink">“{note}”</p>}
       {href && (
         <Link href={href} className="flex min-h-10 items-center gap-1 self-start text-[14px] font-semibold text-brand-ink">
-          {t("helperProfile.viewProfile")} <ChevronRight aria-hidden size={16} />
+          {t("care.viewApplicant")} <ChevronRight aria-hidden size={16} />
         </Link>
       )}
       {/* actions on their own row, so buttons never squeeze the name */}

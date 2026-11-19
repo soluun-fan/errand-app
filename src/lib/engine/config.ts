@@ -29,8 +29,8 @@ export type CategoryId =
  * Who may take a kind of task:
  * - "open": any approved helper who works in it
  * - "pro":  a worker vouched for by an approved organisation, or an individual whose certificate Ops checked
- * - "care": only workers of an approved organisation (agency) who also passed the criminal-record check;
- *           the customer always chooses (no instant accept, no "Choose for me")
+ * - "care": legacy eligibility required an approved agency and a criminal-record check;
+ *           care is paused for launch and requires a separate review before reopening
  * A safety rule, so it lives in code; `category_settings.trust` mirrors it (a test keeps them equal).
  */
 export type Trust = "open" | "pro" | "care";
@@ -55,7 +55,7 @@ export const CATEGORIES: readonly CategoryConfig[] = [
   { id: "other", trust: "open", items: false, minutes: 60 },
   { id: "dayjob", trust: "open", items: false, minutes: 240 },
   { id: "trash", trust: "open", items: false, minutes: 30 },
-  // adults only: children and patients are care work (agency + background check)
+  // adults only: children and patients are care work (legacy agency + record-check gate)
   { id: "escort", trust: "open", items: false, minutes: 120 },
   { id: "assembly", trust: "open", items: false, minutes: 60 },
   { id: "plumbing", trust: "pro", items: true, minutes: 60, checkHours: 72 },
@@ -65,9 +65,13 @@ export const CATEGORIES: readonly CategoryConfig[] = [
   { id: "eldercare", trust: "care", items: false, minutes: 180 },
 ];
 
+/** Direct care is outside the launch offering. Historical bookings still use the full catalog. */
+export const LAUNCH_CATEGORIES = CATEGORIES.filter((c) => c.trust !== "care");
+
 /** The everyday kinds anyone verified can do (Home's main grid, the helper sign-up form). */
 export const OPEN_CATEGORIES: readonly CategoryId[] = CATEGORIES.filter((c) => c.trust === "open").map((c) => c.id);
 
+export const customerChoosesHelper = (id: CategoryId) => id === "escort" || categoryTrust(id) === "care";
 export const categoryTrust = (id: CategoryId): Trust => categoryConfig(id).trust;
 
 /** Tasks with a pickup and a drop-off (distance and a pickup pin apply); others happen in one place. */

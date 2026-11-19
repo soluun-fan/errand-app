@@ -202,7 +202,7 @@ export async function helperDirectory(opts: { category?: CategoryId; sort?: Help
 
 async function enrichCategories(helpers: HelperProfile[]): Promise<void> {
   const qualifications = await qualificationsForMany(helpers);
-  for (const h of helpers) h.categories = [...new Set([...h.categories, ...(qualifications.get(h.id) ?? []).map((q) => q.category)])];
+  for (const h of helpers) h.categories = [...new Set([...h.categories, ...(qualifications.get(h.id) ?? []).map((q) => q.category).filter((c) => categoryTrust(c) !== "care")])];
 }
 
 export interface RecentReview extends PublicReview {

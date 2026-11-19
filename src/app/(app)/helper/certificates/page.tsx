@@ -3,13 +3,13 @@ import { CategoryIcon } from "@/components/category-icon";
 import { FlowHeader, Note, btn } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
+import { CERTIFIABLE } from "@/lib/org-rules";
 import { myCertificates, myMemberships } from "@/lib/orgs";
 import { CertForm } from "./cert-form";
 
 /**
- * /helper/certificates — specialized work for verified helpers (docs/decisions.md 2026-11-16):
- * a trade certificate Ops checks (plumbing, electrical, cleaning), or work through an organisation.
- * Care work (children, elders) is only through an approved agency.
+ * /helper/certificates — trade credentials for launch services. Direct care credentials aren't
+ * collected while childcare and eldercare are outside the launch offering.
  */
 export default async function CertificatesPage() {
   const viewer = await getViewer();
@@ -27,7 +27,7 @@ export default async function CertificatesPage() {
     );
   }
   const [certs, orgs] = await Promise.all([myCertificates(viewer.profile.id), myMemberships(viewer.profile.id)]);
-  const qualified = viewer.actor.qualified ?? [];
+  const qualified = (viewer.actor.qualified ?? []).filter(q => CERTIFIABLE.includes(q.category));
   return (
     <>
       <FlowHeader href="/profile" label={t("common.back")} title={t("cert.title")} />
@@ -68,7 +68,6 @@ export default async function CertificatesPage() {
       )}
 
       <h2 className="text-[17px] font-bold">{t("cert.add")}</h2>
-      <Note tone="info">{t("care.clearanceIntro")}</Note>
       <CertForm />
       <p className="text-[14px] text-ink-2">{t("cert.orgHint")}</p>
     </>

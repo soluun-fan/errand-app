@@ -45,12 +45,11 @@ export function ConditionChips({ require = {}, variety, t, missing = [] }: { var
   );
 }
 
-/** What a helper has (on an applicant card): checked licence / car, background check, on time, languages. */
+/** What a helper has (on an applicant card): checked licence / car, on-time record, languages. */
 export function BadgeChips({ badges, t }: { badges: HelperBadges & { record: { jobs: number; onTime: number } }; t: T }) {
   const items: string[] = [];
   if (badges.driver) items.push(`🚗 ${t("conditions.b.driver")}`);
   if (badges.car) items.push(`🚙 ${t("conditions.b.car")}`);
-  if (badges.checked) items.push(`🛡️ ${t("conditions.b.checked")}`);
   if (badges.record.jobs >= 3) items.push(`⏰ ${t("conditions.b.onTime", { pct: Math.round((badges.record.onTime / badges.record.jobs) * 100), n: badges.record.jobs })}`);
   for (const l of badges.languages) items.push(`🌐 ${t(`conditions.lang.${l}`)}`);
   if (!items.length) return null;

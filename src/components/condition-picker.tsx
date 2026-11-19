@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useT } from "@/i18n/client";
 import type { JobVariety } from "@/lib/engine/job-varieties";
 import type { CategoryId } from "@/lib/engine/config";
-import { CONDITION_FLAGS, CUSTOM_CONDITION_LENGTH, CUSTOM_CONDITION_LIMIT, LANGUAGES, type ConditionFlag, type Language, type TaskConditions } from "@/lib/engine/types";
+import { POSTABLE_CONDITION_FLAGS, CONDITION_FLAGS, CUSTOM_CONDITION_LENGTH, CUSTOM_CONDITION_LIMIT, LANGUAGES, type ConditionFlag, type Language, type TaskConditions } from "@/lib/engine/types";
 import { btn, chipClass, field } from "./ui";
 
 const suggestedByCategory: Record<CategoryId, ConditionFlag[]> = {
@@ -21,8 +21,8 @@ const suggestedByCategory: Record<CategoryId, ConditionFlag[]> = {
   plumbing: ["priorExperience", "protectSurfaces", "updates"],
   electrical: ["priorExperience", "call", "updates"],
   cleaning: ["fragranceFree", "protectSurfaces", "references"],
-  childcare: ["childCareExperience", "checked", "references", "followRoutine"],
-  eldercare: ["elderCareExperience", "checked", "references", "followRoutine"],
+  childcare: ["childCareExperience", "references", "call"],
+  eldercare: ["elderCareExperience", "references", "call"],
   other: ["priorExperience", "call", "updates"],
 };
 
@@ -48,7 +48,7 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
   const [adding, setAdding] = useState(false);
   const custom = value.custom ?? [];
   const label = pending.trim().replace(/\s+/g, " ");
-  const duplicate = [...custom, ...CONDITION_FLAGS.map(k => t(`conditions.k.${k}`))].some(k => k.toLowerCase() === label.toLowerCase());
+  const duplicate = [...custom, ...POSTABLE_CONDITION_FLAGS.map(k => t(`conditions.k.${k}`))].some(k => k.toLowerCase() === label.toLowerCase());
   const add = () => {
     if (!label || duplicate || custom.length >= CUSTOM_CONDITION_LIMIT) return;
     onChange({ ...value, custom: [...custom, label] });
@@ -57,6 +57,12 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
   };
   const extra = variety && suggestedByVariety[variety];
   const primary = [...new Set([...(extra ? [extra] : []), ...suggestedByCategory[category]])];
+  const available = POSTABLE_CONDITION_FLAGS.filter(k => {
+    if (k === "childCareExperience") return category === "childcare";
+    if (k === "elderCareExperience") return category === "eldercare";
+    if (k === "followRoutine") return category === "childcare" || category === "eldercare";
+    return true;
+  });
   const choices = (flags: readonly ConditionFlag[]) => flags.map(k => (
     <button key={k} type="button" aria-pressed={!!value[k]} title={t(`conditions.sub.${k}`)} className={chipClass(!!value[k])}
       onClick={() => onChange({ ...value, [k]: !value[k] || undefined })}>
@@ -69,7 +75,7 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
       <h2 className="font-semibold">{t("conditions.postTitle")}</h2>
       <p className="text-sm text-ink-2">{t("conditions.pickHelp")}</p>
       <div className="flex flex-wrap gap-2">
-        {choices([...primary, ...CONDITION_FLAGS.filter(k => !expanded && !primary.includes(k) && value[k])])}
+        {choices([...primary, ...CONDITION_FLAGS.filter(k => k !== "checked" && !expanded && !primary.includes(k) && value[k]), ...(value.checked ? ["checked" as const] : [])])}
         {custom.map(item => (
           <button key={item} type="button" aria-label={t("conditions.remove", { label: item })}
             className={`${chipClass(true)} max-w-full`} onClick={() => onChange({ ...value, custom: custom.filter(c => c !== item) })}>
@@ -81,7 +87,7 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-brand-ink">
           {t("conditions.more")}{value.language && ` · ${t(`conditions.lang.${value.language}`)}`}<ChevronDown size={14} aria-hidden className="group-open:rotate-180" />
         </summary>
-        <div className="flex flex-wrap gap-2">{choices(CONDITION_FLAGS.filter(k => !primary.includes(k)))}</div>
+        <div className="flex flex-wrap gap-2">{choices(available.filter(k => !primary.includes(k)))}</div>
         <label className="mt-3 block text-sm">{t("conditions.k.language")}
           <select className={`${field} mt-1`} value={value.language ?? ""} onChange={e => onChange({ ...value, language: e.target.value as Language || null })}>
             <option value="">{t("conditions.anyLanguage")}</option>

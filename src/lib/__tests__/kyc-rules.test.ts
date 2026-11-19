@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cleanLegalName, isAdult, maskAccount, normalizeAccount, payoutNameOk } from "@/lib/kyc-rules";
+import { cleanLegalName, isAdult, KYC_DOCS, maskAccount, normalizeAccount, payoutNameOk } from "@/lib/kyc-rules";
 
 const NOW = new Date("2026-11-15T03:00:00Z");
 
 describe("KYC rules", () => {
+  it("requests only identity documents, never a criminal-record certificate", () => {
+    expect(KYC_DOCS).toEqual(["id_front", "id_back", "selfie"]);
+  });
+
   it("18+ only, with a sane date", () => {
     expect(isAdult("2008-11-15", NOW)).toBe(true); // 18 today
     expect(isAdult("2008-11-16", NOW)).toBe(false); // 18 tomorrow
