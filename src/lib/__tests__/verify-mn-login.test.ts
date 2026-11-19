@@ -6,7 +6,7 @@ const { jar, createSession, getSession, issue, redeem, outbox } = vi.hoisted(() 
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ cookies: async () => ({
-  set: (key: string, value: string) => jar.set(key, value),
+  set: (key: string, value: string, options?: { maxAge?: number }) => options?.maxAge === 0 ? jar.delete(key) : jar.set(key, value),
   get: (key: string) => ({ value: jar.get(key) }),
 }) }));
 vi.mock("../supabase/admin", () => ({ createAdminClient: () => ({ rpc: outbox }) }));
@@ -22,7 +22,7 @@ beforeEach(() => {
   vi.stubEnv("SUPABASE_SECRET_KEY", "test-secret");
   issue.mockResolvedValue({ error: null });
   outbox.mockResolvedValue({ data: "642198" });
-  redeem.mockResolvedValue({ data: { user: { id: "user-id" } } });
+  redeem.mockResolvedValue({ data: { user: { id: "user-id" }, session: { access_token: "access" } } });
   createSession.mockImplementation(async (_phone, text) => ({
     sessionId: "session", smsUri: "sms:144773?body=" + text,
     displayInstruction: "Send " + text, expiresAt: new Date(Date.now() + 300000).toISOString(),
@@ -66,4 +66,14 @@ it("does not start a paid-phone flow when Supabase fails to issue a credential",
   outbox.mockResolvedValueOnce({ error: true });
   expect(await startVerifyMnLogin(phone)).toBeNull();
   expect(createSession).not.toHaveBeenCalled();
+});
+
+it("keeps the verified challenge when Supabase cannot finish sign-in", async () => {
+  await startVerifyMnLogin(phone);
+  getSession.mockResolvedValue({ sessionStatus: "VERIFIED", expiresAt: new Date(Date.now() + 300000).toISOString() });
+  redeem.mockResolvedValueOnce({ data: { user: null, session: null }, error: { message: "verification failed" } });
+
+  expect(await checkVerifyMnLogin("session")).toEqual({ status: "auth-failed" });
+  expect(await pendingLogin()).not.toBeNull();
+  expect(redeem).toHaveBeenCalledTimes(1);
 });

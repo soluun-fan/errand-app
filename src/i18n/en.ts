@@ -1991,6 +1991,7 @@ export const en = {
     verifyIntro: "Send an SMS from your own number to 144773 to sign in. Your operator charges 150₮ for each message, even if verification fails.",
     verifySetup: "Verify.MN sign-in is waiting for the service to be configured.",
     verifyStartFailed: "Could not start SMS verification. Wait a minute and try again.",
+    verifyLoginFailed: "Your SMS was confirmed, but sign-in could not finish. Tap “Check verification” to retry. Do not send another SMS yet.",
     smsReturn: "Send the prefilled SMS once, then switch back to this page. We check automatically; sending another SMS costs another 150₮.",
     checkStatus: "Check verification",
     title: "Sign in to {app}",

@@ -16,7 +16,7 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
   const checkForm = useRef<HTMLFormElement>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (state.step !== "verify-mn") return;
+    if (state.step !== "verify-mn" || state.error) return;
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
     const check = () => {
       if (!busy && document.visibilityState === "visible") checkForm.current?.requestSubmit();

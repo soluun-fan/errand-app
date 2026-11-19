@@ -84,7 +84,7 @@ export async function checkVerifyMnLogin(sessionId: string) {
 
   const auth = await createClient();
   const { data, error } = await auth.auth.verifyOtp({ phone: challenge.phone, token: challenge.token, type: "sms" });
+  if (error || !data.user || !data.session) return { status: "auth-failed" } as const;
   await clearPendingLogin();
-  if (error || !data.user) return { status: "expired" } as const;
   return { status: "verified", userId: data.user.id } as const;
 }

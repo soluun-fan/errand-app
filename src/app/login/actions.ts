@@ -41,6 +41,7 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
       }
       if (result.status === "pending") return { step: "verify-mn", view: result.view };
       if (result.status === "expired") return { step: "phone", error: t("verifyRecipient.expired") };
+      if (result.status === "auth-failed") return { step: "verify-mn", view: prev.view, error: t("login.verifyLoginFailed") };
       return finishLogin(result.userId, formData);
     }
     const raw = String(formData.get("phone") ?? "");
