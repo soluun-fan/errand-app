@@ -1,6 +1,6 @@
 -- Keep only an adult-age attestation on profiles; stop collecting exact birth dates for onboarding.
 alter table public.profiles
-  add column age_confirmed_at timestamptz,
+  add column if not exists age_confirmed_at timestamptz,
   add column test_helper boolean not null default false;
 
 update public.profiles
