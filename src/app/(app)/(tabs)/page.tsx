@@ -143,7 +143,7 @@ export default async function Home() {
           </form>
           {/* quick starts: an unfinished draft, your repeats, then popular tasks */}
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
-            <DraftChip />
+            <DraftChip key={viewer.profile.id} userId={viewer.profile.id} />
             {repeat.map((d) => (
               <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={chipClass(false)}>
                 <RotateCcw aria-hidden size={14} />

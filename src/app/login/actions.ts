@@ -80,7 +80,7 @@ async function finishLogin(uid: string | undefined, formData: FormData): Promise
   const next = safeNext(formData.get("next"));
   // new people (or a changed document): name, date of birth, Terms + Privacy first
   if (uid) {
-    const { data: p } = await createAdminClient().from("profiles").select("name, birth_date, terms_version, privacy_version").eq("id", uid).maybeSingle<OnboardingState>();
+    const { data: p } = await createAdminClient().from("profiles").select("name, age_confirmed_at, terms_version, privacy_version").eq("id", uid).maybeSingle<OnboardingState>();
     if (p && onboardingMissing(p).length) redirect(`/onboarding?next=${encodeURIComponent(next)}`);
   }
   // back to what they were starting (e.g. a task from the landing page); our own paths only

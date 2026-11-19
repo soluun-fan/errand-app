@@ -23,6 +23,7 @@ import { NewKindsCard } from "./new-kinds-card";
 import { ConditionChips } from "@/components/conditions";
 import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
+import { canUseUnverifiedHelperTest, isActiveTestHelper, unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /** Open tasks as price chips on the map, at the approximate (~300 m) spot where the helper starts. */
 function jobPins(items: JobListItem[]): MapMarker[] {
@@ -189,7 +190,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     </header>
   );
   // no bank account, no work: customers pay the helper straight into it (docs/decisions.md 2026-11-18)
-  if (actor.helperApproved && !(await hasPayout(profile.id))) {
+  if (actor.helperApproved && !isActiveTestHelper(profile) && !(await hasPayout(profile.id))) {
     return (
       <>
         {header}
@@ -228,7 +229,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
-        <WorkReady enforce={!(await deviceCheckBypassed())}>
+        <WorkReady enforce={!(await deviceCheckBypassed(profile))}>
           <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
         </WorkReady>
         <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
@@ -288,6 +289,25 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             )}
           </section>
         )}
+      </>
+    );
+  }
+
+  if (unverifiedHelpersTestMode) {
+    const canJoin = canUseUnverifiedHelperTest();
+    return (
+      <>
+        {header}
+        <p className="rounded-card bg-warn-bg p-4 text-[15px] text-warn">{t("kyc.testWarning")}</p>
+        <p className="text-[15px] text-ink-2">{t(canJoin ? "kyc.testJoinHint" : "kyc.testInviteOnly")}</p>
+        {canJoin && (
+          <Link href="/helper/apply" className={`${btn.primary} w-full`}>
+            {t("kyc.testTitle")}
+          </Link>
+        )}
+        <h2 className="font-bold">{t("job.boardTitle")}</h2>
+        <p className="-mt-2 text-sm text-ink-2">{t("job.boardSub")}</p>
+        <Board sp={sp} viewerId={profile.id} from={null} mine={actor.categories ?? []} t={t} locale={locale} />
       </>
     );
   }

@@ -1,7 +1,7 @@
 # Helper & Ops screens
 
 ## Helper
-1. **Verify** (B): checklist Phone ✓ / ДАН / Selfie + ID (oval and card frames) / payout account (name must match ДАН). Pending screen "~24 h". Rejected → specific reason + retake.
+1. **Verify** (B): regular flow is checklist Phone ✓ / ДАН / Selfie + ID (oval and card frames) / payout account (name must match ДАН). Pending screen "~24 h". Rejected → specific reason + retake. Private test mode replaces this with self-declared 18+, name and phone only; anyone with a verified Mongolian number can enable helper access. The app labels helpers without ID review and disables withdrawals.
 2. **Ажил feed** (C): availability switch + duration chips (1 h / 2 h / today) + radius + min fee · filter chips (Ойр / Одоо / Цаг товлосон / Худалдан авалттай) · job card: icon, title, fee (big), "+ items up to X", **travel time**, photos, "🔒 Мөнгө төлөгдсөн", offers n/5 · empty → widen radius. No penalty for declining; new helpers get a small boost until 10 jobs.
 3. **Job detail** (A): route helper → pickup → drop · photos · earnings breakdown (fee − 10% + items reimbursed) · requirement chips; a missing requirement disables the CTA with the reason · Instant "Хүлээж авах" / Custom "Үнийн санал өгөх" (price, arrival window, equipment, note).
 4. **Active job** (A): per-category checklist; receipt photo auto-reads the total (user confirms); handover photo stamped with time + GPS; "Дуусгаад илгээх" disabled until proof exists; problem shortcuts.

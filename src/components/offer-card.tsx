@@ -40,11 +40,11 @@ export function OfferCard({
         <Avatar name={person.name} size={52} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[17px] font-semibold">{person.name}</p>
-          {person.verified && (
-            <p className="mt-0.5 flex flex-wrap gap-1">
-              {person.verified && <span className="rounded-full bg-held-bg px-1.5 py-0.5 text-[11px] font-bold text-held">{t("kyc.badgeVerified")}</span>}
-            </p>
-          )}
+          <p className="mt-0.5 flex flex-wrap gap-1">
+            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${person.verified ? "bg-held-bg text-held" : "bg-warn-bg text-warn"}`}>
+              {person.verified ? t("kyc.badgeVerified") : t("kyc.badgeUnverified")}
+            </span>
+          </p>
           <p className="text-sm text-ink-2">
             {person.rating !== null ? (
               <>

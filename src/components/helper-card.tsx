@@ -37,6 +37,7 @@ export function HelperCard({ h, t, saved = false, photos = [] }: { h: HelperProf
           <span className="rounded-[8px] bg-brand-bg px-2 py-1 text-[12px] font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(h.fromPrice) })}</span>
         )}
         {h.kycLevel >= 3 && <span className="rounded-[8px] bg-held-bg px-2 py-1 text-[12px] font-semibold text-held">{t("kyc.badgeVerified")}</span>}
+        {h.kycLevel < 3 && <span className="rounded-[8px] bg-warn-bg px-2 py-1 text-[12px] font-semibold text-warn">{t("kyc.badgeUnverified")}</span>}
       </span>
       <span className="mt-auto flex flex-wrap items-center gap-1.5 text-[12px] text-ink-2">
         {shown.map((c) => (

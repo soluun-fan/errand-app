@@ -14,7 +14,7 @@ export interface Viewer {
 }
 
 const PROFILE_COLUMNS =
-  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, birth_date, terms_version, privacy_version, helper_terms_version, deleted_at";
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, test_helper, terms_version, privacy_version, helper_terms_version, deleted_at";
 
 /**
  * The signed-in user, verified (getClaims checks the JWT signature), or null.

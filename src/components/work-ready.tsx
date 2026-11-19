@@ -48,6 +48,7 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
   }, []);
 
   useEffect(() => {
+    if (!enforce) return;
     setMounted(true);
     const uaMobile = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile;
     setPhone(uaMobile === true || isMobileDevice(navigator.userAgent));
@@ -79,7 +80,7 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         })
         .catch(() => setGeo("off"));
     else setGeo("off");
-  }, [publicKey, sendPosition]);
+  }, [enforce, publicKey, sendPosition]);
 
   async function turnOnPush() {
     setPush("loading");

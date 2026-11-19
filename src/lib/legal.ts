@@ -88,7 +88,8 @@ export async function closeAccount(userId: string): Promise<boolean> {
       payout_bank: null,
       payout_account_last4: null,
       payout_holder_name: null,
-      birth_date: null,
+      age_confirmed_at: null,
+      test_helper: false,
       helper_status: null,
       deleted_at: now,
     })

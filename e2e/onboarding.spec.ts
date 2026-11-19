@@ -4,7 +4,7 @@ import { db, loginAs, watchErrors } from "./support";
 
 /**
  * A new person, start to finish (docs/decisions.md 2026-11-18 "Registration and terms"): after the
- * SMS code they give a name and date of birth (18+) and accept the Terms + Privacy policy (recorded
+ * SMS code they give a name and adult age confirmation and accept the Terms + Privacy policy (recorded
  * with versions); later they close their account (details removed, sign-in blocked).
  */
 const phone = `9768899${String(Math.floor(Math.random() * 9000) + 1000)}`;
@@ -28,22 +28,19 @@ test("register (name, 18+, Terms + Privacy), use the app, then close the account
   await p.waitForURL(/\/onboarding/);
   await expect(p.getByRole("heading", { name: "Гүйгээрэй апп-д тавтай морил" })).toBeVisible();
 
-  // 2. under 18 is refused (the database checks it too)
-  const today = new Date(Date.now() + 8 * 3_600_000);
-  const minor = `${today.getUTCFullYear() - 17}-06-15`;
+  // The age attestation is required before proceeding.
   await p.getByLabel("Таны нэр").fill("Туршилт Хэрэглэгч");
-  await p.getByLabel("Төрсөн огноо").fill(minor);
   await p.locator("input[name=terms]").check();
   await p.locator("input[name=privacy]").check();
   await p.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
-  await expect(p.getByRole("alert").filter({ hasText: "18 ба түүнээс дээш" })).toBeVisible();
+  await expect(p.locator("input[name=age]:invalid")).toHaveCount(1);
 
   // 3. an adult with both documents accepted goes on to Home
-  await p.getByLabel("Төрсөн огноо").fill("1996-03-10");
+  await p.locator("input[name=age]").check();
   await p.getByRole("button", { name: "Үргэлжлүүлэх" }).click();
   await p.waitForURL((u) => u.pathname === "/");
-  const { data: prof } = await db.from("profiles").select("name, birth_date, terms_version, privacy_version").eq("id", userId).single();
-  expect(prof).toEqual({ name: "Туршилт Хэрэглэгч", birth_date: "1996-03-10", terms_version: LEGAL_VERSIONS.terms, privacy_version: LEGAL_VERSIONS.privacy });
+  const { data: prof } = await db.from("profiles").select("name, age_confirmed_at, terms_version, privacy_version").eq("id", userId).single();
+  expect(prof).toEqual({ name: "Туршилт Хэрэглэгч", age_confirmed_at: expect.any(String), terms_version: LEGAL_VERSIONS.terms, privacy_version: LEGAL_VERSIONS.privacy });
   const { data: acc } = await db.from("legal_acceptances").select("document, version").eq("user_id", userId).order("document");
   expect(acc).toEqual([
     { document: "privacy", version: LEGAL_VERSIONS.privacy },
@@ -71,8 +68,8 @@ test("register (name, 18+, Terms + Privacy), use the app, then close the account
   await sheet.getByRole("button", { name: "Бүртгэлээ хаах" }).click();
   await p.waitForURL(/\/welcome\?closed=1/);
   await expect(p.getByText("Таны бүртгэл хаагдлаа")).toBeVisible();
-  const { data: closed } = await db.from("profiles").select("name, birth_date, deleted_at").eq("id", userId).single<{ name: string; birth_date: string | null; deleted_at: string | null }>();
-  expect(closed).toMatchObject({ name: "", birth_date: null });
+  const { data: closed } = await db.from("profiles").select("name, age_confirmed_at, deleted_at").eq("id", userId).single<{ name: string; age_confirmed_at: string | null; deleted_at: string | null }>();
+  expect(closed).toMatchObject({ name: "", age_confirmed_at: null });
   expect(closed!.deleted_at).not.toBeNull();
   // signed out everywhere: the app sends them to log in
   await p.goto("/profile");

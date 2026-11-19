@@ -59,7 +59,7 @@ test("tapping a kind opens that kind even with an unfinished draft of another ki
   await loginAs(ctx, PHONES.solongo);
   const p = await ctx.newPage();
   await p.goto("/post");
-  await p.evaluate(() => localStorage.setItem("tuslamj:post-draft:v2", JSON.stringify({ category: "shop", title: "Old shop draft" })));
+  await p.evaluate((id) => localStorage.setItem(`tuslamj:post-draft:v3:${id}`, JSON.stringify({ category: "shop", title: "Old shop draft" })), (await profile(NAMES.solongo)).id);
   await p.goto("/post?cat=dayjob");
   await expect(p.getByText("Түр ажил").first()).toBeVisible();
   await expect(p.getByText("Дэлгүүр · солих")).toHaveCount(0);

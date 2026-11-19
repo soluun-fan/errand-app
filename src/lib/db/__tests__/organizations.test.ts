@@ -265,15 +265,74 @@ describe("task conditions in the database", () => {
     expect(d.helperId).toBe(helperId);
   });
 
+  it("shares only an active job after opt-in and removes its position on stop and finish", async () => {
+    let d = await step(await persist(null, cond({})), { type: "accept" }, shopHelper);
+    const toggle = (id: string, enabled: boolean) => as(db, "service_role", null, async tx =>
+      (await tx.query<{ ok: boolean }>("select public.set_job_location_sharing($1,$2,$3) as ok", [d.id, id, enabled])).rows[0].ok);
+    const sample = () => db.query("update public.job_locations set lat=47.9,lng=106.9 where deal_id=$1 and helper_id=$2", [d.id, helperId]);
+    d = await step(d, { type: "confirm_payment", providerRef: d.id, amount: amountDue(d) }, { kind: "provider" });
+    expect(await toggle(helperId, true)).toBe(false);
+    d = await step(d, { type: "start" }, shopHelper);
+    expect(await toggle(customerId, true)).toBe(false);
+    expect((await sample()).affectedRows).toBe(0);
+    expect(await toggle(helperId, true)).toBe(true);
+    expect((await sample()).affectedRows).toBe(1);
+    expect((await sqlError(as(db, "authenticated", customerId, tx => tx.query("select * from public.job_locations")))).code).toBe("42501");
+    expect(await toggle(helperId, false)).toBe(true);
+    expect((await sample()).affectedRows).toBe(0);
+    await toggle(helperId, true);
+    d = await step(d, { type: "record_handover" }, shopHelper);
+    d = await step(d, { type: "finish" }, shopHelper);
+    expect(await toggle(helperId, true)).toBe(false);
+    expect((await sample()).affectedRows).toBe(0);
+  });
+
+  it("commits Wire and the ledger together, retries cleanly, and queues one refund per late payment", async () => {
+    const d = await step(await persist(null, cond({})), { type: "accept" }, shopHelper);
+    const amount = amountDue(d);
+    const intent = `pi-${d.id}`;
+    const late = `late-${d.id}`;
+    const result = apply(d, { type: "confirm_payment", providerRef: intent, amount }, { now, actor: { kind: "provider" } });
+    const args = applyTransitionArgs(d, result, now);
+    const settle = (id: string, transition: unknown, version = d.version) => as(db, "service_role", null, async tx =>
+      (await tx.query<{ result: string }>("select public.settle_wire_payment($1,$2,'charge',$3,$4) as result",
+        [id, amount, version, transition && JSON.stringify(transition)])).rows[0].result);
+    await db.query("insert into public.provider_payments(id,provider,deal_id,purpose,amount) values ($1,'wire',$2,'first',$3)", [intent,d.id,amount]);
+    expect((await sqlError(settle(intent, args, d.version - 1))).code).toBe("PT409");
+    await sqlError(settle(intent, { ...args, p_ledger: [] }));
+    expect((await loadDeal(db, d.id))?.version).toBe(d.version);
+    expect((await db.query("select status from public.provider_payments where id=$1", [intent])).rows).toEqual([{ status: "pending" }]);
+    expect(await settle(intent,args)).toBe("booked");
+    expect(await settle(intent,null)).toBe("already");
+    expect((await db.query("select amount::int from public.ledger_entries where provider_ref=$1", [intent])).rows).toEqual([{ amount }]);
+    const matched = await loadDeal(db,d.id) as ErrandDeal;
+    await db.query("insert into public.provider_payments(id,provider,deal_id,purpose,amount) values ($1,'wire',$2,'first',$3)", [late,d.id,amount]);
+    expect(await settle(late,null,matched.version)).toBe("refunded");
+    expect(await settle(late,null,matched.version)).toBe("already");
+    const refundRows = () => db.query("select payment_id,amount::int from public.provider_refunds where deal_id=$1 order by payment_id", [d.id]);
+    expect((await refundRows()).rows).toEqual([{ payment_id: late, amount }]);
+    await step(matched, { type: "cancel" }, shopHelper);
+    for (let i = 0; i < 2; i++) await as(db, "service_role", null, tx => tx.query("select public.queue_wire_refunds($1)", [d.id]));
+    expect((await refundRows()).rows).toEqual([{ payment_id: late, amount }, { payment_id: intent, amount }]);
+  });
+
   it("a handover code: the job can't be marked done until the code was entered", async () => {
     let d = await persist(null, cond({ handoverCode: true }));
-    await db.query("insert into public.handover_codes (deal_id, code) values ($1, '0420')", [d.id]);
+    expect((await db.query<{ code: string }>("select code from public.handover_codes where deal_id = $1", [d.id])).rows[0]?.code).toMatch(/^\d{4}$/);
     d = await step(d, { type: "accept" }, shopHelper);
     d = await step(d, { type: "confirm_payment", providerRef: `code-${d.id}`, amount: amountDue(d) }, { kind: "provider" });
     d = await step(d, { type: "start" }, shopHelper);
     d = await step(d, { type: "record_handover" }, shopHelper);
     expect((await sqlError(step(d, { type: "finish" }, shopHelper))).message).toMatch(/handover code/);
-    await db.query("update public.handover_codes set verified_at = now() where deal_id = $1", [d.id]);
+    const check = (helper: string, attempt: string) => as(db, "service_role", null, async tx =>
+      (await tx.query<{ result: string }>("select public.check_handover_code($1,$2,$3) as result", [d.id, helper, attempt])).rows[0].result);
+    const { code } = (await db.query<{ code: string }>("select code from public.handover_codes where deal_id=$1", [d.id])).rows[0];
+    expect(await check(customerId, code)).toBe("missing");
+    for (let i = 0; i < 4; i++) expect(await check(helperId, "invalid")).toBe("wrong");
+    expect(await check(helperId, "invalid")).toBe("locked");
+    expect(await check(helperId, code)).toBe("locked");
+    await db.query("update public.handover_codes set locked_until = now() - interval '1 second' where deal_id=$1", [d.id]);
+    expect(await check(helperId, code)).toBe("ok");
     d = await step(d, { type: "finish" }, shopHelper);
     expect(d.status).toBe("check");
   });

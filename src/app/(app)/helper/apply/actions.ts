@@ -4,22 +4,29 @@ import { redirect } from "next/navigation";
 import { isOnboarded } from "@/lib/legal-rules";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { CATEGORIES, type CategoryId } from "@/lib/engine";
+import { CATEGORIES, OPEN_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { createKycSlot, latestApplication, submitApplication } from "@/lib/kyc";
 import { BANKS, KYC_DOCS, cleanLegalName, isAdult, normalizeAccount, payoutNameOk, type KycDoc } from "@/lib/kyc-rules";
 import { KycFormInput, parseOr } from "@/lib/input";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAcceptance } from "@/lib/legal";
+import { canUseUnverifiedHelperTest, unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { audit } from "@/lib/safety";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const MIME = ["image/jpeg", "image/png", "image/webp"];
+
+export interface TestHelperState {
+  error?: string;
+}
 
 /** Upload slot for one verification document, in the applicant's own folder. */
 export async function prepareKycUpload(doc: string, mime: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   const t = await getT();
+  if (unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   if (typeof doc !== "string" || typeof mime !== "string" || typeof bytes !== "number") return { error: t("kyc.errors.type") };
   if (!(KYC_DOCS as readonly string[]).includes(doc) || !MIME.includes(mime)) {
     return { error: t("kyc.errors.type") };
@@ -48,6 +55,7 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   if (!viewer) redirect("/login");
   if (!isOnboarded(viewer.profile)) redirect("/onboarding"); // actions can be called directly: same rule as the pages
   const t = await getT();
+  if (unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   const f = parseOr(KycFormInput, raw);
   if (!f) return { error: t("kyc.errors.files") };
   const legalName = cleanLegalName(String(f.legalName ?? ""));
@@ -86,4 +94,29 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
     tag: "kyc-queue",
   });
   redirect("/helper/apply");
+}
+
+/** Test-only helper enrollment; limited to phone-verified tester accounts and never claims ID review. */
+export async function activateTestHelper(_prev: TestHelperState, form: FormData): Promise<TestHelperState> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  if (!isOnboarded(viewer.profile)) redirect("/onboarding");
+  const t = await getT();
+  if (!canUseUnverifiedHelperTest()) return { error: t("kyc.testDisabled") };
+  if (viewer.profile.role === "admin") return { error: t("error.forbidden") };
+  if (!viewer.profile.age_confirmed_at) return { error: t("kyc.errors.age") };
+  if (form.get("agreement") !== "on") return { error: t("kyc.errors.agreement") };
+
+  const categories = [...new Set(form.getAll("categories").map(String).filter((value): value is CategoryId => (OPEN_CATEGORIES as readonly string[]).includes(value)))];
+  if (categories.length === 0) return { error: t("kyc.errors.categories") };
+  if ((await latestApplication(viewer.profile.id))?.status === "submitted") return { error: t("kyc.errors.open") };
+
+  await recordAcceptance(viewer.profile.id, "helper");
+  await createAdminClient()
+    .from("profiles")
+    .update({ role: "helper", helper_status: "approved", categories, test_helper: true })
+    .eq("id", viewer.profile.id)
+    .throwOnError();
+  await audit(viewer.profile.id, "helper.test_activated", viewer.profile.id, { categories });
+  redirect("/jobs");
 }

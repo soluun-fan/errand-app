@@ -18,9 +18,10 @@ import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
 import { CATEGORIES, categoryConfig, customerChoosesHelper, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
-import { DRAFT_KEY } from "@/lib/draft";
+import { draftKeyFor } from "@/lib/draft";
 import { titleFromBrief } from "@/lib/task-brief";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
+import { useRouter } from "next/navigation";
 import { postTask, type PostState } from "./actions";
 
 /** One decision per screen (redesign): kind of task → what exactly → where & when → review. */
@@ -114,6 +115,7 @@ export interface InviteTarget {
 }
 
 export function PostFlow({
+  userId,
   initial,
   startStep = 0,
   defaultAddress,
@@ -124,6 +126,7 @@ export function PostFlow({
   live,
   openTasks = 0,
 }: {
+  userId: string;
   live: CategoryId[];
   invite?: InviteTarget | null;
   /** Today's prices (engine defaults + the live Ops settings). */
@@ -137,6 +140,8 @@ export function PostFlow({
   saved: SavedAddress[];
 }) {
   const t = useT();
+  const router = useRouter();
+  const draftKey = draftKeyFor(userId);
   const home = saved.find((a) => a.kind === "home");
   const blank: Draft = {
     category: (invite?.categories ?? live)[0] ?? "shop",
@@ -184,7 +189,16 @@ export function PostFlow({
   const [step, setStep] = useState(startStep);
   const heading = useRef<HTMLHeadingElement>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [state, action] = useActionState<PostState, FormData>(postTask, {});
+  const [state, action] = useActionState<PostState, FormData>(async (previous, form) => {
+    const result = await postTask(previous, form);
+    if (result.dealId) {
+      try {
+        localStorage.removeItem(draftKey);
+      } catch { /* storage unavailable */ }
+      router.replace(`/tasks/${result.dealId}`);
+    }
+    return result;
+  }, {});
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
   /** A kind's "from" price on its card: "3,000₮-өөс" or, for hourly kinds, "6,000₮/цаг-аас". */
   const kindFrom = (c: CategoryId) => {
@@ -196,7 +210,7 @@ export function PostFlow({
   useEffect(() => {
     try {
       if (initial.title) return;
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(draftKey);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<Draft>;
         // arriving by tapping a kind: a draft of another kind isn't this task — keep it saved, don't mix it in
@@ -210,16 +224,16 @@ export function PostFlow({
     } finally {
       setDraftReady(true);
     }
-  }, [initial.title, initial.category, invite, live]);
+  }, [initial.title, initial.category, invite, live, draftKey]);
   useEffect(() => {
     // Do not replace a stored request with the blank initial render before restoration finishes.
     if (!draftReady) return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+      localStorage.setItem(draftKey, JSON.stringify(d));
     } catch {
       /* ignore */
     }
-  }, [d, draftReady]);
+  }, [d, draftReady, draftKey]);
   useEffect(() => {
     if (state.step !== undefined) setStep(state.step);
   }, [state]);
@@ -358,12 +372,6 @@ export function PostFlow({
         if (STEPS[step] !== "review") {
           event.preventDefault();
           if (!reason) setStep(step + 1);
-          return;
-        }
-        try {
-          localStorage.removeItem(DRAFT_KEY);
-        } catch {
-          /* ignore */
         }
       }}
     >
@@ -833,7 +841,7 @@ export function PostFlow({
             </button>
           )}
           {STEPS[step] === "review" ? (
-            <SubmitButton className={`${btn.primary} flex-1`} disabled={!!reason}>
+            <SubmitButton className={`${btn.primary} flex-1`} disabled={!!reason || Boolean(state.dealId)}>
               {t("task.confirm", { amount: fmtMoney(direct ? fee : total) })}
             </SubmitButton>
           ) : (

@@ -4,12 +4,13 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { myPayout } from "@/lib/payout";
 import { BankForm } from "./bank-form";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /** /helper/bank — the helper's bank account: shown masked, and changed here (approved helpers only). */
 export default async function BankPage() {
   const viewer = await getViewer();
   if (!viewer) return null;
-  if (!viewer.actor.helperApproved) notFound();
+  if (!viewer.actor.helperApproved || (unverifiedHelpersTestMode && viewer.profile.test_helper)) notFound();
   const [t, current] = await Promise.all([getT(), myPayout(viewer.profile.id)]);
   return (
     <>

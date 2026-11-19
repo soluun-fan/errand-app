@@ -4,6 +4,8 @@ import { qualificationsForMany } from "@/lib/qualifications";
 import { RATING_TAGS } from "@/lib/labels";
 import { MAX_SAVED_HELPERS, cleanBio, maskName, median, publicNote, tagCounts } from "@/lib/profile-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isActiveTestHelper } from "@/lib/helper-test-mode";
+import { getRules } from "@/lib/rules";
 import { reviewPhotoUrls } from "@/lib/work-photos";
 
 /**
@@ -74,16 +76,16 @@ export interface PublicReview {
 /** POSITIVE tags make the profile's highlights; every tag still shows on its own review. */
 export const POSITIVE_TAGS = ["onTime", "careful", "friendly", "communication"] as const;
 
-async function approvedHelper(id: string): Promise<{ profile: HelperProfile; suspended: boolean } | null> {
+async function approvedHelper(id: string): Promise<{ profile: HelperProfile; suspended: boolean; pilot: boolean } | null> {
   const { data } = await createAdminClient()
     .from("profiles")
-    .select(`${PUBLIC_COLS}, role, helper_status, suspended_until`)
+    .select(`${PUBLIC_COLS}, role, helper_status, suspended_until, test_helper`)
     .eq("id", id)
-    .maybeSingle<PublicRow & { role: string; helper_status: string | null; suspended_until: string | null }>();
+    .maybeSingle<PublicRow & { role: string; test_helper: boolean; helper_status: string | null; suspended_until: string | null }>();
   if (!data || data.role !== "helper" || data.helper_status !== "approved") return null;
   const profile = toProfile(data);
   await enrichCategories([profile]);
-  return { profile, suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()) };
+  return { profile, pilot: isActiveTestHelper(data), suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()) };
 }
 
 /** An approved helper's public profile, or null. */
@@ -96,7 +98,8 @@ export async function invitableHelper(id: string): Promise<HelperProfile | null>
   const h = await approvedHelper(id);
   if (!h || h.suspended) return null;
   const { count } = await createAdminClient().from("payout_accounts").select("user_id", { count: "exact", head: true }).eq("user_id", id);
-  return count ? h.profile : null;
+  if (count) return h.profile;
+  return h.pilot && (await getRules()).payMode === "held" ? h.profile : null;
 }
 
 /**

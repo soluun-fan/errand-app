@@ -140,6 +140,15 @@ describe("migration", () => {
     );
     expect(r.rows[0]).toEqual({ name: "C1", phone: "97688000001", role: "customer" });
   });
+
+  it("allows a test helper to work without creating a payout account", async () => {
+    await db.query("update public.profiles set role = 'helper', helper_status = 'approved', test_helper = true where id = $1", [U.c2]);
+    const result = await db.query<{ has_payout: boolean }>("select private.has_payout($1) as has_payout", [U.c2]);
+    expect(result.rows[0].has_payout).toBe(true);
+    await db.query("update public.profiles set test_helper = false where id = $1", [U.c2]);
+    const regular = await db.query<{ has_payout: boolean }>("select private.has_payout($1) as has_payout", [U.c2]);
+    expect(regular.rows[0].has_payout).toBe(false);
+  });
 });
 
 describe("engine → database round trip", () => {

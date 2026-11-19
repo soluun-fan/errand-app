@@ -5,6 +5,7 @@ import { latestApplication } from "@/lib/kyc";
 import { getRules } from "@/lib/rules";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /**
  * "Хийх зүйл" — everything the app is waiting for from this person, each with the one page where
@@ -45,6 +46,11 @@ export async function helperTodos(viewer: Viewer): Promise<Todo[]> {
     if (app?.status === "submitted") out.push({ key: "helperReview", href: null });
     else if (app?.status === "changes_requested" || app?.status === "rejected") out.push({ key: "helperFix", href: "/helper/apply", detail: app.decisionNote ?? undefined, urgent: true });
     else out.push({ key: "helperApply", href: "/helper/apply", urgent: true });
+    return out;
+  }
+  if (unverifiedHelpersTestMode && profile.test_helper) {
+    if (profile.helper_terms_version !== LEGAL_VERSIONS.helper) out.push({ key: "helperTerms", href: "/helper-terms", urgent: true });
+    if (!(profile.categories ?? []).length) out.push({ key: "workKinds", href: "/profile#work-kinds", urgent: true });
     return out;
   }
   const db = createAdminClient();

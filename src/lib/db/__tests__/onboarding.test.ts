@@ -16,11 +16,10 @@ afterAll(async () => {
 });
 
 describe("registration", () => {
-  it("the database refuses anyone under 18 and odd dates", async () => {
-    const young = await sqlError(svc("update public.profiles set birth_date = current_date - interval '17 years' where id = $1", [userId]));
-    expect(young.message).toMatch(/18 or older/);
-    expect((await sqlError(svc("update public.profiles set birth_date = '1850-01-01' where id = $1", [userId]))).message).toMatch(/18 or older/);
-    await svc("update public.profiles set birth_date = '1995-06-01' where id = $1", [userId]);
+  it("stores an adult attestation without retaining a date of birth", async () => {
+    await svc("update public.profiles set age_confirmed_at = now() where id = $1", [userId]);
+    const r = await db.query("select age_confirmed_at is not null as age_confirmed, to_jsonb(profiles) ? 'birth_date' as stores_birth_date from public.profiles where id = $1", [userId]);
+    expect(r.rows[0]).toEqual({ age_confirmed: true, stores_birth_date: false });
   });
 
   it("keeps every acceptance with its version, once; versions have a fixed shape; server-only", async () => {

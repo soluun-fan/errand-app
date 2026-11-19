@@ -6,12 +6,15 @@ import { getViewer } from "@/lib/auth";
 import { CERTIFIABLE } from "@/lib/org-rules";
 import { myCertificates, myMemberships } from "@/lib/orgs";
 import { CertForm } from "./cert-form";
+import { notFound } from "next/navigation";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /**
  * /helper/certificates — trade credentials for launch services. Direct care credentials aren't
  * collected while childcare and eldercare are outside the launch offering.
  */
 export default async function CertificatesPage() {
+  if (unverifiedHelpersTestMode) notFound();
   const viewer = await getViewer();
   if (!viewer) return null;
   const t = await getT();

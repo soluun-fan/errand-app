@@ -29,14 +29,14 @@ test("a licence-only task: Bat sends his licence, Ops approves, then he can appl
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] Машинтай хүргэлт", description: "x", category: "deliver", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 3000, customerId: sol.id, details: { require: { driver: true, handoverCode: true } } as never },
+    { id: crypto.randomUUID(), title: "[verify] Машинтай хүргэлт", description: "x", category: "deliver", mode: "now", address: "Private destination 930", pickupAddress: "Private pickup 284", itemBudget: 0, fee: cfg.minFee + 3000, customerId: sol.id, details: { require: { driver: true, handoverCode: true } } as never },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );
   await insertDeal(db, t);
   const id = t.deal.id;
   created.push(id);
-  await db.from("handover_codes").insert({ deal_id: id, code: "4821" }).throwOnError();
+  await db.from("handover_codes").update({ code: "4821" }).eq("deal_id", id).throwOnError();
 
   // Bat sees the condition he's missing, and no apply button
   const helper = await browser.newContext();
@@ -67,6 +67,12 @@ test("a licence-only task: Bat sends his licence, Ops approves, then he can appl
   await h.goto(`/jobs/${id}`);
   await h.getByRole("button", { name: /^Хийж чадна/ }).click();
   await expect.poll(async () => (await errand(id)).offers.map((x) => x.helperId)).toContain(batId);
+
+  await h.goto(`/tasks/${id}`);
+  await expect(h).toHaveURL(new RegExp(`/jobs/${id}$`));
+  const applicantPage = await h.content();
+  expect(applicantPage).not.toContain("Private pickup 284");
+  expect(applicantPage).not.toContain("Private destination 930");
 
   // chosen, paid, job done — finishing needs the code
   const bat = await profile(NAMES.bat);

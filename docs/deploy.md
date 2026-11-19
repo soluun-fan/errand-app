@@ -1,6 +1,8 @@
 # Deploying Tuslamj (Vercel)
 
-This is a **private test deployment**. Only listed test phone numbers can use phone OTP. Payments are simulated. The checklist at the end covers what has to change before real users.
+This is a **private test deployment**. Demo SMS codes are limited to `TEST_PHONES`; when real Verify.MN phone verification is enabled, any valid Mongolian number can sign in. Payments default to simulation; Wire can be enabled for an isolated test deployment. The optional helper test mode lets any adult with a verified phone work without ID or bank details and must remain off for public launch.
+
+Use a **separate Supabase staging project and Vercel Preview environment** for testing schema changes, helper access, or Wire payments. The existing production database may contain real user and payment data. Never apply pending migrations to it as part of a test; inspect migrations first and apply them to staging. Set Preview's Supabase URL and keys to the staging project, not production.
 
 The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase database (`ap-northeast-2`). This is set in `vercel.json`.
 
@@ -10,12 +12,13 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
    ```
    TEST_PHONES=99112233,97688000001,97688000011,97688000099
    ```
+   To test helper tasks without collecting ID documents or bank details, set `UNVERIFIED_HELPERS_TEST_MODE=true` in the protected test deployment. Any signed-in account that confirms age 18+ can enable helper access; there is deliberately no demo-phone allowlist for helpers. The app labels these profiles as not identity-checked, disables withdrawals, and displays a private-test warning. Do not enable this on a public launch.
 2. Set a real contact for push notifications in `.env.local`, for example `VAPID_SUBJECT=mailto:you@yourmail.com`.
 3. Check everything:
    ```bash
    npm run check:deploy
    ```
-   It must end with `✓ Ready to deploy`. Warnings about mock payments and the missing call relay are expected for now.
+   It must end with `✓ Ready to deploy`.    Warnings about mock payments and the missing call relay are expected unless you are configuring an isolated Wire test.
 4. Commit and push to GitHub as usual.
 
 ## On vercel.com (about 10 minutes)
@@ -34,8 +37,11 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
    | `VAPID_SUBJECT` | your real contact |
    | 🔒 `CRON_SECRET` | Sensitive |
    | `TEST_PHONES` | the only numbers that can sign in |
+   | `UNVERIFIED_HELPERS_TEST_MODE` | `true` only for private testing; any phone-verified adult may self-activate without ID or bank details |
    | `DEV_SHOW_SMS_CODES` | `true`: codes appear on screen, **only for `TEST_PHONES`** |
-   | `PAYMENT_PROVIDER` | `mock` |
+   | `PAYMENT_PROVIDER` | `mock` for the default safe test; use `wire` only in isolated staging with Wire credentials and webhook configured |
+   | 🔒 `WIRE_SECRET_KEY` | Required only when `PAYMENT_PROVIDER=wire`; treat as a live payment credential |
+   | 🔒 `WIRE_WEBHOOK_SECRET` | Required only when `PAYMENT_PROVIDER=wire`; webhook signing secret |
 
 4. Click **Deploy**. When it finishes you get an address like `https://errand-app-xxxx.vercel.app`.
 
@@ -136,14 +142,14 @@ See "Going live with wire.mn" below. The customer prepays the full amount (manag
 - `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-confirm, refunds and payouts aren't happening.
 - `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details).
 
-## Going live with wire.mn (payments)
+## Testing wire.mn (payments)
 
-How money moves (docs/decisions.md 2026-11-18 "Managed service"): when choosing a helper the customer pays **the full amount** — price + shopping budget + service & safety fee — through wire.mn. After they confirm, the helper's earnings grow; helpers withdraw to their own checked bank account and Ops sends it from the business bank app. Refunds (helper backs out, unused shopping money, disputes) go back through wire.mn automatically.
+wire.mn has **no test mode**, so a Wire checkout can move real money. Test only from a separate staging deployment and database; do not turn it on in production just to test the integration. In direct-pay mode, the app checkout collects the in-app amount and the customer pays the helper separately as shown in the task.
 
 1. Finish wire.mn's onboarding (request → review → e-contract) and connect the payment operators you want.
 2. Set `PAYMENT_PROVIDER=wire` and 🔒 `WIRE_SECRET_KEY` (`sk_live_…`).
 3. Register the webhook (prints the signing secret once): `npm run wire:webhook -- https://<your address>`, put the `whsec_…` into 🔒 `WIRE_WEBHOOK_SECRET`, redeploy, **verify the endpoint** in the wire.mn dashboard.
-4. wire.mn has no test mode: make one small real payment yourself, confirm it shows as paid, then cancel with a helper back-out and check the refund arrives.
+4. With Wire's approval and a known small amount, make one real payment from a tester account, verify the task settles once, then test cancellation/refund on staging and confirm the provider reports the refund.
 5. Watch **Ops → Төлбөр** for refunds wire couldn't finish on its own.
 
 Safety: with `PAYMENT_PROVIDER=wire` and a missing key, paying fails with a message — it never falls back to the simulated button. A payment counts only when wire's signed notification (or our own check with wire) says so; a payment that arrives after the task moved on is refunded in full.

@@ -150,7 +150,8 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
     {unavailable && <Note tone="warn">{(await getT())("specialized.unavailable")}</Note>}
     <PostFlow
       // a fresh form per source, so client state never leaks between repeats
-      key={again ? `again-${sp.again}` : invite ? `invite-${invite.id}` : "new"}
+      userId={viewer.profile.id}
+      key={`${viewer.profile.id}-${again ? sp.again : invite?.id ?? "new"}`}
       initial={initial}
       openTasks={openTasks}
       startStep={again ? 3 : cat ? 1 : 0}

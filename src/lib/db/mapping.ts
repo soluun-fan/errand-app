@@ -20,6 +20,7 @@ import type {
   Transition,
   UserActor,
 } from "@/lib/engine/types";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /** How long a helper is suspended after cancelling an accepted task (CLAUDE.md §3). */
 
@@ -135,8 +136,8 @@ export interface ProfileRow {
   categories: CategoryId[];
   area: string | null;
   suspended_until: string | null;
-  /** Registration (docs/decisions.md 2026-11-18 "Registration and terms"); null on old rows. */
-  birth_date?: string | null;
+  age_confirmed_at?: string | null;
+  test_helper?: boolean;
   terms_version?: string | null;
   privacy_version?: string | null;
   helper_terms_version?: string | null;
@@ -458,7 +459,7 @@ export function actorFromProfile(p: ProfileRow, now: number): UserActor {
     kind: "user",
     id: p.id,
     role: p.role,
-    helperApproved: p.role === "helper" && p.helper_status === "approved" && !suspended,
+    helperApproved: p.role === "helper" && p.helper_status === "approved" && !suspended && (!p.test_helper || unverifiedHelpersTestMode),
     categories: p.categories,
   };
 }

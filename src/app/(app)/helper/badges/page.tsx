@@ -6,12 +6,15 @@ import { myBadges, onTimeFor, onTimePct } from "@/lib/badges";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BadgeForm } from "./badge-form";
 import { LanguagesForm } from "./languages-form";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { notFound } from "next/navigation";
 
 /**
  * /helper/badges — what lets a helper take tasks with conditions (docs/decisions.md 2026-11-18): a
  * driver's licence / own car checked by Ops, the on-time record, and self-declared languages.
  */
 export default async function BadgesPage() {
+  if (unverifiedHelpersTestMode) notFound();
   const viewer = await getViewer();
   if (!viewer) return null;
   const t = await getT();

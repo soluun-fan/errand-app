@@ -1,4 +1,5 @@
 import "server-only";
+import { isActiveTestHelper } from "@/lib/helper-test-mode";
 import { cookies, headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { missingSteps, type ReadyStep } from "@/lib/work-ready-rules";
@@ -12,18 +13,19 @@ import { missingSteps, type ReadyStep } from "@/lib/work-ready-rules";
  * Browser tests can't hold a real push subscription, so the test server sets E2E_DEVICE_BYPASS=1 and
  * the tests send the `e2e-device` cookie. Production never sets the variable, so the cookie does nothing.
  */
-export async function deviceCheckBypassed(): Promise<boolean> {
+export async function deviceCheckBypassed(profile: { test_helper?: boolean }): Promise<boolean> {
+  if (isActiveTestHelper(profile)) return true;
   if (process.env.E2E_DEVICE_BYPASS !== "1") return false;
   return (await cookies()).get("e2e-device")?.value === "ok";
 }
 
-export async function workReadyMissing(helperId: string): Promise<ReadyStep[]> {
-  if (await deviceCheckBypassed()) return [];
+export async function workReadyMissing(profile: { id: string; test_helper?: boolean }): Promise<ReadyStep[]> {
+  if (await deviceCheckBypassed(profile)) return [];
   const h = await headers();
   const db = createAdminClient();
   const [{ count }, { data: pos }] = await Promise.all([
-    db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", helperId),
-    db.from("helper_presence").select("lat, updated_at").eq("user_id", helperId).maybeSingle<{ lat: number | null; updated_at: string }>(),
+    db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", profile.id),
+    db.from("helper_presence").select("lat, updated_at").eq("user_id", profile.id).maybeSingle<{ lat: number | null; updated_at: string }>(),
   ]);
   return missingSteps({
     userAgent: h.get("user-agent"),

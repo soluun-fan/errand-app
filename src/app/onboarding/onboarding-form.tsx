@@ -6,21 +6,22 @@ import { btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { completeOnboarding, type OnboardingResult } from "./actions";
 
-export function OnboardingForm({ next, missing, name }: { next: string; missing: ("name" | "birth" | "terms" | "privacy")[]; name: string }) {
+export function OnboardingForm({ next, missing, name }: { next: string; missing: ("name" | "age" | "terms" | "privacy")[]; name: string }) {
   const t = useT();
   const [state, action, pending] = useActionState<OnboardingResult, FormData>(completeOnboarding, {});
   // kept in state: a refused attempt (e.g. under 18) must not wipe what was entered
   const [nameV, setNameV] = useState(name);
-  const [birth, setBirth] = useState("");
-  const [ticks, setTicks] = useState({ terms: false, privacy: false });
-  const check = (n: "terms" | "privacy", label: string, href: string, linkText: string) => (
+  const [ticks, setTicks] = useState({ age: false, terms: false, privacy: false });
+  const check = (n: "age" | "terms" | "privacy", label: string, href?: string, linkText?: string) => (
     <label className="flex items-start gap-3 rounded-input bg-bg p-3 text-[15px] shadow-card">
       <input type="checkbox" name={n} required checked={ticks[n]} onChange={(e) => setTicks({ ...ticks, [n]: e.target.checked })} className="mt-1 h-5 w-5 flex-none accent-ink" />
       <span>
         {label}{" "}
-        <Link href={href} target="_blank" className="font-semibold text-brand-ink underline underline-offset-2">
-          {linkText}
-        </Link>
+        {href && linkText && (
+          <Link href={href} target="_blank" className="font-semibold text-brand-ink underline underline-offset-2">
+            {linkText}
+          </Link>
+        )}
       </span>
     </label>
   );
@@ -42,13 +43,7 @@ export function OnboardingForm({ next, missing, name }: { next: string; missing:
           <span className="text-[12px] font-normal text-ink-2">{t("onboarding.nameHelp")}</span>
         </label>
       )}
-      {missing.includes("birth") && (
-        <label className={fieldLabel}>
-          {t("onboarding.birth")}
-          <input name="birthDate" type="date" required value={birth} onChange={(e) => setBirth(e.target.value)} className={field} />
-          <span className="text-[12px] font-normal text-ink-2">{t("onboarding.birthHelp")}</span>
-        </label>
-      )}
+      {missing.includes("age") && check("age", t("onboarding.ageLabel"))}
       {missing.includes("terms") && check("terms", t("onboarding.termsLabel"), "/terms", t("onboarding.termsLink"))}
       {missing.includes("privacy") && check("privacy", t("onboarding.privacyLabel"), "/privacy", t("onboarding.privacyLink"))}
       {state.error && (

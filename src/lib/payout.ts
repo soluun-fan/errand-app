@@ -3,6 +3,7 @@ import { BANKS, cleanLegalName, maskAccount, normalizeAccount, payoutNameOk } fr
 import { adminIds, audit } from "@/lib/safety";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isActiveTestHelper } from "@/lib/helper-test-mode";
 
 /**
  * A worker's bank account (docs/decisions.md 2026-11-18 "Bank account before working"): needed to
@@ -44,10 +45,10 @@ export async function setPayout(userId: string, input: { bank: string; accountNu
   const db = createAdminClient();
   const { data: p } = await db
     .from("profiles")
-    .select("role, helper_status, verified_name")
+    .select("role, helper_status, verified_name, test_helper")
     .eq("id", userId)
-    .maybeSingle<{ role: string; helper_status: string | null; verified_name: string | null }>();
-  if (!p || p.helper_status !== "approved") return "notHelper";
+    .maybeSingle<{ role: string; helper_status: string | null; verified_name: string | null; test_helper: boolean }>();
+  if (!p || p.helper_status !== "approved" || isActiveTestHelper(p)) return "notHelper";
   if (!(BANKS as readonly string[]).includes(input.bank)) return "bank";
   const account = normalizeAccount(input.accountNumber);
   if (!account) return "account";

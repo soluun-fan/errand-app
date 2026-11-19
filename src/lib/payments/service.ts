@@ -1,6 +1,7 @@
 import "server-only";
-import { loadDeal, runCommand } from "@/lib/db/deals";
-import { EngineError, amountDue, type ErrandDeal } from "@/lib/engine";
+import { applyTransitionArgs } from "@/lib/db/mapping";
+import { DbError, loadDeal } from "@/lib/db/deals";
+import { EngineError, apply, amountDue, type ErrandDeal } from "@/lib/engine";
 import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
 import { notify } from "@/lib/push";
@@ -50,20 +51,55 @@ export async function startWirePayment(d: ErrandDeal, origin: string, kind: Paym
   if (kind !== "first" && d.payMode === "direct") throw new Error("fee-only tasks pay only the fee");
   const db = createAdminClient();
   const { purpose, amount } = need;
-  const { data: open } = await db.from("provider_payments").select("id, amount, checkout_url, created_at").eq("deal_id", d.id).eq("purpose", purpose).eq("status", "pending").maybeSingle<{ id: string; amount: number; checkout_url: string | null; created_at: string }>();
+  const { data: open } = await db.from("provider_payments").select("id, amount, checkout_url, created_at").eq("deal_id", d.id).eq("purpose", purpose).eq("status", "pending").maybeSingle<{ id: string; amount: number; checkout_url: string | null; created_at: string }>().throwOnError();
   // resume a recent one (wire's checkout lives ~10 minutes); otherwise cancel it and start afresh
   if (open && open.amount === amount && open.checkout_url && Date.now() - Date.parse(open.created_at) < 8 * 60_000) return open.checkout_url;
   if (open) {
-    await cancelIntent(open.id, `cancel-${open.id}`).catch(() => undefined);
-    await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", open.id).eq("status", "pending");
+    const canceled = await cancelIntent(open.id, `cancel-${open.id}`);
+    if (canceled.status === "succeeded") {
+      await handlePaid(canceled.id, canceled.amount, chargeOf(canceled));
+      throw new Error("Wire payment already succeeded; reload the task");
+    }
+    if (canceled.status !== "canceled") throw new Error("Wire payment could not be safely canceled");
+    await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", open.id).eq("status", "pending").throwOnError();
   }
   const attempt = crypto.randomUUID();
   const intent = await createIntent(amount, `${APP_NAME_LATIN} · ${d.title}`.slice(0, 120), { deal_id: d.id, purpose }, `pi-${d.id}-${purpose}-${attempt}`);
+  try {
+    // Record the intent before creating a customer-accessible checkout. A later webhook can then
+    // always reconcile a payment even if the checkout request or this server process fails.
+    await db.from("provider_payments").insert({ id: intent.id, provider: "wire", deal_id: d.id, purpose, amount }).throwOnError();
+  } catch (error) {
+    try {
+      const canceled = await cancelIntent(intent.id, `cancel-${intent.id}`);
+      if (canceled.status !== "canceled") throw new Error("Wire intent was not canceled");
+      await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", intent.id).eq("status", "pending").throwOnError();
+    } catch (cancelError) {
+      console.error("Wire intent cleanup failed", intent.id, cancelError instanceof WireError ? `${cancelError.status} ${cancelError.code}` : "unexpected error");
+    }
+    throw error;
+  }
   const back = `${origin}/tasks/${d.id}`;
-  const session = await createCheckout(intent.id, `${back}?paid=1`, back, `cs-${intent.id}`);
-  if (!/^https:\/\//.test(session.url)) throw new Error("wire returned an unexpected checkout URL");
-  await db.from("provider_payments").insert({ id: intent.id, provider: "wire", deal_id: d.id, purpose, amount, checkout_url: session.url }).throwOnError();
-  return session.url;
+  try {
+    const session = await createCheckout(intent.id, `${back}?paid=1`, back, `cs-${intent.id}`);
+    if (!/^https:\/\//.test(session.url)) throw new Error("wire returned an unexpected checkout URL");
+    await db.from("provider_payments").update({ checkout_url: session.url, updated_at: new Date().toISOString() }).eq("id", intent.id).eq("status", "pending").select("id").single().throwOnError();
+    return session.url;
+  } catch (error) {
+    try {
+      const canceled = await cancelIntent(intent.id, `cancel-${intent.id}`);
+      if (canceled.status === "succeeded") {
+        await handlePaid(canceled.id, canceled.amount, chargeOf(canceled));
+      } else if (canceled.status === "canceled") {
+        await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", intent.id).eq("status", "pending").throwOnError();
+      } else {
+        throw new Error("Wire intent was not canceled");
+      }
+    } catch (cancelError) {
+      console.error("Wire checkout cleanup failed", intent.id, cancelError instanceof WireError ? `${cancelError.status} ${cancelError.code}` : "unexpected error");
+    }
+    throw error;
+  }
 }
 
 /**
@@ -73,32 +109,44 @@ export async function startWirePayment(d: ErrandDeal, origin: string, kind: Paym
  */
 export async function handlePaid(intentId: string, amount: number, charge: string | null): Promise<"booked" | "already" | "refunded" | "unknown"> {
   const db = createAdminClient();
-  const { data: row } = await db.from("provider_payments").select("id, deal_id, status, amount, purpose").eq("id", intentId).maybeSingle<{ id: string; deal_id: string; status: string; amount: number; purpose: string }>();
-  if (!row) return "unknown"; // not ours (or another project's); never book unknown money
-  if (row.status === "succeeded" || row.status === "refunded_late") return "already";
-  await db.from("provider_payments").update({ status: "succeeded", charge_id: charge, succeeded_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", intentId);
-  try {
-    // the purpose says which payment this was (first / shopping top-up / agreed higher price)
-    const type = row.purpose.startsWith("topup-") ? "confirm_topup" : row.purpose.startsWith("price-") ? "confirm_price" : "confirm_payment";
-    const paid = await runCommand(db, row.deal_id, { type, providerRef: intentId, amount }, { kind: "provider" });
-    if (paid.deal.type === "errand") {
-      if (type === "confirm_payment") await afterPaymentBooked(paid.deal);
-      else if (type === "confirm_price" && paid.deal.helperId) {
-        await notify([paid.deal.helperId], { title: "push.pricePaidTitle", body: "push.pricePaidBody", params: { fee: fmtMoney(paid.deal.fee), title: paid.deal.title }, url: `/jobs/${paid.deal.id}`, tag: `job-${paid.deal.id}` }).catch(() => undefined);
+  const { data: row } = await db.from("provider_payments").select("deal_id, amount, purpose").eq("id", intentId)
+    .eq("provider", "wire").maybeSingle<{ deal_id: string; amount: number; purpose: string }>().throwOnError();
+  if (!row) return "unknown";
+  const kind = row.purpose.startsWith("topup-") ? "topup" : row.purpose.startsWith("price-") ? "price" : "first";
+  const type = kind === "topup" ? "confirm_topup" : kind === "price" ? "confirm_price" : "confirm_payment";
+
+  for (let attempt = 1; ; attempt++) {
+    const before = await loadDeal(db, row.deal_id);
+    if (before?.type !== "errand") throw new Error("Wire payment task missing");
+    const need = paymentFor(before, kind);
+    const now = Date.now();
+    let transition = null;
+    if (need?.purpose === row.purpose && need.amount === amount && Number(row.amount) === amount) {
+      try {
+        transition = apply(before, { type, providerRef: intentId, amount }, { now, actor: { kind: "provider" } });
+      } catch (error) {
+        if (!(error instanceof EngineError) || !["ILLEGAL_TRANSITION", "PAYMENT_MISMATCH"].includes(error.code)) throw error;
       }
     }
-    return "booked";
-  } catch (e) {
-    if (!(e instanceof EngineError)) throw e; // a database hiccup: wire retries the webhook
-    // the task moved on (paid twice, window passed, cancelled): give it back in full
-    await db.from("provider_payments").update({ status: "refunded_late", updated_at: new Date().toISOString() }).eq("id", intentId);
-    await db.from("provider_refunds").insert({ deal_id: row.deal_id, payment_id: intentId, amount, reason: `late payment: ${e.code}` }).throwOnError();
-    await runRefunds(row.deal_id);
-    const d = await loadDeal(db, row.deal_id);
-    if (d?.type === "errand") {
-      await notify([d.customerId], { title: "push.lateRefundTitle", body: "push.lateRefundBody", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` }).catch(() => undefined);
+    const { data, error } = await db.rpc("settle_wire_payment", {
+      p_intent: intentId, p_amount: amount, p_charge: charge, p_version: before.version,
+      p_transition: transition ? applyTransitionArgs(before, transition, now) : null,
+    });
+    if (error?.code === "PT409" && attempt < 3) continue;
+    if (error) throw new DbError(error);
+    if (data === "already" || data === "unknown") return data;
+    if (data === "refunded") {
+      await runRefunds(row.deal_id);
+      await notify([before.customerId], { title: "push.lateRefundTitle", body: "push.lateRefundBody", params: { title: before.title }, url: `/tasks/${before.id}`, tag: `task-${before.id}` }).catch(() => undefined);
+      return data;
     }
-    return "refunded";
+    if (data !== "booked" || transition?.deal.type !== "errand") throw new Error("Unexpected Wire settlement result");
+    const deal = transition.deal;
+    if (type === "confirm_payment") await afterPaymentBooked(deal);
+    else if (type === "confirm_price" && deal.helperId) {
+      await notify([deal.helperId], { title: "push.pricePaidTitle", body: "push.pricePaidBody", params: { fee: fmtMoney(deal.fee), title: deal.title }, url: `/jobs/${deal.id}`, tag: `job-${deal.id}` }).catch(() => undefined);
+    }
+    return data;
   }
 }
 
@@ -119,11 +167,19 @@ export async function afterPaymentBooked(d: ErrandDeal): Promise<void> {
 export async function checkWirePayments(dealId: string): Promise<void> {
   if (activeProvider() !== "wire") return;
   const db = createAdminClient();
-  const { data } = await db.from("provider_payments").select("id").eq("deal_id", dealId).eq("provider", "wire").eq("status", "pending").returns<{ id: string }[]>();
+  const { data } = await db.from("provider_payments").select("id").eq("deal_id", dealId).eq("provider", "wire").or("status.eq.pending,needs_reconciliation.eq.true").returns<{ id: string }[]>().throwOnError();
   for (const p of data ?? []) {
-    const pi = await getIntent(p.id).catch(() => null);
-    if (pi?.status === "succeeded") await handlePaid(pi.id, pi.amount, chargeOf(pi));
-    else if (pi?.status === "canceled") await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", p.id).eq("status", "pending");
+    let pi: Awaited<ReturnType<typeof getIntent>>;
+    try {
+      pi = await getIntent(p.id);
+    } catch (error) {
+      console.error("Wire payment status check failed", p.id, error instanceof WireError ? `${error.status} ${error.code}` : "unexpected error");
+      continue;
+    }
+    if (pi.status === "succeeded") await handlePaid(pi.id, pi.amount, chargeOf(pi));
+    else if (pi.status === "canceled") {
+      await db.from("provider_payments").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("id", p.id).eq("status", "pending").throwOnError();
+    }
   }
 }
 
@@ -140,29 +196,11 @@ export async function runRefunds(dealId: string): Promise<void> {
     .eq("deal_id", dealId)
     .in("status", ["succeeded", "refunded_late"])
     .order("succeeded_at", { ascending: false })
-    .returns<{ id: string; amount: number; charge_id: string | null; status: string; provider: string }[]>();
+    .returns<{ id: string; amount: number; charge_id: string | null; status: string; provider: string }[]>()
+    .throwOnError();
   const wirePays = (pays ?? []).filter((p) => p.provider === "wire");
   if (!wirePays.length) return; // simulated payments: the ledger is the whole story
-  const d = await loadDeal(db, dealId);
-  if (!d || d.type !== "errand") return;
-  const [{ data: ledger }, { data: asked }] = await Promise.all([
-    // everything the ledger gave back to the customer: refunds AND the unspent shopping budget
-    db.from("ledger_entries").select("amount").eq("deal_id", dealId).in("kind", REFUND_KINDS).eq("to_account", `ext:${d.customerId}`).returns<{ amount: number }[]>(),
-    db.from("provider_refunds").select("payment_id, amount, status, reason").eq("deal_id", dealId).returns<{ payment_id: string; amount: number; status: string; reason: string | null }[]>(),
-  ]);
-  const refundedInLedger = (ledger ?? []).reduce((a, r) => a + Number(r.amount), 0);
-  const requested = (asked ?? []).filter((r) => !(r.reason ?? "").startsWith("late payment")).reduce((a, r) => a + Number(r.amount), 0);
-  let due = refundedInLedger - requested;
-  for (const p of wirePays.filter((x) => x.status === "succeeded")) {
-    if (due <= 0) break;
-    const used = (asked ?? []).filter((r) => r.payment_id === p.id).reduce((a, r) => a + Number(r.amount), 0);
-    const room = Number(p.amount) - used;
-    const take = Math.min(room, due);
-    if (take > 0) {
-      await db.from("provider_refunds").insert({ deal_id: dealId, payment_id: p.id, amount: take, reason: "task refund" }).throwOnError();
-      due -= take;
-    }
-  }
+  await db.rpc("queue_wire_refunds", { p_deal: dealId }).throwOnError();
   // send every open request
   const { data: open } = await db
     .from("provider_refunds")
@@ -170,35 +208,38 @@ export async function runRefunds(dealId: string): Promise<void> {
     .eq("deal_id", dealId)
     .in("status", ["pending", "failed"])
     .lt("attempts", 10)
-    .returns<{ id: string; payment_id: string; amount: number; reason: string | null; attempts: number }[]>();
+    .returns<{ id: string; payment_id: string; amount: number; reason: string | null; attempts: number }[]>()
+    .throwOnError();
   for (const r of open ?? []) {
     const charge = wirePays.find((p) => p.id === r.payment_id)?.charge_id ?? chargeOf((await getIntent(r.payment_id).catch(() => null)) ?? {});
     if (!charge) {
-      await db.from("provider_refunds").update({ status: "failed", error: "no charge id yet", attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id);
+      await db.from("provider_refunds").update({ status: "failed", error: "no charge id yet", attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id).in("status", ["failed", "pending"]).throwOnError();
       continue;
     }
     try {
       const out = await refundCharge(charge, Number(r.amount), r.reason ?? "refund", `refund-${r.id}`);
       const status = out.status === "succeeded" || out.status === "pending" || out.status === "manual_required" ? out.status : "failed";
-      await db.from("provider_refunds").update({ status, provider_ref: out.id, error: null, attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id);
+      await db.from("provider_refunds").update({ status, provider_ref: out.id, error: null, attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id).in("status", ["failed", "pending"]).throwOnError();
     } catch (e) {
       const msg = e instanceof WireError ? `${e.status} ${e.code}: ${e.message}` : String(e);
-      await db.from("provider_refunds").update({ status: "failed", error: msg.slice(0, 500), attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id);
+      await db.from("provider_refunds").update({ status: "failed", error: msg.slice(0, 500), attempts: r.attempts + 1, updated_at: new Date().toISOString() }).eq("id", r.id).in("status", ["failed", "pending"]).throwOnError();
     }
   }
 }
-
-/** Ledger kinds that return money to the customer and must become real refunds. */
-export const REFUND_KINDS = ["refund", "budget_refund"] as const;
 
 /** Background job: refunds that still need doing (new ones and retries). */
 export async function sweepRefunds(): Promise<number> {
   if (activeProvider() !== "wire") return 0;
   const db = createAdminClient();
+  const { data: repairs } = await db.from("provider_payments").select("deal_id").eq("needs_reconciliation", true)
+    .limit(100).returns<{ deal_id: string }[]>().throwOnError();
+  for (const id of new Set((repairs ?? []).map(r => r.deal_id))) {
+    await checkWirePayments(id).catch(e => console.error("Wire reconciliation failed", id, e));
+  }
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   // tasks paid through wire recently whose ledger may hold refunds not yet sent
   const { data } = await db.from("provider_payments").select("deal_id").eq("provider", "wire").in("status", ["succeeded", "refunded_late"]).gte("created_at", since).returns<{ deal_id: string }[]>();
-  const ids = [...new Set((data ?? []).map((r) => r.deal_id))];
+  const ids = [...new Set([...(data ?? []), ...(repairs ?? [])].map((r) => r.deal_id))];
   for (const id of ids) await runRefunds(id).catch((e) => console.error("refund sweep failed", id, e));
   return ids.length;
 }

@@ -8,7 +8,7 @@ Format: layout · contents · rules. Components are in `ui.md`; text in `copy.md
 5. **Review** (A, ref 04/05): route map + ETA pill · photo + title · OptionCards (1 helper / 2 helpers / with car; invalid ones disabled with reason) · collapsible MoneyBreakdown · HeldBadge line · discount row · CTA "Захиалга баталгаажуулах · 42,000₮" + 🗓. Custom mode: CTA "Үнийн санал авах", pay on choosing an offer.
 6. **Pay** (sheet): amount, bank grid deeplinks, QR, invoice timer, "Төлбөр шалгах". Success screen 1.5 s. Failures: not received yet / expired → new invoice (never double-charge).
 7. **Searching** (A): radar on pin, "Туслах хайж байна…", sent/viewed counts, free cancel. 8 min no match → "+2,000₮ нэмэх үү?". Deadline → auto refund card + "Дахин захиалах". Custom: offers as OptionCards with arrival + price, Q&A, "Сонгох".
-8. **Live** (A): moving helper dot, ETA pill · StepTracker · HelperCard · HeldBadge · timeline with receipt thumb · over-budget approval sheet · ⋯ cancel (shows exact fee) / report / emergency.
+8. **Live** (A): helper dot only if the helper explicitly shares their location for this active job · StepTracker · HelperCard · HeldBadge · timeline with receipt thumb · over-budget approval sheet · ⋯ cancel (shows exact fee) / report / emergency.
 9. **Check** (B): Countdown · ProofGallery · MoneyBreakdown "after" · CTA "Хийгдсэн, баталгаажуулах" · text button "Асуудал байна" → dispute form (reason chips, ≤5 photos, note ≥20 chars; money stays held).
 10. **Done**: amounts moved · stars + tags · "Дахин захиалах" saves a template.
 11. **Хэтэвч** (C): held now, refunds, banks, transactions.

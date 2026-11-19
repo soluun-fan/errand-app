@@ -6,7 +6,7 @@ import { safeNext } from "@/lib/next-path";
 import { OnboardingForm } from "./onboarding-form";
 
 /**
- * /onboarding — the step after the SMS code for new people (name, date of birth, Terms + Privacy),
+ * /onboarding — the step after the SMS code for new people (name, 18+ confirmation, Terms + Privacy),
  * and the "we've updated our terms" step for everyone when a document version changes.
  */
 export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
@@ -15,11 +15,11 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
   const next = safeNext(typeof sp.next === "string" ? sp.next : null);
   if (!viewer) redirect(`/login?next=${encodeURIComponent("/onboarding")}`);
   const p = viewer.profile;
-  const missing = onboardingMissing({ name: p.name, birth_date: p.birth_date ?? null, terms_version: p.terms_version ?? null, privacy_version: p.privacy_version ?? null });
+  const missing = onboardingMissing({ name: p.name, age_confirmed_at: p.age_confirmed_at ?? null, terms_version: p.terms_version ?? null, privacy_version: p.privacy_version ?? null });
   if (!missing.length) redirect(next);
   const t = await getT();
   // someone who accepted an older version: only the new acceptance is asked
-  const updated = Boolean(p.terms_version || p.privacy_version) && !missing.includes("name") && !missing.includes("birth");
+  const updated = Boolean(p.terms_version || p.privacy_version) && !missing.includes("name") && !missing.includes("age");
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-5 px-5 py-8">
       <header className="flex flex-col gap-1">

@@ -8,6 +8,7 @@ import { getViewer } from "@/lib/auth";
 import { Uuid, parseOr } from "@/lib/input";
 import { CertificateInput, OrgApplicationInput, ubDay } from "@/lib/org-rules";
 import { answerInvitation, applyOrganization, canManage, createDocSlot, inviteMember, leaveOrganization, removeMember, submitCertificate } from "@/lib/orgs";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const MIME = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
@@ -22,6 +23,7 @@ async function viewerOrLogin() {
 export async function prepareDoc(kind: "org" | "cert", mime: string, bytes: number): Promise<{ path: string; token: string } | { error: string }> {
   const viewer = await viewerOrLogin();
   const t = await getT();
+  if (kind === "cert" && unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   if ((kind !== "org" && kind !== "cert") || !MIME.includes(mime) || !(typeof bytes === "number" && bytes > 0 && bytes <= MAX_BYTES)) return { error: t("kyc.errors.type") };
   if (kind === "cert" && !viewer.actor.helperApproved) return { error: t("error.forbidden") };
   return createDocSlot(viewer.profile.id, kind, mime);
@@ -105,6 +107,7 @@ export interface CertForm {
 export async function submitCert(raw: CertForm): Promise<{ error?: string }> {
   const viewer = await viewerOrLogin();
   const t = await getT();
+  if (unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   if (!viewer.actor.helperApproved) return { error: t("error.forbidden") };
   const parsed = CertificateInput.safeParse(raw);
   if (!parsed.success || (parsed.data.expiresOn && parsed.data.expiresOn < ubDay(Date.now()))) return { error: t("cert.errors.invalid") };

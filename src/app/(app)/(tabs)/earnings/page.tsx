@@ -10,6 +10,7 @@ import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { myPayout } from "@/lib/payout";
 import { earningsSummary } from "@/lib/withdrawals";
 import { withdrawAction } from "./actions";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 /**
  * Орлого — the helper's earnings (owner's V1 Master Spec C10): what we owe them for finished jobs,
@@ -26,6 +27,7 @@ export default async function EarningsPage() {
   const viaApp = (d: (typeof jobs)[number]) => d.payMode !== "direct";
   const waiting = jobs.filter((d) => viaApp(d) && !d.payeeOrgId && ["matched", "in_progress", "check", "disputed"].includes(d.status)).reduce((a, d) => a + net(d), 0);
   const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
+  const testHelper = unverifiedHelpersTestMode && viewer.profile.test_helper;
 
   return (
     <>
@@ -62,6 +64,8 @@ export default async function EarningsPage() {
               : t("earnings.minimum", { amount: fmtMoney(sum.minimum) })}
           </p>
         )
+      ) : testHelper ? (
+        <Note tone="warn">{t("earnings.testNoPayout")}</Note>
       ) : (
         <Link href="/helper/bank" className={`${btn.primary} w-full`}>
           {t("payout.add")}

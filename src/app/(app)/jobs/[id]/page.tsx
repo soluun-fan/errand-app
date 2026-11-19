@@ -4,6 +4,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Countdown } from "@/components/countdown";
 import { InlineAction } from "@/components/inline-action";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { JobBeacon } from "@/components/job-beacon";
 import { ProofGallery } from "@/components/proof-gallery";
 import { ProofUploader } from "@/components/proof-uploader";
@@ -287,7 +288,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   // Exact pin only for the matched helper; everyone else sees a ~300 m area (privacy).
   const onJob = mine && (deal.status === "matched" || deal.status === "in_progress");
-  const exact = mine && deal.status !== "open";
+  const exact = mine && deal.status !== "open" && deal.status !== "awaiting_payment";
+  const working = mine && deal.status === "in_progress";
+  const sharing = working && Boolean((await createAdminClient().from("job_locations").select("deal_id")
+    .eq("deal_id", deal.id).eq("helper_id", me).maybeSingle().throwOnError()).data);
   const pickupLabel = deal.pickupAddress ?? t("map.pickup");
   const markers: MapMarker[] = [
     ...(deal.pickupLocation
@@ -310,7 +314,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
     <>
       {markers.length === 0 && <FlowHeader href="/jobs" label={t("common.back")} />}
-      {onJob && <JobBeacon dealId={deal.id} />}
+      {working && <JobBeacon key={deal.id} dealId={deal.id} initiallySharing={sharing} />}
       {(deal.status === "open" || deal.status === "awaiting_payment") && <AutoRefresh seconds={10} />}
 
       {markers.length > 0 && (
@@ -392,7 +396,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             <AddressBox
               icon="●"
               label={t("task.pickup")}
-              address={deal.pickupAddress}
+              address={exact ? deal.pickupAddress : null}
+              hidden={t("job.addressAfterMatch")}
               directionsUrl={exact ? pickupDirections : undefined}
               directionsLabel={t("map.directionsShort")}
             />
@@ -402,7 +407,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
             address={exact ? deal.address : null}
             hidden={t("job.addressAfterMatch")}
-            directionsUrl={directions}
+            directionsUrl={exact ? directions : undefined}
             directionsLabel={t("map.directionsShort")}
           />
         </div>
@@ -472,7 +477,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
           {/* applying, taking a price or starting needs a phone with notifications + location on */}
-          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed())}>{primary}</WorkReady> : primary}
+          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
         </PrimaryBar>
       )}

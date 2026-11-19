@@ -34,13 +34,13 @@ export async function POST(request: Request) {
         .from("provider_payments")
         .update({ status: event.type === "payment_intent.canceled" ? "canceled" : "failed", updated_at: new Date().toISOString() })
         .eq("id", d.id)
-        .eq("status", "pending");
+        .eq("status", "pending").throwOnError();
     } else if (event.type === "charge.refunded" && d.id) {
       const status = d.status === "succeeded" || d.status === "pending" || d.status === "manual_required" || d.status === "failed" ? d.status : null;
-      if (status) await db.from("provider_refunds").update({ status, updated_at: new Date().toISOString() }).eq("provider_ref", d.id);
+      if (status) await db.from("provider_refunds").update({ status, updated_at: new Date().toISOString() }).eq("provider_ref", d.id).throwOnError();
     }
     // remembered only after it was handled, so a failure above is retried by wire
-    await db.from("provider_events").upsert({ id: event.id, type: event.type }, { onConflict: "id", ignoreDuplicates: true });
+    await db.from("provider_events").upsert({ id: event.id, type: event.type }, { onConflict: "id", ignoreDuplicates: true }).throwOnError();
     return Response.json({ ok: true });
   } catch (e) {
     console.error("wire webhook failed", event.type, e);

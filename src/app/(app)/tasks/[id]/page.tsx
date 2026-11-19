@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -34,6 +34,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const { id } = await params;
   let deal = await getDealForViewer(id, viewer);
   if (!deal || deal.type !== "errand") notFound();
+  if (deal.customerId !== viewer.profile.id && viewer.profile.role !== "admin") redirect(`/jobs/${id}`);
   // back from wire's payment page (or still waiting): ask wire directly, in case its webhook is slow
   const owes = deal.status === "awaiting_payment" || deal.topUp?.status === "pending" || deal.priceChange?.status === "awaiting_payment";
   if (owes && deal.customerId === viewer.profile.id && activeProvider() === "wire") {
@@ -76,15 +77,16 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     isCare ? workedTogether(deal.customerId, applicantIds) : Promise.resolve(new Set<string>()),
     isCare ? firstAidHelpers(applicantIds) : Promise.resolve(new Set<string>()),
   ]);
-  // The helper's live position (sent by their phone during the job; ignored if older than 10 min).
+  // The helper's live position (sent by their phone during the job; ignored if older than 90 seconds).
   let helperPos: { lat: number; lng: number } | null = null;
-  if (isCustomer && deal.helperId && (deal.status === "matched" || deal.status === "in_progress")) {
+  if (isCustomer && deal.helperId && deal.status === "in_progress") {
     const { data: pos } = await createAdminClient()
-      .from("helper_presence")
+      .from("job_locations")
       .select("lat, lng, updated_at")
-      .eq("user_id", deal.helperId)
+      .eq("deal_id", deal.id)
+      .eq("helper_id", deal.helperId)
       .maybeSingle<{ lat: number | null; lng: number | null; updated_at: string }>();
-    if (pos?.lat != null && pos.lng != null && Date.now() - Date.parse(pos.updated_at) < 10 * 60_000) {
+    if (pos?.lat != null && pos.lng != null && Date.now() - Date.parse(pos.updated_at) < 90_000) {
       helperPos = { lat: pos.lat, lng: pos.lng };
     }
   }

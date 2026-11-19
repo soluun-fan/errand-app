@@ -15,6 +15,7 @@ import { restartDispatch, runDispatch } from "@/lib/dispatch/run";
 import { runRefunds } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { checkHandoverCode } from "@/lib/handover-code";
+import { isActiveTestHelper } from "@/lib/helper-test-mode";
 import { hasPayout } from "@/lib/payout";
 import { workReadyMissing } from "@/lib/work-ready";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
@@ -50,11 +51,11 @@ export async function setPresence(form: FormData): Promise<void> {
   const viewer = await helperViewer();
   if (!viewer.actor.helperApproved) return;
   // no bank account, no work: going online waits until there is one
-  if (form.get("online") === "on" && !(await hasPayout(viewer.profile.id))) redirect("/helper/bank");
+  if (form.get("online") === "on" && !isActiveTestHelper(viewer.profile) && !(await hasPayout(viewer.profile.id))) redirect("/helper/bank");
   // a phone with notifications and location on (the position comes with this request)
   if (form.get("online") === "on") {
     const hasPos = coord(form.get("lat"), 90) !== null && coord(form.get("lng"), 180) !== null;
-    const missing = (await workReadyMissing(viewer.profile.id)).filter((s) => !(s === "location" && hasPos));
+    const missing = (await workReadyMissing(viewer.profile)).filter((s) => !(s === "location" && hasPos));
     if (missing.length) return; // the page shows the checklist; nothing goes online
   }
   const radius = Number(form.get("radius"));
@@ -94,21 +95,22 @@ export async function heartbeat(rawLat: number, rawLng: number): Promise<void> {
     .eq("online", true);
 }
 
-/**
- * Live position during a job (matched / in progress), even if the helper went "offline" for new
- * work — the customer of that task sees where their helper is. Only the assigned helper can send.
- */
+export async function setJobLocationSharing(dealId: string, enabled: boolean): Promise<boolean> {
+  const viewer = await helperViewer();
+  if (!parseOr(Uuid, dealId) || typeof enabled !== "boolean") return false;
+  const { data } = await createAdminClient().rpc("set_job_location_sharing", {
+    p_deal: dealId, p_helper: viewer.profile.id, p_enabled: enabled,
+  }).throwOnError();
+  return data === true;
+}
+
 export async function trackJob(dealId: string, rawLat: number, rawLng: number): Promise<void> {
   const viewer = await helperViewer();
   const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
   if (!pos || !parseOr(Uuid, dealId)) return;
-  const { lat, lng } = pos;
-  const db = createAdminClient();
-  const { data } = await db.from("deals").select("helper_id, status").eq("id", dealId).maybeSingle<{ helper_id: string | null; status: string }>();
-  if (!data || data.helper_id !== viewer.profile.id || !["matched", "in_progress"].includes(data.status)) return;
-  await db
-    .from("helper_presence")
-    .upsert({ user_id: viewer.profile.id, lat, lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  // Updates can only touch an existing opt-in. A delayed sample cannot restart sharing.
+  await createAdminClient().from("job_locations").update({ ...pos, updated_at: new Date().toISOString() })
+    .eq("deal_id", dealId).eq("helper_id", viewer.profile.id).throwOnError();
 }
 
 /* ---------- proof upload (docs/rules.md §Proof) ---------- */
@@ -169,7 +171,7 @@ export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; f
   if (!p) return { error: t("proof.failed") };
   // the start photo starts the job: the same phone / notifications / location check as "start"
   if (p.kind === "start") {
-    const missing = await workReadyMissing(viewer.profile.id);
+    const missing = await workReadyMissing(viewer.profile);
     if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
   }
   const deal = await assignedFor(p.dealId, viewer.profile.id, p.kind);
@@ -281,12 +283,14 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (["apply", "quote", "add_kind_apply", "accept_counter", "start"].includes(intent)) {
       // the current Helper service agreement must be accepted (asked again when it changes)
       if (viewer.profile.helper_terms_version !== LEGAL_VERSIONS.helper) return { error: t("workReady.terms") };
-      const missing = await workReadyMissing(viewer.profile.id);
+      const missing = await workReadyMissing(viewer.profile);
       if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
     }
     // no bank account, no work (the database refuses it too)
     if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && !(await hasPayout(viewer.profile.id))) {
-      return { error: t("payout.needed") };
+      const pilot = isActiveTestHelper(viewer.profile);
+      const target = pilot ? await loadDeal(db, dealId) : null;
+      if (target?.type !== "errand" || target.payMode !== "held") return { error: t("payout.needed") };
     }
     if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
       return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
@@ -335,7 +339,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       // handover code condition: the customer's 4 digits (the database refuses "done" without it too)
       const target = await loadDeal(db, dealId);
       if (target?.type === "errand" && target.details.require?.handoverCode && target.helperId === viewer.profile.id) {
-        const r = await checkHandoverCode(dealId, String(form.get("code") ?? "").trim());
+        const r = await checkHandoverCode(dealId, viewer.profile.id, String(form.get("code") ?? "").trim());
         if (r === "wrong") return { error: t("conditions.codeWrong") };
         if (r === "locked") return { error: t("conditions.codeLocked") };
         if (r === "missing") return { error: t("error.generic") };

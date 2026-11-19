@@ -38,6 +38,21 @@ describe("no bank account, no work", () => {
     expect(e.message).toMatch(/add your bank account first/);
   });
 
+  it("lets enrolled testers apply without a bank only in the pilot and only for platform payments", async () => {
+    await db.query("update public.profiles set test_helper = true where id = $1", [helperId]);
+    try {
+      const check = (enabled: boolean, mode: string) => as(db, "service_role", null, async tx => {
+        await tx.query("select set_config('request.headers',$1,true)", [JSON.stringify({ "x-helper-pilot": String(enabled) })]);
+        return (await tx.query<{ ok: boolean }>("select private.can_receive_job($1,$2) as ok", [helperId,mode])).rows[0].ok;
+      });
+      expect(await check(true,"held")).toBe(true);
+      expect(await check(false,"held")).toBe(false);
+      expect(await check(true,"direct")).toBe(false);
+    } finally {
+      await db.query("update public.profiles set test_helper = false where id = $1", [helperId]);
+    }
+  });
+
   it("with one: all three work", async () => {
     await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
     const cands = await svc("select helper_id from public.dispatch_candidates($1, 1000)", [dealId]);

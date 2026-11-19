@@ -6,6 +6,7 @@ import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { requestBadge, setLanguages, type BadgeKind } from "@/lib/badges";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 const PLATE = /^[0-9]{4}\s?[А-ЯӨҮA-Z]{2,3}$/iu;
 
@@ -14,6 +15,7 @@ export async function requestBadgeAction(_prev: ActionResult, form: FormData): P
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
   const t = await getT();
+  if (unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   if (!viewer.actor.helperApproved) return { error: t("error.forbidden") };
   const kind = String(form.get("kind")) as BadgeKind;
   if (kind !== "driver" && kind !== "car") return { error: t("error.generic") };

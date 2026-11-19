@@ -17,6 +17,7 @@ import { WorkKinds } from "./work-kinds";
 import { OPEN_CATEGORIES } from "@/lib/engine";
 import { closeMyAccount, removeAddress } from "./actions";
 import { ConfirmSheet } from "@/components/sheet";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 const KIND_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
 
@@ -55,7 +56,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
       <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
-      {(mode === "helper" || profile.role === "helper" || profile.helper_status) && <TodoCard items={await helperTodos(viewer)} t={t} />}
+      {(mode === "helper" || profile.role === "helper" || profile.helper_status) && (!unverifiedHelpersTestMode || actor.helperApproved) && <TodoCard items={await helperTodos(viewer)} t={t} />}
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
       {actor.helperApproved && (
         <section id="work-kinds" className="flex scroll-mt-20 flex-col gap-2">
@@ -87,9 +88,9 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         )}
         {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
         <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
-        {actor.helperApproved && <Link href="/helper/bank" className={btn.secondary}>{t("payout.title")}</Link>}
-        {actor.helperApproved && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
-        {actor.helperApproved && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
+        {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && <Link href="/helper/bank" className={btn.secondary}>{t("payout.title")}</Link>}
+        {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
+        {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
       </section>
 
       <section className="flex flex-col gap-2">
@@ -110,7 +111,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         {row(t("profile.level"), t("profile.levelValue", { n: profile.kyc_level }))}
         {row(t("profile.role"), t(`profile.roles.${profile.role}`))}
         {profile.role === "helper" &&
-          row(t("profile.helperStatus"), actor.helperApproved ? t("profile.helperApproved") : t(`helper.${profile.helper_status === "pending" ? "inReview" : "needed"}`))}
+          row(t("profile.helperStatus"), actor.helperApproved ? profile.kyc_level < 3 ? t("kyc.badgeUnverified") : t("profile.helperApproved") : t(`helper.${profile.helper_status === "pending" ? "inReview" : "needed"}`))}
       </Card>
 
       {/* people: my saved helpers (customer) · my public profile (approved helper) */}

@@ -29,11 +29,11 @@ export async function loginAs(context: BrowserContext, phone: string, opts: { fr
   // demo accounts have finished registration (current Terms / Privacy / Helper agreement); a
   // `fresh` account goes through it in the browser (onboarding.spec.ts)
   if (!opts.fresh) {
-    const { data: p } = await db.from("profiles").select("id, birth_date").eq("phone", phone).maybeSingle<{ id: string; birth_date: string | null }>();
+    const { data: p } = await db.from("profiles").select("id, age_confirmed_at").eq("phone", phone).maybeSingle<{ id: string; age_confirmed_at: string | null }>();
     if (p) {
       await db
         .from("profiles")
-        .update({ birth_date: p.birth_date ?? "1995-01-01", terms_version: LEGAL_VERSIONS.terms, privacy_version: LEGAL_VERSIONS.privacy, helper_terms_version: LEGAL_VERSIONS.helper })
+        .update({ age_confirmed_at: p.age_confirmed_at ?? new Date().toISOString(), terms_version: LEGAL_VERSIONS.terms, privacy_version: LEGAL_VERSIONS.privacy, helper_terms_version: LEGAL_VERSIONS.helper })
         .eq("id", p.id);
     }
   }

@@ -68,6 +68,9 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
             {p.kycLevel >= 3 && (
               <span className="rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">{t("kyc.badgeVerified")}</span>
             )}
+            {p.kycLevel < 3 && (
+              <span className="rounded-full bg-warn-bg px-2.5 py-1 text-[12px] font-bold text-warn">{t("kyc.badgeUnverified")}</span>
+            )}
           </span>
           {p.area && (
             <span className="flex items-center gap-1 text-[13px] text-ink-2">

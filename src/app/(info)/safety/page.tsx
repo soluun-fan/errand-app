@@ -1,8 +1,9 @@
 import { BadgeCheck, Ban, Landmark, MapPinOff, MessageCircle, Siren } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
-import { FlowHeader } from "@/components/ui";
+import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 export const metadata: Metadata = { title: `${APP_NAME} — Аюулгүй байдал` };
 
@@ -22,6 +23,7 @@ export default async function SafetyPage() {
       <FlowHeader href="/" label={t("common.back")} />
       <h1 className="text-[24px] font-bold tracking-tight">{t("info.safetyTitle")}</h1>
       <p className="text-[15px] text-ink-2">{t("info.safetyIntro")}</p>
+      {unverifiedHelpersTestMode && <Note tone="warn">{t("info.sTestModeWarning")}</Note>}
       <ul className="flex flex-col gap-2.5">
         {items.map((x) => (
           <li key={x.title} className="flex gap-3 rounded-card bg-bg p-4 shadow-card">

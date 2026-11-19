@@ -1,2 +1,3 @@
-/** localStorage key for the unfinished post (one per device). Bump the version when the shape changes. */
-export const DRAFT_KEY = "tuslamj:post-draft:v2";
+export function draftKeyFor(userId: string): string {
+  return `tuslamj:post-draft:v3:${userId}`;
+}

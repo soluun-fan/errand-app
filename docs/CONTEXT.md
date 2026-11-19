@@ -207,8 +207,8 @@ post (free; system price; optional map pin; optional "Choose for me")
 - **Directions:** a hand-off to **Google Maps' own app** via public Maps URLs (`src/lib/maps.ts`, no key); the pickup becomes a waypoint.
 - **Privacy:**
   - Before a helper is matched they see only a **~300 m area** (`fuzz`), no street address and no entrance/floor/door.
-  - After payment they see the exact pin, address, details and a directions button.
-  - While a helper is matched or working, their phone sends its live position every ~30 s (`JobBeacon` → `trackJob`). Only that task's customer sees it.
+  - After payment they see the exact pin, address, details and a directions button. Applicants still see an approximate area while payment is pending.
+  - A helper may explicitly share their live position with that task's customer while work is in progress. It updates about every 30 s while the job page is visible and stops on opt-out or when the job leaves `in_progress`; it is not automatically shared just because a helper was matched.
 - **Push:** VAPID Web Push (`public/sw.js`, `push_subscriptions` with a per-device locale). It notifies helpers of new nearby tasks, and covers chosen, paid, new applicant, helper accepted and auto-chosen events.
 - **Pickup pin (2026-11-16):** shop / deliver / carry pin both pickup and drop-off (Pickup / Drop-off switch over the `PinMap`). With both pins the engine measures the trip (`roadKm`: straight line × 1.3) for the price; without a pickup pin the customer picks a rough km. Dispatch and feeds measure "nearby" from `helperStart` (pickup ?? task pin).
 - **Planned / optional:** address search and address-from-pin (third party: ask the owner first); Google tiles, Places and Routes ETA only if the owner adds a key, with MapLibre as the fallback.
@@ -319,6 +319,7 @@ Migrations, in order:
 - **Cross-deal invariants live in app code, not the DB:** the 3-open-requests limit and `releaseOtherCommitments` are server-side best effort (errors swallowed per deal). A helper could still end up matched and paid on two tasks if two payments land at once. Options: a DB constraint or advisory lock per helper, or a "busy" flag checked in `apply`.
 - **Payment lapse versus a late webhook:** if the bank confirms after a match lapsed, `confirm_payment` throws. The provider adapter must then refund. That path is documented but not implemented, because the mock can't produce it.
 - **Web geolocation limits:** background tracking stops when the screen locks. Reliable live tracking and push on iOS need a PWA install or a native app.
+- Private Vercel testing can skip helper ID and payout-bank collection with `UNVERIFIED_HELPERS_TEST_MODE=true`; any verified Mongolian phone can opt into helper work. Never use this mode for public launch.
 - **Privacy:**
   - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
   - The pickup address text is shown pre-match (fine for stores, not for homes). The pickup pin is fuzzed pre-match like the task pin.

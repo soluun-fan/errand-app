@@ -11,7 +11,6 @@ import { CATEGORIES, EngineError, amountDue, createErrand, type CategoryId, type
 import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { invitableHelper } from "@/lib/helper-profile";
 import { hasOpenUnpaid } from "@/lib/direct-pay";
-import { createHandoverCode } from "@/lib/handover-code";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
 import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
@@ -20,6 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_TASK_PHOTO_BYTES, attachTaskPhotos, createTaskPhotoSlot, type TaskPhotoSlot } from "@/lib/task-photos";
 
 export interface PostState {
+  dealId?: string;
   error?: string;
   /** Step to jump back to: 0 type, 1 what, 2 where & details, 3 review (post-flow STEPS). */
   step?: number;
@@ -162,15 +162,6 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     throw e;
   }
 
-  // handover code condition: make the customer's 4 digits now (shown on their task page)
-  if ((details as ErrandDetails).require?.handoverCode) {
-    try {
-      await createHandoverCode(id);
-    } catch (e) {
-      console.error("handover code failed", e);
-    }
-  }
-
   // the customer's photos (uploaded while filling in the form); a failure never blocks posting
   try {
     await attachTaskPhotos(id, viewer.profile.id, photoIds);
@@ -197,5 +188,5 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   } catch (e) {
     console.error("dispatch failed", e);
   }
-  redirect(`/tasks/${id}`);
+  return { dealId: id };
 }
