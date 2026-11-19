@@ -1,6 +1,6 @@
 # Deploying Tuslamj (Vercel)
 
-This is a **private test deployment**. Only the phone numbers you list can sign in, and payments are simulated. The checklist at the end covers what has to change before real users.
+This is a **private test deployment**. Only listed test phone numbers can use phone OTP; Google sign-in is separately disabled until an email allowlist is configured. Payments are simulated. The checklist at the end covers what has to change before real users.
 
 The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase database (`ap-northeast-2`). This is set in `vercel.json`.
 
@@ -56,9 +56,22 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
 
 Every `git push` to `main` redeploys automatically. Changed environment variables only take effect after a redeploy (Deployments → ⋯ → Redeploy).
 
+## Enable Google sign-in for private testing
+
+Google sign-in is an additional option; phone OTP remains available. It is disabled until `GOOGLE_AUTH_ALLOWED_EMAILS` contains one or more comma-separated email addresses. Only accounts with a verified Google email on that server-side allowlist can finish sign-in.
+
+1. In Google Cloud, create an OAuth client for a web application. Add the Supabase callback URL shown in Supabase's Google provider settings as an authorized redirect URI.
+2. In **Supabase → Authentication → Sign In / Providers → Google**, enable Google and add the OAuth client ID and client secret. Keep the secret in Supabase; never put it in Git, Vercel, or chat.
+3. In **Supabase → Authentication → URL Configuration**, add `https://<your-domain>/auth/callback` to the allowed redirect URLs (also add `http://localhost:3000/auth/callback` if testing locally).
+4. Set `GOOGLE_AUTH_ALLOWED_EMAILS` in Vercel to only the Google email addresses you want to permit, and set it in `.env.local` for local testing. Leave it empty to hide/disable Google sign-in. Redeploy after changing Vercel variables.
+5. Test using an allowlisted Google account, then verify that another Google account is rejected.
+
+Google sign-in creates a new app account if the person has only used phone OTP; it does not automatically transfer the existing profile, Ops role, or helper status. Keep using the existing phone login for those accounts. Google sign-in also does not verify a mobile number, so helpers still need a separately verified phone before they can work. Real SMS delivery remains deferred until a gateway is selected and configured. ДАН is also deferred: it needs official integration access and is not required for this private test.
+
 ## Safety built in
 
 - Codes on screen and sign-in are limited to `TEST_PHONES` until a real SMS provider is connected (`src/lib/login-policy.ts`). Without that limit, anyone could log in as any number.
+- Google sign-in is restricted by `GOOGLE_AUTH_ALLOWED_EMAILS`; the callback checks the verified email on the server.
 - Security headers: no embedding in other sites, and camera, microphone and location are allowed only for this site (`next.config.ts`).
 - The developer gallery (`/dev/components`) doesn't exist on a deployed site.
 - **Emergency switches** at `/ops/safety` (admins): pause new tasks, freeze all money movements, caps per task / per customer per day / platform-wide. They work instantly, with no redeploy, and every change is logged.

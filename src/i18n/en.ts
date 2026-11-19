@@ -1941,7 +1941,12 @@ export const en = {
   },
   login: {
     title: "Sign in to {app}",
-    sub: "We'll text you a code. No password needed.",
+    sub: "Sign in with an approved Google account or use your mobile number.",
+    google: "Continue with Google",
+    googleStarting: "Connecting to Google…",
+    googleFailed: "Google sign-in failed. Please try again.",
+    googleNotAllowed: "This Google account is not on the private test allowlist.",
+    orPhone: "or sign in with a mobile number",
     phone: "Mobile number",
     send: "Send code",
     sending: "Sending…",

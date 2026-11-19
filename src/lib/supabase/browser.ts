@@ -4,8 +4,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /**
- * Browser client (publishable key; RLS applies). Used only to upload proof files to a signed
- * upload URL the server issued — the token in that URL is what authorises the upload.
+ * Browser client (publishable key; RLS applies). Used for Google OAuth and signed file uploads.
  */
 export function browserClient() {
   return createBrowserClient(supabaseUrl(), supabasePublishableKey());
