@@ -100,7 +100,7 @@ describe("Verify.MN", () => {
     await client.createSession("+976 8800 0001", "482916");
 
     expect(fetcher.mock.calls[0]?.[0]).toBe("https://api.verify.mn/sessions");
-    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({ phone: "97688000001", text: "482916" });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({ phone: "88000001", text: "482916" });
     expect(fetcher.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer test-secret" });
   });
 });

@@ -12,7 +12,7 @@ const testPhones = () =>
 export function loginRules(phone: string) {
   return loginPolicy(phone, {
     production: process.env.NODE_ENV === "production",
-    smsLive: process.env.SMS_PROVIDER !== undefined && process.env.SMS_PROVIDER !== "" && process.env.SMS_PROVIDER !== "outbox",
+    smsLive: process.env.SMS_PROVIDER === "http" || process.env.SMS_PROVIDER === "verify-mn",
     showCodes: process.env.DEV_SHOW_SMS_CODES === "true",
     testPhones: testPhones(),
   });

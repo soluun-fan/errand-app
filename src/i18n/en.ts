@@ -1972,6 +1972,10 @@ export const en = {
     terms: "Payments: you buy the errand service from {app} and pay through wire.mn, a licensed payment service. Helpers are independent service providers; we pay them per task after you confirm.",
   },
   login: {
+    verifyIntro: "Send an SMS from your own number to 144773 to sign in. Your operator charges 150₮ for each message, even if verification fails.",
+    verifySetup: "Verify.MN sign-in is waiting for the service to be configured.",
+    verifyStartFailed: "Could not start SMS verification. Wait a minute and try again.",
+    checkStatus: "Check verification",
     title: "Sign in to {app}",
     sub: "We'll text you a code. No password needed.",
     phone: "Mobile number",

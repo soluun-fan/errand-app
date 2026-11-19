@@ -111,7 +111,7 @@ export function createVerifyMnClient(fetcher: typeof fetch = fetch) {
           Authorization: `Bearer ${apiKey()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phone: phone.replace(/\D/g, ""), text }),
+        body: JSON.stringify({ phone: normalizePhone(phone).slice(4), text }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         cache: "no-store",
       });
@@ -123,7 +123,7 @@ export function createVerifyMnClient(fetcher: typeof fetch = fetch) {
       const expiresAt = requiredString(row, "expiresAt");
       if (!Number.isFinite(Date.parse(expiresAt))) throw new VerifyMnError("Verify.MN returned an invalid expiresAt");
       if (!smsUri.startsWith("sms:144773?body=")) throw new VerifyMnError("Verify.MN returned an invalid smsUri");
-      if (row.phone !== undefined && typeof row.phone === "string" && row.phone.replace(/\D/g, "") !== phone.replace(/\D/g, "")) {
+      if (typeof row.phone !== "string" || normalizeMnPhone(row.phone) !== normalizePhone(phone)) {
         throw new VerifyMnError("Verify.MN returned a different phone number");
       }
       return { sessionId, smsUri, displayInstruction, expiresAt };

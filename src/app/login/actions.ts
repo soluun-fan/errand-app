@@ -9,7 +9,10 @@ import { normalizeMnPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+import { checkVerifyMnLogin, clearPendingLogin, pendingLogin, startVerifyMnLogin, verifyMnLoginEnabled, type LoginChallengeView } from "@/lib/verify-mn-login";
+
 export type LoginState =
+  | { step: "verify-mn"; view: LoginChallengeView; error?: string }
   | { step: "phone"; error?: string; phoneInput?: string }
   | { step: "code"; phone: string; error?: string; devCode?: string };
 
@@ -19,17 +22,39 @@ async function devCodeFor(phone: string): Promise<string | undefined> {
   return error || typeof data !== "string" ? undefined : data;
 }
 
-/**
- * Two-step phone sign-in. Step 1 sends an SMS code; step 2 verifies it.
- * SMS goes through the Send SMS hook (supabase/migrations/*_send_sms_hook.sql), which
- * for now records the code instead of sending it.
- */
 export async function login(prev: LoginState, formData: FormData): Promise<LoginState> {
-  const supabase = await createClient();
   const t = await getT();
+  if (formData.get("intent") === "change-number") {
+    if (verifyMnLoginEnabled()) await clearPendingLogin();
+    return { step: "phone" };
+  }
 
-  if (formData.get("intent") === "change-number") return { step: "phone" };
-
+  if (verifyMnLoginEnabled()) {
+    if (!process.env.VERIFY_MN_API_KEY) return { step: "phone", error: t("login.verifySetup") };
+    if (prev.step === "verify-mn") {
+      try {
+        const result = await checkVerifyMnLogin(prev.view.sessionId);
+        if (result.status === "pending") return { step: "verify-mn", view: result.view };
+        if (result.status === "expired") return { step: "phone", error: t("verifyRecipient.expired") };
+        return finishLogin(result.userId, formData);
+      } catch {
+        const view = await pendingLogin();
+        return view ? { step: "verify-mn", view, error: t("verifyRecipient.statusFailed") } : { step: "phone", error: t("verifyRecipient.expired") };
+      }
+    }
+    const raw = String(formData.get("phone") ?? "");
+    const phone = normalizeMnPhone(raw);
+    if (!phone) return { step: "phone", phoneInput: raw, error: t("login.badPhone") };
+    try {
+      const view = await startVerifyMnLogin(phone);
+      if (view) return { step: "verify-mn", view };
+    } catch {
+      // Only display the retry message. Provider errors can contain private data.
+    }
+    return { step: "phone", phoneInput: raw, error: t("login.verifyStartFailed") };
+  }
+  if (prev.step === "verify-mn") return { step: "phone" };
+  const supabase = await createClient();
   if (prev.step === "phone") {
     const raw = String(formData.get("phone") ?? "");
     const phone = normalizeMnPhone(raw);
@@ -48,9 +73,12 @@ export async function login(prev: LoginState, formData: FormData): Promise<Login
 
   const { data: verified, error } = await supabase.auth.verifyOtp({ phone: prev.phone, token, type: "sms" });
   if (error) return { ...prev, error: t("login.wrongCode") };
+  return finishLogin(verified.user?.id, formData);
+}
+
+async function finishLogin(uid: string | undefined, formData: FormData): Promise<never> {
   const next = safeNext(formData.get("next"));
   // new people (or a changed document): name, date of birth, Terms + Privacy first
-  const uid = verified.user?.id;
   if (uid) {
     const { data: p } = await createAdminClient().from("profiles").select("name, birth_date, terms_version, privacy_version").eq("id", uid).maybeSingle<OnboardingState>();
     if (p && onboardingMissing(p).length) redirect(`/onboarding?next=${encodeURIComponent(next)}`);

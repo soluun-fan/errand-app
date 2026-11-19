@@ -56,11 +56,23 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
 
 Every `git push` to `main` redeploys automatically. Changed environment variables only take effect after a redeploy (Deployments → ⋯ → Redeploy).
 
-## Verify.MN evaluation
+## Verify.MN phone sign-in
+
+For localhost, set these in `.env.local` and restart the Next.js server. For a hosted deployment, use its server environment and redeploy.
+
+```dotenv
+SMS_PROVIDER=verify-mn
+VERIFY_MN_API_KEY=your_private_key
+DEV_SHOW_SMS_CODES=false
+```
+
+Use the existing Supabase **Postgres Send SMS hook** `public.send_sms_hook` with phone sign-in enabled. The server retrieves the private Supabase OTP through the service-role RPC and binds it to the Verify.MN challenge in a short-lived encrypted HttpOnly cookie. Set every app sharing this project's Auth to keep real users' OTPs private. The browser shows a separate Verify.MN message. The user sends it to 144773 from the SIM they entered and pays 150₮ for each SMS. The server polls Verify.MN, then exchanges the private OTP once for a normal Supabase session. This flow works on localhost without a public callback or HTTP SMS gateway.
+
+## Verify.MN delivery recipients
 
 On an active delivery task, the customer can optionally create a private verification link for the recipient. The recipient opens it on their own phone, sees the exact Verify.MN instruction and SMS link, and chooses when to start; the app polls the provider's status endpoint. The share token is stored as a hash and tied to the task. No callback URL is registered. Session creation is limited to three attempts per link; creating a replacement link resets that limit and invalidates the previous link. Link creation and SMS sending are separate: only the recipient's tap on the verification page starts a paid-phone flow.
 
-Set `VERIFY_MN_API_KEY` as a server-only secret in `.env.local` or Vercel Environment Variables. Never use a `NEXT_PUBLIC_` name, commit the key, or paste it into chat. The customer flow discloses that each SMS to `144773` costs the recipient `150₮` before they start, shows `displayInstruction` verbatim, offers `smsUri`, and tells them to send from the number being verified. This verifies a delivery recipient only; it is not Supabase login, OAuth, or ДАН identity verification.
+Set `VERIFY_MN_API_KEY` as a server-only secret in `.env.local` or Vercel Environment Variables. Never use a `NEXT_PUBLIC_` name, commit the key, or paste it into chat. The customer flow discloses that each SMS to `144773` costs the recipient `150₮` before they start, shows `displayInstruction` verbatim, offers `smsUri`, and tells them to send from the number being verified. The recipient link verifies a delivery contact. Account sign-in uses its own browser-bound challenge.
 
 ## Safety built in
 

@@ -5,12 +5,16 @@ import { getViewer } from "@/lib/auth";
 import { devShowSmsCodes } from "@/lib/dev";
 import { safeNext } from "@/lib/next-path";
 import { setLocale } from "@/lib/prefs";
+import { pendingLogin, verifyMnLoginEnabled } from "@/lib/verify-mn-login";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const next = safeNext((await searchParams).next);
   if (await getViewer()) redirect(next);
   const [t, locale] = await Promise.all([getT(), getLocale()]);
+
+  const verifyMn = verifyMnLoginEnabled();
+  const pending = verifyMn ? await pendingLogin() : null;
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-4 py-12">
@@ -30,9 +34,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="flex flex-col gap-2">
         <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">T</span>
         <h1 className="text-2xl font-bold">{t("login.title")}</h1>
-        <p className="text-[15px] text-ink-2">{t("login.sub")}</p>
+        <p className="text-[15px] text-ink-2">{t(verifyMn ? "login.verifyIntro" : "login.sub")}</p>
       </div>
-      <LoginForm showDemoHint={devShowSmsCodes()} next={next} />
+      <LoginForm verifyMn={verifyMn} pending={pending} showDemoHint={!verifyMn && devShowSmsCodes()} next={next} />
     </main>
   );
 }

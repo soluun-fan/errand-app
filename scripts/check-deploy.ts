@@ -28,15 +28,20 @@ if (!smsLive) {
   else warnings.push(`Private testing: only ${testPhones.length} TEST_PHONES number(s) can sign in`);
 } else {
   if (env.DEV_SHOW_SMS_CODES === "true") problems.push("DEV_SHOW_SMS_CODES must be off once real SMS is live");
-  if (env.SMS_PROVIDER !== "http") problems.push("SMS_PROVIDER must be 'http' (the only real provider; see docs/deploy.md \"SMS\")");
-  if (!/^https:\/\//.test(env.SMS_HTTP_URL ?? "")) problems.push("SMS_HTTP_URL must be the gateway's https URL");
-  if (!/^v1,whsec_/.test(env.SEND_SMS_HOOK_SECRET ?? "")) problems.push("SEND_SMS_HOOK_SECRET must be the 'v1,whsec_…' secret from Supabase → Auth Hooks");
-  if (env.SMS_HTTP_HEADERS) {
-    try {
-      JSON.parse(env.SMS_HTTP_HEADERS);
-    } catch {
-      problems.push("SMS_HTTP_HEADERS is not valid JSON");
+  if (env.SMS_PROVIDER === "verify-mn") {
+    if (!env.VERIFY_MN_API_KEY?.trim()) problems.push("VERIFY_MN_API_KEY is required for Verify.MN login");
+  } else if (env.SMS_PROVIDER === "http") {
+    if (!/^https:\/\//.test(env.SMS_HTTP_URL ?? "")) problems.push("SMS_HTTP_URL must be the gateway's https URL");
+    if (!/^v1,whsec_/.test(env.SEND_SMS_HOOK_SECRET ?? "")) problems.push("SEND_SMS_HOOK_SECRET must be the 'v1,whsec_…' secret from Supabase → Auth Hooks");
+    if (env.SMS_HTTP_HEADERS) {
+      try {
+        JSON.parse(env.SMS_HTTP_HEADERS);
+      } catch {
+        problems.push("SMS_HTTP_HEADERS is not valid JSON");
+      }
     }
+  } else {
+    problems.push("SMS_PROVIDER must be verify-mn, http, or outbox");
   }
 }
 if (env.E2E_DEVICE_BYPASS) problems.push("E2E_DEVICE_BYPASS is for browser tests only — remove it (it would let helpers skip the phone / location / notification check)");
@@ -48,7 +53,7 @@ console.log("\nSet these in Vercel → Project → Settings → Environment Vari
 for (const [name, kind] of required) console.log(`  ${kind === "secret" ? "🔒" : "  "} ${name}${kind === "secret" ? "   (mark as Sensitive)" : ""}`);
 console.log(
   "     PAYMENT_PROVIDER" +
-    (smsLive ? ", SMS_PROVIDER, 🔒 SMS_HTTP_URL, SMS_HTTP_METHOD/BODY, 🔒 SMS_HTTP_HEADERS, 🔒 SEND_SMS_HOOK_SECRET" : ", TEST_PHONES, DEV_SHOW_SMS_CODES") +
+    (env.SMS_PROVIDER === "verify-mn" ? ", SMS_PROVIDER, 🔒 VERIFY_MN_API_KEY" : smsLive ? ", SMS_PROVIDER, 🔒 SMS_HTTP_URL, SMS_HTTP_METHOD/BODY, 🔒 SMS_HTTP_HEADERS, 🔒 SEND_SMS_HOOK_SECRET" : ", TEST_PHONES, DEV_SHOW_SMS_CODES") +
     (cfTurn ? ", CLOUDFLARE_TURN_KEY_ID, 🔒 CLOUDFLARE_TURN_API_TOKEN" : env.TURN_URLS ? ", 🔒 TURN_URLS, 🔒 TURN_SECRET" : "") +
     (env.PAYMENT_PROVIDER === "wire" ? ", 🔒 WIRE_SECRET_KEY, 🔒 WIRE_WEBHOOK_SECRET" : ""),
 );

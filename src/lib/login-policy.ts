@@ -14,8 +14,8 @@ export interface LoginEnv {
 }
 
 export function loginPolicy(phone: string, env: LoginEnv): { allowed: boolean; showCode: boolean } {
-  if (!env.production) return { allowed: true, showCode: env.showCodes };
   if (env.smsLive) return { allowed: true, showCode: false }; // never show codes once SMS is real
+  if (!env.production) return { allowed: true, showCode: env.showCodes };
   const allowed = env.testPhones.includes(phone);
   return { allowed, showCode: allowed && env.showCodes };
 }
