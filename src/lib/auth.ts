@@ -15,6 +15,14 @@ export interface Viewer {
 
 const PROFILE_COLUMNS =
   "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, test_helper, terms_version, privacy_version, helper_terms_version, deleted_at";
+const LEGACY_PROFILE_COLUMNS =
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, birth_date, terms_version, privacy_version, helper_terms_version, deleted_at";
+
+type LegacyProfileRow = Omit<ProfileRow, "age_confirmed_at" | "test_helper"> & { birth_date: string | null };
+
+function missingNewProfileColumns(error: { code?: string; message?: string }): boolean {
+  return (error.code === "42703" || error.code === "PGRST204") && /age_confirmed_at|test_helper/.test(error.message ?? "");
+}
 
 /**
  * The signed-in user, verified (getClaims checks the JWT signature), or null.
@@ -29,11 +37,19 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const sub = data?.claims?.sub;
   if (!sub) return null;
 
-  const { data: profile, error } = await createAdminClient()
+  const db = createAdminClient();
+  let { data: profile, error } = await db
     .from("profiles")
     .select(PROFILE_COLUMNS)
     .eq("id", sub)
     .single<ProfileRow>();
+  if (error && missingNewProfileColumns(error)) {
+    const legacy = await db.from("profiles").select(LEGACY_PROFILE_COLUMNS).eq("id", sub).single<LegacyProfileRow>();
+    error = legacy.error;
+    profile = legacy.data
+      ? { ...legacy.data, age_confirmed_at: legacy.data.birth_date ? "legacy-confirmed" : null, test_helper: false }
+      : null;
+  }
   if (error || !profile) return null;
   if (profile.deleted_at) return null; // a closed account is signed out everywhere
   const actor = actorFromProfile(profile, Date.now());
