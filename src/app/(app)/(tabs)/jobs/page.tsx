@@ -8,7 +8,7 @@ import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { StatusBadge } from "@/components/status-badge";
-import { Avatar, Card, SegmentedLinks, btn, chipClass } from "@/components/ui";
+import { Avatar, Card, Note, SegmentedLinks, btn, chipClass } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -228,6 +228,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {header}
         <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
+        {profile.desktop_work_enabled && <Note tone="warn">{t("workReady.desktopNote")}</Note>}
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
         <WorkReady enforce={!(await deviceCheckBypassed(profile))}>
           <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />

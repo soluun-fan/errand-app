@@ -14,14 +14,20 @@ export interface Viewer {
 }
 
 const PROFILE_COLUMNS =
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, test_helper, desktop_work_enabled, terms_version, privacy_version, helper_terms_version, deleted_at";
+const PROFILE_COLUMNS_WITHOUT_DESKTOP_WORK =
   "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, test_helper, terms_version, privacy_version, helper_terms_version, deleted_at";
+const PROFILE_COLUMNS_WITHOUT_TEST_HELPER =
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, desktop_work_enabled, terms_version, privacy_version, helper_terms_version, deleted_at";
+const PROFILE_COLUMNS_WITHOUT_DESKTOP_WORK_AND_TEST_HELPER =
+  "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, age_confirmed_at, terms_version, privacy_version, helper_terms_version, deleted_at";
 const LEGACY_PROFILE_COLUMNS =
   "id, name, phone, role, kyc_level, helper_status, verified_name, categories, area, suspended_until, birth_date, terms_version, privacy_version, helper_terms_version, deleted_at";
 
-type LegacyProfileRow = Omit<ProfileRow, "age_confirmed_at" | "test_helper"> & { birth_date: string | null };
+type LegacyProfileRow = Omit<ProfileRow, "age_confirmed_at" | "test_helper" | "desktop_work_enabled"> & { birth_date: string | null };
 
-function missingNewProfileColumns(error: { code?: string; message?: string }): boolean {
-  return (error.code === "42703" || error.code === "PGRST204") && /age_confirmed_at|test_helper/.test(error.message ?? "");
+function missingProfileColumn(error: { code?: string; message?: string }, column: string): boolean {
+  return (error.code === "42703" || error.code === "PGRST204") && new RegExp(`\\b${column}\\b`).test(error.message ?? "");
 }
 
 /**
@@ -38,17 +44,56 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   if (!sub) return null;
 
   const db = createAdminClient();
-  let { data: profile, error } = await db
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", sub)
-    .single<ProfileRow>();
-  if (error && missingNewProfileColumns(error)) {
-    const legacy = await db.from("profiles").select(LEGACY_PROFILE_COLUMNS).eq("id", sub).single<LegacyProfileRow>();
-    error = legacy.error;
-    profile = legacy.data
-      ? { ...legacy.data, age_confirmed_at: legacy.data.birth_date ? "legacy-confirmed" : null, test_helper: false }
-      : null;
+  type ProfileVariant = "current" | "without-desktop" | "without-test-helper" | "without-both" | "legacy";
+  let variant: ProfileVariant = "current";
+  let profile: ProfileRow | null = null;
+  let error: { code?: string; message?: string } | null = null;
+
+  for (;;) {
+    if (variant === "legacy") {
+      const result = await db.from("profiles").select(LEGACY_PROFILE_COLUMNS).eq("id", sub).single<LegacyProfileRow>();
+      error = result.error;
+      profile = result.data
+        ? {
+            ...result.data,
+            age_confirmed_at: result.data.birth_date ? "legacy-confirmed" : null,
+            test_helper: false,
+            desktop_work_enabled: false,
+          }
+        : null;
+    } else {
+      const columns =
+        variant === "current" ? PROFILE_COLUMNS :
+        variant === "without-desktop" ? PROFILE_COLUMNS_WITHOUT_DESKTOP_WORK :
+        variant === "without-test-helper" ? PROFILE_COLUMNS_WITHOUT_TEST_HELPER :
+        PROFILE_COLUMNS_WITHOUT_DESKTOP_WORK_AND_TEST_HELPER;
+      const result = await db.from("profiles").select(columns).eq("id", sub).single<ProfileRow>();
+      error = result.error;
+      profile = result.data
+        ? {
+            ...result.data,
+            ...(variant === "without-desktop" || variant === "without-both" ? { desktop_work_enabled: false } : {}),
+            ...(variant === "without-test-helper" || variant === "without-both" ? { test_helper: false } : {}),
+          }
+        : null;
+    }
+
+    const currentError = error;
+    if (!currentError) break;
+    const missingColumn = ["age_confirmed_at", "test_helper", "desktop_work_enabled"].find((column) =>
+      missingProfileColumn(currentError, column),
+    );
+    if (!missingColumn) break;
+    if (missingColumn === "age_confirmed_at") {
+      if (variant === "legacy") break;
+      variant = "legacy";
+    } else if (missingColumn === "desktop_work_enabled") {
+      if (variant === "without-desktop" || variant === "without-both") break;
+      variant = variant === "without-test-helper" ? "without-both" : "without-desktop";
+    } else {
+      if (variant === "without-test-helper" || variant === "without-both") break;
+      variant = variant === "without-desktop" ? "without-both" : "without-test-helper";
+    }
   }
   if (error || !profile) return null;
   if (profile.deleted_at) return null; // a closed account is signed out everywhere

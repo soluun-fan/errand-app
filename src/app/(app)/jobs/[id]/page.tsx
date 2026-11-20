@@ -476,6 +476,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
+          {gateActions && viewer.profile.desktop_work_enabled && <Note tone="warn">{t("workReady.desktopNote")}</Note>}
           {/* applying, taking a price or starting needs a phone with notifications + location on */}
           {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
