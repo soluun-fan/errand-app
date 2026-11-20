@@ -13,11 +13,11 @@ import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
 import { amountDue, autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
-import { TaskMap, type MapMarker } from "@/components/task-map";
-import { googleDirectionsUrl, googlePlaceUrl } from "@/lib/maps";
-import { distanceKm } from "@/lib/dispatch/plan";
+import { CustomerTaskMap } from "@/components/customer-task-map";
+import type { JobLocation } from "@/lib/location-rules";
+import { googlePlaceUrl } from "@/lib/maps";
 import { callParty, callsEnabled } from "@/lib/calls";
-import { AddressBox, DetailSection, DetailTitle, MapHero } from "@/components/detail";
+import { AddressBox, DetailSection, DetailTitle } from "@/components/detail";
 import { ProofGallery } from "@/components/proof-gallery";
 import type { ProofView } from "@/lib/proofs";
 import type { TaskPhotoView } from "@/lib/task-photos";
@@ -56,7 +56,7 @@ export interface DealViewProps {
   /** Live applicants, best first (dispatch score); the first is "Recommended". */
   ranked?: { helperId: string; distanceKm: number | null }[];
   /** Live helper position during the job (customer only). */
-  helperPos?: { lat: number; lng: number } | null;
+  helperLocation?: JobLocation | null;
   /** Photo / video proof with signed URLs. */
   proofs?: ProofView[];
   /** The customer's own photos of the task (signed URLs). */
@@ -258,6 +258,7 @@ export function DealView(p: DealViewProps) {
       ? t("job.flexibleFor", { time: fmtDateTime(deal.matchBy, locale), dur: duration }) // not urgent: open until then
       : t("job.nowFor", { dur: duration });
   const waiting = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"].includes(deal.status);
+  const showMap = waiting && Boolean(deal.location || deal.pickupLocation || p.helperLocation);
 
   /* ---------- money: where it is now ---------- */
   let money: ReactNode;
@@ -508,39 +509,9 @@ export function DealView(p: DealViewProps) {
 
   return (
     <>
-      {!(deal.location && waiting) && <FlowHeader href="/" label={t("common.back")} />}
-
-      {deal.location && waiting && (
-        <MapHero
-          backHref="/"
-          backLabel={t("common.back")}
-          caption={
-            p.helperPos ? (
-              <>
-                {t("map.helperHere", { name: helperName, km: distanceKm(p.helperPos, deal.location).toFixed(1) })}
-              </>
-            ) : undefined
-          }
-        >
-          <TaskMap
-            rounded={false}
-            className="h-[44vh] min-h-64"
-            markers={[
-              ...(deal.pickupLocation ? [{ ...deal.pickupLocation, kind: "pickup", label: deal.pickupAddress ?? t("map.pickup") } as MapMarker] : []),
-              { ...deal.location, kind: "task", label: deal.address } as MapMarker,
-              ...(p.helperPos ? [{ ...p.helperPos, kind: "helper", label: helperName } as MapMarker] : []),
-            ]}
-            // the trip: helper → pickup → drop-off
-            route={[...(p.helperPos ? [p.helperPos] : []), ...(deal.pickupLocation ? [deal.pickupLocation] : []), deal.location]}
-            // tap the map: Google Maps with the same trip (from the helper while they're on the way)
-            openUrl={
-              p.helperPos || deal.pickupLocation
-                ? googleDirectionsUrl(deal.location, p.helperPos ? deal.pickupLocation : null, p.helperPos ?? deal.pickupLocation)
-                : googlePlaceUrl(deal.location)
-            }
-          />
-        </MapHero>
-      )}
+      {!showMap && <FlowHeader href="/" label={t("common.back")} />}
+      {showMap && <CustomerTaskMap destination={deal.location} pickup={deal.pickupLocation} address={deal.address}
+        pickupAddress={deal.pickupAddress} helperName={helperName} tracking={p.helperLocation} serverNow={p.serverNow} />}
 
       {/* status first */}
       <DetailTitle
@@ -551,7 +522,7 @@ export function DealView(p: DealViewProps) {
         }
         status={<StatusBadge status={deal.status} t={t} />}
         title={deal.title}
-        overlap={Boolean(deal.location && waiting)}
+        overlap={showMap}
       >
         <StepTracker status={deal.status} events={events} t={t} />
         <div className="text-[16px] text-ink">{line}</div>

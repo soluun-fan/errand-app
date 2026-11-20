@@ -25,6 +25,7 @@ export function missingSteps(input: { userAgent: string | null; chMobile: string
   const out: ReadyStep[] = [];
   if (!isMobileDevice(input.userAgent, input.chMobile)) out.push("phone");
   if (input.pushDevices < 1) out.push("notifications");
-  if (input.positionAt === null || input.now - input.positionAt > POSITION_FRESH_MS) out.push("location");
+  if (input.positionAt === null || !Number.isFinite(input.positionAt) || input.positionAt > input.now ||
+    input.now - input.positionAt > POSITION_FRESH_MS) out.push("location");
   return out;
 }

@@ -37,10 +37,13 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   const sendPosition = useCallback(() => {
+    if (!navigator.geolocation) { setGeo("unsupported"); return; }
+    setGeo("loading");
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setGeo("on");
-        void reportPosition(p.coords.latitude, p.coords.longitude);
+      async (p) => {
+        try {
+          setGeo(await reportPosition(p.coords.latitude, p.coords.longitude) ? "on" : "off");
+        } catch { setGeo("off"); }
       },
       (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "off"),
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
@@ -61,10 +64,10 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => reg.pushManager.getSubscription())
-        .then((sub) => {
+        .then(async (sub) => {
           if (sub) {
             const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-            void savePush({ endpoint: j.endpoint, keys: j.keys });
+            await savePush({ endpoint: j.endpoint, keys: j.keys });
           }
           setPush(sub ? "on" : "off");
         })

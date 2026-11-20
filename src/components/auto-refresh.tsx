@@ -11,17 +11,28 @@ export function AutoRefresh({ seconds, poke }: { seconds: number; poke?: () => P
   const router = useRouter();
   useEffect(() => {
     let busy = false;
-    const id = setInterval(async () => {
+    let active = true;
+    const update = async () => {
       if (document.visibilityState !== "visible" || busy) return;
       busy = true;
       try {
         if (poke) await poke();
-        router.refresh();
+      } catch {
+        // Dispatch can fail temporarily; still refresh the page and retry on the next interval.
       } finally {
+        if (active) router.refresh();
         busy = false;
       }
-    }, seconds * 1000);
-    return () => clearInterval(id);
+    };
+    const id = setInterval(update, seconds * 1000);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("online", update);
+    return () => {
+      active = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("online", update);
+    };
   }, [seconds, poke, router]);
   return null;
 }

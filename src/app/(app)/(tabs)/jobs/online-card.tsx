@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { MapPin } from "lucide-react";
 import { PushToggle } from "@/components/push-toggle";
 import { chipClass } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { heartbeat, setPresence } from "../../jobs/actions";
+import { setPresence } from "../../jobs/actions";
+import { useWorkerLocation } from "@/components/worker-location";
+import { currentPosition } from "@/lib/location-client";
 
 const RADII: { km: number; label: "km" | "district" | "city" }[] = [
   { km: 1, label: "km" },
@@ -14,7 +17,6 @@ const RADII: { km: number; label: "km" | "district" | "city" }[] = [
   { km: 15, label: "district" },
   { km: 60, label: "city" },
 ];
-const HEARTBEAT_MS = 60_000;
 
 type Geo = "idle" | "on" | "denied" | "unsupported";
 
@@ -26,7 +28,8 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
   const t = useT();
   const [pending, start] = useTransition();
   const [geo, setGeo] = useState<Geo>("idle");
-  const last = useRef(0);
+  const [failed, setFailed] = useState(false);
+  const location = useWorkerLocation();
 
   const save = (patch: { online?: boolean; radius?: number; lat?: number; lng?: number }) => {
     const f = new FormData();
@@ -36,43 +39,29 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
       f.set("lat", String(patch.lat));
       f.set("lng", String(patch.lng));
     }
-    start(() => setPresence(f));
+    start(async () => {
+      try {
+        await setPresence(f);
+        await location?.reload();
+        setFailed(false);
+      } catch { setFailed(true); }
+    });
   };
 
-  const goOnline = () => {
+  const goOnline = async () => {
     if (!("geolocation" in navigator)) {
       setGeo("unsupported");
-      return save({ online: true });
+      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setGeo("on");
-        last.current = Date.now();
-        save({ online: true, lat: p.coords.latitude, lng: p.coords.longitude });
-      },
-      () => {
-        setGeo("denied");
-        save({ online: true });
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
+    try {
+      const p = await currentPosition();
+      setGeo("on");
+      save({ online: true, lat: p.coords.latitude, lng: p.coords.longitude });
+    } catch (error) {
+      setGeo((error as { code?: number })?.code === 1 ? "denied" : "idle");
+      setFailed(true);
+    }
   };
-
-  // While online: follow the position, send at most one heartbeat a minute.
-  useEffect(() => {
-    if (!online || !("geolocation" in navigator)) return;
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        setGeo("on");
-        if (Date.now() - last.current < HEARTBEAT_MS) return;
-        last.current = Date.now();
-        void heartbeat(p.coords.latitude, p.coords.longitude);
-      },
-      (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "idle"),
-      { enableHighAccuracy: true, maximumAge: 30_000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [online]);
 
   return (
     <section className={`flex flex-col gap-4 rounded-card border p-4 ${online ? "border-held bg-held-bg" : "border-line"}`}>
@@ -116,15 +105,17 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
 
       <div className="flex items-center gap-3">
         <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-xl">
-          📍
+          <MapPin size={20} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-semibold">{t("job.location")}</span>
           <span className="block text-sm text-ink-2">
-            {geo === "denied" ? t("job.locationDenied") : online && geo === "on" ? t("job.locationOn") : t("job.locationOff")}
+            {geo === "denied" || location?.status === "denied" ? t("job.locationDenied")
+              : online && location?.status === "live" ? t("job.locationOn") : t("job.locationOff")}
           </span>
         </span>
       </div>
+      {failed && <p role="status" className="text-sm text-danger">{t("job.locationError")}</p>}
       <PushToggle />
     </section>
   );

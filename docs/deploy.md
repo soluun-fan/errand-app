@@ -143,6 +143,31 @@ See "Going live with wire.mn" below. The customer prepays the full amount (manag
 ## Health check
 - `/ops` shows "Background jobs: ✓ running / ⚠️ stopped". Stopped = expiries, auto-confirm, refunds and payouts aren't happening.
 - `GET /api/health` → 200 `{ok:true}` while the tick runs, 503 otherwise (no details).
+- `npm run check:live` performs read-only checks against the configured Supabase API: tracking,
+  presence, recipient verification and scheduler health. It reads no user records and prints no
+  secrets. A successful web build does not prove the deployed database has the required schema.
+
+## Worker location tracking
+
+- Requires `20261119040000_task_privacy.sql`, including `job_locations`, the sharing RPC and the
+  trigger that deletes sharing when work ends or the assigned helper changes. Apply the reviewed
+  migration before deploying the UI. Do not blindly push all pending migrations: some change money
+  and account rules. Test schema changes separately before applying them to the live database.
+- A helper starts an active job, taps **Share my location with this customer**, and grants browser
+  location permission. Only that task's customer can read the location. Dispatch presence is kept
+  separate and is never used as a fallback for customer tracking.
+- The shared app layout sends fresh samples every 15 seconds while sharing a job, or every minute
+  while online for nearby offers. Updates continue while navigating within the app, including chat.
+  Stationary helpers still send updates. Updates pause while the app is hidden or the screen is
+  locked; a web app does not provide reliable background GPS tracking.
+- Customers refresh active work every 10 seconds. Positions expire after 90 seconds on the client
+  even if the network fails. The map shows waiting, stopped, paused or unavailable states instead
+  of representing old coordinates as live. Tasks without a destination pin can still show a helper.
+- Stopping sharing deletes the row; delayed samples cannot insert it again. Missing tracking or
+  recipient-verification tables no longer prevent opening the task page. Missing features remain
+  unavailable until the database is repaired.
+- If a table exists in Postgres but the API reports `PGRST205`, check privileges and reload the
+  PostgREST schema cache with `NOTIFY pgrst, 'reload schema';`, then rerun `npm run check:live`.
 
 ## Testing wire.mn (payments)
 

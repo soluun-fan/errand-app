@@ -4,6 +4,11 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-20 tracking repair: worker location now runs in the signed-in layout across navigation,
+with periodic samples for stationary helpers and explicit per-job sharing. Customer maps expire
+stale coordinates locally and show tracking status. `npm run check:live` verifies the API schema
+and scheduler without reading user data. Deployment requirements are in `docs/deploy.md`._
+
 _Specialized-services update (2026-11-19): childcare, eldercare and personal/medical care are excluded from launch; ordinary adult accompaniment is supported only for adults who travel independently. New care posts, matching and care credentials are disabled; existing assigned care bookings keep their original terms. Apply `20261119000000_pause_direct_care.sql` after the earlier migrations. See `docs/decisions.md` “Launch scope for care and accompaniment”; hosted rollout and browser verification remain pending._
 
 

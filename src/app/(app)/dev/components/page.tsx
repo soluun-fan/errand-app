@@ -14,6 +14,8 @@ import { DealView } from "../../tasks/[id]/deal-view";
 import { galleryAction } from "./actions";
 import { GalleryChoices, GalleryPosting } from "./gallery-choices";
 import { FIXTURE_PEOPLE, FIXTURE_STATES, FX, buildFixture, type FixtureState } from "./fixtures";
+import { CustomerTaskMap } from "@/components/customer-task-map";
+import type { JobLocation } from "@/lib/location-rules";
 
 const STATUSES: DealStatus[] = [
   "awaiting_payment",
@@ -79,6 +81,20 @@ export default async function Gallery({ searchParams }: PageProps<"/dev/componen
             </Link>
           ))}
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="font-bold">Customer tracking — live, paused, waiting, stopped, unavailable</h2>
+        {([
+          { available: true, sharing: true, position: { lat: 47.923, lng: 106.923, updatedAt: now } },
+          { available: true, sharing: true, position: { lat: 47.923, lng: 106.923, updatedAt: now - 120_000 } },
+          { available: true, sharing: true, position: null },
+          { available: true, sharing: false, position: null },
+          { available: false, sharing: false, position: null },
+        ] satisfies JobLocation[]).map((tracking, index) => <div key={index} className="overflow-hidden rounded-card px-5 pt-2">
+          <CustomerTaskMap destination={{ lat: 47.9186, lng: 106.9177 }} pickup={null} address="Demo destination"
+            pickupAddress={null} helperName="Demo helper" tracking={tracking} serverNow={now} />
+        </div>)}
       </Card>
 
       <Card>

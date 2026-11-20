@@ -16,6 +16,7 @@
     "cron:local": "node --env-file=.env.local --import tsx scripts/cron-local.ts",
     "scheduler:configure": "node --env-file=.env.local --import tsx scripts/configure-scheduler.ts",
     "check:deploy": "node --env-file=.env.local --import tsx scripts/check-deploy.ts",
+    "check:live": "node --env-file=.env.local --import tsx scripts/check-live.ts",
     "e2e": "NODE_OPTIONS=--conditions=react-server playwright test",
     "postinstall": "node scripts/copy-map-worker.mjs",
     "wire:webhook": "node --env-file=.env.local --experimental-strip-types scripts/wire-webhook.mts"

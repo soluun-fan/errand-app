@@ -290,8 +290,6 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const onJob = mine && (deal.status === "matched" || deal.status === "in_progress");
   const exact = mine && deal.status !== "open" && deal.status !== "awaiting_payment";
   const working = mine && deal.status === "in_progress";
-  const sharing = working && Boolean((await createAdminClient().from("job_locations").select("deal_id")
-    .eq("deal_id", deal.id).eq("helper_id", me).maybeSingle().throwOnError()).data);
   const pickupLabel = deal.pickupAddress ?? t("map.pickup");
   const markers: MapMarker[] = [
     ...(deal.pickupLocation
@@ -314,8 +312,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   return (
     <>
       {markers.length === 0 && <FlowHeader href="/jobs" label={t("common.back")} />}
-      {working && <JobBeacon key={deal.id} dealId={deal.id} initiallySharing={sharing} />}
-      {(deal.status === "open" || deal.status === "awaiting_payment") && <AutoRefresh seconds={10} />}
+      {working && <JobBeacon key={deal.id} dealId={deal.id} />}
+      {(["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status)) && <AutoRefresh seconds={10} />}
 
       {markers.length > 0 && (
         <MapHero caption={exact ? undefined : t("map.approx")} backHref="/jobs" backLabel={t("common.back")}>

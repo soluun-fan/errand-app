@@ -1,5 +1,11 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-20 — Foreground worker tracking.** Keep per-job sharing opt-in and separate from dispatch
+  presence. Sample in the signed-in layout so chat navigation and stationary workers retain fresh
+  locations. Surface failed saves and expire customer markers after 90 seconds without a fresh
+  sample. No background or locked-screen GPS guarantee. Read-only deployment checks verify exposed
+  database tables and the actual scheduler heartbeat.
+
 - **2026-11-19 — Launch scope for care and accompaniment.** Direct childcare, eldercare and personal or medical care are outside the launch offering. Families can book shopping, deliveries, queues and wayfinding for an adult who travels independently. Who will be home is private. For accompaniment, several helpers can apply and the customer can review portfolios, chat privately and choose. Existing assigned bookings retain their original terms.
 
 - **Edge** = held payment + photo proof + disputes, not the algorithm. Answers "why pay a middleman vs Facebook/direct-pay apps".

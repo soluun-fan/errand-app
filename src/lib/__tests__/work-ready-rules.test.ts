@@ -21,5 +21,8 @@ describe("helpers work from a phone with notifications and location on", () => {
     expect(missingSteps({ userAgent: ANDROID, chMobile: null, pushDevices: 1, positionAt: now - 60_000, now })).toEqual([]);
     expect(missingSteps({ userAgent: MAC, chMobile: null, pushDevices: 0, positionAt: null, now })).toEqual(["phone", "notifications", "location"]);
     expect(missingSteps({ userAgent: IPHONE, chMobile: null, pushDevices: 2, positionAt: now - POSITION_FRESH_MS - 1, now })).toEqual(["location"]);
+    for (const positionAt of [NaN, Infinity, now + 60_000]) {
+      expect(missingSteps({ userAgent: IPHONE, chMobile: null, pushDevices: 1, positionAt, now })).toEqual(["location"]);
+    }
   });
 });

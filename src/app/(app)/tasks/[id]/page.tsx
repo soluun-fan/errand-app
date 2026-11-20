@@ -27,6 +27,7 @@ import { activeProvider, checkWirePayments } from "@/lib/payments/service";
 import { directPayOpen, directPayState, payeeAccount } from "@/lib/direct-pay";
 import { recipientVerificationForOwner } from "@/lib/verify-mn";
 import { RecipientVerificationCard } from "./recipient-verification-card";
+import { customerJobLocation } from "@/lib/job-location";
 
 export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
@@ -77,19 +78,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
     isCare ? workedTogether(deal.customerId, applicantIds) : Promise.resolve(new Set<string>()),
     isCare ? firstAidHelpers(applicantIds) : Promise.resolve(new Set<string>()),
   ]);
-  // The helper's live position (sent by their phone during the job; ignored if older than 90 seconds).
-  let helperPos: { lat: number; lng: number } | null = null;
-  if (isCustomer && deal.helperId && deal.status === "in_progress") {
-    const { data: pos } = await createAdminClient()
-      .from("job_locations")
-      .select("lat, lng, updated_at")
-      .eq("deal_id", deal.id)
-      .eq("helper_id", deal.helperId)
-      .maybeSingle<{ lat: number | null; lng: number | null; updated_at: string }>();
-    if (pos?.lat != null && pos.lng != null && Date.now() - Date.parse(pos.updated_at) < 90_000) {
-      helperPos = { lat: pos.lat, lng: pos.lng };
-    }
-  }
+  const helperLocation = isCustomer && deal.helperId && deal.status === "in_progress"
+    ? await customerJobLocation(deal.id, viewer.profile.id) : null;
   // SOS + report a problem: for the two people on the task once a helper is chosen
   const safety =
     deal.helperId && isParty(deal, viewer.profile.id) ? (
@@ -107,8 +97,8 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
 
   return (
     <>
-    {live && <AutoRefresh seconds={deal.status === "open" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
-    {canVerifyRecipient && <RecipientVerificationCard dealId={deal.id} verification={recipientVerification} />}
+    {live && <AutoRefresh seconds={deal.status === "open" || deal.status === "in_progress" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
+    {canVerifyRecipient && recipientVerification !== undefined && <RecipientVerificationCard dealId={deal.id} verification={recipientVerification} />}
     {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
       {[...questions].map(([helper, unread]) => (
@@ -134,7 +124,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       dispatch={dispatch}
       ranked={ranked}
       organizations={await organizationNames([deal.payeeOrgId, ...deal.offers.map((o) => o.orgId)])}
-      helperPos={helperPos}
+      helperLocation={helperLocation}
       chat={chat}
       applicantUnread={applicantUnread}
       careCalls={careCalls}

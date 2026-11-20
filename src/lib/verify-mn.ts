@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { getViewer } from "@/lib/auth";
 import { normalizeMnPhone } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { missingTable } from "@/lib/location-rules";
 
 const API_URL = "https://api.verify.mn";
 const POLL_INTERVAL_MS = 3_000;
@@ -313,7 +314,7 @@ function recipientOwnerView(row: RecipientVerificationRow): RecipientVerificatio
   return { ...recipientView(row), phone: row.phone };
 }
 
-export async function recipientVerificationForOwner(dealId: string, ownerId: string): Promise<RecipientVerificationOwnerView | null> {
+export async function recipientVerificationForOwner(dealId: string, ownerId: string): Promise<RecipientVerificationOwnerView | null | undefined> {
   const { data, error } = await createAdminClient()
     .from("recipient_verifications")
     .select("deal_id, owner_id, phone, share_token_hash, status, session_attempts, provider_session_id, sms_uri, display_instruction, session_expires_at, verified_at, invite_expires_at")
@@ -333,6 +334,8 @@ export async function recipientVerificationForOwner(dealId: string, ownerId: str
       verified_at: string | null;
       invite_expires_at: string;
     }>();
+  // Optional verification must not prevent customers from opening and completing their task.
+  if (missingTable(error, "recipient_verifications")) return undefined;
   if (error) throw new Error(`Could not load recipient verification: ${error.message}`);
   return data ? recipientOwnerView(recipientRow(data)) : null;
 }

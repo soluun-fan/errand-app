@@ -78,6 +78,13 @@ Rating(id,dealId,from,to,stars,tags[]) · TimelineEvent(id,dealId,text,createdAt
 Split sums to held on every path · no double release · illegal transitions rejected · auto-release fires once · refunds return full amounts · webhook replay is a no-op.
 
 ## As implemented (keep in sync with `src/lib/engine`)
+
+- **Worker location (2026-11-20):** dispatch presence and customer sharing are separate. An assigned
+  helper explicitly enables sharing for an `in_progress` task. The signed-in app layout samples every
+  15 seconds while sharing, including on chat screens; online-only presence updates every minute.
+  Customers see only their own task's current assigned helper, and coordinates expire after 90
+  seconds even if refreshes fail. Stopping, finishing or changing helper deletes sharing; updates
+  cannot recreate it. Foreground web tracking pauses when the app is hidden or the screen is locked.
 - **Errand lifecycle (2026-11-13, supersedes "pay at posting" above):** post free → `open` (dispatched to helpers, nothing held) → helpers `apply` ("Хийж чадна"; Instant = set price, Custom = optional `price` quote) → the customer `choose`s one — or, with "Choose for me" (`details.autoPick`), the system picks the best-ranked applicant 3 min after the first application → `awaiting_payment` with `payBy` = +10 min → provider webhook `confirm_payment` → `matched` (held) → `in_progress` → `check` → `released`. A match not paid in time (`expire`) goes back to `open` (event `payment_timeout`; the chosen offer is dropped and `fee` resets to `postedFee`), or `expired` if the match deadline passed too. Before payment the helper may withdraw without a penalty (`helper_withdrew`, back to `open`); the customer may cancel `open`/`awaiting_payment` for free. Legacy deals paid at posting still work (accept → `matched`, cancel/expire refund).
 - **Applications:** max 5 per task (dispatch stops once full); Instant applications lapse after 15 min; a helper may hold at most 3 open applications (server check, `MAX_PENDING_APPLICATIONS`) and can take one back (`withdraw_offer`); once a helper is paid for one task, their other applications are withdrawn and any other unpaid match is released (`releaseOtherCommitments`). Applicants are shown best-first with the dispatch score; the top one is "Санал болгосон". `accept` (first-to-accept) stays in the engine for legacy/urgent use but the app no longer offers it.
 - **Extra rules:** night minimum fee 6,000 (22:00–07:00 UB time) · no helper by `matchBy` (30 min for Now, the scheduled time otherwise) → `expired`, nothing charged · title ≤ 40, description ≤ 500 chars · task pin must be inside Mongolia.

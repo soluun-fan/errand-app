@@ -31,6 +31,8 @@ import { MAX_PROGRESS_PROOFS, MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, pro
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
 import { LatLng, ProofKindInput, ProofSubmitInput, PushSubscriptionInput, Uuid, parseOr } from "@/lib/input";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { saveWorkerLocation, workerLocationState } from "@/lib/job-location";
+import type { WorkerLocationState } from "@/lib/location-rules";
 
 const RADII = [1, 3, 5, 10, 15, 60] as const;
 
@@ -62,55 +64,46 @@ export async function setPresence(form: FormData): Promise<void> {
   const row: Record<string, unknown> = {
     user_id: viewer.profile.id,
     online: form.get("online") === "on",
-    updated_at: new Date().toISOString(),
   };
   if ((RADII as readonly number[]).includes(radius)) row.radius_km = radius;
   const lat = coord(form.get("lat"), 90);
   const lng = coord(form.get("lng"), 180);
-  if (lat !== null && lng !== null) Object.assign(row, { lat, lng });
+  if (lat !== null && lng !== null) Object.assign(row, { lat, lng, updated_at: new Date().toISOString() });
   await createAdminClient().from("helper_presence").upsert(row).throwOnError();
   refresh();
 }
 
 /** The helper's position when they turn location on (work-ready check), online or not. */
-export async function reportPosition(rawLat: number, rawLng: number): Promise<void> {
+export async function reportPosition(rawLat: number, rawLng: number): Promise<boolean> {
   const viewer = await helperViewer();
   const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
-  if (!viewer.actor.helperApproved || !pos) return;
+  if (!viewer.actor.helperApproved || !pos) return false;
   await createAdminClient()
     .from("helper_presence")
-    .upsert({ user_id: viewer.profile.id, lat: pos.lat, lng: pos.lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    .upsert({ user_id: viewer.profile.id, lat: pos.lat, lng: pos.lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).throwOnError();
+  return true;
 }
 
-/** Position heartbeat while online (the client sends it at most once a minute). */
-export async function heartbeat(rawLat: number, rawLng: number): Promise<void> {
+export async function getWorkerLocationState(): Promise<WorkerLocationState> {
+  const viewer = await helperViewer();
+  if (!viewer.actor.helperApproved) return { online: false, available: false, jobIds: [] };
+  return workerLocationState(viewer.profile.id);
+}
+
+export async function updateWorkerLocation(rawLat: number, rawLng: number): Promise<WorkerLocationState> {
   const viewer = await helperViewer();
   const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
-  if (!viewer.actor.helperApproved || !pos) return;
-  const { lat, lng } = pos;
-  await createAdminClient()
-    .from("helper_presence")
-    .update({ lat, lng, updated_at: new Date().toISOString() })
-    .eq("user_id", viewer.profile.id)
-    .eq("online", true);
+  if (!viewer.actor.helperApproved || !pos) throw new Error("Location unavailable");
+  return saveWorkerLocation(viewer.profile.id, pos);
 }
 
 export async function setJobLocationSharing(dealId: string, enabled: boolean): Promise<boolean> {
   const viewer = await helperViewer();
-  if (!parseOr(Uuid, dealId) || typeof enabled !== "boolean") return false;
+  if (!parseOr(Uuid, dealId) || typeof enabled !== "boolean" || (enabled && !viewer.actor.helperApproved)) return false;
   const { data } = await createAdminClient().rpc("set_job_location_sharing", {
     p_deal: dealId, p_helper: viewer.profile.id, p_enabled: enabled,
   }).throwOnError();
   return data === true;
-}
-
-export async function trackJob(dealId: string, rawLat: number, rawLng: number): Promise<void> {
-  const viewer = await helperViewer();
-  const pos = parseOr(LatLng, { lat: rawLat, lng: rawLng });
-  if (!pos || !parseOr(Uuid, dealId)) return;
-  // Updates can only touch an existing opt-in. A delayed sample cannot restart sharing.
-  await createAdminClient().from("job_locations").update({ ...pos, updated_at: new Date().toISOString() })
-    .eq("deal_id", dealId).eq("helper_id", viewer.profile.id).throwOnError();
 }
 
 /* ---------- proof upload (docs/rules.md §Proof) ---------- */
