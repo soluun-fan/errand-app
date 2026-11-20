@@ -151,7 +151,7 @@ export const en = {
   },
 
   common: {
-    app: "Guigeeree",
+    app: "Guigere",
     back: "Back",
     next: "Next",
     cancel: "Cancel",

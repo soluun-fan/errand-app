@@ -152,7 +152,7 @@ export const mn: Messages = {
   },
 
   common: {
-    app: "Гүйгээрэй",
+    app: "Guigere",
     back: "Буцах",
     next: "Үргэлжлүүлэх",
     cancel: "Болих",
