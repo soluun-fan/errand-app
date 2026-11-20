@@ -24,8 +24,7 @@ const isStandalone = () => window.matchMedia("(display-mode: standalone)").match
  * "Ready to work" (owner, 2026-11-18: errands run on phones, location and notifications on — or
  * no errand). Shows its children (online switch, apply / start buttons) only when this device is a
  * phone with notifications and location on; otherwise a checklist with one button per step. The
- * server checks the same (src/lib/work-ready.ts). `enforce` is false only for approved exceptions
- * and browser tests.
+ * server checks the same (src/lib/work-ready.ts). `enforce` is false only for browser tests.
  */
 export function WorkReady({ enforce, children }: { enforce: boolean; children: ReactNode }) {
   const t = useT();

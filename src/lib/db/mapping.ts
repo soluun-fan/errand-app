@@ -138,7 +138,6 @@ export interface ProfileRow {
   suspended_until: string | null;
   age_confirmed_at?: string | null;
   test_helper?: boolean;
-  desktop_work_enabled?: boolean;
   terms_version?: string | null;
   privacy_version?: string | null;
   helper_terms_version?: string | null;

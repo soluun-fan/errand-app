@@ -1,6 +1,5 @@
 import "server-only";
 import { isActiveTestHelper } from "@/lib/helper-test-mode";
-import { desktopWorkAllowed } from "@/lib/work-ready-rules";
 import { cookies, headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { missingSteps, type ReadyStep } from "@/lib/work-ready-rules";
@@ -14,8 +13,7 @@ import { missingSteps, type ReadyStep } from "@/lib/work-ready-rules";
  * Browser tests can't hold a real push subscription, so the test server sets E2E_DEVICE_BYPASS=1 and
  * the tests send the `e2e-device` cookie. Production never sets the variable, so the cookie does nothing.
  */
-export async function deviceCheckBypassed(profile: { test_helper?: boolean; desktop_work_enabled?: boolean }): Promise<boolean> {
-  if (desktopWorkAllowed(profile)) return true;
+export async function deviceCheckBypassed(profile: { test_helper?: boolean }): Promise<boolean> {
   if (isActiveTestHelper(profile)) return true;
   if (process.env.E2E_DEVICE_BYPASS !== "1") return false;
   return (await cookies()).get("e2e-device")?.value === "ok";

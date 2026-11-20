@@ -8,10 +8,6 @@ export type ReadyStep = "phone" | "notifications" | "location";
 /** How fresh the helper's last known position must be to apply or start a job. */
 export const POSITION_FRESH_MS = 15 * 60_000;
 
-export function desktopWorkAllowed(profile: { desktop_work_enabled?: boolean }): boolean {
-  return profile.desktop_work_enabled === true;
-}
-
 /**
  * A phone or tablet browser. `ch-mobile` is the Client Hint ("?1" on Android Chrome); the user
  * agent covers iPhone / iPad / other Android browsers. Desktop browsers (even narrow windows) fail.

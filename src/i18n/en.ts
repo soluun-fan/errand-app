@@ -2174,7 +2174,6 @@ export const en = {
   },
   workReady: {
     terms: "Accept the updated Helper service agreement first (Profile → Documents).",
-    desktopNote: "Desktop work is enabled for this account. Mobile notification and location checks are skipped. Browse All jobs manually; your live location is not verified or shared. SMS sign-in is still required.",
     title: "Get ready to work",
     sub: "Helpers work from their phone with notifications and location on — so you can receive nearby job offers.",
     phone: "Use your phone",

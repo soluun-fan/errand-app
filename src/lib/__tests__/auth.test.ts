@@ -100,39 +100,6 @@ it("reads age confirmation when only the test-helper column is missing", async (
   expect(selected[1]).not.toContain("test_helper");
 });
 
-it("defaults desktop work off when the profile column is not deployed yet", async () => {
-  responses.push(
-    { data: null, error: { code: "42703", message: "column profiles.desktop_work_enabled does not exist" } },
-    {
-      data: {
-        id: "user-1",
-        name: "Tester",
-        phone: "+97688000001",
-        role: "customer",
-        kyc_level: 1,
-        helper_status: null,
-        verified_name: null,
-        categories: [],
-        area: null,
-        suspended_until: null,
-        age_confirmed_at: "2026-11-19T00:00:00.000Z",
-        test_helper: false,
-        terms_version: "2026-11-18",
-        privacy_version: "2026-11-18",
-        helper_terms_version: null,
-        deleted_at: null,
-      },
-      error: null,
-    },
-  );
-
-  const viewer = await getViewer();
-
-  expect(viewer?.profile.desktop_work_enabled).toBe(false);
-  expect(selected).toHaveLength(2);
-  expect(selected[1]).not.toContain("desktop_work_enabled");
-});
-
 it("does not hide unrelated profile lookup errors behind the compatibility fallback", async () => {
   responses.push({ data: null, error: { code: "42501", message: "permission denied" } });
 
