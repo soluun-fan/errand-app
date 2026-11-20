@@ -31,6 +31,7 @@ import { proofsFor } from "@/lib/proofs";
 import { portfolioCandidates } from "@/lib/work-photos";
 import { WorkReady } from "@/components/work-ready";
 import { deviceCheckBypassed } from "@/lib/work-ready";
+import { shouldShowDesktopWorkNotice } from "@/lib/desktop-work-notice";
 import { PortfolioAskSection } from "@/components/portfolio-cards";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { workedTogether } from "@/lib/care";
@@ -476,7 +477,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
-          {gateActions && viewer.profile.desktop_work_enabled && <Note tone="warn">{t("workReady.desktopNote")}</Note>}
+          {gateActions && viewer.profile.desktop_work_enabled && (await shouldShowDesktopWorkNotice(viewer.profile.id)) && (
+            <Note tone="warn">{t("workReady.desktopNote")}</Note>
+          )}
           {/* applying, taking a price or starting needs a phone with notifications + location on */}
           {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
