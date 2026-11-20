@@ -35,6 +35,10 @@ export async function myPayout(userId: string): Promise<MyPayout | null> {
 
 export type SetPayoutResult = "ok" | "bank" | "account" | "holder" | "notHelper";
 
+function missingTestHelperColumn(error: { code?: string; message?: string }): boolean {
+  return (error.code === "42703" || error.code === "PGRST204") && /\btest_helper\b/.test(error.message ?? "");
+}
+
 /**
  * Add or change the account. It must be in the helper's own ID-checked name (so a stolen phone
  * can't send someone's pay elsewhere) — then it counts as checked. Helpers without a checked name
@@ -43,12 +47,22 @@ export type SetPayoutResult = "ok" | "bank" | "account" | "holder" | "notHelper"
  */
 export async function setPayout(userId: string, input: { bank: string; accountNumber: string; holderName: string }): Promise<SetPayoutResult> {
   const db = createAdminClient();
-  const { data: p } = await db
+  let { data: p, error } = await db
     .from("profiles")
     .select("role, helper_status, verified_name, test_helper")
     .eq("id", userId)
-    .maybeSingle<{ role: string; helper_status: string | null; verified_name: string | null; test_helper: boolean }>();
-  if (!p || p.helper_status !== "approved" || isActiveTestHelper(p)) return "notHelper";
+    .maybeSingle<{ role: string; helper_status: string | null; verified_name: string | null; test_helper?: boolean }>();
+  if (error && missingTestHelperColumn(error)) {
+    const compatible = await db
+      .from("profiles")
+      .select("role, helper_status, verified_name")
+      .eq("id", userId)
+      .maybeSingle<Omit<NonNullable<typeof p>, "test_helper">>();
+    p = compatible.data ? { ...compatible.data, test_helper: false } : null;
+    error = compatible.error;
+  }
+  if (error) throw new Error(`Could not load helper payout eligibility: ${error.message}`);
+  if (!p || p.helper_status !== "approved" || isActiveTestHelper({ test_helper: p.test_helper ?? false })) return "notHelper";
   if (!(BANKS as readonly string[]).includes(input.bank)) return "bank";
   const account = normalizeAccount(input.accountNumber);
   if (!account) return "account";
