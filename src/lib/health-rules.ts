@@ -21,8 +21,9 @@ export function tickHealth(hb: HeartbeatRow | null, now: number): TickHealth {
   if (!hb) return { state: "never" };
   const ran = Date.parse(hb.last_run_at);
   const agoMs = Math.max(0, now - ran);
-  if (!Number.isFinite(ran) || agoMs > TICK_STALE_MS) return { state: "stopped", agoMs: Number.isFinite(ran) ? agoMs : Infinity };
+  if (!Number.isFinite(ran) || ran > now + 5_000 || agoMs > TICK_STALE_MS) return { state: "stopped", agoMs: Number.isFinite(ran) ? agoMs : Infinity };
   const ok = hb.last_ok_at ? Date.parse(hb.last_ok_at) : NaN;
   if (hb.last_error && !(ok >= ran)) return { state: "failing", agoMs, error: hb.last_error };
+  if (!Number.isFinite(ok) || ok < ran || ok > now + 5_000) return { state: "stopped", agoMs };
   return { state: "ok", agoMs };
 }

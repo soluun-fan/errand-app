@@ -101,7 +101,7 @@ export function TaskMap({
         m.on("click", () => {
           if (openUrlRef.current) window.open(openUrlRef.current, "_blank", "noopener,noreferrer");
         });
-        m.on("load", () => setReady(true));
+        m.on("load", () => { setReady(true); setFailed(false); });
         map.current = m;
       })
       .catch(() => setFailed(true));
@@ -174,10 +174,10 @@ export function TaskMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ready]);
 
-  if (failed) return <div className={`flex items-center justify-center bg-fill p-4 text-center text-sm text-ink-2 ${className}`}>{t("map.failed")}</div>;
   return (
     <div className={`relative overflow-hidden ${rounded ? "rounded-card border border-line" : ""} ${className}`}>
       <div ref={box} className={`absolute inset-0 h-full w-full ${openUrl ? "cursor-pointer" : ""}`} role="region" aria-label={t("map.label")} />
+      {failed && <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-sm text-ink-2">{t("map.failed")}</div>}
       {openUrl && (
         <a
           href={openUrl}

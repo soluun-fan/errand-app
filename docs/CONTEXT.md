@@ -4,6 +4,13 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-21 audit: tracking can be retried, consent changes update the controls immediately,
+and online failures are shown instead of silently ignored. Going offline stays available when
+device permissions are lost. Scheduler authentication handles malformed credentials safely;
+heartbeat and lease-release failures now propagate. Live read-only checks found tracking tables
+present, but `/api/health` returned 503 and the last successful tick was November 15 at 00:29
+Ulaanbaatar time despite active pg_cron runs. Scheduler repair remains an operational follow-up._
+
 _2026-11-20 tracking repair: worker location now runs in the signed-in layout across navigation,
 with periodic samples for stationary helpers and explicit per-job sharing. Customer maps expire
 stale coordinates locally and show tracking status. `npm run check:live` verifies the API schema

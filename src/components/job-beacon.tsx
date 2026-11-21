@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { setJobLocationSharing } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
 import { currentPosition } from "@/lib/location-client";
 import { useWorkerLocation } from "./worker-location";
@@ -18,8 +17,8 @@ export function JobBeacon({ dealId }: { dealId: string }) {
     setBusy(true);
     try {
       if (!sharing) await currentPosition(); // Ask permission on the worker's tap, before saving consent.
-      if (!(await setJobLocationSharing(dealId, !sharing))) throw new Error("Job ended");
-      await location?.reload();
+      if (!location) throw new Error("Location unavailable");
+      await location.setSharing(dealId, !sharing);
       setFailed(false);
     } catch { setFailed(true); }
     finally { setBusy(false); }
@@ -32,5 +31,7 @@ export function JobBeacon({ dealId }: { dealId: string }) {
     <p className="text-sm text-ink-2">{t("job.locationHint")}</p>
     {(location?.state?.available === false || (!location?.state && location?.status === "unavailable")) && <p role="status">{t("job.locationUnavailable")}</p>}
     {(failed || (sharing && ["denied", "unavailable"].includes(location?.status ?? ""))) && <p role="status">{t("job.locationError")}</p>}
+    {location && (location.state?.available === false || location.status === "unavailable" || location.status === "denied") &&
+      <button type="button" className={btn.text} disabled={busy} onClick={() => void location.retry()}>{t("common.retry")}</button>}
   </section>;
 }

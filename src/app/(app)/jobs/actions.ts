@@ -49,16 +49,18 @@ const coord = (v: FormDataEntryValue | null, lim: number) => {
 };
 
 /** Online / offline + radius (+ position if the browser gave one). Approved helpers only. */
-export async function setPresence(form: FormData): Promise<void> {
+export async function setPresence(form: FormData): Promise<ActionResult> {
   const viewer = await helperViewer();
-  if (!viewer.actor.helperApproved) return;
+  const t = await getT();
+  // Going offline must remain possible after approval or device permissions are lost.
+  if (form.get("online") === "on" && !viewer.actor.helperApproved) return { error: t("error.forbidden") };
   // no bank account, no work: going online waits until there is one
   if (form.get("online") === "on" && !isActiveTestHelper(viewer.profile) && !(await hasPayout(viewer.profile.id))) redirect("/helper/bank");
   // a phone with notifications and location on (the position comes with this request)
   if (form.get("online") === "on") {
     const hasPos = coord(form.get("lat"), 90) !== null && coord(form.get("lng"), 180) !== null;
     const missing = (await workReadyMissing(viewer.profile)).filter((s) => !(s === "location" && hasPos));
-    if (missing.length) return; // the page shows the checklist; nothing goes online
+    if (missing.length) return { error: t("workReady.blocked", { steps: missing.map(s => t(`workReady.short.${s}`)).join(", ") }) };
   }
   const radius = Number(form.get("radius"));
   const row: Record<string, unknown> = {
@@ -71,6 +73,7 @@ export async function setPresence(form: FormData): Promise<void> {
   if (lat !== null && lng !== null) Object.assign(row, { lat, lng, updated_at: new Date().toISOString() });
   await createAdminClient().from("helper_presence").upsert(row).throwOnError();
   refresh();
+  return { done: true };
 }
 
 /** The helper's position when they turn location on (work-ready check), online or not. */

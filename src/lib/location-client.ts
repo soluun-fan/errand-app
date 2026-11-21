@@ -5,7 +5,14 @@ export type LocationStatus = "locating" | "live" | "denied" | "unavailable";
 export function currentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error("Geolocation unavailable"));
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
+    navigator.geolocation.getCurrentPosition((p) => {
+      const age = Date.now() - p.timestamp;
+      if (!Number.isFinite(age) || age < -5_000 || age > 30_000 ||
+        !Number.isFinite(p.coords.latitude) || Math.abs(p.coords.latitude) > 90 ||
+        !Number.isFinite(p.coords.longitude) || Math.abs(p.coords.longitude) > 180) {
+        reject(new Error("Invalid or stale position"));
+      } else resolve(p);
+    }, reject, {
       enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000,
     });
   });
@@ -25,8 +32,6 @@ export function startLocationUpdates(
     try {
       const p = await currentPosition();
       if (!active || document.visibilityState !== "visible") return;
-      const age = Date.now() - p.timestamp;
-      if (!Number.isFinite(age) || age < -5_000 || age > 30_000) throw new Error("Stale position");
       await send(p.coords.latitude, p.coords.longitude);
       if (active) status("live");
     } catch (error) {

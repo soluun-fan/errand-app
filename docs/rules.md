@@ -85,6 +85,14 @@ Split sums to held on every path · no double release · illegal transitions rej
   Customers see only their own task's current assigned helper, and coordinates expire after 90
   seconds even if refreshes fail. Stopping, finishing or changing helper deletes sharing; updates
   cannot recreate it. Foreground web tracking pauses when the app is hidden or the screen is locked.
+- **Tracking recovery (2026-11-21):** reject stale or invalid browser samples before going online
+  or requesting sharing. A successful consent change immediately updates its control even if a
+  subsequent read fails; retry is available after permission or connection failures. Readiness
+  failures return a visible error. Going offline does not require working GPS, push or approval;
+  an already-online helper retains the availability control when device permissions fail.
+- **Scheduler health (2026-11-21):** healthy means a valid, recent successful heartbeat for the
+  latest run. Missing success or future timestamps cannot pass. Failed heartbeat writes and lease
+  releases fail the request; malformed multibyte credentials return 401 instead of throwing.
 - **Errand lifecycle (2026-11-13, supersedes "pay at posting" above):** post free → `open` (dispatched to helpers, nothing held) → helpers `apply` ("Хийж чадна"; Instant = set price, Custom = optional `price` quote) → the customer `choose`s one — or, with "Choose for me" (`details.autoPick`), the system picks the best-ranked applicant 3 min after the first application → `awaiting_payment` with `payBy` = +10 min → provider webhook `confirm_payment` → `matched` (held) → `in_progress` → `check` → `released`. A match not paid in time (`expire`) goes back to `open` (event `payment_timeout`; the chosen offer is dropped and `fee` resets to `postedFee`), or `expired` if the match deadline passed too. Before payment the helper may withdraw without a penalty (`helper_withdrew`, back to `open`); the customer may cancel `open`/`awaiting_payment` for free. Legacy deals paid at posting still work (accept → `matched`, cancel/expire refund).
 - **Applications:** max 5 per task (dispatch stops once full); Instant applications lapse after 15 min; a helper may hold at most 3 open applications (server check, `MAX_PENDING_APPLICATIONS`) and can take one back (`withdraw_offer`); once a helper is paid for one task, their other applications are withdrawn and any other unpaid match is released (`releaseOtherCommitments`). Applicants are shown best-first with the dispatch score; the top one is "Санал болгосон". `accept` (first-to-accept) stays in the engine for legacy/urgent use but the app no longer offers it.
 - **Extra rules:** night minimum fee 6,000 (22:00–07:00 UB time) · no helper by `matchBy` (30 min for Now, the scheduled time otherwise) → `expired`, nothing charged · title ≤ 40, description ≤ 500 chars · task pin must be inside Mongolia.

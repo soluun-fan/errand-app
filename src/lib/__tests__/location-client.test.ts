@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { startLocationUpdates } from "../location-client";
+import { currentPosition, startLocationUpdates } from "../location-client";
 
 let stop: (() => void) | undefined;
 let documentMock: EventTarget & { visibilityState: string };
@@ -78,4 +78,32 @@ it("reports denied permission and never sends cached, stale coordinates", async 
   await vi.advanceTimersByTimeAsync(15_000);
   expect(send).not.toHaveBeenCalled();
   expect(status).toHaveBeenLastCalledWith("unavailable");
+});
+
+it("rejects invalid or stale samples before using them to go online or grant sharing", async () => {
+  for (const p of [
+    { ...position(), timestamp: Date.now() - 60_000 },
+    { ...position(), timestamp: Date.now() + 60_000 },
+    { ...position(), coords: { latitude: NaN, longitude: 106.92 } },
+    { ...position(), coords: { latitude: 91, longitude: 106.92 } },
+    { ...position(), coords: { latitude: 47.92, longitude: -181 } },
+  ]) {
+    locate.mockImplementationOnce(ok => ok(p));
+    await expect(currentPosition()).rejects.toThrow("Invalid or stale position");
+  }
+});
+
+it("discards a GPS result delivered after the app moved to the background", async () => {
+  let deliver!: (p: unknown) => void;
+  locate.mockImplementationOnce(ok => { deliver = ok; });
+  const send = vi.fn().mockResolvedValue(undefined);
+  stop = startLocationUpdates(send, vi.fn());
+  documentMock.visibilityState = "hidden";
+  deliver(position());
+  await vi.advanceTimersByTimeAsync(0);
+  expect(send).not.toHaveBeenCalled();
+  documentMock.visibilityState = "visible";
+  documentMock.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(send).toHaveBeenCalledTimes(1);
 });

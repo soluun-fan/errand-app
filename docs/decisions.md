@@ -1,5 +1,11 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-21 — Tracking recovery and deployment audit.** Keep worker opt-out available when
+  device permissions fail, provide retry for location errors, and acknowledge saved sharing consent
+  without requiring a second successful read. Preserve the map and navigation link after a tile
+  error. Do not equate pg_cron's successful HTTP enqueue with a healthy application tick: require
+  a recent successful app heartbeat and propagate database write failures. No new migrations.
+
 - **2026-11-20 — Foreground worker tracking.** Keep per-job sharing opt-in and separate from dispatch
   presence. Sample in the signed-in layout so chat navigation and stationary workers retain fresh
   locations. Surface failed saves and expire customer markers after 90 seconds without a fresh

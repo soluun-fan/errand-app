@@ -15,4 +15,10 @@ describe("scheduler health", () => {
   it("failing when the last run errored (even if runs keep coming)", () => {
     expect(tickHealth({ last_run_at: ago(10), last_ok_at: ago(400), last_error: "db down" }, NOW)).toEqual({ state: "failing", agoMs: 10_000, error: "db down" });
   });
+  it("never reports healthy without a valid successful heartbeat for the latest run", () => {
+    for (const last_ok_at of [null, "invalid", ago(400), ago(-60)]) {
+      expect(tickHealth({ last_run_at: ago(10), last_ok_at, last_error: null }, NOW).state).toBe("stopped");
+    }
+    expect(tickHealth({ last_run_at: ago(-60), last_ok_at: ago(-60), last_error: null }, NOW).state).toBe("stopped");
+  });
 });

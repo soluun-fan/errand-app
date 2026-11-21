@@ -6,7 +6,10 @@ async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY are required");
-  const db = createClient(url, key, { auth: { persistSession: false } });
+  const db = createClient(url, key, {
+    auth: { persistSession: false },
+    global: { fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(15_000) }) },
+  });
   let failed = false;
   for (const [table, columns] of [
     ["job_locations", "deal_id,helper_id,lat,lng,updated_at"],
@@ -15,12 +18,12 @@ async function main() {
   ]) {
     // HEAD can hide PostgREST's missing-table error. A zero-row GET checks the actual API schema.
     const { error } = await db.from(table).select(columns).limit(0);
-    console.log(`${error ? "FAIL" : "OK"} ${table}${error ? ` (${error.code})` : ""}`);
+    console.log(`${error ? "FAIL" : "OK"} ${table}${error ? ` (${error.code || "connection failed"})` : ""}`);
     failed ||= Boolean(error);
   }
   const { data, error } = await db.rpc("scheduler_status");
   if (error) {
-    console.log(`FAIL scheduler (${error.code})`);
+    console.log(`FAIL scheduler (${error.code || "connection failed"})`);
     failed = true;
   } else {
     const configured = Boolean(data?.tick_url && data?.secret_set && data?.job?.active);

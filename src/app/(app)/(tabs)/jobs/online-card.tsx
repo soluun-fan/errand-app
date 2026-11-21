@@ -29,6 +29,8 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
   const [pending, start] = useTransition();
   const [geo, setGeo] = useState<Geo>("idle");
   const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
   const location = useWorkerLocation();
 
   const save = (patch: { online?: boolean; radius?: number; lat?: number; lng?: number }) => {
@@ -41,7 +43,9 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
     }
     start(async () => {
       try {
-        await setPresence(f);
+        const result = await setPresence(f);
+        if (result.error) { setError(result.error); return; }
+        setError(null);
         await location?.reload();
         setFailed(false);
       } catch { setFailed(true); }
@@ -49,10 +53,12 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
   };
 
   const goOnline = async () => {
+    if (locating || pending) return;
     if (!("geolocation" in navigator)) {
       setGeo("unsupported");
       return;
     }
+    setLocating(true);
     try {
       const p = await currentPosition();
       setGeo("on");
@@ -60,7 +66,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
     } catch (error) {
       setGeo((error as { code?: number })?.code === 1 ? "denied" : "idle");
       setFailed(true);
-    }
+    } finally { setLocating(false); }
   };
 
   return (
@@ -76,7 +82,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
           role="switch"
           aria-checked={online}
           aria-label={online ? t("job.offline") : t("job.online")}
-          disabled={pending}
+          disabled={pending || locating}
           onClick={() => (online ? save({ online: false }) : goOnline())}
           className={`relative h-9 w-16 flex-none rounded-full transition-colors disabled:opacity-60 ${online ? "bg-held" : "bg-ink-3"}`}
         >
@@ -93,7 +99,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
               type="button"
               role="radio"
               aria-checked={radiusKm === r.km}
-              disabled={pending}
+              disabled={pending || locating}
               onClick={() => save({ radius: r.km })}
               className={chipClass(radiusKm === r.km)}
             >
@@ -116,6 +122,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
         </span>
       </div>
       {failed && <p role="status" className="text-sm text-danger">{t("job.locationError")}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <PushToggle />
     </section>
   );

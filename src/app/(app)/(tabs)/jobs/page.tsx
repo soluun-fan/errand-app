@@ -229,7 +229,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
-        <WorkReady enforce={!(await deviceCheckBypassed(profile))}>
+        <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
           <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
         </WorkReady>
         <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />

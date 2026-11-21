@@ -15,7 +15,7 @@ export async function withLease<T>(name: string, seconds: number, fn: () => Prom
   try {
     return { ran: true, result: await fn() };
   } finally {
-    await db.rpc("release_lease", { p_name: name });
+    await db.rpc("release_lease", { p_name: name }).throwOnError();
   }
 }
 
@@ -38,5 +38,5 @@ export async function heartbeat(name: string, outcome: { ok: true; result: unkno
       outcome.ok
         ? { name, last_run_at: now, last_ok_at: now, last_error: null, last_result: outcome.result }
         : { name, last_run_at: now, last_error: outcome.error.slice(0, 1000) },
-    );
+    ).throwOnError();
 }
