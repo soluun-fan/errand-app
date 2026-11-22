@@ -116,6 +116,7 @@ export default async function EarningsPage() {
                 </span>
                 {w.status !== "requested" && w.decidedAt !== null && <span className="block text-sm text-ink-2">{t(w.status === "sent" ? "earnings.sentAt" : "earnings.failedAt", { time: fmtDateTime(w.decidedAt, locale) })}</span>}
                 <span className="block break-words text-sm text-ink-2">{w.bank} {w.account} · {w.reference}</span>
+                {w.bankReference && <span className="block break-words text-sm text-ink-2">{t("earnings.bankReference", { reference: w.bankReference })}</span>}
               </span>
               <span className={`font-bold tabular-nums ${w.status === "failed" ? "text-ink-3 line-through" : ""}`}>{fmtMoney(w.amount)}</span>
             </div>

@@ -172,7 +172,8 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
   const now = new Date().toISOString();
   if (decision === "approve") {
     const { data: pay } = await db.from("payout_accounts").select("bank, account_number, holder_name").eq("user_id", a.user_id).single();
-    await db.from("payout_accounts").update({ verified_at: now }).eq("user_id", a.user_id).throwOnError();
+    // Reviewing an ID does not establish who owns the submitted bank account.
+    // Account ownership is checked separately against information from the bank.
     const { data: prof } = await db.from("profiles").select("role").eq("id", a.user_id).single();
     await db
       .from("profiles")

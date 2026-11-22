@@ -18,3 +18,8 @@
 - **Helper approvals**: ID photo vs selfie vs ДАН name side by side; approve / reject with reason.
 - **Ledger**: filter by deal/user/date; red banner if held total ≠ bank balance.
 - Every Ops action is logged with operator + time and shown on the deal timeline.
+- **Bank ownership and withdrawals:** identity approval alone does not verify an account.
+  For the current manual process, Ops looks up the account at the bank, records its returned
+  holder name and evidence reference, and approves only the reviewed account snapshot. A
+  completed manual payout needs the bank transaction reference; the worker can see it in
+  their payment history. Automatic bank transfers remain unconnected.

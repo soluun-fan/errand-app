@@ -18,7 +18,10 @@ describe("KYC rules", () => {
   });
 
   it("accepts Mongolian IBANs and plain account numbers, nothing else", () => {
-    expect(normalizeAccount("mn12 0005 0050 0512 3456")).toBe("MN120005005005123456"); // MN + 18 digits
+    // Published MOD97 example in the Bank of Mongolia's IBAN specification.
+    expect(normalizeAccount("mn35 0005 0011 0904 2377")).toBe("MN350005001109042377");
+    expect(normalizeAccount("MN360005001109042377")).toBeNull(); // wrong check digits
+    expect(normalizeAccount("MN350005001109042378")).toBeNull(); // mistyped account
     expect(normalizeAccount("MN12 0005 0050 0512 3456 78")).toBeNull(); // too long
     expect(normalizeAccount("5005-123-456")).toBe("5005123456");
     expect(normalizeAccount("abc")).toBeNull();

@@ -4,6 +4,11 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-22 bank verification: saving a matching holder name or approving ID documents no
+longer verifies account ownership. Ops records a separate bank check and a transaction reference
+for manual payouts. Outgoing bank transfers are not connected; see
+[bank-payout-integration.md](bank-payout-integration.md) for the required provider capabilities._
+
 _2026-11-22 service-model review: Guigere's proposed provider agreement, job order, customer
 booking terms and professional-review questions are in [managed-service-review.md](managed-service-review.md).
 They are drafts, not legal approval or active terms. Earnings now separates approved funds,

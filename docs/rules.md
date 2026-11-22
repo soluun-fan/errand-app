@@ -79,6 +79,12 @@ Split sums to held on every path · no double release · illegal transitions rej
 
 ## As implemented (keep in sync with `src/lib/engine`)
 
+- **Bank verification (2026-11-22):** IBAN checksums validate syntax, not ownership. A typed
+  name or approved ID cannot automatically set `payout_accounts.verified_at`. Ops records
+  independent bank ownership evidence against an unchanged account snapshot. Manual payout
+  decisions require a bank transaction reference. There is no automatic bank-transfer adapter;
+  historical verification flags must be rechecked before one is enabled.
+
 - **Earnings presentation (2026-11-22):** only ledger `payable` is ready to request; `payout`
   means a transfer has been requested, not sent. Recent job fees exclude direct-pay and
   organisation-payee jobs from personal pending amounts. Active work, completion review,

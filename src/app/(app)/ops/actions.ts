@@ -356,21 +356,31 @@ export async function decideWithdrawalAction(_prev: ActionResult, form: FormData
   if (!viewer) return { error: t("ops.notAdmin") };
   const id = parseOr(Uuid, String(form.get("id") ?? ""));
   const sent = form.get("sent") === "1";
+  if (!["0", "1"].includes(String(form.get("sent")))) return { error: t("error.generic") };
   const note = String(form.get("note") ?? "").trim().slice(0, 300) || null;
+  const bankReference = String(form.get("bankReference") ?? "").trim();
   if (!id) return { error: t("error.generic") };
   if (!sent && !note) return { error: t("opsWithdraw.noteNeeded") };
-  if (!(await decideWithdrawal(id, viewer.profile.id, sent, note))) return { error: t("error.changed") };
+  if (sent && (bankReference.length < 3 || bankReference.length > 120)) return { error: t("opsWithdraw.referenceNeeded") };
+  if (!(await decideWithdrawal(id, viewer.profile.id, sent, note, bankReference))) return { error: t("error.changed") };
   refresh();
   return { done: true };
 }
 
-/** Ops compared the account holder with the helper's ID. */
+/** Ops independently looked up the account at the bank and records the supporting reference. */
 export async function checkAccountAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const t = await getT();
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
   const userId = parseOr(Uuid, String(form.get("userId") ?? ""));
-  if (!userId || !(await markAccountChecked(userId, viewer.profile.id))) return { error: t("error.changed") };
+  if (!userId) return { error: t("error.changed") };
+  const result = await markAccountChecked(userId, viewer.profile.id, {
+    updatedAt: String(form.get("accountUpdatedAt") ?? ""),
+    bankHolderName: String(form.get("bankHolderName") ?? ""),
+    reference: String(form.get("bankReference") ?? ""),
+  });
+  if (result === "changed") return { error: t("error.changed") };
+  if (result !== "ok") return { error: t(`opsWithdraw.checkError.${result}`) };
   refresh();
   return { done: true };
 }

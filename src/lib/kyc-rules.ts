@@ -10,7 +10,7 @@ export type KycDoc = (typeof KYC_DOCS)[number];
 /** ID images are deleted this long after Ops decides. */
 export const KYC_RETENTION_DAYS = 30;
 export const MIN_AGE = 18;
-/** kyc_level after approval: 3 = ID + selfie + payout checked. Level 4 is retained for legacy care records. */
+/** kyc_level after identity approval; bank ownership requires a separate check. Level 4 is legacy care data. */
 export const KYC_LEVEL_VERIFIED = 3;
 /** Legacy care qualification only; not collected or shown as a general badge for new helpers. */
 export const KYC_LEVEL_BACKGROUND = 4;
@@ -32,10 +32,17 @@ export function isAdult(birthIso: string, now: Date): boolean {
   return ageOn(b, now) >= MIN_AGE;
 }
 
-/** Account number as stored: an "MN" + 18-digit IBAN, or 6–20 digits; spaces / dashes removed. */
+/** Normalise account syntax. IBAN checksum validation does NOT prove existence or ownership. */
 export function normalizeAccount(raw: string): string | null {
   const v = raw.toUpperCase().replace(/[\s-]/g, "");
-  return /^(MN\d{18}|\d{6,20})$/.test(v) ? v : null;
+  if (/^\d{6,20}$/.test(v)) return v; // legacy domestic numbers need a bank lookup
+  if (!/^MN\d{18}$/.test(v)) return null;
+  // ISO 13616 / MOD97-10: move the prefix to the end, M = 22, N = 23.
+  // Keep each step small instead of rounding a 24-digit number through Number.
+  const digits = `${v.slice(4)}2223${v.slice(2, 4)}`;
+  let remainder = 0;
+  for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97;
+  return remainder === 1 ? v : null;
 }
 
 export function maskAccount(acct: string): string {

@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyButton } from "@/components/copy-button";
 import { InlineAction } from "@/components/inline-action";
-import { Card, FlowHeader, Note, btn, field } from "@/components/ui";
+import { Card, FlowHeader, Note, btn, field, fieldLabel } from "@/components/ui";
+import { ConfirmSheet } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
@@ -42,7 +43,7 @@ export default async function OpsWithdrawalsPage() {
             <span className="text-[20px] font-bold tabular-nums">{fmtMoney(w.amount)}</span>
           </div>
           <p className="text-[13px] text-ink-2">{fmtDateTime(w.requestedAt, locale)}</p>
-          <dl className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 text-[15px]">
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-[15px]">
             {(
               [
                 [t("kyc.bank"), w.bank],
@@ -54,16 +55,29 @@ export default async function OpsWithdrawalsPage() {
             ).map(([k, v]) => (
               <div key={k} className="contents">
                 <dt className="text-ink-2">{k}</dt>
-                <dd className="font-semibold tabular-nums">{v}</dd>
+                <dd className="break-all font-semibold tabular-nums">{v}</dd>
                 <CopyButton text={v} label={k} />
               </div>
             ))}
           </dl>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
             <InlineAction action={decideWithdrawalAction} fields={{ id: w.id, sent: "0" }} label={t("opsWithdraw.failed")} className={`${btn.secondary} w-full`}>
               <input name="note" maxLength={300} placeholder={t("opsWithdraw.notePh")} className={field} />
             </InlineAction>
-            <InlineAction action={decideWithdrawalAction} fields={{ id: w.id, sent: "1" }} label={t("opsWithdraw.sent")} className={`${btn.primary} w-full`} />
+            <ConfirmSheet
+              action={decideWithdrawalAction}
+              fields={{ id: w.id, sent: "1" }}
+              trigger={t("opsWithdraw.sent")}
+              triggerClass={`${btn.primary} w-full`}
+              title={t("opsWithdraw.sent")}
+              body={t("opsWithdraw.sentBody", { amount: fmtMoney(w.amount), bank: w.bank, account: w.accountNumber })}
+              confirmLabel={t("opsWithdraw.recordSent")}
+            >
+              <label className={fieldLabel}>
+                {t("opsWithdraw.bankReference")}
+                <input name="bankReference" required minLength={3} maxLength={120} className={field} autoComplete="off" />
+              </label>
+            </ConfirmSheet>
           </div>
         </Card>
       ))}
@@ -81,9 +95,18 @@ export default async function OpsWithdrawalsPage() {
                 {a.verifiedName ? ` · ${a.verifiedName}` : ""}
               </p>
               <p className="text-[15px]">
-                {a.bank} · {a.accountMasked} · {a.holderName}
+                {a.bank} · <span className="break-all tabular-nums">{a.accountNumber}</span> · {a.holderName}
               </p>
-              <InlineAction action={checkAccountAction} fields={{ userId: a.userId }} label={t("opsWithdraw.checkOk")} className={`${btn.secondary} w-full`} />
+              <InlineAction action={checkAccountAction} fields={{ userId: a.userId, accountUpdatedAt: a.updatedAt }} label={t("opsWithdraw.checkOk")} className={`${btn.secondary} w-full`}>
+                <label className={fieldLabel}>
+                  {t("opsWithdraw.bankHolder")}
+                  <input name="bankHolderName" required maxLength={80} className={field} autoComplete="off" />
+                </label>
+                <label className={fieldLabel}>
+                  {t("opsWithdraw.checkReference")}
+                  <input name="bankReference" required minLength={3} maxLength={120} className={field} autoComplete="off" />
+                </label>
+              </InlineAction>
             </Card>
           ))}
         </section>

@@ -1,5 +1,11 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-22 — Bank ownership is separate from identity approval.** A typed name and an ID
+  check cannot verify a bank account. New/changed accounts require an independent bank check;
+  manual Ops review records evidence against the exact account snapshot. Manual transfer
+  completion requires a bank transaction reference. Real automatic sending remains blocked on
+  the business bank/provider connection; [integration requirements](bank-payout-integration.md).
+
 - **2026-11-22 — Guigere service-model review and earnings clarity.** Prepare the standing
   provider agreement, individual job order and customer booking terms for Mongolian counsel,
   accountant and payment-provider review; see [review packet](managed-service-review.md).

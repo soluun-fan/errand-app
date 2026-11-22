@@ -1,5 +1,5 @@
 import "server-only";
-import { maskAccount } from "@/lib/kyc-rules";
+import { cleanLegalName, maskAccount, payoutNameOk } from "@/lib/kyc-rules";
 import { notify } from "@/lib/push";
 import { getRules } from "@/lib/rules";
 import { adminIds, audit } from "@/lib/safety";
@@ -26,6 +26,8 @@ export interface Withdrawal {
   /** masked for the helper's own view */
   account: string;
   bank: string;
+  /** Bank transaction reference recorded by Ops; not an API settlement confirmation. */
+  bankReference: string | null;
 }
 
 interface Row {
@@ -66,6 +68,7 @@ const toView = (r: Row): Withdrawal => ({
   decidedAt: r.decided_at ? Date.parse(r.decided_at) : null,
   account: maskAccount(r.account_number),
   bank: r.bank,
+  bankReference: r.status === "sent" && r.note?.startsWith("Bank transaction: ") ? r.note.slice("Bank transaction: ".length) : null,
 });
 
 export async function earningsSummary(helperId: string): Promise<EarningsSummary> {
@@ -147,10 +150,13 @@ export async function withdrawalQueue(): Promise<QueueItem[]> {
 }
 
 /** Ops: sent from the bank app (or it failed — the money goes back to what we owe the helper). Logged; the helper is told. */
-export async function decideWithdrawal(id: string, opsId: string, sent: boolean, note: string | null): Promise<boolean> {
-  const { data, error } = await createAdminClient().rpc("decide_withdrawal", { p_id: id, p_ops: opsId, p_sent: sent, p_note: note }).single<Row>();
+export async function decideWithdrawal(id: string, opsId: string, sent: boolean, note: string | null, bankReference?: string): Promise<boolean> {
+  const reference = bankReference?.trim();
+  if (sent && (!reference || reference.length < 3 || reference.length > 120)) return false;
+  const recordedNote = sent ? `Bank transaction: ${reference}` : note;
+  const { data, error } = await createAdminClient().rpc("decide_withdrawal", { p_id: id, p_ops: opsId, p_sent: sent, p_note: recordedNote }).single<Row>();
   if (error || !data) return false;
-  await audit(opsId, sent ? "withdrawal.sent" : "withdrawal.failed", id, { helperId: data.helper_id, amount: data.amount, reference: data.reference, note });
+  await audit(opsId, sent ? "withdrawal.sent" : "withdrawal.failed", id, { helperId: data.helper_id, amount: data.amount, reference: data.reference, note: recordedNote, method: "manual_bank" });
   await notify([data.helper_id], {
     title: sent ? "push.withdrawSentTitle" : "push.withdrawFailedTitle",
     body: sent ? "push.withdrawSentBody" : "push.withdrawFailedBody",
@@ -167,16 +173,21 @@ export interface AccountToCheck {
   verifiedName: string | null;
   bank: string;
   accountMasked: string;
+  /** Ops alone needs the complete destination to query the bank. */
+  accountNumber: string;
   holderName: string;
+  updatedAt: string;
 }
 
-/** Ops: bank accounts added without an ID-checked name — compare the holder with the ID before payouts. */
+/** Ops: independently check account ownership using the bank, separately from identity review. */
 export async function accountsToCheck(): Promise<AccountToCheck[]> {
   const db = createAdminClient();
-  const { data } = await db.from("payout_accounts").select("user_id, bank, account_number, holder_name").is("verified_at", null).limit(100).returns<{ user_id: string; bank: string; account_number: string; holder_name: string }[]>();
+  const { data, error } = await db.from("payout_accounts").select("user_id, bank, account_number, holder_name, updated_at").is("verified_at", null).limit(100).returns<{ user_id: string; bank: string; account_number: string; holder_name: string; updated_at: string }[]>();
+  if (error) throw new Error(error.message);
   const rows = data ?? [];
   if (!rows.length) return [];
-  const { data: people } = await db.from("profiles").select("id, name, verified_name").in("id", rows.map((r) => r.user_id)).returns<{ id: string; name: string | null; verified_name: string | null }[]>();
+  const { data: people, error: peopleError } = await db.from("profiles").select("id, name, verified_name").in("id", rows.map((r) => r.user_id)).returns<{ id: string; name: string | null; verified_name: string | null }[]>();
+  if (peopleError) throw new Error(peopleError.message);
   const p = new Map((people ?? []).map((x) => [x.id, x]));
   return rows.map((r) => ({
     userId: r.user_id,
@@ -184,16 +195,44 @@ export async function accountsToCheck(): Promise<AccountToCheck[]> {
     verifiedName: p.get(r.user_id)?.verified_name ?? null,
     bank: r.bank,
     accountMasked: maskAccount(r.account_number),
+    accountNumber: r.account_number,
     holderName: r.holder_name,
+    updatedAt: r.updated_at,
   }));
 }
 
-/** Ops checked the holder name against the helper's ID: payouts may go there now. Logged. */
-export async function markAccountChecked(userId: string, opsId: string): Promise<boolean> {
-  const { data } = await createAdminClient().from("payout_accounts").update({ verified_at: new Date().toISOString() }).eq("user_id", userId).is("verified_at", null).select("user_id");
-  if (!data?.length) return false;
-  await audit(opsId, "payout.checked", userId, {});
-  return true;
+/** Records a manual BANK check; this is not an automatic bank API verification. */
+export async function markAccountChecked(userId: string, opsId: string, evidence: {
+  updatedAt: string;
+  bankHolderName: string;
+  reference: string;
+}): Promise<"ok" | "changed" | "identity" | "holder" | "evidence"> {
+  const reference = evidence.reference.trim();
+  const holder = cleanLegalName(evidence.bankHolderName);
+  if (!holder || reference.length < 3 || reference.length > 120 || !Number.isFinite(Date.parse(evidence.updatedAt))) return "evidence";
+  const db = createAdminClient();
+  const [account, profile] = await Promise.all([
+    db.from("payout_accounts").select("bank, account_number, holder_name, updated_at, verified_at").eq("user_id", userId).maybeSingle<{ bank: string; account_number: string; holder_name: string; updated_at: string; verified_at: string | null }>(),
+    db.from("profiles").select("verified_name").eq("id", userId).maybeSingle<{ verified_name: string | null }>(),
+  ]);
+  if (account.error) throw new Error(account.error.message);
+  if (profile.error) throw new Error(profile.error.message);
+  const a = account.data;
+  if (!a || a.verified_at || a.updated_at !== evidence.updatedAt) return "changed";
+  if (!profile.data?.verified_name) return "identity";
+  if (!payoutNameOk(profile.data.verified_name, holder) || !payoutNameOk(a.holder_name, holder)) return "holder";
+  // Persist evidence before approving. If the account changes meanwhile, CAS refuses approval.
+  // The audit event records a check of this specific snapshot, not a successful approval.
+  await audit(opsId, "payout.bank_check_recorded", userId, {
+    method: "manual_bank", reference, bank: a.bank, last4: a.account_number.slice(-4), accountUpdatedAt: a.updated_at,
+  });
+  const { data, error } = await db.from("payout_accounts")
+    .update({ verified_at: new Date().toISOString() })
+    .eq("user_id", userId).eq("updated_at", a.updated_at)
+    .eq("bank", a.bank).eq("account_number", a.account_number).eq("holder_name", a.holder_name)
+    .is("verified_at", null).select("user_id");
+  if (error) throw new Error(error.message);
+  return data?.length ? "ok" : "changed";
 }
 
 /** Background job: earnings left unclaimed for `autoPayoutDays` are asked for automatically. */

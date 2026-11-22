@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   responses: [] as Array<{ data: unknown; error: { code?: string; message?: string } | null }>,
   selected: [] as string[],
   from: vi.fn(),
+  upserts: [] as Record<string, unknown>[],
 }));
 
 vi.mock("server-only", () => ({}));
@@ -17,6 +18,7 @@ import { setPayout } from "@/lib/payout";
 beforeEach(() => {
   mocks.responses.length = 0;
   mocks.selected.length = 0;
+  mocks.upserts.length = 0;
   mocks.from.mockImplementation((table: string) => ({
     select: (columns: string) => {
       mocks.selected.push(columns);
@@ -27,7 +29,7 @@ beforeEach(() => {
         }),
       };
     },
-    upsert: () => ({ throwOnError: async () => {} }),
+    upsert: (data: Record<string, unknown>) => { mocks.upserts.push(data); return { throwOnError: async () => {} }; },
     update: () => ({ eq: () => ({ throwOnError: async () => {} }) }),
   }));
 });
@@ -44,6 +46,20 @@ it("allows an approved helper to add a payout account when only test_helper is m
     holderName: "Тест Бат",
   })).resolves.toBe("ok");
   expect(mocks.selected).toEqual(["role, helper_status, verified_name, test_helper", "role, helper_status, verified_name", "account_number"]);
+  expect(mocks.upserts).toHaveLength(1);
+  expect(mocks.upserts[0].verified_at).toBeNull();
+});
+
+it("never verifies a bank account just because the typed holder matches an ID-checked name", async () => {
+  mocks.responses.push({ data: { role: "helper", helper_status: "approved", verified_name: "Тест Бат", test_helper: false }, error: null });
+  await expect(setPayout("user-1", { bank: "Хаан банк", accountNumber: "50000024444", holderName: "Тест Бат" })).resolves.toBe("ok");
+  expect(mocks.upserts[0]).toMatchObject({ verified_at: null, account_number: "50000024444" });
+});
+
+it("rejects an IBAN with a valid shape but a bad checksum before saving it", async () => {
+  mocks.responses.push({ data: { role: "helper", helper_status: "approved", verified_name: "Тест Бат", test_helper: false }, error: null });
+  await expect(setPayout("user-1", { bank: "Хаан банк", accountNumber: "MN360005001109042377", holderName: "Тест Бат" })).resolves.toBe("account");
+  expect(mocks.upserts).toEqual([]);
 });
 
 it("does not convert unrelated profile lookup errors into a not-helper response", async () => {

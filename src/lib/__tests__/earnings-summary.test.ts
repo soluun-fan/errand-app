@@ -41,3 +41,16 @@ it.each(["payable_balance", "account_balance", "withdrawals", "payout_accounts"]
   mocks.results[key] = { data: null, error: { message: "database unavailable" } };
   await expect(earningsSummary("helper-1")).rejects.toThrow("database unavailable");
 });
+
+it("shares a recorded bank reference only for sent payments, without exposing other Ops notes", async () => {
+  const row = { amount: 10000, reference: "PAYOUT-TEST", auto: false, requested_at: "2026-11-22T00:00:00Z", decided_at: "2026-11-22T00:05:00Z", bank: "Хаан банк", account_number: "50000024444" };
+  mocks.results.withdrawals.data = [
+    { ...row, id: "sent", status: "sent", note: "Bank transaction: BANK-123" },
+    { ...row, id: "pending", status: "requested", note: "Bank transaction: BANK-456" },
+    { ...row, id: "failed", status: "failed", note: "Internal review note" },
+  ];
+  const summary = await earningsSummary("helper-1");
+  expect(summary.recent.map(w => w.bankReference)).toEqual(["BANK-123", null, null]);
+  expect(summary.recent[0].account).toBe("•••• 4444");
+  expect(summary.recent[2]).not.toHaveProperty("note");
+});
