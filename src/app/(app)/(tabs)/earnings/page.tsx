@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Note, btn } from "@/components/ui";
 import { CategoryIcon } from "@/components/category-icon";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { ConfirmSheet } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { errandSplit } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { myPayout } from "@/lib/payout";
 import { earningsSummary } from "@/lib/withdrawals";
+import { pendingEarningsStage } from "@/lib/earnings-rules";
 import { withdrawAction } from "./actions";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
@@ -25,21 +27,26 @@ export default async function EarningsPage() {
   const finished = jobs.filter((d) => d.status === "released" && !d.payeeOrgId);
   // older fee-only tasks: the customer paid the helper directly, so the app owes nothing for them
   const viaApp = (d: (typeof jobs)[number]) => d.payMode !== "direct";
-  const waiting = jobs.filter((d) => viaApp(d) && !d.payeeOrgId && ["matched", "in_progress", "check", "disputed"].includes(d.status)).reduce((a, d) => a + net(d), 0);
+  const now = Date.now();
+  const pending = jobs.flatMap((job) => {
+    const stage = pendingEarningsStage(job, now);
+    return stage ? [{ job, stage }] : [];
+  });
   const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
   const testHelper = unverifiedHelpersTestMode && viewer.profile.test_helper;
 
   return (
     <>
       <h1 className="pt-2 text-[24px] font-bold tracking-tight">{t("earnings.title")}</h1>
-      <div className="grid grid-cols-2 gap-3">
+      {(pending.length > 0 || sum.onTheWay > 0) && <AutoRefresh seconds={30} />}
+      <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
           <span className="text-sm font-medium">{t("earnings.available")}</span>
-          <span className="text-[26px] font-bold tabular-nums text-brand-ink">{fmtMoney(sum.available)}</span>
+          <span className="break-words text-[26px] font-bold tabular-nums text-brand-ink">{fmtMoney(sum.available)}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-card bg-fill p-4">
-          <span className="text-sm font-medium text-ink-2">{t("earnings.waiting")}</span>
-          <span className="text-[26px] font-bold tabular-nums">{fmtMoney(waiting)}</span>
+          <span className="text-sm font-medium text-ink-2">{t("earnings.queued")}</span>
+          <span className="break-words text-[26px] font-bold tabular-nums">{fmtMoney(sum.onTheWay)}</span>
         </div>
       </div>
       {sum.onTheWay > 0 && <Note tone="info">{t("earnings.onTheWay", { amount: fmtMoney(sum.onTheWay) })}</Note>}
@@ -71,22 +78,44 @@ export default async function EarningsPage() {
           {t("payout.add")}
         </Link>
       )}
-      <p className="text-[13px] text-ink-2">{t("earnings.rules", { n: sum.perDay })}</p>
+      <p className="text-[13px] text-ink-2">{t("earnings.rules", { n: sum.perDay, days: sum.autoPayoutDays })}</p>
       {jobs.some((d) => d.payeeOrgId) && <Note tone="info">{t("org.workerPay")}</Note>}
+
+      {pending.length > 0 && (
+        <section className="flex flex-col">
+          <h2 className="font-bold">{t("earnings.pendingJobs")}</h2>
+          <p className="mt-1 text-[13px] text-ink-2">{t("earnings.pendingExplain")}</p>
+          {pending.map(({ job, stage }) => (
+            <Link key={job.id} href={`/jobs/${job.id}`} className="press flex min-h-12 items-center gap-3 border-b border-line py-3 last:border-b-0">
+              <CategoryIcon id={job.category} tile size={20} />
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                <span className="block truncate font-semibold">{job.title}</span>
+                <span className={`block text-sm ${stage === "disputed" || stage === "overdue" ? "text-warn" : "text-ink-2"}`}>{t(`earnings.stage.${stage}`)}</span>
+                {job.status === "check" && job.checkUntil !== null && (
+                  <span className="block text-[13px] text-ink-2">{t("earnings.reviewUntil", { time: fmtDateTime(job.checkUntil, locale) })}</span>
+                )}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums">{fmtMoney(net(job))}</span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       {sum.recent.length > 0 && (
         <section className="flex flex-col">
           <h2 className="mb-1 font-bold">{t("earnings.history")}</h2>
           {sum.recent.map((w) => (
             <div key={w.id} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                 <span className="block font-semibold">
                   {t(`earnings.status.${w.status}`)}
                   {w.auto ? ` · ${t("earnings.auto")}` : ""}
                 </span>
                 <span className="block text-sm text-ink-2">
-                  {fmtDateTime(w.requestedAt, locale)} · {w.bank} {w.account} · {w.reference}
+                  {t("earnings.requestedAt", { time: fmtDateTime(w.requestedAt, locale) })}
                 </span>
+                {w.status !== "requested" && w.decidedAt !== null && <span className="block text-sm text-ink-2">{t(w.status === "sent" ? "earnings.sentAt" : "earnings.failedAt", { time: fmtDateTime(w.decidedAt, locale) })}</span>}
+                <span className="block break-words text-sm text-ink-2">{w.bank} {w.account} · {w.reference}</span>
               </span>
               <span className={`font-bold tabular-nums ${w.status === "failed" ? "text-ink-3 line-through" : ""}`}>{fmtMoney(w.amount)}</span>
             </div>

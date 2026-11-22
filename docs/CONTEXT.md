@@ -4,6 +4,12 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-22 service-model review: Guigere's proposed provider agreement, job order, customer
+booking terms and professional-review questions are in [managed-service-review.md](managed-service-review.md).
+They are drafts, not legal approval or active terms. Earnings now separates approved funds,
+payout requests and recent unapproved job fees, with review deadlines and recorded transfer dates.
+The exact bank/provider funds arrangement and contractor obligations remain review items._
+
 _2026-11-21 audit: tracking can be retried, consent changes update the controls immediately,
 and online failures are shown instead of silently ignored. Going offline stays available when
 device permissions are lost. Scheduler authentication handles malformed credentials safely;
@@ -25,10 +31,12 @@ _Specialized-services update (2026-11-19): childcare, eldercare and personal/med
 
 **Tuslamj Hub** ("тусламж" = help) is a mobile-first web app for **Ulaanbaatar, Mongolia**. It is two things on one engine:
 
-1. **Errand marketplace.** A customer posts a small physical task (shopping, carrying furniture, standing in a queue, delivery, small repairs). Nearby verified **helpers** are notified, send requests, the customer **chooses** one, pays, the helper does the job with photo proof, and the customer confirms.
-2. **SafePay.** The same "held payment" for buying from strangers (marketplace, Facebook sellers): the buyer's money is held until they confirm the item arrived as described.
+1. **Managed errand service.** A customer posts a small physical task (shopping, carrying furniture, standing in a queue, delivery, small repairs). Nearby eligible **helpers** apply, the customer chooses and pays, the helper supplies completion evidence, and confirmation or review closure approves payment. The proposed contract structure and worker classification still need professional review.
+2. **SafePay.** A separate buying-from-strangers flow on the same engine. Its payment-services arrangement requires separate review; the managed-service proposal does not approve it.
 
-**The core promise is trust:** money is **held by a partner bank**, not by us and not by the helper, and released only when the customer confirms (or automatically after a check window, or by an Ops decision in a dispute).
+**The product provides** recorded scope, completion evidence, review and disputes. A ledger
+`hold` is a technical account, not proof of bank escrow or a licensing exemption. Approval
+credits a payable amount; a payout request and an actual bank transfer are separate steps.
 
 **Market facts that shaped the design:**
 - Payments in Mongolia go through **QPay** (bank-app QR/deeplinks). People don't keep cards on file, so "charge at the end" isn't safe for helpers.
@@ -51,7 +59,7 @@ Never break these. They are also enforced by tests and database checks.
 - **Money is integer tögrög, computed only by the engine** (`src/lib/engine`). The UI never does money math on its own; it calls engine functions (`quoteFee`, `errandSplit`, `heldItemBudget`, `amountDue`).
 - **Deal status changes only through engine commands.** Payment is confirmed only by the **payment provider's webhook** (actor `provider`), never by a user or a screenshot. Webhooks are idempotent (same `providerRef` → no-op).
 - **Invariant on every release:** `helperNet + refund + platform == held`. The sum of all held deals equals the bank hold balance (double-entry ledger).
-- **We never hold funds.** All money movement goes through the `PaymentProvider` interface (`src/lib/payments/provider.ts`). Only the mock exists today.
+- **Verify the real funds flow.** Pay-ins use the configured `PaymentProvider` (mock or wire.mn); worker withdrawals currently use an Ops queue and recorded bank transfers. Account ownership and custody must be confirmed with the provider before making legal or marketing claims.
 - **Every transition writes a timeline event,** plus ledger entries if money moved. Illegal transitions are rejected (engine and a DB trigger).
 - **Phone numbers are never shown** to the other party. Chat and calls stay inside the app.
 - **All user-facing strings go through i18n** (`src/i18n/mn.ts` and `en.ts`).
@@ -117,7 +125,7 @@ Next.js server (src/app/**/actions.ts, page.tsx)  ── auth: getViewer() (src/
    ├─ src/lib/deals/    queries.ts (read models for screens; lazily "settles" due commands)
    ├─ src/lib/dispatch/ plan.ts (pure ranking/waves) · run.ts (waves, auto-pick) · rank.ts (applicants, limits)
    ├─ src/lib/push.ts   Web Push fan-out (per-device language)
-   └─ src/lib/payments/ PaymentProvider (mock only)
+   └─ src/lib/payments/ PaymentProvider (mock or wire.mn, selected by configuration)
    ▼
 Supabase Postgres: RLS (clients read only, own rows) · all writes via service role
    apply_transition() RPC = one transaction: deal row + offers + dispute + events + ledger + penalties,

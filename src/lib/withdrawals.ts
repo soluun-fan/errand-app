@@ -51,6 +51,7 @@ export interface EarningsSummary {
   recent: Withdrawal[];
   minimum: number;
   perDay: number;
+  autoPayoutDays: number;
   /** their bank account is checked (withdrawals go only there) */
   accountChecked: boolean;
 }
@@ -76,13 +77,17 @@ export async function earningsSummary(helperId: string): Promise<EarningsSummary
     getRules(),
     db.from("payout_accounts").select("verified_at").eq("user_id", helperId).maybeSingle<{ verified_at: string | null }>(),
   ]);
-  if (available.error) throw new Error(available.error.message);
+  // Failed reads must not look like zero earnings, an empty queue, or an unchecked account.
+  for (const result of [available, onTheWay, rows, acct]) {
+    if (result.error) throw new Error(result.error.message);
+  }
   return {
     available: Number(available.data ?? 0),
     onTheWay: Number(onTheWay.data ?? 0),
     recent: (rows.data ?? []).map(toView),
     minimum: rules.withdrawMin,
     perDay: rules.withdrawalsPerDay,
+    autoPayoutDays: rules.autoPayoutDays,
     accountChecked: Boolean(acct.data?.verified_at),
   };
 }

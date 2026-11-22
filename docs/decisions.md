@@ -1,5 +1,15 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-22 — Guigere service-model review and earnings clarity.** Prepare the standing
+  provider agreement, individual job order and customer booking terms for Mongolian counsel,
+  accountant and payment-provider review; see [review packet](managed-service-review.md).
+  Contractor status and payment licensing are separate questions. No legal acceptance version
+  changes in this release. Distinguish active work, completion review, overdue approval and
+  disputes from approved earnings; distinguish payout requests from bank transfers. Use the
+  configured automatic-request age and show recorded request/decision dates. Fail a financial
+  summary when any essential read fails rather than presenting a false zero. Recent job rows
+  are drawn from the latest 50 assigned jobs; headline amounts come from the full ledger.
+
 - **2026-11-21 — Tracking recovery and deployment audit.** Keep worker opt-out available when
   device permissions fail, provide retry for location errors, and acknowledge saved sharing consent
   without requiring a second successful read. Preserve the map and navigation link after a tile

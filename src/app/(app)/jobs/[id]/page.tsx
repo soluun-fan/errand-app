@@ -380,6 +380,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         }}
       />
 
+      {deal.payMode !== "direct" && !payeeOrgId && ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status) && (
+        <DetailSection label={t("job.paymentTimingTitle")}>
+          <p className="text-[14px] leading-relaxed text-ink-2">{t("job.paymentTiming", { hours: deal.checkHours })}</p>
+        </DetailSection>
+      )}
+
       <DetailSection label={t("job.whenLabel")}>
         <p className="text-[18px] font-bold">{when}</p>
         {effort.length > 0 && <p className="text-[15px] text-ink-2">{effort.join(" · ")}</p>}

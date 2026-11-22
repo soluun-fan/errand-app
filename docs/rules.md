@@ -79,6 +79,14 @@ Split sums to held on every path · no double release · illegal transitions rej
 
 ## As implemented (keep in sync with `src/lib/engine`)
 
+- **Earnings presentation (2026-11-22):** only ledger `payable` is ready to request; `payout`
+  means a transfer has been requested, not sent. Recent job fees exclude direct-pay and
+  organisation-payee jobs from personal pending amounts. Active work, completion review,
+  overdue review and disputes are distinct; an elapsed review deadline never proves release.
+  Automatic payout age uses live settings and means automatic request, not automatic transfer.
+  No changes to financial transitions or accepted legal versions accompany this UI update.
+
+
 - **Worker location (2026-11-20):** dispatch presence and customer sharing are separate. An assigned
   helper explicitly enables sharing for an `in_progress` task. The signed-in app layout samples every
   15 seconds while sharing, including on chat screens; online-only presence updates every minute.

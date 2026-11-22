@@ -5,7 +5,13 @@
 2. **Ажил feed** (C): availability switch + duration chips (1 h / 2 h / today) + radius + min fee · filter chips (Ойр / Одоо / Цаг товлосон / Худалдан авалттай) · job card: icon, title, fee (big), "+ items up to X", **travel time**, photos, "🔒 Мөнгө төлөгдсөн", offers n/5 · empty → widen radius. No penalty for declining; new helpers get a small boost until 10 jobs.
 3. **Job detail** (A): route helper → pickup → drop · photos · earnings breakdown (fee − 10% + items reimbursed) · requirement chips; a missing requirement disables the CTA with the reason · Instant "Хүлээж авах" / Custom "Үнийн санал өгөх" (price, arrival window, equipment, note).
 4. **Active job** (A): per-category checklist; receipt photo auto-reads the total (user confirms); handover photo stamped with time + GPS; "Дуусгаад илгээх" disabled until proof exists; problem shortcuts.
-5. **Орлого**: available / waiting / withdraw (same-name account, ~1–2 days), per-job commission history.
+5. **Орлого**: approved funds ready to request / payout requested (full ledger amounts), then
+   recent unapproved job fees labelled active, under review, review overdue or disputed. Show
+   the completion-review deadline; never infer approval from an elapsed timer. A request is
+   queued for Ops, not already sent. History shows requested and recorded sent/failed dates;
+   the automatic-request interval follows Ops settings. Payouts require a checked same-name
+   account; the 15-minute operating target is not a guarantee of bank arrival. Job details
+   explain completion review and separate payout before the helper applies.
 
 ## Ops (desktop web)
 - **Disputes**: queue by age (red > 24 h); detail = both timelines, proof, read-only chat; decide release / refund / split (slider with live money preview) + required note → ledger entries.
