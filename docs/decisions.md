@@ -1,5 +1,16 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-22 — Helper standards (owner: "workers are lackluster… firm and careful approach").**
+  Supersedes the opt-in part of "Foreground worker tracking" (2026-11-20):
+  - **Location is required during a job** (from Start until finished, never before or after).
+    The customer sees the helper live; consent goes in the helper agreement.
+  - **Late / not moving / no-show:** remind the helper, tell the customer, free cancel + re-post
+    after a limit. Marks build a ladder: warning → ranked lower → pause; removal only after Ops
+    review; helpers see their record and can appeal. Customer-caused delays don't count.
+  - Build before the quick bundle. Route history retention: pending owner answer.
+  - Lawyer check: safety/proof tracking is fine, but control over *how* contractors work must
+    not make them look like employees.
+
 - **2026-11-22 — Pricing approach (owner).** The customer still names the price; we set only the
   minimum. Additions, all Ops settings:
   - **No-applicant nudge:** if a task gets no applications for a few minutes, offer one tap
@@ -81,7 +92,7 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
   - **Helpers:** going online, applying, taking a price and starting a job need a phone browser, notifications on (a saved push subscription) and a position from the last 15 minutes. The page shows a "get ready" checklist with one button per step (iPhone: add to Home Screen first, iOS only allows notifications for installed apps); the server refuses the same actions (`src/lib/work-ready.ts`). Browser tests bypass it only with `E2E_DEVICE_BYPASS=1` on the test server + a cookie; `check:deploy` refuses the variable. Customers get a "turn on notifications" card on Home but can post from a laptop.
   - **Error alerts without an outside service:** server errors (`instrumentation.ts` onRequestError) and browser errors (a page listener + the error screen) are grouped in `app_errors`; Ops gets a push for each new kind and at most hourly after; `/ops/errors` lists them, "Fixed" closes one (it reopens if it returns).
   - **SMS:** Supabase's Send SMS hook (HTTPS) → `/api/auth/sms` (Standard Webhooks signature) → the gateway request built from settings (`SMS_HTTP_*`), so any gateway with an HTTP API works without code. The code is never logged.
-  - **Calls:** Cloudflare TURN (`CLOUDFLARE_TURN_KEY_ID` + token) gives short-lived relay credentials; calls are then relay-only. Falls back to direct if Cloudflare fails.
+  - **Calls:** Cloudflare TURN (`CLOUDFLARE_TURN_KEY_ID` + token) gives short-lived relay credentials; calls are then relay-only. If no relay is available, calls are refused (never direct), see `iceConfig`.
   - Step-by-step go-live list: `docs/deploy.md` "Go-live checklist".
 - **2026-11-18 — Managed service, Phase 1** (owner's "V1 Master Spec": the customer buys the errand service from our business; helpers are independent contractors paid per task; replaces escrow and the fee-only direct pay; lawyer/accountant items A7 still open):
   - New tasks take the **full amount** (`pay_mode` held): price + shopping budget + "service & safety fee" 1,000 / 1,500 / 2,000 / 3,000₮ (job total under 10,000 / 30,000 / 60,000 / above — owner split the spec's 1,500₮ band) + the +500₮ extra-task fee. Through wire.mn when it's switched on (first payment, shopping top-ups and agreed price increases all go there now); the mock otherwise. Older fee-only tasks finish as they were.

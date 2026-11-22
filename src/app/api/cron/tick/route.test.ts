@@ -37,3 +37,12 @@ it("does not claim a new successful heartbeat when another tick holds the lease"
   expect(await response.json()).toEqual({ skipped: "another tick is running" });
   expect(heartbeat).not.toHaveBeenCalled();
 });
+
+it("records a missing server secret as a scheduler failure instead of a silent 401", async () => {
+  vi.stubEnv("CRON_SECRET", "");
+  heartbeat.mockResolvedValue(undefined);
+  const response = await GET(new Request("http://localhost/api/cron/tick", { headers: { authorization: "Bearer anything" } }));
+  expect(response.status).toBe(503);
+  expect(heartbeat).toHaveBeenCalledWith("tick", { ok: false, error: "CRON_SECRET is not set on the server" });
+  expect(runTick).not.toHaveBeenCalled();
+});

@@ -13,10 +13,16 @@ export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    // A host without the secret rejects every scheduled call; say so where Ops and /api/health look
+    // (2026-11-22: this went unnoticed for a week because a bare 401 left no trace).
+    await heartbeat("tick", { ok: false, error: "CRON_SECRET is not set on the server" }).catch(() => {});
+    return new Response("Scheduler not configured", { status: 503 });
+  }
   const got = request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
   const provided = Buffer.from(got);
-  const expected = Buffer.from(secret ?? "");
-  if (!secret || provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+  const expected = Buffer.from(secret);
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
     return new Response("Unauthorized", { status: 401 });
   }
   try {

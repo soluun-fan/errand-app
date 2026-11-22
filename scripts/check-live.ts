@@ -30,6 +30,15 @@ async function main() {
     const healthy = tickHealth((data?.heartbeat ?? null) as HeartbeatRow | null, Date.now()).state === "ok";
     console.log(`${configured && healthy ? "OK" : "FAIL"} scheduler: ${configured ? "configured" : "not configured"}, ${healthy ? "recent successful tick" : "no recent successful tick"}`);
     failed ||= !configured || !healthy;
+    // pg_cron "succeeded" only means the request was queued; the HTTP result says if the app ran it.
+    const http = (data?.recent_http ?? []) as { status_code: number | null; timed_out: boolean | null }[];
+    if (!healthy && http.length) {
+      const codes = http.map((r) => (r.timed_out ? "timeout" : String(r.status_code ?? "error"))).join(", ");
+      const hint = http.some((r) => r.status_code === 401)
+        ? " → 401: the scheduler secret in Supabase doesn't match CRON_SECRET on the host; run `npm run scheduler:configure -- https://<domain>` with the host's CRON_SECRET in .env.local"
+        : "";
+      console.log(`     last tick calls: ${codes}${hint}`);
+    }
   }
   if (failed) process.exitCode = 1;
 }
