@@ -15,7 +15,7 @@ Carry rule: heavy item + no lift + floor > 2 → 2 people. Vehicle needed → ca
 ## Fees (configurable; live in `pricing_settings`, /ops/pricing) — see "Pricing" under As implemented
 **Minimum per task (2026-11-17):** `taskMinFee(kind, details, time)` = the kind's own minimum (`category_settings.min_fee`) or hourly floor × hours (`min_hourly`), plus the trip (km beyond the included, and the way back), plus night; ×2 labour for two people. Saved on the task at posting (`details.minFee`) and used for every later price.
 Build-up price: base 5,000 (≈30 min, 1 km) + 3,000 per extra 30 min + 1,500 per extra km + heavy 3,000 + stairs without lift 1,500/floor above the 1st + tools 2,000 + night (22:00–07:00) 1,000 + round trip 50% of the distance part; 2nd person = labour (base, time, heavy, stairs) again. Rounded to 500.
-Customer may set −20%…+30% of it. Helpers keep 100% (commission 0). Customer pays a flat service fee: 500 under 10,000 · 1,000 under 30,000 · 2,000 under 100,000 · 3,000 above (SafePay buyers: same steps). CANCEL_FEE 3,000 · CHECK 24 h (SafePay 24 h or 3 days) · MAX_OFFERS 5.
+The customer names any price at or above it (bargaining, 2026-11-16). Helpers keep 100% (commission 0). Customer pays a flat service fee on the job total (price + shopping budget): 1,000 under 10,000 · 1,500 under 30,000 · 2,000 under 60,000 · 3,000 above (V1 spec, `DEFAULT_CONFIG.serviceFeeTiers`; SafePay buyers: same steps). CANCEL_FEE 3,000 · CHECK 24 h (SafePay 24 h or 3 days) · MAX_OFFERS 5.
 
 ## Money split on errand release
 ```

@@ -1,6 +1,6 @@
 import "server-only";
 import { applyTransitionArgs } from "@/lib/db/mapping";
-import { DbError, loadDeal } from "@/lib/db/deals";
+import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { EngineError, apply, amountDue, type ErrandDeal } from "@/lib/engine";
 import { releaseOtherCommitments } from "@/lib/dispatch/rank";
 import { runDispatch } from "@/lib/dispatch/run";
@@ -135,10 +135,13 @@ export async function handlePaid(intentId: string, amount: number, charge: strin
     if (error?.code === "PT409" && attempt < 3) continue;
     if (error) throw new DbError(error);
     if (data === "already" || data === "unknown") return data;
-    if (data === "refunded") {
+    if (data === "refunded" || data === "refunded_busy") {
       await runRefunds(row.deal_id);
-      await notify([before.customerId], { title: "push.lateRefundTitle", body: "push.lateRefundBody", params: { title: before.title }, url: `/tasks/${before.id}`, tag: `task-${before.id}` }).catch(() => undefined);
-      return data;
+      const busy = data === "refunded_busy";
+      await notify([before.customerId], { title: "push.lateRefundTitle", body: busy ? "push.helperBusyRefundBody" : "push.lateRefundBody", params: { title: before.title }, url: `/tasks/${before.id}`, tag: `task-${before.id}` }).catch(() => undefined);
+      // The helper was booked elsewhere first: step them back so the task is open to others again.
+      if (busy && before.helperId) await stepBackBusyHelper(row.deal_id, before.helperId);
+      return "refunded";
     }
     if (data !== "booked" || transition?.deal.type !== "errand") throw new Error("Unexpected Wire settlement result");
     const deal = transition.deal;
@@ -162,6 +165,26 @@ export async function afterPaymentBooked(d: ErrandDeal): Promise<void> {
     () => undefined,
   );
 }
+
+/**
+ * A payment was refused because the chosen helper was booked on another task first (database
+ * guard PT410). Step the helper back from this one — no penalty, they weren't paid here — and
+ * send the task to helpers again. Best effort: an unpaid match also lapses on its own.
+ */
+export async function stepBackBusyHelper(dealId: string, helperId: string): Promise<void> {
+  const db = createAdminClient();
+  try {
+    const d = await loadDeal(db, dealId);
+    if (d?.type !== "errand" || d.status !== "awaiting_payment" || d.helperId !== helperId) return;
+    await runCommand(db, dealId, { type: "cancel" }, { kind: "user", id: helperId, role: "helper" });
+    await runDispatch(dealId);
+  } catch (e) {
+    console.error("step back busy helper failed", e);
+  }
+}
+
+/** SQLSTATE raised when a helper is already booked on another task (migration 20261122000000). */
+export const HELPER_BUSY = "PT410";
 
 /** The customer came back from wire's page (or the screen is waiting): ask wire directly. */
 export async function checkWirePayments(dealId: string): Promise<void> {

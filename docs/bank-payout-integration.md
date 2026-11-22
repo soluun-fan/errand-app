@@ -58,6 +58,45 @@ Capitron for Guigere or establish that Guigere has access. The bank must confirm
 schemas, settlement semantics and duplicate-prevention behaviour before a production adapter is
 implemented. Public sample fields alone are not enough to infer that a transfer has settled.
 
+## Selected bank: Golomt Corporate Gateway (2026-11-22)
+
+Guigere's business account is at **Golomt Bank**. The account number is configuration (Ops
+setting / server env), not something to hard-code or commit. Golomt's product for this is the
+**Corporate Gateway** (CGW): the business's server connects directly to its own Golomt account.
+[Product page (MN)](https://www.golomtbank.com/corporate/digital-bank/corporate-gateway).
+
+What the public page lists (the full API specification is given only after the contract):
+- Inquiry: statements, balance, account details, **account name lookup**, transaction receipts,
+  previously used counterparties, reference lists (FX, SWIFT, purpose codes).
+- Transfers: intra-bank, **interbank**, batch, SWIFT, tax, customs.
+- Controls: a per-transaction limit, separate initiate/approve permissions, a Vasco token device.
+- Fees (page as read 2026-11-22): Golomt→Golomt 200₮; interbank ≤ 5,000,000₮ 300₮ (400₮ from
+  2026-12-16); interbank > 5,000,000₮ 500₮; statements 100,000₮/month. Fees must stay Ops settings.
+- Onboarding: corporate customer, official request letter (template on the page), contract at a
+  branch or via corporategateway@golomtbank.com. No sandbox, IP or certificate details are public.
+
+Unofficial SDKs exist ([techpartners-asia/golomt-api-go](https://github.com/techpartners-asia/golomt-api-go),
+[golomt-corp-gateway-go-sdk](https://pkg.go.dev/github.com/openlib-dev/golomt-corp-gateway-go-sdk/golomt)).
+One describes an account-holder lookup that also resolves accounts at other Mongolian banks.
+Use them only as hints; build the adapter from Golomt's own specification.
+
+**Questions Golomt must answer in writing before any code is written:**
+1. Can transfers run server-to-server without a person confirming each one on the Vasco token?
+   If every transfer needs a token, payouts become "app prepares, Ops approves in a batch"; that
+   is acceptable and safer for launch.
+2. Does the account-name lookup work for **other banks'** accounts (Khan, TDB, State, XacBank…),
+   and does it return the full holder name or a masked one?
+3. Is there a test/sandbox environment and test accounts?
+4. Idempotency: can we send our own unique reference, and query a transfer by it after a timeout?
+5. Transfer states (accepted / processing / settled / rejected / returned) and how we learn them
+   (callback, polling, statement); how returns/reversals appear.
+6. Authentication (certificates, tokens, IP allow-list, mutual TLS), rate and daily limits.
+7. Do the documented fees apply to CGW API transfers, and is the 5,000,000₮ tier per transfer?
+
+Expected shape once answered: a server-only `golomt` payout adapter behind the existing
+withdrawal queue; account-name lookup replaces the manual "bank holder name" evidence step;
+the transfer reference replaces the manually typed reference. Everything below still applies.
+
 ## Implementation once the provider is selected
 
 Keep customer collection and outgoing payouts as separate integrations. A provider-specific

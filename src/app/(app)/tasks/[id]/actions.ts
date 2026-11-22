@@ -20,7 +20,7 @@ import { getRules } from "@/lib/rules";
 import { hadCareCall } from "@/lib/chat";
 import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
-import { activeProvider, afterPaymentBooked, paymentFor, startWirePayment } from "@/lib/payments/service";
+import { HELPER_BUSY, activeProvider, afterPaymentBooked, paymentFor, startWirePayment, stepBackBusyHelper } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
@@ -86,7 +86,15 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         const blocked = await payinBlock(deal.id, viewer.profile.id, amountDue(deal));
         if (blocked) return { error: await payinMessage(blocked, t) };
         const invoice = await paymentProvider().createInvoice(deal.id, amountDue(deal));
-        const paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        let paid;
+        try {
+          paid = await runCommand(db, deal.id, { type: "confirm_payment", providerRef: invoice.invoiceId, amount: invoice.amount }, { kind: "provider" });
+        } catch (e) {
+          // The helper was booked on another task a moment earlier (database guard): nothing was taken.
+          if (!(e instanceof DbError && e.code === HELPER_BUSY) || !deal.helperId) throw e;
+          await stepBackBusyHelper(deal.id, deal.helperId);
+          return { error: t("pay.helperBusy") };
+        }
         if (paid.deal.type === "errand") await afterPaymentBooked(paid.deal);
         // No refresh here: the pay sheet shows "held safely" first, then refreshes itself.
         return { done: true };

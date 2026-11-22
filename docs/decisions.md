@@ -1,5 +1,25 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-22 — Pricing approach (owner).** The customer still names the price; we set only the
+  minimum. Additions, all Ops settings:
+  - **No-applicant nudge:** if a task gets no applications for a few minutes, offer one tap
+    "Raise by 1,000₮?" and dispatch again. The customer may ignore it.
+  - **First task free:** the service fee is waived on a customer's first task, once per verified
+    phone; Ops can switch it off.
+  - **Payout bank fee:** we absorb Golomt's per-transfer fee; helpers receive the full amount
+    (the daily withdrawal limit keeps the cost down).
+  - **Price hints:** "similar jobs went for about X" only once a category has enough finished
+    jobs (about 20+).
+  - **Open (accountant):** whether the full job price counts as our revenue for VAT under the
+    managed-service model. If so, the service fee tiers must be re-sized before launch.
+
+- **2026-11-22 — Payouts via Golomt Corporate Gateway.** The business account is at Golomt, so
+  outgoing transfers and account-name checks go through Golomt's Corporate Gateway; wire.mn
+  stays for customer collection only. Blocked on the CGW contract and Golomt's written answers
+  (token confirmation, other-bank name lookup, sandbox, idempotency); see
+  [Golomt section](bank-payout-integration.md#selected-bank-golomt-corporate-gateway-2026-11-22).
+  Until then payouts remain manual with a required bank reference.
+
 - **2026-11-22 — Bank ownership is separate from identity approval.** A typed name and an ID
   check cannot verify a bank account. New/changed accounts require an independent bank check;
   manual Ops review records evidence against the exact account snapshot. Manual transfer
