@@ -89,6 +89,20 @@ Set `VERIFY_MN_API_KEY` as a server-only secret in `.env.local` or Vercel Enviro
 - **SOS** on every live task: 102 / 103 and an alert to Ops with the phone's position. Turn on notifications for your admin account at **Profile → Operations** on the phone you carry.
 - Secrets are only in Vercel's encrypted settings and Supabase Vault (the scheduler secret), never in git.
 
+## Staging (test changes before production)
+
+The staging project is **errand-extra** (Supabase ref `ivaoltwgzxntytqnwkih`). Its keys live in the
+git-ignored `.env.staging.local`; production stays linked (`supabase/.temp/project-ref`).
+
+- `npm run staging:migrate`: apply new migrations to staging **first**, then production with
+  `npx supabase db push --remote`.
+- `npm run staging:check`: the same read-only checks as `check:live`, against staging.
+- `npm run staging:seed`: the demo users and one demo task (safe to repeat; skips if deals exist).
+- `npm run staging:dev`: run the app on your Mac against staging.
+- Phone login on staging: Supabase → errand-extra → Authentication → Providers → Phone → add
+  **test phone numbers** (the seed's +976 8800 00xx numbers) with a fixed code, or connect the same
+  Send SMS hook as production. Never point a public deployment at staging.
+
 ## Go-live checklist (100-person pilot)
 
 Do these in order. Each step says who does it. Values are pasted into Vercel → Settings → Environment Variables (🔒 = tick **Sensitive**), never into chat or git. After changing variables: Deployments → ⋯ → **Redeploy**.

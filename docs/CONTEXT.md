@@ -362,7 +362,7 @@ Migrations, in order:
 - **Unit economics:** service fee and commission are demo numbers; partner-bank and QPay fees aren't modeled.
 - **Legacy data:** deals paid at posting (the old flow) still work through special branches (`assignHelper` with `heldAmount > 0`, refunds on cancel/expire). They can be removed once no such deals exist.
 - **Testing gaps:** browser tests (`e2e/`) now cover bargaining, direct requests, helper listings and Ops content; maps, push, geolocation, calls and real phones are still checked by hand.
-- **No staging yet:** the only hosted project is production. Plan (2026-11-16): a second free Supabase project `tuslamj-staging` (owner creates it), `.env.staging.local` (git-ignored), migrations + seed there first, `npm run e2e` against it, then production.
+- **Staging (2026-11-23):** Supabase project errand-extra (`ivaoltwgzxntytqnwkih`), keys in git-ignored `.env.staging.local`, `npm run staging:migrate|check|seed|dev` (docs/deploy.md "Staging"). Migrations go to staging first, then production.
 
 ---
 

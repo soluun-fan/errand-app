@@ -133,10 +133,12 @@ async function main() {
   );
   await insertDeal(db, created);
   const id = created.deal.id;
-  // MockProvider stand-in: the bank confirms the pay-in.
-  await runCommand(db, id, { type: "confirm_payment", providerRef: `seed-${id}`, amount: amountDue(created.deal) }, { kind: "provider" });
+  // Today's flow (2026-11-13): helpers apply, the customer chooses, then pays — MockProvider stands
+  // in for the bank confirming the pay-in.
   await runCommand(db, id, { type: "apply", note: "I can come with my brother." }, nomin);
-  console.log(`deal  "${created.deal.title}" — ₮${amountDue(created.deal).toLocaleString("en-US")} held, 1 applicant`);
+  const chosen = await runCommand(db, id, { type: "choose", helperId: ids.nomin }, tsogt);
+  await runCommand(db, id, { type: "confirm_payment", providerRef: `seed-${id}`, amount: amountDue(chosen.deal) }, { kind: "provider" });
+  console.log(`deal  "${created.deal.title}" — ₮${amountDue(chosen.deal).toLocaleString("en-US")} held, Nomin chosen`);
 }
 
 main().catch((e) => {

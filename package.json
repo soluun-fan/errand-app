@@ -19,7 +19,11 @@
     "check:live": "node --env-file=.env.local --import tsx scripts/check-live.ts",
     "e2e": "NODE_OPTIONS=--conditions=react-server playwright test",
     "postinstall": "node scripts/copy-map-worker.mjs",
-    "wire:webhook": "node --env-file=.env.local --experimental-strip-types scripts/wire-webhook.mts"
+    "wire:webhook": "node --env-file=.env.local --experimental-strip-types scripts/wire-webhook.mts",
+    "staging:dev": "node --env-file=.env.staging.local node_modules/next/dist/bin/next dev",
+    "staging:migrate": "supabase db push --remote=ivaoltwgzxntytqnwkih",
+    "staging:seed": "node --env-file=.env.staging.local --import tsx scripts/seed.ts",
+    "staging:check": "node --env-file=.env.staging.local --import tsx scripts/check-live.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
