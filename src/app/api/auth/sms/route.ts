@@ -26,6 +26,11 @@ export async function POST(req: Request): Promise<Response> {
   if (!/^\d{8,15}$/.test(phone.replace(/^\+/, "")) || !/^\d{4,10}$/.test(otp)) {
     return Response.json({ error: { http_code: 400, message: "missing phone or otp" } }, { status: 400 });
   }
+  // Mongolian mobile numbers only (+976 and 8 digits). Supabase's login API can be called directly,
+  // skipping our form, so this is what stops bots making us pay for SMS abroad ("SMS pumping").
+  if (!/^976\d{8}$/.test(phone.replace(/^\+/, ""))) {
+    return Response.json({ error: { http_code: 400, message: "only Mongolian numbers can sign in" } }, { status: 400 });
+  }
   try {
     await sendOtpSms(phone, otp);
     return Response.json({});
