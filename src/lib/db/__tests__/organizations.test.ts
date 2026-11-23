@@ -265,26 +265,32 @@ describe("task conditions in the database", () => {
     expect(d.helperId).toBe(helperId);
   });
 
-  it("shares only an active job after opt-in and removes its position on stop and finish", async () => {
+  it("location is required during a job: on at start, can't be switched off, route kept, gone at finish", async () => {
     let d = await step(await persist(null, cond({})), { type: "accept" }, shopHelper);
     const toggle = (id: string, enabled: boolean) => as(db, "service_role", null, async tx =>
       (await tx.query<{ ok: boolean }>("select public.set_job_location_sharing($1,$2,$3) as ok", [d.id, id, enabled])).rows[0].ok);
-    const sample = () => db.query("update public.job_locations set lat=47.9,lng=106.9 where deal_id=$1 and helper_id=$2", [d.id, helperId]);
+    const record = (id: string) => as(db, "service_role", null, async tx =>
+      (await tx.query<{ n: number }>("select public.record_job_position($1, 47.9, 106.9) as n", [id])).rows[0].n);
+    const points = async () => (await db.query<{ n: number }>("select count(*)::int as n from public.job_location_points where deal_id = $1", [d.id])).rows[0].n;
     d = await step(d, { type: "confirm_payment", providerRef: d.id, amount: amountDue(d) }, { kind: "provider" });
-    expect(await toggle(helperId, true)).toBe(false);
+    expect(await toggle(helperId, true)).toBe(false); // not started yet
+    expect(await record(helperId)).toBe(0);
     d = await step(d, { type: "start" }, shopHelper);
-    expect(await toggle(customerId, true)).toBe(false);
-    expect((await sample()).affectedRows).toBe(0);
-    expect(await toggle(helperId, true)).toBe(true);
-    expect((await sample()).affectedRows).toBe(1);
+    // sharing is on without opting in; only the assigned helper's samples count
+    expect(await record(customerId)).toBe(0);
+    expect(await record(helperId)).toBe(1);
+    expect(await toggle(helperId, false)).toBe(false);
+    expect(await record(helperId)).toBe(1);
+    expect(await points()).toBe(1); // at most one route point per 20 s
     expect((await sqlError(as(db, "authenticated", customerId, tx => tx.query("select * from public.job_locations")))).code).toBe("42501");
-    expect(await toggle(helperId, false)).toBe(true);
-    expect((await sample()).affectedRows).toBe(0);
-    await toggle(helperId, true);
+    expect((await sqlError(as(db, "authenticated", helperId, tx => tx.query("select * from public.job_location_points")))).code).toBe("42501");
     d = await step(d, { type: "record_handover" }, shopHelper);
     d = await step(d, { type: "finish" }, shopHelper);
-    expect(await toggle(helperId, true)).toBe(false);
-    expect((await sample()).affectedRows).toBe(0);
+    expect(await record(helperId)).toBe(0);
+    expect(await points()).toBe(1); // the route stays for disputes…
+    await db.query("update public.job_location_points set recorded_at = now() - interval '31 days' where deal_id = $1", [d.id]);
+    expect((await db.query<{ n: number }>("select public.purge_job_routes() as n")).rows[0].n).toBeGreaterThanOrEqual(1);
+    expect(await points()).toBe(0); // …until the retention days pass
   });
 
   it("commits Wire and the ledger together, retries cleanly, and queues one refund per late payment", async () => {

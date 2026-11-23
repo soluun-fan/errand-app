@@ -76,6 +76,7 @@ export default async function OpsHome() {
         )}
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
         {row("/ops/errors", "🧯", t("opsErrors.title"), errorsOpen ? String(errorsOpen) : null, errorsOpen > 0)}
+        {row("/ops/marks", "⏰", t("opsMarks.title"), null)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
         {row("/ops/rules", "⏱️", t("opsRules.title"), null)}

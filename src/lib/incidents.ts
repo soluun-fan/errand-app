@@ -1,6 +1,7 @@
 import "server-only";
 import type { Deal } from "@/lib/engine";
-import { INCIDENT_LOCATION_DAYS, REPORTS_PER_HOUR, SOS_REPING_FOR_MS, needsReping, type IncidentKind, type Position } from "@/lib/incident-rules";
+import { getRules } from "@/lib/rules";
+import { INCIDENT_LOCATION_DAYS, REPORTS_PER_HOUR, SOS_REPING_FOR_MS, SOS_REPING_MS, needsReping, type IncidentKind, type Position } from "@/lib/incident-rules";
 import { notify } from "@/lib/push";
 import { adminIds, audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -225,17 +226,21 @@ export async function resolveIncident(id: string, opsId: string, note: string): 
 /** An SOS nobody acknowledged: push Ops again (every 2 min, for 30 min). Returns how many. */
 export async function repingSos(now = Date.now()): Promise<number> {
   const db = createAdminClient();
+  // Ops settings (2026-11-22); built-in 2 / 30 min if the rules can't be read — an SOS reminder must never fail
+  const rules = await getRules().catch(() => null);
+  const everyMs = (rules?.sosRepingMinutes ?? SOS_REPING_MS / 60_000) * 60_000;
+  const forMs = (rules?.sosRepingForMinutes ?? SOS_REPING_FOR_MS / 60_000) * 60_000;
   const { data } = await db
     .from("incidents")
     .select("id, deal_id, kind, status, created_at, ops_pinged_at, last_alert_at")
     .eq("kind", "sos")
     .eq("status", "open")
-    .gte("created_at", new Date(now - SOS_REPING_FOR_MS).toISOString())
+    .gte("created_at", new Date(now - forMs).toISOString())
     .returns<{ id: string; deal_id: string; kind: string; status: string; created_at: string; ops_pinged_at: string | null; last_alert_at: string }[]>();
   let n = 0;
   for (const r of data ?? []) {
     const lastPingAt = Math.max(Date.parse(r.last_alert_at), r.ops_pinged_at ? Date.parse(r.ops_pinged_at) : 0);
-    if (!needsReping({ kind: r.kind, status: r.status, createdAt: Date.parse(r.created_at), lastPingAt }, now)) continue;
+    if (!needsReping({ kind: r.kind, status: r.status, createdAt: Date.parse(r.created_at), lastPingAt }, now, everyMs, forMs)) continue;
     // ticks run one at a time (DB lease), so a plain update is enough to record the reminder
     const { data: still } = await db
       .from("incidents")

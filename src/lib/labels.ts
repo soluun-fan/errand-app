@@ -59,6 +59,12 @@ export type DisputeReason = (typeof DISPUTE_REASONS)[number];
 export const RATING_TAGS = ["onTime", "careful", "friendly", "communication", "late", "rude", "damaged"] as const;
 export type RatingTag = (typeof RATING_TAGS)[number];
 
+/** Why a customer cancels (2026-11-22) — tells Ops what to fix. */
+export const CANCEL_REASONS = ["foundOther", "noLongerNeeded", "tooSlow", "price", "wrongDetails", "other"] as const;
+
+/** What helpers can say about a customer (2026-11-22). */
+export const CUSTOMER_TAGS = ["clear", "ready", "respectful", "unreachable", "wrongAddress", "rude"] as const;
+
 /** A dispute reason is stored as its key; older rows may hold free text. */
 export function disputeReasonLabel(reason: string, t: T): string {
   return (DISPUTE_REASONS as readonly string[]).includes(reason) ? t(`dispute.reasons.${reason as DisputeReason}`) : reason;
@@ -106,6 +112,9 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
     case "payment_timeout":
     case "helper_withdrew":
     case "helper_backed_out":
+    case "helper_late":
+    case "helper_no_show":
+    case "helper_replaced":
       return t(`event.${code}`, { name: name(data.helperId) });
     case "receipt_recorded":
       return t("event.receipt_recorded", { amount: money("amount") });
@@ -122,8 +131,11 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return t("event.cancel_fee_paid", { amount: money("amount"), name: data.orgId ? name(data.orgId) : name(data.helperId) });
     case "refunded":
       return t("event.refunded", { amount: money("amount") });
-    case "cancelled":
-      return t(data.by === "helper" ? "event.cancelled_helper" : "event.cancelled");
+    case "cancelled": {
+      const base = t(data.by === "helper" ? "event.cancelled_helper" : "event.cancelled");
+      const why = String(data.reason ?? "");
+      return (CANCEL_REASONS as readonly string[]).includes(why) ? `${base} · ${t(`cancelReason.${why as (typeof CANCEL_REASONS)[number]}`)}` : base;
+    }
     case "disputed":
       return t("event.disputed", { reason: disputeReasonLabel(String(data.reason ?? ""), t) });
     case "dispute_resolved":

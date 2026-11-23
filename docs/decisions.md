@@ -1,5 +1,29 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-22 — Quick bundle + settings (owner: "sure… I accept those").**
+  - **"Want to raise the price?"** (not a fixed +1,000₮): after `nudge_after_minutes` with no
+    application the customer sees +500 / +1,000 / +1,500₮ or their own amount (`set_price`); the
+    waves restart so helpers hear the new price (`resendAfterRaise`).
+  - **First task free:** no service fee until the customer's first real pay-in
+    (`isFirstTask`, Ops switch `first_task_free`).
+  - **Helpers rate customers** after release (`rate_customer`, `ratings.about = 'customer'`,
+    `profiles.customer_rating_*`); helper reviews only read `about = 'helper'`. Helpers see the
+    customer's rating on the job.
+  - **Install prompt** on Home (Android prompt; iPhone Share → Add to Home Screen).
+  - **Cancellation reasons** (optional, `CANCEL_REASONS`) on the timeline.
+  - "N helpers online" already existed on Home.
+  - **Into Ops settings:** night-price hours, open applications per helper, helper position
+    freshness, SOS re-alert timing, chat retention (migration `20261122050000`). Code keeps the
+    old numbers only as a fallback. Dispatch waves were already settings.
+
+- **2026-11-22 — Service fee (owner picked option A).** The customer's fee is **10% of the
+  helper's price, rounded to 100₮, at least 500₮, at most 5,000₮, nothing on shopping money**;
+  helpers keep 100%. Like Haejuseyo/UBCab it scales with the job (small jobs pay little), but it
+  stays on the customer side. Ops settings `service_fee_bps/min/max` (migration
+  `20261122030000_service_fee_share.sql`); share 0 returns to the flat steps. SafePay keeps the
+  flat steps. Saved on each task at posting. Help and Terms describe it from the live settings.
+  Still open: VAT on full turnover (accountant) may change the numbers.
+
 - **2026-11-22 — Helper standards (owner: "workers are lackluster… firm and careful approach").**
   Supersedes the opt-in part of "Foreground worker tracking" (2026-11-20):
   - **Location is required during a job** (from Start until finished, never before or after).
@@ -7,7 +31,17 @@
   - **Late / not moving / no-show:** remind the helper, tell the customer, free cancel + re-post
     after a limit. Marks build a ladder: warning → ranked lower → pause; removal only after Ops
     review; helpers see their record and can appeal. Customer-caused delays don't count.
-  - Build before the quick bundle. Route history retention: pending owner answer.
+  - Build before the quick bundle. Route history kept **30 days** (owner, 2026-11-22).
+  - **Built (migration `20261122020000_helper_standards.sql`):** sharing switches on at Start and
+    can't be switched off while the job runs; route points (≤ 1 per 20 s) for disputes, purged by
+    the tick. Start only within `arrive_radius_m` of the pickup pin (task pin for one-place tasks;
+    two-place tasks without a pickup pin aren't checked). Arrive-by = booked time, or chosen +
+    `arrive_minutes`; late after `late_grace_minutes`: the tick runs `mark_late` (helper + customer
+    pushed), the customer may `replace_helper` or cancel with no fee to the helper. Events
+    `helper_late` / `helper_no_show` → one `helper_marks` row per job → ladder (ranked lower in
+    dispatch, pause, paused until Ops lifts it at `/ops/marks`). Helpers see `/helper/record` and
+    can explain a mark; Ops voids marks. "Not moving" is deliberately not punished (queues and
+    waiting jobs stand still); a stopped location only gets a reminder. All limits in `/ops/rules`.
   - Lawyer check: safety/proof tracking is fine, but control over *how* contractors work must
     not make them look like employees.
 

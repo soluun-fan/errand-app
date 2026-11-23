@@ -17,13 +17,13 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { categoryTrust, errandSplit, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
+import { arriveBy, categoryTrust, errandSplit, helperLate, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
 import { ConditionChips } from "@/components/conditions";
 import { getRules } from "@/lib/rules";
 import { directPayOpen, directPayState, owedToHelper } from "@/lib/direct-pay";
 import { DirectPayHelperCard } from "@/components/direct-pay-card";
 import { pauseDaysFor, recentBackOuts } from "@/lib/penalties";
-import { fmtDateTime, fmtMoney } from "@/lib/format";
+import { fmtClock, fmtDateTime, fmtMoney } from "@/lib/format";
 import { fuzz, googleDirectionsUrl, helperStart } from "@/lib/maps";
 import { accessFor, unreadCount } from "@/lib/chat";
 import { callParty, callsEnabled } from "@/lib/calls";
@@ -38,6 +38,7 @@ import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { SafetyBar } from "@/components/safety-bar";
 import { PriceChangeCard } from "@/components/price-change-card";
 import { SOS_STATUSES } from "@/lib/incident-rules";
+import { CUSTOMER_TAGS } from "@/lib/labels";
 import { liveSos } from "@/lib/incidents";
 import { organizationNames } from "@/lib/orgs";
 import { ContactRow } from "../../tasks/[id]/deal-view";
@@ -74,6 +75,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const mine = deal.helperId === me;
   const myOffer = deal.offers.find((o) => o.helperId === me);
   const customer = (await publicProfiles([deal.customerId])).get(deal.customerId);
+  // what helpers said about this customer (kept apart from helper ratings), and whether I rated them
+  const [{ data: custStats }, { data: myRating }] = await Promise.all([
+    createAdminClient().from("profiles").select("customer_rating_sum, customer_rating_count").eq("id", deal.customerId)
+      .maybeSingle<{ customer_rating_sum: number; customer_rating_count: number }>(),
+    createAdminClient().from("ratings").select("stars").eq("deal_id", deal.id).eq("from_user_id", viewer.profile.id).maybeSingle<{ stars: number }>(),
+  ]);
+  const customerRating = custStats && custStats.customer_rating_count > 0 ? custStats.customer_rating_sum / custStats.customer_rating_count : null;
   const now = Date.now();
   // while bargaining, the price on the table between this helper and the customer
   const onTable = deal.status === "open" && myOffer?.price != null ? myOffer.price : deal.fee;
@@ -313,6 +321,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     <>
       {markers.length === 0 && <FlowHeader href="/jobs" label={t("common.back")} />}
       {working && <JobBeacon key={deal.id} dealId={deal.id} />}
+      {mine && deal.status === "matched" && arriveBy(deal) !== null && (
+        <div className="mx-auto w-full max-w-2xl px-5 pt-3">
+          <Note tone={helperLate(deal, now) ? "bad" : "info"}>
+            <span className="font-semibold">{t("standards.arriveBy", { time: fmtClock(arriveBy(deal) as number) })}</span>{" "}
+            {helperLate(deal, now) ? t("standards.youAreLate") : t("standards.arriveHint")}
+          </Note>
+        </div>
+      )}
       {(["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status)) && <AutoRefresh seconds={10} />}
 
       {markers.length > 0 && (
@@ -464,6 +480,47 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         />
       )}
 
+      {/* finished: the helper rates the customer (helpers see it before taking their next task) */}
+      {mine && deal.status === "released" && (
+        <section className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-5">
+          {myRating ? (
+            <p className="text-sm text-ink-2">{t("rateCustomer.done", { stars: myRating.stars })}</p>
+          ) : (
+            <ConfirmSheet
+              action={jobAction}
+              fields={{ dealId: deal.id, intent: "rate_customer" }}
+              trigger={t("rateCustomer.open", { name: customer?.name ?? "—" })}
+              triggerClass={`${btn.secondary} w-full`}
+              title={t("rateCustomer.title", { name: customer?.name ?? "—" })}
+              confirmLabel={t("rating.submit")}
+            >
+              <fieldset className="flex justify-center gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <label key={n} className="cursor-pointer">
+                    <input type="radio" name="stars" value={n} required defaultChecked={n === 5} className="peer sr-only" />
+                    <span aria-label={t("rating.stars", { n })} className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn">
+                      ★{n}
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <div className="flex flex-wrap gap-2">
+                {CUSTOMER_TAGS.map((tag) => (
+                  <label key={tag} className="cursor-pointer">
+                    <input type="checkbox" name="tags" value={tag} className="peer sr-only" />
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white">{t(`rateCustomer.tags.${tag}`)}</span>
+                  </label>
+                ))}
+              </div>
+              <label className={fieldLabel}>
+                {t("rateCustomer.note")}
+                <textarea name="note" maxLength={500} rows={3} className={field} />
+              </label>
+            </ConfirmSheet>
+          )}
+        </section>
+      )}
+
       {/* finished: put some of these photos in the portfolio (the customer is asked first) */}
       {mine && deal.status === "released" && startPhoto && (
         <PortfolioAskSection dealId={deal.id} candidates={await portfolioCandidates(deal.id, me)} t={t} />
@@ -473,7 +530,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         <DetailSection label={t("job.customerLabel")}>
           <p className="text-[16px]">
             {customer.name}
-            {customer.rating !== null ? ` · ★ ${Number(customer.rating).toFixed(1)}` : ""}
+            {customerRating !== null ? ` · ★ ${customerRating.toFixed(1)} (${custStats?.customer_rating_count})` : ""}
           </p>
         </DetailSection>
       )}

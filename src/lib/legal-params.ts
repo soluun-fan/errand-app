@@ -1,6 +1,7 @@
 import "server-only";
 import type { T } from "@/i18n";
 import { fmtMoney } from "@/lib/format";
+import { feeDescription } from "@/lib/fee-text";
 import { getPricing } from "@/lib/pricing";
 import { getRules } from "@/lib/rules";
 
@@ -10,12 +11,7 @@ import { getRules } from "@/lib/rules";
  */
 export async function legalParams(t: T): Promise<Record<string, string | number>> {
   const [p, r] = await Promise.all([getPricing(), getRules()]);
-  const tiers = p.serviceFeeTiers
-    .map((tier, i) => {
-      const from = i === 0 ? 0 : (p.serviceFeeTiers[i - 1].below ?? 0);
-      return tier.below === null ? t("help.tierLast", { fee: fmtMoney(tier.fee), from: fmtMoney(from) }) : t("help.tier", { fee: fmtMoney(tier.fee), below: fmtMoney(tier.below) });
-    })
-    .join("; ");
+  const tiers = feeDescription(p, t, "; ");
   return {
     tiers,
     minPrice: fmtMoney(p.baseFee),

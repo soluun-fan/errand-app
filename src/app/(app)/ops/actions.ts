@@ -16,6 +16,7 @@ import { Uuid, parseOr } from "@/lib/input";
 import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/orgs";
 import { createCoverSlot, setCover } from "@/lib/covers";
 import { updateRules, type PlatformRules } from "@/lib/rules";
+import { liftPause, voidMark } from "@/lib/standards";
 import { resolveUnpaid } from "@/lib/direct-pay";
 import { decideBadge } from "@/lib/badges";
 import { decideWithdrawal, markAccountChecked } from "@/lib/withdrawals";
@@ -106,10 +107,17 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     priceUpBps: percentToBps(form.get("priceUpPct"), 100),
     counterUpBps: percentToBps(form.get("counterUpPct"), 100),
     serviceFeeTiers: cleanTiers(rawTiers),
+    serviceFeeBps: percentToBps(form.get("serviceFeePct"), 30),
+    serviceFeeMin: amt("serviceFeeMin", 0, 100_000),
+    serviceFeeMax: amt("serviceFeeMax", 0, 1_000_000),
+    firstTaskFree: form.get("firstTaskFree") === "on",
+    nightStartHour: amt("nightStartHour", 0, 23),
+    nightEndHour: amt("nightEndHour", 0, 23),
     suggestBps: percentToBps(form.get("suggestPct"), 300),
     maxJobTotal: amt("maxJobTotal", 5000, 10_000_000),
   };
   if (next.suggestBps !== null && next.suggestBps < 10_000) return { error: t("opsPricing.invalid") }; // never below the minimum
+  if (next.serviceFeeMin !== null && next.serviceFeeMax !== null && next.serviceFeeMin > next.serviceFeeMax) return { error: t("opsPricing.invalid") };
   if (Object.values(next).some((v) => v === null) || (next.includedMinutes as number) % 30 !== 0) {
     return { error: t("opsPricing.invalid") };
   }
@@ -284,6 +292,23 @@ const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves" | "payMod
   careDayEndHour: [1, 24],
   careMaxMinutes: [60, 720],
   careCallMinSeconds: [10, 600],
+  arriveMinutes: [5, 600],
+  lateGraceMinutes: [0, 240],
+  arriveRadiusM: [50, 2000],
+  positionMaxAgeSeconds: [30, 900],
+  locationStaleMinutes: [1, 60],
+  routeRetentionDays: [1, 365],
+  marksWindowDays: [1, 365],
+  marksRankLower: [1, 20],
+  marksPause: [1, 20],
+  marksPauseDays: [1, 60],
+  marksReview: [1, 30],
+  nudgeAfterMinutes: [1, 120],
+  maxPendingApplications: [1, 20],
+  readyPositionMinutes: [1, 120],
+  sosRepingMinutes: [1, 30],
+  sosRepingForMinutes: [5, 240],
+  chatRetentionDays: [7, 730],
 };
 
 export async function saveRules(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -299,6 +324,7 @@ export async function saveRules(_prev: ActionResult, form: FormData): Promise<Ac
   const r = next as PlatformRules;
   if (r.careMaxMinutes % 30 !== 0 || r.careDayStartHour >= r.careDayEndHour) return { error: t("opsRules.careInvalid") };
   if (!(r.pauseDaysFirst <= r.pauseDaysSecond && r.pauseDaysSecond <= r.pauseDaysMore)) return { error: t("opsRules.pausesInvalid") };
+  if (!(r.marksRankLower <= r.marksPause && r.marksPause <= r.marksReview)) return { error: t("opsRules.marksInvalid") };
   const count = Number(form.get("waveCount"));
   if (!Number.isInteger(count) || count < 1 || count > 8) return { error: t("opsRules.wavesInvalid") };
   const waves = Array.from({ length: count }, (_, i) => ({
@@ -393,6 +419,29 @@ export async function resolveErrorAction(_prev: ActionResult, form: FormData): P
   if (!viewer) return { error: t("ops.notAdmin") };
   const fp = String(form.get("fingerprint") ?? "");
   if (!/^[0-9a-f]{16,64}$/.test(fp) || !(await resolveError(fp, viewer.profile.id))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+/* ---------- helper standards: marks (docs/decisions.md 2026-11-22) ---------- */
+
+export async function voidMarkAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = String(form.get("markId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !(await voidMark(id, viewer.profile.id))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+export async function liftPauseAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = String(form.get("helperId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: t("error.changed") };
+  await liftPause(id, viewer.profile.id);
   refresh();
   return { done: true };
 }

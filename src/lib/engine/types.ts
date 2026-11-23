@@ -71,6 +71,8 @@ export interface ErrandDetails {
   rules?: TaskRules;
   /** Set by the engine at posting: the extra service fee for posting beyond the free active tasks (0 = none). */
   extraFee?: number;
+  /** The customer's first task: the service fee was waived (2026-11-22). */
+  freeFirst?: boolean;
   /** Highest job total (price + shopping budget) when posted (managed-service pilot cap, Ops: pricing). */
   maxTotal?: number;
   /** What the customer requires of the helper (set at posting; docs/decisions.md 2026-11-18 "Task conditions"). */
@@ -138,6 +140,10 @@ export interface TaskRules {
   rematchWindowMinutes: number;
   applicationMinutes: number;
   autoPickMinutes: number;
+  /** Helper standards (2026-11-22): a paid helper should arrive (start) this long after being chosen… */
+  arriveMinutes?: number;
+  /** …and counts as late this long after that (scheduled tasks: after the booked time). */
+  lateGraceMinutes?: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -383,9 +389,11 @@ export type Command =
   | { type: "open_to_all" } // customer: stop waiting for the invited helper, let everyone apply
   | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
   | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
-  | { type: "cancel" }
+  | { type: "cancel"; reason?: string } // customer may say why (CANCEL_REASONS, 2026-11-22)
   | { type: "expire" }
   | { type: "start" }
+  | { type: "mark_late" } // system: the paid helper hasn't started by the arrive-by time + grace
+  | { type: "replace_helper" } // customer: the helper is late — drop them and search again (no fee)
   | { type: "record_receipt"; amount: number }
   | { type: "confirm_topup"; providerRef: string; amount: number } // provider webhook for the top-up
   | { type: "decline_topup" } // customer: don't pay more, helper returns the items

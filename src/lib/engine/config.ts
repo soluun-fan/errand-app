@@ -111,6 +111,12 @@ export interface EngineConfig {
   kindMinHourly: Partial<Record<CategoryId, number>>;
   /** Flat service fee the customer pays on top of the task price (SafePay buyers too). */
   serviceFeeTiers: readonly FeeTier[];
+  /** Service fee as a share of the helper's price (1000 = 10%); 0 = the flat steps above. */
+  serviceFeeBps: number;
+  serviceFeeMin: number;
+  serviceFeeMax: number;
+  /** A customer's first paid task has no service fee (Ops switch). */
+  firstTaskFree: boolean;
   /** Cut taken from the helper's fee in basis points. 0: helpers keep 100% (older deals kept 10%). */
   commissionBps: number;
   /** Fee paid to the helper when the customer cancels after match, before start. */
@@ -152,6 +158,10 @@ export interface EngineConfig {
   paymentWindowMinutes: number;
   /** A chosen helper may back out this long after being chosen without a penalty (owner, 2026-11-17). */
   backOutGraceMinutes: number;
+  /** Helper standards (2026-11-22): arrive (start) within this long of being chosen ("now" tasks)… */
+  arriveMinutes: number;
+  /** …late after this much more; then the customer may cancel free or get another helper. */
+  lateGraceMinutes: number;
   titleMax: number;
   descriptionMax: number;
   /** Carrying up stairs without a lift: per floor above the first. */
@@ -195,6 +205,10 @@ export const DEFAULT_CONFIG: EngineConfig = {
     { below: 60000, fee: 2000 },
     { below: null, fee: 3000 },
   ],
+  serviceFeeBps: 1000,
+  serviceFeeMin: 500,
+  serviceFeeMax: 5000,
+  firstTaskFree: true,
   commissionBps: 0,
   cancelFee: 3000,
   errandCheckHours: 24,
@@ -219,6 +233,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   utcOffsetHours: 8,
   paymentWindowMinutes: 10,
   backOutGraceMinutes: 10,
+  arriveMinutes: 45,
+  lateGraceMinutes: 15,
   titleMax: 40,
   descriptionMax: 500,
   carryPerFloor: 1500,

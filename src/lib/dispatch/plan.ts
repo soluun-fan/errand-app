@@ -32,6 +32,8 @@ export interface Candidate {
   /** Offers received / won in the last 30 days (reliability). */
   offers30d: number;
   won30d: number;
+  /** Helper standards (2026-11-22): subtracted when their record says "ranked lower". */
+  penalty?: number;
 }
 
 /** Rating with a prior (4.5★ worth 5 ratings), so one 5★ doesn't beat 200 ratings at 4.9★. */
@@ -53,7 +55,7 @@ export function score(c: Candidate): number {
   const rating = Math.min(1, Math.max(0, (bayesRating(c.ratingSum, c.ratingCount) - 3) / 2));
   const reliability = (c.won30d + 1) / (c.offers30d + 2);
   const experience = Math.min(1, Math.log1p(c.completed) / Math.log1p(50));
-  return 0.55 * distance + 0.25 * rating + 0.1 * reliability + 0.1 * experience;
+  return 0.55 * distance + 0.25 * rating + 0.1 * reliability + 0.1 * experience - (c.penalty ?? 0);
 }
 
 /** The helpers to offer the task to in `wave`: not offered before, best first. */

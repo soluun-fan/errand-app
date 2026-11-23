@@ -30,6 +30,14 @@ export interface PricingSettings {
   priceUpBps: number;
   counterUpBps: number;
   serviceFeeTiers: FeeTier[];
+  /** Service fee share of the price (1000 = 10%), with a floor and a cap; 0 = the flat steps. */
+  serviceFeeBps: number;
+  serviceFeeMin: number;
+  serviceFeeMax: number;
+  /** A customer's first paid task has no service fee. */
+  firstTaskFree: boolean;
+  nightStartHour: number;
+  nightEndHour: number;
   /** Suggested price = minimum × this (12500 = ×1.25), pre-filled on posting (V1 spec C3). */
   suggestBps: number;
   /** Highest job total (price + shopping budget), V1 spec C3. */
@@ -55,6 +63,12 @@ interface Row {
   price_up_bps: number;
   counter_up_bps: number;
   service_fee_tiers: unknown;
+  service_fee_bps?: number;
+  service_fee_min?: number;
+  service_fee_max?: number;
+  first_task_free?: boolean;
+  night_start_hour?: number;
+  night_end_hour?: number;
   suggest_bps: number;
   max_job_total: number;
 }
@@ -81,6 +95,12 @@ export async function getPricing(): Promise<PricingSettings> {
     priceUpBps: data.price_up_bps,
     counterUpBps: data.counter_up_bps,
     serviceFeeTiers: cleanTiers(data.service_fee_tiers) ?? [...DEFAULT_CONFIG.serviceFeeTiers],
+    serviceFeeBps: data.service_fee_bps ?? DEFAULT_CONFIG.serviceFeeBps,
+    serviceFeeMin: data.service_fee_min ?? DEFAULT_CONFIG.serviceFeeMin,
+    serviceFeeMax: data.service_fee_max ?? DEFAULT_CONFIG.serviceFeeMax,
+    firstTaskFree: data.first_task_free ?? DEFAULT_CONFIG.firstTaskFree,
+    nightStartHour: data.night_start_hour ?? DEFAULT_CONFIG.nightStartHour,
+    nightEndHour: data.night_end_hour ?? DEFAULT_CONFIG.nightEndHour,
     suggestBps: data.suggest_bps ?? DEFAULT_CONFIG.suggestBps,
     maxJobTotal: data.max_job_total ?? DEFAULT_CONFIG.maxJobTotal,
   };
@@ -116,6 +136,8 @@ export async function pricingConfig(): Promise<EngineConfig> {
     paymentWindowMinutes: r.paymentWindowMinutes,
     paymentWindowBookedMinutes: r.paymentWindowBookedMinutes,
     backOutGraceMinutes: r.backOutGraceMinutes,
+    arriveMinutes: r.arriveMinutes,
+    lateGraceMinutes: r.lateGraceMinutes,
     nowMatchWindowMinutes: r.nowMatchWindowMinutes,
     scheduleMatchWindowMinutes: r.scheduleMatchWindowHours * 60,
     applicationMinutes: r.applicationMinutes,
@@ -166,6 +188,12 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       price_up_bps: next.priceUpBps,
       counter_up_bps: next.counterUpBps,
       service_fee_tiers: next.serviceFeeTiers,
+      service_fee_bps: next.serviceFeeBps,
+      service_fee_min: next.serviceFeeMin,
+      service_fee_max: next.serviceFeeMax,
+      first_task_free: next.firstTaskFree,
+      night_start_hour: next.nightStartHour,
+      night_end_hour: next.nightEndHour,
       suggest_bps: next.suggestBps,
       max_job_total: next.maxJobTotal,
       updated_at: new Date().toISOString(),

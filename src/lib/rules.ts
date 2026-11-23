@@ -39,6 +39,25 @@ export interface PlatformRules {
   autoPayoutDays: number;
   /** Day jobs stay one-off help (V1 spec A3): same poster + helper, at most this many in 30 days. */
   dayjobPairMonthCap: number;
+  /** Helper standards (2026-11-22) */
+  arriveMinutes: number;
+  lateGraceMinutes: number;
+  arriveRadiusM: number;
+  positionMaxAgeSeconds: number;
+  locationStaleMinutes: number;
+  routeRetentionDays: number;
+  marksWindowDays: number;
+  marksRankLower: number;
+  marksPause: number;
+  marksPauseDays: number;
+  marksReview: number;
+  /** "Want to raise the price?" after this long without an application. */
+  nudgeAfterMinutes: number;
+  maxPendingApplications: number;
+  readyPositionMinutes: number;
+  sosRepingMinutes: number;
+  sosRepingForMinutes: number;
+  chatRetentionDays: number;
 }
 
 interface Row {
@@ -67,6 +86,23 @@ interface Row {
   withdrawals_per_day: number;
   auto_payout_days: number;
   dayjob_pair_month_cap: number;
+  arrive_minutes?: number;
+  late_grace_minutes?: number;
+  arrive_radius_m?: number;
+  position_max_age_seconds?: number;
+  location_stale_minutes?: number;
+  route_retention_days?: number;
+  marks_window_days?: number;
+  marks_rank_lower?: number;
+  marks_pause?: number;
+  marks_pause_days?: number;
+  marks_review?: number;
+  nudge_after_minutes?: number;
+  max_pending_applications?: number;
+  ready_position_minutes?: number;
+  sos_reping_minutes?: number;
+  sos_reping_for_minutes?: number;
+  chat_retention_days?: number;
 }
 
 /** Waves as stored, checked; anything odd falls back to the built-in waves (never breaks dispatch). */
@@ -111,6 +147,23 @@ export async function getRules(): Promise<PlatformRules> {
     withdrawalsPerDay: data.withdrawals_per_day ?? 2,
     autoPayoutDays: data.auto_payout_days ?? 30,
     dayjobPairMonthCap: data.dayjob_pair_month_cap ?? 8,
+    arriveMinutes: data.arrive_minutes ?? 45,
+    lateGraceMinutes: data.late_grace_minutes ?? 15,
+    arriveRadiusM: data.arrive_radius_m ?? 200,
+    positionMaxAgeSeconds: data.position_max_age_seconds ?? 120,
+    locationStaleMinutes: data.location_stale_minutes ?? 5,
+    routeRetentionDays: data.route_retention_days ?? 30,
+    marksWindowDays: data.marks_window_days ?? 30,
+    marksRankLower: data.marks_rank_lower ?? 2,
+    marksPause: data.marks_pause ?? 3,
+    marksPauseDays: data.marks_pause_days ?? 3,
+    marksReview: data.marks_review ?? 4,
+    nudgeAfterMinutes: data.nudge_after_minutes ?? 3,
+    maxPendingApplications: data.max_pending_applications ?? 3,
+    readyPositionMinutes: data.ready_position_minutes ?? 15,
+    sosRepingMinutes: data.sos_reping_minutes ?? 2,
+    sosRepingForMinutes: data.sos_reping_for_minutes ?? 30,
+    chatRetentionDays: data.chat_retention_days ?? 90,
   };
 }
 
@@ -145,6 +198,23 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       withdrawals_per_day: next.withdrawalsPerDay,
       auto_payout_days: next.autoPayoutDays,
       dayjob_pair_month_cap: next.dayjobPairMonthCap,
+      arrive_minutes: next.arriveMinutes,
+      late_grace_minutes: next.lateGraceMinutes,
+      arrive_radius_m: next.arriveRadiusM,
+      position_max_age_seconds: next.positionMaxAgeSeconds,
+      location_stale_minutes: next.locationStaleMinutes,
+      route_retention_days: next.routeRetentionDays,
+      marks_window_days: next.marksWindowDays,
+      marks_rank_lower: next.marksRankLower,
+      marks_pause: next.marksPause,
+      marks_pause_days: next.marksPauseDays,
+      marks_review: next.marksReview,
+      nudge_after_minutes: next.nudgeAfterMinutes,
+      max_pending_applications: next.maxPendingApplications,
+      ready_position_minutes: next.readyPositionMinutes,
+      sos_reping_minutes: next.sosRepingMinutes,
+      sos_reping_for_minutes: next.sosRepingForMinutes,
+      chat_retention_days: next.chatRetentionDays,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dueWave, pickWave, WAVES, type Candidate } from "./plan";
 import { getRules } from "@/lib/rules";
 import { rankApplicants } from "./rank";
+import { rankLowerSet } from "@/lib/standards";
+import { MARK_RANK_PENALTY } from "@/lib/standards-rules";
 
 interface CandidateRow {
   helper_id: string;
@@ -107,7 +109,9 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as CandidateRow[];
     const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId);
-    const picks = pickWave(rows.map(toCandidate), due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves);
+    const lower = await rankLowerSet(rows.map((r) => r.helper_id));
+    const candidates = rows.map(toCandidate).map((c) => (lower.has(c.helperId) ? { ...c, penalty: MARK_RANK_PENALTY } : c));
+    const picks = pickWave(candidates, due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves);
 
     // Notified helpers may apply until the task closes; the wave timer only paces the widening.
     const expires = deal.matchBy ?? now + 30 * 60_000;
@@ -225,6 +229,17 @@ export async function restartDispatch(dealId: string, quitter: string, now = Dat
   const db = createAdminClient();
   await db.from("dispatch_offers").delete().eq("deal_id", dealId).neq("helper_id", quitter).throwOnError();
   await db.from("dispatch_offers").update({ status: "declined" }).eq("deal_id", dealId).eq("helper_id", quitter).throwOnError();
+  await db.from("dispatch_state").delete().eq("deal_id", dealId).throwOnError();
+  return runDispatch(dealId, now);
+}
+
+/**
+ * The customer raised the price because nobody applied ("Want to raise the price?", 2026-11-22):
+ * start the waves again so helpers who already saw it hear about the new price too.
+ */
+export async function resendAfterRaise(dealId: string, now = Date.now()): Promise<DispatchStatus | null> {
+  const db = createAdminClient();
+  await db.from("dispatch_offers").delete().eq("deal_id", dealId).throwOnError();
   await db.from("dispatch_state").delete().eq("deal_id", dealId).throwOnError();
   return runDispatch(dealId, now);
 }

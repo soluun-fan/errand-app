@@ -14,10 +14,11 @@ describe("managed service pricing", () => {
     expect(suggestedPrice(5000, { ...DEFAULT_CONFIG, suggestBps: 10_000 })).toBe(5000);
   });
 
-  it("the service & safety fee is on the job total (price + shopping budget)", () => {
-    expect(post(8000).deal.serviceFee).toBe(1000);
-    expect(post(8000, 5000).deal.serviceFee).toBe(1500); // 13,000 job total
-    expect(post(20000, 45000).deal.serviceFee).toBe(3000); // 65,000
+  it("the service & safety fee is a share of the price only (2026-11-22), not the shopping budget", () => {
+    expect(post(8000).deal.serviceFee).toBe(800);
+    expect(post(8000, 5000).deal.serviceFee).toBe(800);
+    expect(post(20000, 45000).deal.serviceFee).toBe(2000);
+    expect(post(8000, 5000, {}, { ...DEFAULT_CONFIG, serviceFeeBps: 0 }).deal.serviceFee).toBe(1500); // flat steps on the job total
   });
 
   it("a job total over the cap is refused, and later prices are held to the cap saved at posting", () => {

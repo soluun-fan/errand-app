@@ -37,6 +37,7 @@ export const TEST_CONFIG: EngineConfig = {
   ...DEFAULT_CONFIG,
   commissionBps: 1000,
   serviceFeeTiers: [{ below: null, fee: 1000 }],
+  serviceFeeBps: 0, // flow tests keep the flat demo fee; the share formula has its own tests
   priceDownBps: 5000,
   priceUpBps: 1_000_000,
   counterUpBps: 1_000_000,

@@ -234,7 +234,8 @@ export async function chatImageExists(dealId: string, path: string): Promise<boo
  */
 export async function purgeExpiredChats(now = Date.now()): Promise<number> {
   const db = createAdminClient();
-  const cutoff = new Date(now - CHAT_RETENTION_DAYS * 24 * 3_600_000).toISOString();
+  const days = (await getRules().catch(() => null))?.chatRetentionDays ?? CHAT_RETENTION_DAYS; // Ops setting (2026-11-22)
+  const cutoff = new Date(now - days * 24 * 3_600_000).toISOString();
   const { data: deals } = await db
     .from("deals")
     .select("id")

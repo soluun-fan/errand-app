@@ -6,32 +6,36 @@ import { currentPosition } from "@/lib/location-client";
 import { useWorkerLocation } from "./worker-location";
 import { btn } from "./ui";
 
+/**
+ * Helper standards (2026-11-22): during a job the helper's location is shared with the customer —
+ * required, switched on when the job starts and off when it ends. No "stop" button; if the phone
+ * isn't sending (permission lost), say so and offer to try again.
+ */
 export function JobBeacon({ dealId }: { dealId: string }) {
   const t = useT();
   const location = useWorkerLocation();
   const sharing = location?.state?.jobIds.includes(dealId) ?? false;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const broken = failed || ["denied", "unavailable"].includes(location?.status ?? "") || location?.state?.available === false;
 
-  async function toggle() {
+  async function turnOn() {
     setBusy(true);
     try {
-      if (!sharing) await currentPosition(); // Ask permission on the worker's tap, before saving consent.
+      await currentPosition(); // ask permission on the helper's tap
       if (!location) throw new Error("Location unavailable");
-      await location.setSharing(dealId, !sharing);
+      if (!sharing) await location.setSharing(dealId, true);
+      await location.retry();
       setFailed(false);
     } catch { setFailed(true); }
     finally { setBusy(false); }
   }
 
   return <section className="rounded-card bg-bg p-4 shadow-card">
-    <button type="button" className={btn.text} disabled={busy || !location?.state?.available} aria-pressed={sharing} onClick={toggle}>
-      {t(sharing ? "job.locationStop" : "job.locationShare")}
-    </button>
-    <p className="text-sm text-ink-2">{t("job.locationHint")}</p>
-    {(location?.state?.available === false || (!location?.state && location?.status === "unavailable")) && <p role="status">{t("job.locationUnavailable")}</p>}
-    {(failed || (sharing && ["denied", "unavailable"].includes(location?.status ?? ""))) && <p role="status">{t("job.locationError")}</p>}
-    {location && (location.state?.available === false || location.status === "unavailable" || location.status === "denied") &&
-      <button type="button" className={btn.text} disabled={busy} onClick={() => void location.retry()}>{t("common.retry")}</button>}
+    <p className="font-semibold">{t("standards.trackingRequired")}</p>
+    <p className="text-sm text-ink-2">{t("standards.trackingHint")}</p>
+    {broken && <p role="status" className="mt-2 text-sm font-semibold text-danger">{t("job.locationError")}</p>}
+    {(broken || !sharing) && location &&
+      <button type="button" className={btn.text} disabled={busy} onClick={() => void turnOn()}>{t("standards.trackingRetry")}</button>}
   </section>;
 }

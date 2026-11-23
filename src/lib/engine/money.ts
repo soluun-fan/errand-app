@@ -53,11 +53,25 @@ export function errandSplit(input: {
   };
 }
 
-/** Flat service fee for a price (docs/decisions.md "Pricing"): fixed steps, never a percentage. */
-export function serviceFeeFor(amount: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
+/** Flat steps on an amount (the older service fee; SafePay buyer protection still uses it). */
+export function tieredFee(amount: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
   assertMoney(amount, "amount");
   const tier = cfg.serviceFeeTiers.find((x) => x.below === null || amount < x.below) ?? cfg.serviceFeeTiers[cfg.serviceFeeTiers.length - 1];
   return tier.fee;
+}
+
+/**
+ * The customer's service fee (docs/decisions.md 2026-11-22 "Service fee"): a share of the helper's
+ * price, rounded to 100₮, between a floor and a cap — small jobs pay little, bigger jobs carry the
+ * business; nothing on the shopping money. Helpers keep 100%. With `serviceFeeBps` 0 Ops falls back
+ * to the flat steps on price + shopping budget (the earlier rule).
+ */
+export function serviceFeeFor(price: number, cfg: EngineConfig = DEFAULT_CONFIG, itemBudget = 0): number {
+  assertMoney(price, "price");
+  assertMoney(itemBudget, "itemBudget");
+  if (!(cfg.serviceFeeBps > 0)) return tieredFee(price + itemBudget, cfg);
+  const share = Math.round((price * cfg.serviceFeeBps) / 10_000 / 100) * 100;
+  return Math.min(cfg.serviceFeeMax, Math.max(cfg.serviceFeeMin, share));
 }
 
 /** The price pre-filled on posting: the minimum × suggestBps, rounded up to the price step (V1 spec C3). */
@@ -67,9 +81,9 @@ export function suggestedPrice(min: number, cfg: EngineConfig = DEFAULT_CONFIG):
   return Math.ceil((min * cfg.suggestBps) / 10_000 / step) * step;
 }
 
-/** SafePay buyer protection: the same flat steps as the errand service fee. */
+/** SafePay buyer protection: the flat steps. */
 export function buyerFeeFor(price: number, cfg: EngineConfig = DEFAULT_CONFIG): number {
-  return serviceFeeFor(price, cfg);
+  return tieredFee(price, cfg);
 }
 
 /** What the payer must put into the hold. */

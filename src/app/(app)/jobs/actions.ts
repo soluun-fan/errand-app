@@ -17,7 +17,9 @@ import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { checkHandoverCode } from "@/lib/handover-code";
 import { isActiveTestHelper } from "@/lib/helper-test-mode";
 import { hasPayout } from "@/lib/payout";
-import { workReadyMissing } from "@/lib/work-ready";
+import { deviceCheckBypassed, workReadyMissing } from "@/lib/work-ready";
+import { startPositionCheck } from "@/lib/standards";
+import { CUSTOMER_TAGS } from "@/lib/labels";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
@@ -74,6 +76,18 @@ export async function setPresence(form: FormData): Promise<ActionResult> {
   await createAdminClient().from("helper_presence").upsert(row).throwOnError();
   refresh();
   return { done: true };
+}
+
+/**
+ * Helper standards (2026-11-22): a job starts only at its place — near the pickup pin, or the task
+ * pin for one-place tasks. Returns the message to show, or null when the helper may start.
+ */
+async function notAtStart(profile: { id: string; test_helper?: boolean }, deal: ErrandDeal, t: Awaited<ReturnType<typeof getT>>): Promise<string | null> {
+  if (await deviceCheckBypassed(profile)) return null;
+  const check = await startPositionCheck(profile.id, deal);
+  if (check.ok) return null;
+  if (check.reason === "far") return t("standards.notAtStart", { meters: check.meters.toLocaleString("en-US") });
+  return t("standards.positionNeeded");
 }
 
 /** The helper's position when they turn location on (work-ready check), online or not. */
@@ -172,6 +186,10 @@ export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; f
   }
   const deal = await assignedFor(p.dealId, viewer.profile.id, p.kind);
   if (!deal) return { error: t("error.changed") };
+  if (p.kind === "start") {
+    const away = await notAtStart(viewer.profile, deal, t);
+    if (away) return { error: away };
+  }
   if (p.kind === "progress" && (await proofCount(p.dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
   const note = p.kind === "progress" ? (p.note ?? "").replace(/\s+/g, " ").trim().slice(0, 140) || null : null;
   const amount = p.kind === "receipt" ? Number(p.amount) : null;
@@ -252,6 +270,17 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
   if (!/^[0-9a-f-]{36}$/i.test(dealId)) return { error: t("common.notFound") };
 
   try {
+    // helpers rate the customer after a finished job (2026-11-22); kept apart from helper ratings
+    if (intent === "rate_customer") {
+      const stars = Number(form.get("stars"));
+      if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: t("error.generic") };
+      const tags = form.getAll("tags").map(String).filter((x) => (CUSTOMER_TAGS as readonly string[]).includes(x));
+      const note = maskContacts(String(form.get("note") ?? "").replace(/\s+/g, " ").trim().slice(0, 500)).text;
+      const { error } = await db.rpc("rate_customer", { p_deal_id: dealId, p_helper: viewer.profile.id, p_stars: stars, p_tags: tags, p_note: note });
+      if (error) return { error: error.code === "23505" || error.code === "PT409" ? t("error.changed") : t("error.generic") };
+      refresh();
+      return { done: true };
+    }
     if (intent === "skip") {
       await db
         .from("dispatch_offers")
@@ -288,8 +317,10 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       const target = pilot ? await loadDeal(db, dealId) : null;
       if (target?.type !== "errand" || target.payMode !== "held") return { error: t("payout.needed") };
     }
-    if ((intent === "apply" || intent === "quote" || intent === "add_kind_apply") && (await pendingApplications(viewer.profile.id)) >= MAX_PENDING_APPLICATIONS) {
-      return { error: t("job.tooMany", { n: MAX_PENDING_APPLICATIONS }) };
+    if (intent === "apply" || intent === "quote" || intent === "add_kind_apply") {
+      // Ops setting (2026-11-22); the built-in 3 if the rules can't be read
+      const maxPending = (await getRules().catch(() => null))?.maxPendingApplications ?? MAX_PENDING_APPLICATIONS;
+      if ((await pendingApplications(viewer.profile.id)) >= maxPending) return { error: t("job.tooMany", { n: maxPending }) };
     }
     let cmd: Command;
     const note = String(form.get("note") ?? "").slice(0, 300);
@@ -327,6 +358,10 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       // the start photo starts the job (submitProof); the plain button is only for care work
       const before = await loadDeal(db, dealId);
       if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start", viewer.profile.id)) === 0) return { error: t("proof.startNeeded") };
+      if (before?.type === "errand") {
+        const away = await notAtStart(viewer.profile, before, t);
+        if (away) return { error: away };
+      }
       cmd = { type: "start" };
     }
     else if (intent === "finish") {

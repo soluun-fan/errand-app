@@ -125,6 +125,7 @@ export function PostFlow({
   invite = null,
   live,
   openTasks = 0,
+  firstTask = false,
 }: {
   userId: string;
   live: CategoryId[];
@@ -133,6 +134,8 @@ export function PostFlow({
   cfg: EngineConfig;
   /** The customer's active tasks right now; beyond the free ones the service fee is a little higher. */
   openTasks?: number;
+  /** No service fee: the customer's first task (server-checked; the engine decides again on posting). */
+  firstTask?: boolean;
   initial: Partial<Draft>;
   startStep?: number;
   defaultAddress: string;
@@ -300,7 +303,7 @@ export function PostFlow({
   const extraFee = extraTaskFeeFor(openTasks ?? 0, cfg);
   const itemBudget = buys && d.buyForMe ? Number(digits(d.itemBudget) || 0) : 0;
   // the "service & safety fee" is on the job total: price + shopping budget (V1 spec C4)
-  const serviceFee = serviceFeeFor(fee + itemBudget, cfg) + extraFee;
+  const serviceFee = firstTask ? 0 : serviceFeeFor(fee, cfg, itemBudget) + extraFee;
   const overMax = fee + itemBudget > cfg.maxJobTotal;
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
@@ -359,8 +362,10 @@ export function PostFlow({
         { label: t("price.yourPrice"), amount: fee },
         ...(itemBudget > 0 ? [{ label: t("money.itemBudget"), amount: itemBudget }] : []),
         ...(heldItems > itemBudget ? [{ label: t("task.bufferLine"), amount: heldItems - itemBudget }] : []),
-        { label: t("money.serviceFee"), amount: serviceFee - extraFee, muted: true },
-        ...(extraFee > 0 ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee, muted: true }] : []),
+        firstTask
+          ? { label: t("post.firstTaskFree"), amount: 0, muted: true }
+          : { label: t("money.serviceFee"), amount: serviceFee - extraFee, muted: true },
+        ...(extraFee > 0 && !firstTask ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee, muted: true }] : []),
       ];
 
   return (

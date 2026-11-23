@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, DEFAULT_DETAILS, EngineError, buyerFeeFor, counterMaxFor, errandSplit, isNight, minFeeAt, priceRange, quoteFee, serviceFeeFor, type ErrandDetails } from "../index";
+import { DEFAULT_CONFIG, DEFAULT_DETAILS, EngineError, buyerFeeFor, counterMaxFor, errandSplit, isNight, minFeeAt, priceRange, quoteFee, serviceFeeFor, tieredFee, type ErrandDetails } from "../index";
 
 describe("errandSplit", () => {
   it("matches the brief's example: carry, ₮40,000 fee, no items", () => {
@@ -66,19 +66,28 @@ describe("errandSplit", () => {
   });
 });
 
-describe("flat service fee (docs/decisions.md 2026-11-15 Pricing)", () => {
-  it("is a fixed amount by price step, never a percentage; SafePay uses the same steps", () => {
-    // V1 spec C4 with the owner's split: 1,000₮ under 10,000₮ · 1,500₮ under 30,000₮ · 2,000₮ under 60,000₮ · 3,000₮ from 60,000₮ (job total)
-    expect(serviceFeeFor(5000)).toBe(1000);
-    expect(serviceFeeFor(9999)).toBe(1000);
-    expect(serviceFeeFor(10000)).toBe(1500);
-    expect(serviceFeeFor(29999)).toBe(1500);
-    expect(serviceFeeFor(30000)).toBe(2000);
-    expect(serviceFeeFor(59999)).toBe(2000);
-    expect(serviceFeeFor(60000)).toBe(3000);
-    expect(serviceFeeFor(100000)).toBe(3000);
-    expect(buyerFeeFor(1_350_000)).toBe(3000);
+describe("service fee: a share of the price with a floor and a cap (docs/decisions.md 2026-11-22)", () => {
+  it("10% of the helper's price, rounded to 100₮, 500₮…5,000₮; nothing on the shopping money", () => {
+    expect(serviceFeeFor(5000)).toBe(500);
+    expect(serviceFeeFor(4000)).toBe(500); // floor
+    expect(serviceFeeFor(9000)).toBe(900);
+    expect(serviceFeeFor(12_340)).toBe(1200); // rounded to 100₮
+    expect(serviceFeeFor(20_000)).toBe(2000);
+    expect(serviceFeeFor(50_000)).toBe(5000);
+    expect(serviceFeeFor(150_000)).toBe(5000); // cap
+    expect(serviceFeeFor(8000, DEFAULT_CONFIG, 40_000)).toBe(800); // shopping money doesn't count
     expect(DEFAULT_CONFIG.commissionBps).toBe(0); // helpers keep 100%
+  });
+
+  it("share 0 returns to the flat steps on price + shopping; SafePay keeps the flat steps", () => {
+    const flat = { ...DEFAULT_CONFIG, serviceFeeBps: 0 };
+    // V1 spec C4 with the owner's split: 1,000₮ under 10,000₮ · 1,500₮ under 30,000₮ · 2,000₮ under 60,000₮ · 3,000₮ from 60,000₮ (job total)
+    expect(serviceFeeFor(5000, flat)).toBe(1000);
+    expect(serviceFeeFor(8000, flat, 5000)).toBe(1500);
+    expect(serviceFeeFor(60_000, flat)).toBe(3000);
+    expect(tieredFee(9999)).toBe(1000);
+    expect(tieredFee(10_000)).toBe(1500);
+    expect(buyerFeeFor(1_350_000)).toBe(3000);
   });
 });
 

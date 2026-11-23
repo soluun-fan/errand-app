@@ -139,6 +139,7 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
     .from("ratings")
     .select("deal_id, from_user_id, stars, tags, note, created_at")
     .eq("to_user_id", helperId)
+    .eq("about", "helper")
     .order("created_at", { ascending: false })
     .limit(limit)
     .returns<{ deal_id: string; from_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
@@ -164,7 +165,7 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
 
 /** Highlights: positive tags given at least twice, most frequent first. */
 export async function helperHighlights(helperId: string): Promise<{ tag: string; n: number }[]> {
-  const { data } = await createAdminClient().from("ratings").select("tags").eq("to_user_id", helperId).limit(500).returns<{ tags: string[] | null }[]>();
+  const { data } = await createAdminClient().from("ratings").select("tags").eq("to_user_id", helperId).eq("about", "helper").limit(500).returns<{ tags: string[] | null }[]>();
   return tagCounts((data ?? []).map((r) => r.tags ?? []), POSITIVE_TAGS, 2);
 }
 
@@ -220,6 +221,7 @@ export async function recentReviews(limit = 4): Promise<RecentReview[]> {
     .from("ratings")
     .select("deal_id, from_user_id, to_user_id, stars, tags, note, created_at")
     .not("note", "is", null)
+    .eq("about", "helper")
     .gte("stars", 4)
     .order("created_at", { ascending: false })
     .limit(limit * 3) // then reviews with photos first (PleaseHelp-style), newest first within each

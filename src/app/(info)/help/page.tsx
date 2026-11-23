@@ -1,3 +1,4 @@
+import { feeDescription } from "@/lib/fee-text";
 import { Card, FlowHeader } from "@/components/ui";
 import { CATEGORIES, lowestMinFee } from "@/lib/engine";
 import { getT } from "@/i18n/server";
@@ -7,14 +8,8 @@ import { pricingConfig } from "@/lib/pricing";
 /** "How it works" — the plain-words explanation, with the formal terms at the end (UI-FLOWS §0.6). */
 export default async function HelpPage() {
   const [t, cfg] = await Promise.all([getT(), pricingConfig()]);
-  // "500₮ under 10,000₮ · 1,000₮ under 30,000₮ · … · 3,000₮ above" — from the live settings
-  const tiers = cfg.serviceFeeTiers
-    .map((x, i, all) =>
-      x.below !== null
-        ? t("help.tier", { fee: fmtMoney(x.fee), below: fmtMoney(x.below) })
-        : t("help.tierLast", { fee: fmtMoney(x.fee), from: fmtMoney(all[i - 1]?.below ?? 0) }),
-    )
-    .join(" · ");
+  // the service fee in words, from the live settings
+  const tiers = feeDescription(cfg, t);
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />

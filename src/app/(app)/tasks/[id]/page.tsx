@@ -114,6 +114,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       people={people}
       viewerId={viewer.profile.id}
       serverNow={Date.now()}
+      nudgeAfterMinutes={isCustomer && deal.status === "open" ? (await getRules()).nudgeAfterMinutes : undefined}
       t={t}
       locale={locale}
       rated={rated}

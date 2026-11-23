@@ -7,12 +7,12 @@ import { OfferCard, type OfferPerson } from "@/components/offer-card";
 import { ConfirmSheet, type FormAction } from "@/components/sheet";
 import { StatusBadge } from "@/components/status-badge";
 import { StepTracker } from "@/components/step-tracker";
-import { Card, FlowHeader, HeldBadge, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
+import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
-import { fmtDateTime, fmtMoney } from "@/lib/format";
-import { DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
+import { amountDue, arriveBy, autoPickAt, categoryTrust, errandSplit, helperLate, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { fmtClock, fmtDateTime, fmtMoney } from "@/lib/format";
+import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { CustomerTaskMap } from "@/components/customer-task-map";
 import type { JobLocation } from "@/lib/location-rules";
 import { googlePlaceUrl } from "@/lib/maps";
@@ -40,6 +40,8 @@ export interface DealViewProps {
   organizations?: Map<string, { id: string; name: string }>;
   viewerId: string;
   serverNow: number;
+  /** "Want to raise the price?" after this many minutes with no application (Ops setting). */
+  nudgeAfterMinutes?: number;
   t: T;
   locale: Locale;
   /** Stars the viewer already gave, or null. */
@@ -296,6 +298,16 @@ export function DealView(p: DealViewProps) {
   }
 
   /* ---------- primary + secondary actions (customer only) ---------- */
+  // why the customer cancels (optional) — Ops sees it on the timeline (2026-11-22)
+  const cancelReasons = (
+    <label className={fieldLabel}>
+      {t("cancelReason.label")}
+      <select name="reason" defaultValue="" className={field}>
+        <option value="">{t("cancelReason.skip")}</option>
+        {CANCEL_REASONS.map((r) => <option key={r} value={r}>{t(`cancelReason.${r}`)}</option>)}
+      </select>
+    </label>
+  );
   let primary: ReactNode = null;
   const secondary: ReactNode[] = [];
   if (isCustomer) {
@@ -326,7 +338,9 @@ export function DealView(p: DealViewProps) {
             body={t("deal.cancelUnpaidBody")}
             confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
-          />,
+          >
+            {cancelReasons}
+          </ConfirmSheet>,
         );
         break;
       case "open":
@@ -355,7 +369,9 @@ export function DealView(p: DealViewProps) {
             body={deal.heldAmount > 0 ? t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) }) : t("deal.cancelUnpaidBody")}
             confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
-          />,
+          >
+            {cancelReasons}
+          </ConfirmSheet>,
         );
         break;
       case "in_progress":
@@ -390,6 +406,36 @@ export function DealView(p: DealViewProps) {
         }
         break;
       case "matched":
+        // helper standards (2026-11-22): a helper who hasn't come — get another one, or cancel free
+        if (helperLate(deal, Date.now())) {
+          primary = (
+            <ConfirmSheet
+              action={p.action}
+              fields={{ ...fields, intent: "replace_helper" }}
+              trigger={t("standards.replace")}
+              triggerClass={btn.primary}
+              title={t("standards.replaceTitle")}
+              body={t("standards.replaceBody", { helper: helperName, amount: fmtMoney(deal.heldAmount) })}
+              confirmLabel={t("standards.replace")}
+            />
+          );
+          secondary.push(
+            <ConfirmSheet
+              key="cancel"
+              action={p.action}
+              fields={{ ...fields, intent: "cancel" }}
+              trigger={t("standards.cancelFree")}
+              triggerClass={btn.textDanger}
+              title={t("deal.cancelFreeTitle")}
+              body={t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) })}
+              confirmLabel={t("deal.cancel")}
+              confirmClass={btn.danger}
+            >
+            {cancelReasons}
+          </ConfirmSheet>,
+          );
+          break;
+        }
         secondary.push(
           <ConfirmSheet
             key="cancel"
@@ -405,7 +451,9 @@ export function DealView(p: DealViewProps) {
             })}
             confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
-          />,
+          >
+            {cancelReasons}
+          </ConfirmSheet>,
         );
         break;
       case "check":
@@ -681,6 +729,42 @@ export function DealView(p: DealViewProps) {
         </section>
       )}
 
+      {isCustomer && deal.status === "open" && p.nudgeAfterMinutes !== undefined && liveOffers(deal, p.serverNow).length === 0 &&
+        p.serverNow - deal.createdAt >= p.nudgeAfterMinutes * 60_000 && (
+        <section className="flex flex-col gap-3 rounded-card bg-warn-bg p-4">
+          <h2 className="font-bold">{t("nudge.title")}</h2>
+          <p className="text-[15px]">{t("nudge.body", { amount: fmtMoney(deal.postedFee) })}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[500, 1000, 1500].map((step) => (
+              <ConfirmSheet
+                key={step}
+                action={p.action}
+                fields={{ ...fields, intent: "set_price", price: String(deal.postedFee + step), raise: "1" }}
+                trigger={`+${fmtMoney(step)}`}
+                triggerClass={btn.secondary}
+                title={t("nudge.confirmTitle", { amount: fmtMoney(deal.postedFee + step) })}
+                body={t("nudge.confirmBody")}
+                confirmLabel={t("nudge.confirmGo")}
+              />
+            ))}
+          </div>
+          <ConfirmSheet
+            action={p.action}
+            fields={{ ...fields, intent: "set_price", raise: "1" }}
+            trigger={t("nudge.other")}
+            triggerClass={btn.text}
+            title={t("price.changePostedTitle")}
+            body={t("nudge.confirmBody")}
+            confirmLabel={t("nudge.confirmGo")}
+          >
+            <label className={fieldLabel}>
+              {t("price.yourPrice")}
+              <input name="price" inputMode="numeric" defaultValue={String(deal.postedFee + 2000)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+            </label>
+          </ConfirmSheet>
+        </section>
+      )}
+
       {p.workPhotos}
 
       {p.proofs && p.proofs.length > 0 && (
@@ -776,6 +860,16 @@ export function DealView(p: DealViewProps) {
           ))}
         </ol>
       </DetailSection>
+
+      {deal.status === "matched" && arriveBy(deal) !== null && (
+        <div className="px-5 pt-2">
+          <Note tone={helperLate(deal, Date.now()) ? "warn" : "info"}>
+            {helperLate(deal, Date.now())
+              ? t("standards.customerLate", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })
+              : t("standards.customerArriveBy", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })}
+          </Note>
+        </div>
+      )}
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>

@@ -5,9 +5,9 @@ import { World, customer, helper, provider } from "./helpers";
 const c1 = customer("c1");
 const h1 = helper("h1");
 
-/** A 10,000₮ task, matched with h1 and paid (held 11,000 = fee + flat 1,000 service fee). */
+/** A 10,000₮ task, matched with h1 and paid (held 11,500 = fee + the flat 1,500 service fee). */
 function matched() {
-  const w = new World(DEFAULT_CONFIG);
+  const w = new World({ ...DEFAULT_CONFIG, serviceFeeBps: 0 });
   const id = w.post({ fee: 10000, itemBudget: 0 });
   w.do(id, { type: "apply", note: "" }, h1);
   w.do(id, { type: "choose", helperId: "h1" }, c1);

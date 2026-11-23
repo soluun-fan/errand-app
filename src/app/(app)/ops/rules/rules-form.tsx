@@ -9,7 +9,7 @@ import { saveRules } from "../actions";
 
 type NumKey = Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">;
 
-const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour" | "mnt" | "times"][] }[] = [
+const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "standards" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour" | "mnt" | "times" | "m"][] }[] = [
   { title: "money", fields: [["paymentWindowMinutes", "min"], ["paymentWindowBookedMinutes", "min"], ["checkHours", "h"]] },
   { title: "payouts", fields: [["withdrawMin", "mnt"], ["withdrawalsPerDay", "times"], ["autoPayoutDays", "days"], ["dayjobPairMonthCap", "times"]] },
   {
@@ -22,9 +22,31 @@ const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "care"; fiel
       ["inviteMinutes", "min"],
       ["inviteMinutesScheduled", "min"],
       ["maxApplicants", "people"],
+      ["nudgeAfterMinutes", "min"],
+      ["maxPendingApplications", "times"],
     ],
   },
   { title: "backOut", fields: [["backOutGraceMinutes", "min"], ["pauseDaysFirst", "days"], ["pauseDaysSecond", "days"], ["pauseDaysMore", "days"], ["carePauseDays", "days"]] },
+  {
+    title: "standards",
+    fields: [
+      ["arriveMinutes", "min"],
+      ["lateGraceMinutes", "min"],
+      ["arriveRadiusM", "m"],
+      ["positionMaxAgeSeconds", "sec"],
+      ["locationStaleMinutes", "min"],
+      ["routeRetentionDays", "days"],
+      ["marksWindowDays", "days"],
+      ["marksRankLower", "times"],
+      ["marksPause", "times"],
+      ["marksPauseDays", "days"],
+      ["marksReview", "times"],
+      ["readyPositionMinutes", "min"],
+      ["sosRepingMinutes", "min"],
+      ["sosRepingForMinutes", "min"],
+      ["chatRetentionDays", "days"],
+    ],
+  },
   { title: "care", fields: [["careDayStartHour", "hour"], ["careDayEndHour", "hour"], ["careMaxMinutes", "min"], ["careCallMinSeconds", "sec"]] },
 ];
 

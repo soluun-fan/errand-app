@@ -160,7 +160,7 @@ describe("customer chooses (applications on every task)", () => {
   const h2 = helper("h2");
 
   it("bargaining is open both ways, any number of rounds, per helper; only the minimum is fixed", () => {
-    const w = new World(DEFAULT_CONFIG);
+    const w = new World({ ...DEFAULT_CONFIG, serviceFeeBps: 0 });
     const id = w.post({ fee: 6000 });
     expect(w.get(id)).toMatchObject({ serviceFee: 1000 });
     w.do(id, { type: "apply", note: "5 min away" }, h1);

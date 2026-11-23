@@ -49,6 +49,6 @@ export function checkReport(kind: string, note: string): ReportCheck {
 }
 
 /** Should Ops get another reminder about this SOS now? */
-export function needsReping(i: { kind: string; status: string; createdAt: number; lastPingAt: number }, now: number): boolean {
-  return i.kind === "sos" && i.status === "open" && now - i.createdAt <= SOS_REPING_FOR_MS && now - i.lastPingAt >= SOS_REPING_MS;
+export function needsReping(i: { kind: string; status: string; createdAt: number; lastPingAt: number }, now: number, everyMs = SOS_REPING_MS, forMs = SOS_REPING_FOR_MS): boolean {
+  return i.kind === "sos" && i.status === "open" && now - i.createdAt <= forMs && now - i.lastPingAt >= everyMs;
 }

@@ -11,7 +11,7 @@ import { invitableHelper } from "@/lib/helper-profile";
 import { Uuid, parseOr } from "@/lib/input";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
-import { openTaskCount } from "@/lib/safety";
+import { openTaskCount, isFirstTask } from "@/lib/safety";
 import Link from "next/link";
 import { PostFlow, type Draft, type InviteTarget } from "./post-flow";
 
@@ -79,7 +79,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       </>
     );
   }
-  const [sp, tasks, saved, cfg, keywords, live, openTasks] = await Promise.all([
+  const [sp, tasks, saved, cfg, keywords, live, openTasks, firstTask] = await Promise.all([
     searchParams,
     listMyTasks(viewer.profile.id),
     listSavedAddresses(),
@@ -87,6 +87,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
     loadKeywords(),
     liveCategories(),
     openTaskCount(viewer.profile.id),
+    isFirstTask(viewer.profile.id),
   ]);
   const title = typeof sp.title === "string" && sp.title.trim() ? sp.title.slice(0, DEFAULT_CONFIG.titleMax) : undefined;
   // /post?helper=<id>: a direct request to the helper whose profile this came from
@@ -154,6 +155,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       key={`${viewer.profile.id}-${again ? sp.again : invite?.id ?? "new"}`}
       initial={initial}
       openTasks={openTasks}
+      firstTask={firstTask && cfg.firstTaskFree}
       startStep={again ? 3 : cat ? 1 : 0}
       defaultAddress={saved.find((s) => s.kind === "home")?.address ?? viewer.profile.area ?? ""}
       recent={recent}

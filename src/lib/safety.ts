@@ -128,3 +128,13 @@ export async function adminIds(): Promise<string[]> {
   const { data } = await createAdminClient().from("profiles").select("id").eq("role", "admin").returns<{ id: string }[]>();
   return (data ?? []).map((r) => r.id);
 }
+
+/** Has this customer never paid for a task? (First task free, 2026-11-22.) Counts real pay-ins only. */
+export async function isFirstTask(customerId: string): Promise<boolean> {
+  const { count } = await createAdminClient()
+    .from("ledger_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("kind", "pay_in")
+    .eq("from_account", `ext:${customerId}`);
+  return (count ?? 0) === 0;
+}

@@ -2,6 +2,7 @@ import "server-only";
 import { isActiveTestHelper } from "@/lib/helper-test-mode";
 import { cookies, headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getRules } from "@/lib/rules";
 import { missingSteps, type ReadyStep } from "@/lib/work-ready-rules";
 
 /**
@@ -23,9 +24,10 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
   if (await deviceCheckBypassed(profile)) return [];
   const h = await headers();
   const db = createAdminClient();
-  const [{ count }, { data: pos }] = await Promise.all([
+  const [{ count }, { data: pos }, rules] = await Promise.all([
     db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", profile.id),
     db.from("helper_presence").select("lat, updated_at").eq("user_id", profile.id).maybeSingle<{ lat: number | null; updated_at: string }>(),
+    getRules().catch(() => null),
   ]);
   return missingSteps({
     userAgent: h.get("user-agent"),
@@ -33,5 +35,6 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
     pushDevices: count ?? 0,
     positionAt: pos?.lat != null ? Date.parse(pos.updated_at) : null,
     now: Date.now(),
+    freshMs: rules ? rules.readyPositionMinutes * 60_000 : undefined, // Ops setting (2026-11-22)
   });
 }

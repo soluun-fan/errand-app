@@ -19,9 +19,9 @@ export async function saveWorkerLocation(helperId: string, pos: { lat: number; l
   const db = createAdminClient();
   const sample = { ...pos, updated_at: new Date().toISOString() };
   if (state.online) await db.from("helper_presence").update(sample).eq("user_id", helperId).eq("online", true).throwOnError();
-  // UPDATE only: stopping or ending a job deletes the row, so a delayed sample cannot recreate consent.
-  if (state.jobIds.length) await db.from("job_locations").update(sample)
-    .eq("helper_id", helperId).in("deal_id", state.jobIds).throwOnError();
+  // Running jobs: live position + a route point for disputes (helper standards, 2026-11-22). The
+  // database only touches jobs in progress and assigned to this helper; ending a job stops it.
+  if (state.jobIds.length) await db.rpc("record_job_position", { p_helper: helperId, p_lat: pos.lat, p_lng: pos.lng }).throwOnError();
   return state;
 }
 

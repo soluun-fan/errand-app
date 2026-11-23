@@ -14,7 +14,7 @@ import { hasOpenUnpaid } from "@/lib/direct-pay";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
 import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
-import { getControls, isPausedError, openTaskCount } from "@/lib/safety";
+import { getControls, isPausedError, openTaskCount, isFirstTask } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_TASK_PHOTO_BYTES, attachTaskPhotos, createTaskPhotoSlot, type TaskPhotoSlot } from "@/lib/task-photos";
 
@@ -59,7 +59,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   if (controls.postingPaused) return { error: t("safety.postingPaused"), step: STEP.review };
   // a helper reported they weren't paid for an earlier job: settle that first (Ops resolves)
   if (await hasOpenUnpaid(viewer.profile.id)) return { error: t("directPay.blockedPosting"), step: STEP.review };
-  const openTasks = await openTaskCount(viewer.profile.id);
+  const [openTasks, firstTask] = await Promise.all([openTaskCount(viewer.profile.id), isFirstTask(viewer.profile.id)]);
   if (openTasks >= controls.maxOpenTasks) {
     return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: STEP.review };
   }
@@ -129,6 +129,7 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
         customerId: viewer.profile.id,
         // beyond the free active tasks, the service fee is a little higher (owner, 2026-11-18)
         openTasks,
+        firstTask,
         details,
         invite,
       },

@@ -12,15 +12,16 @@ import { attachTaskPhotos, photosEditable, removeTaskPhoto } from "@/lib/task-ph
 import { attachReviewPhotos } from "@/lib/work-photos";
 import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
 import { getDealForViewer } from "@/lib/deals/queries";
-import { notifyChosen, runDispatch } from "@/lib/dispatch/run";
+import { notifyChosen, resendAfterRaise, restartDispatch, runDispatch } from "@/lib/dispatch/run";
+import { alertOpsIfReview } from "@/lib/standards-tick";
 import { notify } from "@/lib/push";
-import { EngineError, amountDue, categoryTrust, type Command } from "@/lib/engine";
+import { EngineError, amountDue, categoryTrust, type Command, type ErrandDeal } from "@/lib/engine";
 import { workedTogether } from "@/lib/care";
 import { getRules } from "@/lib/rules";
 import { hadCareCall } from "@/lib/chat";
-import { DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
+import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
-import { HELPER_BUSY, activeProvider, afterPaymentBooked, paymentFor, startWirePayment, stepBackBusyHelper } from "@/lib/payments/service";
+import { HELPER_BUSY, activeProvider, afterPaymentBooked, paymentFor, runRefunds, startWirePayment, stepBackBusyHelper } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
@@ -170,7 +171,11 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
 
       default: {
         let cmd: Command;
-        if (intent === "cancel") cmd = { type: "cancel" };
+        if (intent === "cancel") {
+          const reason = String(form.get("reason") ?? "");
+          cmd = (CANCEL_REASONS as readonly string[]).includes(reason) ? { type: "cancel", reason } : { type: "cancel" };
+        }
+        else if (intent === "replace_helper") cmd = { type: "replace_helper" };
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
         else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
         else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
@@ -213,12 +218,19 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
             if (!known.has(cmd.helperId) && form.get("familyHome") !== "on") return { error: t("care.meetFirstNeeded") };
           }
         }
+        const before = cmd.type === "replace_helper" || cmd.type === "cancel" ? await loadDeal(db, dealId) : null;
         const r = await runCommand(db, dealId, cmd, viewer.actor);
+        // helper standards: the late helper was replaced (or the customer cancelled because of it)
+        if (before?.type === "errand" && before.helperId && r.events.some((e) => e.code === "helper_no_show")) {
+          await afterLateHelper(r.deal.type === "errand" ? r.deal : null, before.helperId, cmd.type === "replace_helper");
+        }
         if (cmd.type === "choose" && r.deal.type === "errand") {
           await notifyChosen(r.deal, false);
           await runDispatch(dealId);
         }
         if (cmd.type === "open_to_all") await runDispatch(dealId); // the first wave goes out now
+        // "want to raise the price?": tell helpers again, now with the higher price
+        if (cmd.type === "set_price" && form.get("raise") === "1") await resendAfterRaise(dealId).catch((e) => console.error("resend after raise failed", e));
         if ((cmd.type === "propose_price" || cmd.type === "answer_price") && r.deal.type === "errand" && r.deal.helperId) {
           await notifyPriceChange(r.deal, cmd, viewer.profile.name || "—", r.deal.helperId, `/jobs/${dealId}`);
         }
@@ -303,4 +315,23 @@ export async function addTaskPhotosAction(dealId: string, ids: string[]): Promis
   }
   refresh();
   return {};
+}
+
+/**
+ * Helper standards (2026-11-22): the customer replaced a late helper, or cancelled free because of
+ * them. The engine already refunded and (for a replacement) reopened the task; tell the helper, send
+ * the task out again and start the real refund. Best effort — the money is already decided.
+ */
+async function afterLateHelper(deal: ErrandDeal | null, helperId: string, replaced: boolean): Promise<void> {
+  if (!deal) return;
+  await notify([helperId], {
+    title: "push.lateDroppedTitle",
+    body: replaced ? "push.lateReplacedBody" : "push.lateCancelledBody",
+    params: { title: deal.title },
+    url: "/helper/record",
+    tag: `job-${deal.id}`,
+  }).catch((e) => console.error("late notice failed", e));
+  if (replaced) await restartDispatch(deal.id, helperId).catch((e) => console.error("restart dispatch failed", e));
+  await alertOpsIfReview(helperId).catch((e) => console.error("marks review alert failed", e));
+  await runRefunds(deal.id).catch((e) => console.error("refund after late helper failed", e));
 }

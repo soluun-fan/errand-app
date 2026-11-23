@@ -207,6 +207,8 @@ export interface NewErrandInput {
   id: string;
   /** How many active tasks the customer already has (the server counts them); beyond the free ones costs extra. */
   openTasks?: number;
+  /** The customer has never paid for a task (server-checked): no service fee if Ops allows it (2026-11-22). */
+  firstTask?: boolean;
   title: string;
   description: string;
   category: CategoryId;
@@ -314,7 +316,11 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     rematchWindowMinutes: cfg.nowMatchWindowMinutes,
     applicationMinutes: cfg.applicationMinutes,
     autoPickMinutes: cfg.autoPickMinutes,
+    arriveMinutes: cfg.arriveMinutes,
+    lateGraceMinutes: cfg.lateGraceMinutes,
   };
+  const freeFirst = input.firstTask === true && cfg.firstTaskFree;
+  if (freeFirst) details.freeFirst = true; // shown in the money breakdown
   details.quotedFee = quote.total; // kept for learning what people pay; not shown as "the price"
   details.counterMax = 0;
   // Accompaniment and historical care bookings require the customer’s final choice.
@@ -357,7 +363,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     postedFee: input.fee,
     // fixed at posting from the posted price; a counter-offer doesn't change it
     // on the job total (price + shopping budget), V1 spec C4; a counter-offer doesn't change it
-    serviceFee: serviceFeeFor(input.fee + input.itemBudget, cfg) + extraTaskFeeFor(input.openTasks ?? 0, cfg),
+    serviceFee: freeFirst ? 0 : serviceFeeFor(input.fee, cfg, input.itemBudget) + extraTaskFeeFor(input.openTasks ?? 0, cfg),
     commissionBps: cfg.commissionBps,
     payMode: cfg.payMode,
     cancelFee: cfg.cancelFee,
@@ -399,14 +405,31 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
 export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
   const v = e.details.rules?.[key];
   if (typeof v === "number" && Number.isFinite(v)) return v;
-  const fallback: TaskRules = {
+  const fallback: Required<TaskRules> = {
     paymentWindowMinutes: DEFAULT_CONFIG.paymentWindowMinutes,
     backOutGraceMinutes: DEFAULT_CONFIG.backOutGraceMinutes,
     rematchWindowMinutes: DEFAULT_CONFIG.nowMatchWindowMinutes,
     applicationMinutes: DEFAULT_CONFIG.applicationMinutes,
     autoPickMinutes: DEFAULT_CONFIG.autoPickMinutes,
+    arriveMinutes: DEFAULT_CONFIG.arriveMinutes,
+    lateGraceMinutes: DEFAULT_CONFIG.lateGraceMinutes,
   };
   return fallback[key];
+}
+
+/**
+ * Helper standards (docs/decisions.md 2026-11-22): when the chosen helper should have arrived and
+ * started — the booked time, or this long after being chosen for "now" tasks. Null before a match.
+ */
+export function arriveBy(e: ErrandDeal): number | null {
+  if (e.assignedAt === null) return null;
+  return Math.max(e.scheduledAt ?? 0, e.assignedAt + ruleOf(e, "arriveMinutes") * MINUTE_MS);
+}
+
+/** Paid but not started well past the arrive-by time: the customer may cancel free or replace them. */
+export function helperLate(e: ErrandDeal, now: number): boolean {
+  const by = arriveBy(e);
+  return e.status === "matched" && e.helperId !== null && by !== null && now > by + ruleOf(e, "lateGraceMinutes") * MINUTE_MS;
 }
 
 /**
@@ -461,6 +484,25 @@ export function invitedOnly(e: ErrandDeal, now: number): string | null {
 function requireInvited(e: ErrandDeal, helperId: string, now: number): void {
   const only = invitedOnly(e, now);
   if (only !== null && only !== helperId) fail("FORBIDDEN", "This task was sent to one helper first");
+}
+
+/**
+ * The chosen helper is out (backed out, or replaced for being late): everything held goes back to
+ * the customer, the job's progress is cleared and the task is posted anew with a full search window.
+ */
+function reopenWithoutHelper(tx: Tx<Deal>, d: ErrandDeal, helperId: string, reason: string): void {
+  refundAll(tx, reason);
+  if (d.topUp?.status === "paid") d.itemBudget -= d.topUp.amount; // the extra was refunded with the rest
+  d.topUp = null;
+  d.receiptAmount = null;
+  d.handoverProofAt = null;
+  d.priceChange = null;
+  d.paymentRef = null;
+  d.offers = d.offers.filter((o) => o.helperId !== helperId); // they can't be chosen again
+  unassignHelper(d);
+  d.matchBy = Math.max(d.scheduledAt ?? 0, tx.ctx.now + ruleOf(d, "rematchWindowMinutes") * MINUTE_MS);
+  // a direct request to this helper opens to everyone now
+  if (d.invite?.helperId === helperId) d.invite = { ...d.invite, until: tx.ctx.now, openAfter: true };
 }
 
 /** The match lapsed before payment (timeout or helper withdrew): back to searching. */
@@ -776,6 +818,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
             // direct: cancelling after the helper was chosen and the fee paid — our fee is kept (owner, 2026-11-18)
             tx.fromHold("platform_fee", d.heldAmount, "platform");
             tx.ev("fee_kept", { amount: d.serviceFee });
+          } else if (d.status === "matched" && helperLate(d, ctx.now)) {
+            // the helper didn't come: no cancellation fee for them, and it counts on their record
+            tx.ev("helper_no_show", { helperId: d.helperId as string });
           } else if (d.status === "matched") {
             const helperId = d.helperId as string;
             const fee = Math.min(d.cancelFee, d.heldAmount);
@@ -785,7 +830,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           refundAll(tx, "customer_cancelled");
           if (d.priceChange?.status !== "paid") d.priceChange = null;
           d.status = "cancelled";
-          tx.ev("cancelled", { by: "customer" });
+          tx.ev("cancelled", cmd.reason ? { by: "customer", reason: cmd.reason } : { by: "customer" });
         } else if (d.helperId !== null && u.id === d.helperId) {
           // The chosen helper backs out (docs/decisions.md 2026-11-17 "Backing out"): the task is
           // posted anew — everything held goes back to the customer, the job's progress is cleared,
@@ -793,18 +838,7 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           // after being chosen; later it counts against the helper (escalating pause, in the DB).
           requireStatus(d, "cancel", "awaiting_payment", "matched", "in_progress");
           const late = d.assignedAt === null || ctx.now - d.assignedAt > ruleOf(d, "backOutGraceMinutes") * MINUTE_MS;
-          refundAll(tx, "helper_backed_out");
-          if (d.topUp?.status === "paid") d.itemBudget -= d.topUp.amount; // the extra was refunded with the rest
-          d.topUp = null;
-          d.receiptAmount = null;
-          d.handoverProofAt = null;
-          d.priceChange = null;
-          d.paymentRef = null;
-          d.offers = d.offers.filter((o) => o.helperId !== u.id); // they can't be chosen again
-          unassignHelper(d);
-          d.matchBy = Math.max(d.scheduledAt ?? 0, ctx.now + ruleOf(d, "rematchWindowMinutes") * MINUTE_MS);
-          // a direct request to this helper opens to everyone now
-          if (d.invite?.helperId === u.id) d.invite = { ...d.invite, until: ctx.now, openAfter: true };
+          reopenWithoutHelper(tx, d, u.id, "helper_backed_out");
           if (late) {
             tx.effects.push({ kind: "helper_penalty", helperId: u.id, dealId: d.id });
             tx.ev("helper_backed_out", { helperId: u.id });
@@ -987,6 +1021,26 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.fee = change.fee;
       e.priceChange = { ...change, status: "paid", providerRef: cmd.providerRef };
       tx.ev("price_paid", { amount: cmd.amount, to: change.fee });
+      break;
+    }
+
+    case "mark_late": {
+      const e = asErrand(d, "mark late");
+      requireKind(ctx, "system", "Marking a helper late");
+      if (!helperLate(e, ctx.now)) fail("ILLEGAL_TRANSITION", "The helper is not late");
+      tx.ev("helper_late", { helperId: e.helperId as string });
+      break;
+    }
+
+    case "replace_helper": {
+      const e = asErrand(d, "replace the helper on");
+      const u = requireUser(ctx);
+      if (u.id !== e.customerId) fail("FORBIDDEN", "Only the customer can replace the helper");
+      if (!helperLate(e, ctx.now)) fail("ILLEGAL_TRANSITION", "The helper can be replaced only when late");
+      const helperId = e.helperId as string;
+      reopenWithoutHelper(tx, e, helperId, "helper_late");
+      tx.ev("helper_no_show", { helperId });
+      tx.ev("helper_replaced", { helperId });
       break;
     }
 

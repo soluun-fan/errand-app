@@ -21,11 +21,11 @@ export function isMobileDevice(userAgent: string | null, chMobile: string | null
   return false;
 }
 
-export function missingSteps(input: { userAgent: string | null; chMobile: string | null; pushDevices: number; positionAt: number | null; now: number }): ReadyStep[] {
+export function missingSteps(input: { userAgent: string | null; chMobile: string | null; pushDevices: number; positionAt: number | null; now: number; freshMs?: number }): ReadyStep[] {
   const out: ReadyStep[] = [];
   if (!isMobileDevice(input.userAgent, input.chMobile)) out.push("phone");
   if (input.pushDevices < 1) out.push("notifications");
   if (input.positionAt === null || !Number.isFinite(input.positionAt) || input.positionAt > input.now ||
-    input.now - input.positionAt > POSITION_FRESH_MS) out.push("location");
+    input.now - input.positionAt > (input.freshMs ?? POSITION_FRESH_MS)) out.push("location");
   return out;
 }

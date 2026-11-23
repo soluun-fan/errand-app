@@ -9,6 +9,7 @@ import { purgeLooseTaskPhotos } from "@/lib/task-photos";
 import { purgeLooseReviewPhotos } from "@/lib/work-photos";
 import { runAutoPayouts } from "@/lib/withdrawals";
 import { sweepRefunds } from "@/lib/payments/service";
+import { markLateHelpers, nudgeStaleLocations, purgeJobRoutes } from "@/lib/standards-tick";
 
 export interface TickResult {
   settled: number;
@@ -18,6 +19,7 @@ export interface TickResult {
   kycPurged: number;
   photosPurged: number;
   sosReminders: number;
+  lateMarked: number;
   ms: number;
 }
 
@@ -35,6 +37,9 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   // first: an SOS reminder must never wait behind a slow dispatch round
   const sosReminders = await repingSos(now).catch((e) => (console.error("sos reminder failed", e), 0));
   const settled = await settleDueDeals(now);
+  // helper standards: late helpers are marked (and both sides told); stopped locations get a reminder
+  const lateMarked = await markLateHelpers(now).catch((e) => (console.error("late marking failed", e), 0));
+  await nudgeStaleLocations(now).catch((e) => console.error("location reminder failed", e));
   let dispatched = 0;
   let failedDispatch = 0;
   for (const id of await openDealIds()) {
@@ -51,9 +56,10 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   await purgeIncidentLocations(now).catch((e) => console.error("incident purge failed", e));
   const photosPurged = await purgeLooseTaskPhotos(now).catch((e) => (console.error("task photo purge failed", e), 0));
   await purgeLooseReviewPhotos(now).catch((e) => console.error("review photo purge failed", e));
+  await purgeJobRoutes().catch((e) => console.error("route purge failed", e));
   // earnings unclaimed for N days are asked for automatically (V1 spec A4)
   await runAutoPayouts().catch((e) => console.error("auto payouts failed", e));
   // refunds the ledger holds that wire hasn't done yet (new ones and retries)
   await sweepRefunds().catch((e) => console.error("refund sweep failed", e));
-  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, photosPurged, sosReminders, ms: Date.now() - t0 };
+  return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, photosPurged, sosReminders, lateMarked, ms: Date.now() - t0 };
 }

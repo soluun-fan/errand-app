@@ -1,11 +1,17 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { results, queries } = vi.hoisted(() => ({
+const { results, queries, rpcs } = vi.hoisted(() => ({
   results: [] as { data: unknown; error?: { code: string; message: string } }[],
   queries: [] as { table: string; operation: string; filters: [string, unknown][] }[],
+  rpcs: [] as { fn: string; args: unknown }[],
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
+  rpc(fn: string, args: unknown) {
+    rpcs.push({ fn, args });
+    const done = { throwOnError: () => done, then: (resolve: (r: unknown) => unknown) => Promise.resolve({ data: 1 }).then(resolve) };
+    return done;
+  },
   from(table: string) {
     const query = { table, operation: "", filters: [] as [string, unknown][] };
     queries.push(query);
@@ -29,7 +35,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
 import { customerJobLocation, saveWorkerLocation, workerLocationState } from "../job-location";
 import { recipientVerificationForOwner } from "../verify-mn";
 
-beforeEach(() => { results.length = 0; queries.length = 0; });
+beforeEach(() => { results.length = 0; queries.length = 0; rpcs.length = 0; });
 
 it("does not read worker locations for a different customer or a finished job", async () => {
   for (const data of [null, { helper_id: "helper", status: "check" }]) {
@@ -61,13 +67,13 @@ it("preserves online presence when the optional tracking table is unavailable", 
   expect(await workerLocationState("helper")).toEqual({ online: true, available: false, jobIds: [] });
 });
 
-it("updates only existing consent and online presence for the authenticated helper", async () => {
-  results.push({ data: { online: true } }, { data: [{ deal_id: "shared-job" }] }, { data: null }, { data: null });
+it("updates online presence and records running jobs for the authenticated helper only", async () => {
+  results.push({ data: { online: true } }, { data: [{ deal_id: "shared-job" }] }, { data: null });
   await saveWorkerLocation("helper", { lat: 47.92, lng: 106.92 });
   expect(queries[1].filters).toContainEqual(["deals.status", "in_progress"]);
   expect(queries[1].filters).toContainEqual(["deals.helper_id", "helper"]);
   expect(queries[2]).toMatchObject({ operation: "update", filters: [["user_id", "helper"], ["online", true]] });
-  expect(queries[3]).toMatchObject({ operation: "update", filters: [["helper_id", "helper"], ["deal_id", ["shared-job"]]] });
+  expect(rpcs).toEqual([{ fn: "record_job_position", args: { p_helper: "helper", p_lat: 47.92, p_lng: 106.92 } }]);
 });
 
 it("does not collect coordinates when offline and no jobs have sharing enabled", async () => {

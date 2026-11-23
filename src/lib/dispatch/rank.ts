@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { qualificationsForMany } from "@/lib/qualifications";
 import { helperStart } from "@/lib/maps";
 import { distanceKm, score } from "./plan";
+import { rankLowerSet } from "@/lib/standards";
+import { MARK_RANK_PENALTY } from "@/lib/standards-rules";
 
 /** Max applications a helper may have open at once (docs/decisions.md 2026-11-13). */
 export const MAX_PENDING_APPLICATIONS = 3;
@@ -31,6 +33,7 @@ export async function rankApplicants(deal: ErrandDeal, now = Date.now()): Promis
   ]);
   const qualifications = categoryTrust(deal.category) === "open" ? new Map() : await qualificationsForMany((profiles.data ?? []).map((p) => ({ id: p.id as string, kycLevel: Number(p.kyc_level) })), now);
   const pos = new Map((presence.data ?? []).map((p) => [p.user_id as string, p]));
+  const lower = await rankLowerSet(ids);
   return (profiles.data ?? [])
     .filter((p) => {
       if (p.role !== "helper" || p.helper_status !== "approved" || (p.suspended_until && Date.parse(p.suspended_until) > now)) return false;
@@ -54,6 +57,7 @@ export async function rankApplicants(deal: ErrandDeal, now = Date.now()): Promis
           completed: Number(p.completed_count),
           offers30d: mine.length,
           won30d: mine.filter((o) => o.status === "won").length,
+          penalty: lower.has(p.id as string) ? MARK_RANK_PENALTY : 0,
         }),
       };
     })
