@@ -23,7 +23,8 @@
     "staging:dev": "node --env-file=.env.staging.local node_modules/next/dist/bin/next dev",
     "staging:migrate": "supabase db push --remote=ivaoltwgzxntytqnwkih",
     "staging:seed": "node --env-file=.env.staging.local --import tsx scripts/seed.ts",
-    "staging:check": "node --env-file=.env.staging.local --import tsx scripts/check-live.ts"
+    "staging:check": "node --env-file=.env.staging.local --import tsx scripts/check-live.ts",
+    "check:turn": "node --env-file=.env.local --import tsx scripts/check-turn.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
