@@ -282,12 +282,12 @@ export function DealView(p: DealViewProps) {
       rows.push({ label: t("money.backToYou"), amount: split.refund });
     }
     // the platform's fee is never the organisation's money, whoever did the job
-    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : t("money.serviceFee"), amount: split.platform, muted: true });
+    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : deal.details.freeFirst ? t("post.firstTaskFree") : t("money.serviceFee"), amount: split.platform, muted: true });
     money = <MoneyBreakdown rows={rows} total={{ label: t("money.totalHeld"), amount: split.held }} />;
   } else if (!["refunded", "cancelled", "expired"].includes(deal.status)) {
     const rows: MoneyRow[] = [{ label: t("money.helperFee"), amount: deal.fee }];
     if (deal.itemBudget > 0) rows.push({ label: t("money.itemBudget"), amount: deal.itemBudget });
-    rows.push({ label: t("money.serviceFee"), amount: deal.serviceFee, muted: true });
+    rows.push({ label: deal.details.freeFirst ? t("post.firstTaskFree") : t("money.serviceFee"), amount: deal.serviceFee, muted: true });
     money = (
       <MoneyBreakdown
         rows={rows}

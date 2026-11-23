@@ -131,10 +131,12 @@ export async function adminIds(): Promise<string[]> {
 
 /** Has this customer never paid for a task? (First task free, 2026-11-22.) Counts real pay-ins only. */
 export async function isFirstTask(customerId: string): Promise<boolean> {
-  const { count } = await createAdminClient()
+  const { count, error } = await createAdminClient()
     .from("ledger_entries")
     .select("id", { count: "exact", head: true })
     .eq("kind", "pay_in")
     .eq("from_account", `ext:${customerId}`);
-  return (count ?? 0) === 0;
+  // if we can't tell, charge the normal fee — never give a task away because a lookup failed
+  if (error || count === null) return false;
+  return count === 0;
 }
