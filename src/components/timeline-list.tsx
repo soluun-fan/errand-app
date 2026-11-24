@@ -1,10 +1,9 @@
-import { intlLocale, type Locale } from "@/i18n";
-import { UB_TZ, fmtClock } from "@/lib/format";
+import type { Locale } from "@/i18n";
+import { fmtClock, fmtDay } from "@/lib/format";
 
 /**
  * A task's history, newest first, grouped by day: the day once as a small heading, then only the
- * clock time on each line (2026-11-24 UX pass: the full date on every line was noisy). The newest
- * few are shown; the rest fold under "See all".
+ * clock time on each line. The newest few are shown; the rest fold under "See all".
  */
 export function TimelineList<E extends { at: number }>({ events, describe, locale, moreLabel, visible = 6 }: {
   events: E[];
@@ -13,11 +12,10 @@ export function TimelineList<E extends { at: number }>({ events, describe, local
   moreLabel: string;
   visible?: number;
 }) {
-  const day = new Intl.DateTimeFormat(intlLocale(locale), { timeZone: UB_TZ, month: "long", day: "numeric" });
   const groups = (list: E[]) => {
     const out: { day: string; items: E[] }[] = [];
     for (const e of list) {
-      const d = day.format(e.at);
+      const d = fmtDay(e.at, locale);
       if (out.at(-1)?.day === d) out.at(-1)!.items.push(e);
       else out.push({ day: d, items: [e] });
     }

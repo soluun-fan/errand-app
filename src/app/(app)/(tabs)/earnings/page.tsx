@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Note, btn } from "@/components/ui";
+import { Note, btn, pageTitle } from "@/components/ui";
 import { CategoryIcon } from "@/components/category-icon";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ConfirmSheet } from "@/components/sheet";
@@ -7,7 +7,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyJobs } from "@/lib/deals/queries";
 import { errandSplit } from "@/lib/engine";
-import { UB_TZ, fmtDateTime, fmtMoney } from "@/lib/format";
+import { fmtDateTime, fmtMoney, ubMonthKey } from "@/lib/format";
 import { myPayout } from "@/lib/payout";
 import { earningsSummary } from "@/lib/withdrawals";
 import { pendingEarningsStage } from "@/lib/earnings-rules";
@@ -35,8 +35,8 @@ export default async function EarningsPage() {
   const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
   const testHelper = unverifiedHelpersTestMode && viewer.profile.test_helper;
   // this calendar month (Ulaanbaatar) — a quick sense of how the month is going
-  const month = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: UB_TZ, year: "numeric", month: "2-digit" }).format(ms);
-  const monthJobs = finished.filter((d) => viaApp(d) && month(d.createdAt) === month(now));
+  const thisMonth = ubMonthKey(now);
+  const monthJobs = finished.filter((d) => viaApp(d) && ubMonthKey(d.createdAt) === thisMonth);
   const monthTotal = monthJobs.reduce((a, d) => a + net(d), 0);
   const pill: Record<string, string> = { sent: "bg-held-bg text-held", failed: "bg-danger-bg text-danger", requested: "bg-warn-bg text-warn" };
 
@@ -81,7 +81,7 @@ export default async function EarningsPage() {
 
   return (
     <>
-      <h1 className="pt-2 text-[24px] font-bold tracking-tight">{t("earnings.title")}</h1>
+      <h1 className={pageTitle}>{t("earnings.title")}</h1>
       {(pending.length > 0 || sum.onTheWay > 0) && <AutoRefresh seconds={30} />}
       <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">

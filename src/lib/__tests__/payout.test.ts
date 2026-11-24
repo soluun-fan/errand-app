@@ -13,7 +13,7 @@ vi.mock("@/lib/helper-test-mode", () => ({ isActiveTestHelper: ({ test_helper }:
 vi.mock("@/lib/safety", () => ({ adminIds: async () => [], audit: async () => {} }));
 vi.mock("@/lib/push", () => ({ notify: async () => {} }));
 
-import { setPayout } from "@/lib/payout";
+import { hasPayout, setPayout } from "@/lib/payout";
 
 beforeEach(() => {
   mocks.responses.length = 0;
@@ -48,6 +48,11 @@ it("allows an approved helper to add a payout account when only test_helper is m
   expect(mocks.selected).toEqual(["role, helper_status, verified_name, test_helper", "role, helper_status, verified_name", "account_number"]);
   expect(mocks.upserts).toHaveLength(1);
   expect(mocks.upserts[0].verified_at).toBeNull();
+});
+
+it("does not tell a helper their bank account is missing when the account read failed", async () => {
+  mocks.from.mockReturnValue({ select: () => ({ eq: async () => ({ count: null, error: { message: "bank lookup unavailable" } }) }) });
+  await expect(hasPayout("user-1")).rejects.toThrow("bank lookup unavailable");
 });
 
 it("never verifies a bank account just because the typed holder matches an ID-checked name", async () => {

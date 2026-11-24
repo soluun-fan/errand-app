@@ -18,6 +18,18 @@ export function fmtDateTime(ms: number, locale: Locale = "en"): string {
   }).format(ms);
 }
 
+const dayFormats = new Map<Locale, Intl.DateTimeFormat>();
+/** "11-р сарын 24" / "24 Nov" in Ulaanbaatar time — a day heading (task history). */
+export function fmtDay(ms: number, locale: Locale = "en"): string {
+  let f = dayFormats.get(locale);
+  if (!f) dayFormats.set(locale, (f = new Intl.DateTimeFormat(intlLocale(locale), { timeZone: UB_TZ, month: "short", day: "numeric" })));
+  return f.format(ms);
+}
+
+const monthKeyFormat = new Intl.DateTimeFormat("en-CA", { timeZone: UB_TZ, year: "numeric", month: "2-digit" });
+/** "2026-11": the Ulaanbaatar calendar month, for grouping and comparing. */
+export const ubMonthKey = (ms: number): string => monthKeyFormat.format(ms);
+
 /** "14:02" in Ulaanbaatar time — used under finished tracker steps. */
 export function fmtClock(ms: number): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: UB_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms);

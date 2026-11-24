@@ -17,8 +17,7 @@ test("a helper without a bank account adds one before working", async ({ browser
     expect(feed).toEqual([]);
 
     const ctx = await browser.newContext();
-    await loginAs(ctx, PHONES.nomin);
-    await ctx.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+    await loginAs(ctx, PHONES.nomin, { mode: "helper" });
     const h = await ctx.newPage();
     const errors = watchErrors(h);
     await h.goto("/jobs");

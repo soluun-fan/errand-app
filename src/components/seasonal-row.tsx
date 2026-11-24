@@ -22,13 +22,15 @@ export function SeasonalRow({
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-[17px] font-bold">{t("home.seasonNow")}</h2>
-      <div className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+    <section className="flex flex-col gap-3">
+      {/* same heading as the other Home sections */}
+      <h2 className="text-[18px] font-bold tracking-tight md:text-[24px]">{t("home.seasonNow")}</h2>
+      {/* phones: a swipe row lined up with the page edge (20 px); wider: one even row that fills the width */}
+      <div className="-mx-5 flex snap-x scroll-px-5 gap-2.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] sm:overflow-visible sm:px-0 md:gap-3">
         {items.map((item) => {
           const title = qsTitle(item, locale);
           return (
-            <div key={item.id} className="w-40 flex-none snap-start">
+            <div key={item.id} className="w-40 flex-none snap-start sm:w-auto">
               {wrap(
                 { cat: item.category, title },
                 <span className="flex h-full flex-col gap-2 rounded-tile bg-bg p-3 text-left shadow-card">

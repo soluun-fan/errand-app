@@ -20,9 +20,9 @@ export function WorkCard({ p, t, href }: { p: WorkPhotoCard; t: T; href: string 
       {/* eslint-disable-next-line @next/next/no-img-element -- public work photo in Supabase Storage */}
       <img src={p.url} alt={p.category ? t("workPhotos.altKind", { kind: t(`categoryShort.${p.category}`) }) : t("workPhotos.alt")} loading="lazy" className="aspect-square w-full bg-fill object-cover" />
       <span className="flex flex-col gap-0.5 p-3">
-        <span className="truncate text-[14px] font-semibold">{p.category ? t(`categoryShort.${p.category}`) : t("workPhotos.alt")}</span>
-        <span className="flex items-center gap-1 truncate text-[12px] text-ink-2">
-          {p.helperName}
+        <span className="line-clamp-2 break-words text-[14px] font-semibold leading-snug">{p.category ? t(`categoryShort.${p.category}`) : t("workPhotos.alt")}</span>
+        <span className="flex flex-wrap items-center gap-1 text-[13px] text-ink-2">
+          <span className="min-w-0 break-words">{p.helperName}</span>
           {p.rating !== null && (
             <>
               {" · "}

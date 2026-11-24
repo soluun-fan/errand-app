@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
+import { X } from "lucide-react";
 import { useT } from "@/i18n/client";
 import { btn } from "./ui";
 
@@ -18,6 +19,7 @@ export function BottomSheet({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const t = useT();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -35,9 +37,14 @@ export function BottomSheet({
       }}
       className="mx-auto mb-0 mt-auto w-full max-w-lg rounded-t-sheet bg-bg p-0 text-ink shadow-float sm:mb-auto sm:rounded-sheet"
     >
-      <div className="flex max-h-[85vh] flex-col gap-4 overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+      <div className="flex max-h-[85dvh] flex-col gap-4 overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <div aria-hidden className="mx-auto -mt-2 h-1 w-10 rounded-full bg-line" />
-        <h2 className="text-center text-xl font-semibold">{title}</h2>
+        <div className="grid grid-cols-[minmax(0,1fr)_48px] items-start gap-2">
+          <h2 className="min-w-0 py-2 text-xl font-semibold leading-snug">{title}</h2>
+          <button type="button" onClick={onClose} aria-label={t("common.close")} className="flex h-12 w-12 items-center justify-center rounded-full text-ink-2 hover:bg-fill">
+            <X aria-hidden size={20} />
+          </button>
+        </div>
         {children}
       </div>
     </dialog>

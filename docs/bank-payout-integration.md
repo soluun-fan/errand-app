@@ -1,5 +1,24 @@
 # Real bank payouts and verification
 
+## Golomt connection selected on 2026-11-24
+
+The owner confirmed that Corporate Gateway/API access is **not enabled yet**. Automatic
+outgoing transfers and account-holder lookups remain blocked on Golomt enabling that service
+and supplying its integration contract. The existing manual bank verification and payout queue
+remain the operational path; entering an account number does not enable bank access.
+
+Guigere identified Golomt as its business bank. Keep the full account number out of repository
+files and public documentation. The account number alone does not grant API access or establish
+ownership verification.
+
+Golomt describes Corporate Gateway as a service for automating account debits and credits.
+Obtain the bank-issued integration specification and access for Guigere's account before
+implementing the sender, recipient-owner lookup and settlement confirmation. The required
+credentials and service permissions have not been supplied; no automatic transfer is enabled.
+[Golomt's description of Corporate Gateway](https://www.golomtbank.com/en/news/56324).
+
+## Current implementation
+
 Status on 2026-11-22: **outgoing bank transfers are not connected**. The app collects payout
 requests and Operations transfers through the business bank account separately. The inspected
 local configuration uses mock customer payments and has no Wire or bank payout credentials;
@@ -29,8 +48,8 @@ IBAN reference: [Bank of Mongolia IBAN specification, MOD97 example](https://www
 
 ## Bank connection needed
 
-Guigere must identify its business bank or contracted payout provider and obtain its approved
-integration documentation and credentials through the bank's secure process. Do not supply
+Guigere must obtain Golomt's approved integration documentation and credentials through
+the bank's secure process once Corporate Gateway access is enabled. Do not supply
 personal internet-banking passwords to this app or paste secrets into chat. Required capabilities:
 
 1. Query the actual owner of a destination account and its eligibility to receive MNT.

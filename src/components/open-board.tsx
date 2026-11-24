@@ -7,7 +7,7 @@ import type { PublicOpenRequest } from "@/lib/public-snapshot";
 import { CategoryIcon } from "./category-icon";
 import { LoginGate } from "./login-prompt";
 
-const CARD = "press flex h-full w-full flex-col gap-2.5 rounded-card bg-bg p-4 text-left shadow-card";
+const CARD = "press flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden rounded-card bg-bg p-4 text-left shadow-card transition-shadow hover:shadow-float";
 
 /** In the app a card is a link; on the public landing it opens the login sheet first. */
 function Opener({ id, hrefFor, children }: { id: string; hrefFor?: (id: string) => string; children: React.ReactNode }) {
@@ -59,17 +59,17 @@ export function OpenBoard({
               {r.people === 2 && <span className={`${tag} bg-route/10 text-route`}>{t("landing.twoPeople")}</span>}
               <span className={`${tag} bg-brand-bg text-brand-ink`}>{t("job.available")}</span>
             </span>
-            <span className="line-clamp-2 text-[16px] font-bold leading-snug">{r.title ?? t(`landing.ask.${r.category}`)}</span>
+            <span className="line-clamp-3 min-h-12 break-words text-[17px] font-bold leading-snug">{r.title ?? t(`landing.ask.${r.category}`)}</span>
             <ConditionChips variety={r.variety} require={r.require} t={t} />
             <span className="flex flex-col gap-1 text-[13px] text-ink-2">
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-start gap-1.5">
                 <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
-                {r.km > 0 ? t("job.trip", { km: r.km.toFixed(1) }) : t("landing.onePlace")}
-                {r.buysItems ? ` · ${t("landing.buys")}` : ""}
+                <span className="min-w-0">{r.km > 0 ? t("job.trip", { km: r.km.toFixed(1) }) : t("landing.onePlace")}
+                {r.buysItems ? ` · ${t("landing.buys")}` : ""}</span>
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-start gap-1.5">
                 {r.startsAt || r.openUntil ? <CalendarClock aria-hidden size={14} className="flex-none" /> : <Zap aria-hidden size={14} className="flex-none text-brand-ink" />}
-                {r.startsAt ? (
+                <span className="min-w-0">{r.startsAt ? (
                   fmtDateTime(r.startsAt, locale)
                 ) : r.openUntil ? (
                   t("task.whenFlexibleUntil", { time: fmtDateTime(r.openUntil, locale) })
@@ -77,10 +77,10 @@ export function OpenBoard({
                   <b className="font-semibold text-brand-ink">{t("task.whenNow")}</b>
                 )}{" "}
                 ·{" "}
-                {r.minutes >= 60 ? t("price.hours", { n: r.minutes / 60 }) : t("price.min", { n: r.minutes })}
+                {r.minutes >= 60 ? t("price.hours", { n: r.minutes / 60 }) : t("price.min", { n: r.minutes })}</span>
               </span>
             </span>
-            <span className="mt-auto flex items-baseline justify-between border-t border-line pt-2.5">
+            <span className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-line pt-3">
               <span className="text-[13px] font-medium text-ink-2">{t("landing.helperGets")}</span>
               <span className="text-[20px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(r.pay)}</span>
             </span>

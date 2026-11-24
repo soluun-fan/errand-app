@@ -21,6 +21,8 @@ const PORT = Number(process.env.E2E_PORT ?? 3123);
 
 export default defineConfig({
   testDir: "e2e",
+  // closes "[verify]" tasks left running by an interrupted run (they'd hit the 3-active-tasks limit)
+  globalSetup: "./e2e/global-setup.ts",
   // one flow at a time: they share demo users and the database
   workers: 1,
   fullyParallel: false,

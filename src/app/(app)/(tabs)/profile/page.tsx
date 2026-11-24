@@ -1,9 +1,9 @@
-import { AlarmClock, Briefcase, ChevronRight, CircleHelp, Heart, House, IdCard, Landmark, LifeBuoy, MapPin, ScrollText, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
+import { AlarmClock, Briefcase, CircleHelp, Heart, House, IdCard, Landmark, LifeBuoy, MapPin, ScrollText, ShieldCheck, UserRound } from "lucide-react";
 import { TodoCard } from "@/components/todo-card";
 import { helperTodos } from "@/lib/todo";
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
-import { Card, FlowHeader, btn, field, fieldLabel } from "@/components/ui";
+import { Card, LinkRow, btn, field, fieldLabel, pageTitle } from "@/components/ui";
 import { LOCALES } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { listSavedAddresses } from "@/lib/addresses";
@@ -47,24 +47,15 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
   const { profile, actor } = viewer;
   const [orgs, invitations, memberships, sp] = await Promise.all([myOrganizations(profile.id), myInvitations(profile.id), myMemberships(profile.id), searchParams]);
   const row = (label: string, value: string) => (
-    <div className="flex justify-between gap-4 text-[15px]">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[15px]">
       <span className="text-ink-2">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+      <span className="min-w-0 flex-1 basis-32 break-words text-right font-medium">{value}</span>
     </div>
-  );
-
-  const menuRow = (href: string, icon: LucideIcon, label: string) => (
-    <Link href={href} className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
-      <Ico as={icon} size={18} className="text-brand-ink" />
-      <span className="flex-1 font-semibold">{label}</span>
-      <ChevronRight aria-hidden size={18} className="text-ink-2" />
-    </Link>
   );
 
   return (
     <>
-      <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
-      <h2 className="text-[24px] font-bold tracking-tight">{profile.name || t("profile.title")}</h2>
+      <h1 className={pageTitle}>{profile.name || t("profile.title")}</h1>
       {(mode === "helper" || profile.role === "helper" || profile.helper_status) && (!unverifiedHelpersTestMode || actor.helperApproved) && <TodoCard items={await helperTodos(viewer)} t={t} />}
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
       {actor.helperApproved && (
@@ -98,12 +89,12 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       {/* one menu of places to go: people, then (helpers) payout, papers and record */}
       {(mode === "customer" || actor.helperApproved || viewer.profile.helper_status === "approved") && (
         <nav className="flex flex-col rounded-card bg-bg shadow-card">
-          {mode === "customer" && menuRow("/helpers?saved=1", Heart, t("helperProfile.savedTitle"))}
-          {actor.helperApproved && menuRow(`/helpers/${profile.id}`, UserRound, t("helperProfile.title"))}
-          {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && menuRow("/helper/bank", Landmark, t("payout.title"))}
-          {(actor.helperApproved || viewer.profile.helper_status === "approved") && menuRow("/helper/record", AlarmClock, t("standards.recordTitle"))}
-          {actor.helperApproved && !unverifiedHelpersTestMode && menuRow("/helper/certificates", ScrollText, t("cert.title"))}
-          {actor.helperApproved && !unverifiedHelpersTestMode && menuRow("/helper/badges", IdCard, t("badges.title"))}
+          {mode === "customer" && <LinkRow href="/helpers?saved=1" icon={Heart} label={t("helperProfile.savedTitle")} />}
+          {actor.helperApproved && <LinkRow href={`/helpers/${profile.id}`} icon={UserRound} label={t("helperProfile.title")} />}
+          {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && <LinkRow href="/helper/bank" icon={Landmark} label={t("payout.title")} />}
+          {(actor.helperApproved || viewer.profile.helper_status === "approved") && <LinkRow href="/helper/record" icon={AlarmClock} label={t("standards.recordTitle")} />}
+          {actor.helperApproved && !unverifiedHelpersTestMode && <LinkRow href="/helper/certificates" icon={ScrollText} label={t("cert.title")} />}
+          {actor.helperApproved && !unverifiedHelpersTestMode && <LinkRow href="/helper/badges" icon={IdCard} label={t("badges.title")} />}
         </nav>
       )}
 
@@ -155,8 +146,8 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         </Link>
       )}
       <nav className="flex flex-col rounded-card bg-bg shadow-card">
-        {menuRow("/support", LifeBuoy, t("support.title"))}
-        {menuRow("/help", CircleHelp, t("profile.help"))}
+        <LinkRow href="/support" icon={LifeBuoy} label={t("support.title")} />
+        <LinkRow href="/help" icon={CircleHelp} label={t("profile.help")} />
       </nav>
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-ink-2">{t("org.my")}</h2>

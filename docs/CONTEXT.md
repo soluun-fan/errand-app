@@ -4,6 +4,13 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-24 consistency audit: home-mode cookies are account-bound and cleared on sign-out;
+direct links use navigation appropriate to the screen. Customer Tasks/Profile tabs are shared
+across accounts. Active customer tasks and worker jobs are fetched independently of the latest 50 closed tasks,
+so an older unfinished job and its held amount cannot disappear behind recent history.
+Read-only production checks now report a recent successful scheduler run and available tracking
+tables; the November 21 scheduler finding below is historical._
+
 _2026-11-22 helper standards: location is required during a job (route kept 30 days), Start only
 near the pin, late helpers are marked by the tick and customers can replace them or cancel free;
 marks build a ladder (ranked lower → pause → Ops review at /ops/marks; helpers see /helper/record).

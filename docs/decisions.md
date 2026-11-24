@@ -376,3 +376,18 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 ## 2026-11-24 — Lower starting prices
 Owner: day jobs (түр ажил) at least 4,000₮ an hour; most errands should start at 3–4k because it depends on the kind, the distance and how easy it is. Rule of thumb now: ~4,000₮ per hour of expected work, 3,000₮ for quick (~30 min) jobs, a bit more for heavy work or tools. General minimum 4,000₮ (queue, other); trash/shop/deliver 3,000₮; repair 4,000₮; assembly 5,000₮; carry 6,000₮ (stairs still added per floor); escort 8,000₮ (~2 h); day jobs 4,000₮/h. Plumbing, electrical, cleaning and care unchanged. Floors only — the trip, night extra, stairs and "raise the price?" nudge still apply; all editable at /ops/pricing (migration 20261124010000).
 Open: Mongolia's minimum wage is 792,000₮/month (≈4,714₮/h) and is set to rise to ~1,000,000₮ from 2027. Helpers are contractors, but a day-job floor below the hourly minimum wage is the one place a labour inspector could point at; → owner agreed: day jobs 5,000₮/h (migration 20261124020000); raise to ~6,000₮/h when the 2027 minimum wage starts.
+
+## 2026-11-24 — Tabs for customers, shorter Home
+Owner agreed: customers get a bottom bar too — **Нүүр · Захиалах (orange) · Даалгавар · Профайл**; helpers **Ажил · Орлого · Профайл** (replaces 2026-11-15 "Fewer screens": past tasks and the profile were hard to find). The new Tasks tab holds live tasks, money held / refunded and the latest 50 past tasks with "Order again". Home on phones is now just: to-dos → greeting, search, quick starts, live tasks → categories → seasonal → trust line; open requests, helpers, their work and reviews show on the website only. Helper Jobs order: the job you're doing → offers waiting for you → to-dos → online switch → your applications → the feed → "add new kinds".
+
+## 2026-11-24 — Account and navigation consistency fixes
+The home-mode cookie is tied to the verified user ID, ignored for other users and removed on
+sign-out/account closure. A legacy unowned cookie defaults to customer mode once; Profile can
+select worker mode again. Mode remains a UI preference, never an authorization signal.
+Direct job/earnings links show worker navigation and customer task/post links show customer
+navigation. Workers can open their commissioned tasks; returning through the Home tab selects
+customer mode explicitly. No preference is written during link prefetching.
+
+All active customer tasks and worker jobs are read separately from recent closed history, including multiple
+pages of unresolved tasks. A failed read propagates instead of showing an incomplete held total.
+Worker category prompts are scoped per account and failed saves remain retryable.

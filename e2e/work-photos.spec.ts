@@ -121,8 +121,11 @@ test("review photo, portfolio request, customer allows, profile + Home show it, 
   await rep.getByLabel("Ажлын зураг биш").check();
   await rep.getByRole("button", { name: "Мэдэгдэх" }).click();
   await expect.poll(async () => (await db.from("work_photo_reports").select("reporter_id").eq("reporter_id", nomin.id)).data?.length ?? 0, UPLOAD).toBeGreaterThan(0);
+  // finished work shows on the website's home (phones keep Home short since 2026-11-24)
+  await o.setViewportSize({ width: 1280, height: 900 });
   await o.goto("/");
   await expect(o.getByRole("heading", { name: "Туслагчдын хийсэн ажил" })).toBeVisible();
+  await o.setViewportSize({ width: 390, height: 844 });
 
   // 5. the customer takes the review photo down: gone from the public bucket
   await c.reload();

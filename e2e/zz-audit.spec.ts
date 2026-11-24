@@ -10,7 +10,7 @@ import { NAMES, PHONES, db, loginAs, profile } from "./support";
  */
 const OUT = process.env.AUDIT_OUT ?? join(process.cwd(), "test-results", "audit");
 const NS =
-  "org|cert|opsOrgs|opsCerts|specialized|common|time|tabs|mode|lang|category|categoryShort|categoryExample|status|tracker|money|helperProfile|invite|listing|opsContent|workKinds|care|web|landing|home|post|pay|deal|dispute|rating|event|task|history|wallet|earnings|details|map|job|proof|taskPhotos|chat|call|kyc|ops|safety|opsHome|opsSafety|opsIncidents|priceChange|price|direct|directPay|opsPay|conditions|badges|opsBadges|opsRules|opsPricing|push|profile|helper|placeholder|info|help|login|workPhotos|opsPhotos|payout|opsWithdraw|todo|error";
+  "org|cert|opsOrgs|opsCerts|specialized|common|time|tabs|mode|lang|category|categoryShort|categoryExample|status|tracker|money|helperProfile|invite|listing|opsContent|workKinds|care|web|landing|home|post|pay|deal|dispute|rating|event|task|history|wallet|earnings|details|map|job|proof|taskPhotos|chat|call|kyc|ops|safety|opsHome|opsSafety|opsIncidents|priceChange|price|direct|directPay|opsPay|conditions|badges|opsBadges|opsRules|opsPricing|push|tasksTab|profile|helper|placeholder|info|help|login|workPhotos|opsPhotos|payout|opsWithdraw|todo|error";
 const RAW_KEY = new RegExp(`\\b(${NS})\\.[a-z][A-Za-z0-9_.]+\\b`);
 type Finding = { who: string; path: string; width: number; kind: string; detail: string };
 const findings: Finding[] = [];
@@ -73,7 +73,7 @@ async function crawl(ctx: BrowserContext, who: string, paths: string[]) {
   const page = await ctx.newPage();
   for (const p of paths) {
     await visit(page, who, p, 390, true);
-    await visit(page, who, p, 1280, false);
+    await visit(page, who, p, 1280, Boolean(process.env.AUDIT_DESKTOP)); // AUDIT_DESKTOP=1: desktop screenshots too
   }
   await page.close();
 }
@@ -94,18 +94,16 @@ test("audit crawl", async ({ browser }) => {
 
   const customer = await browser.newContext();
   await loginAs(customer, PHONES.solongo);
-  await crawl(customer, "customer", ["/", "/post", "/post?cat=dayjob", "/requests", "/helpers", `/helpers/${bat.id}`, "/profile", lastTask ? `/tasks/${lastTask.id}` : "/"]);
+  await crawl(customer, "customer", ["/", "/post", "/post?cat=dayjob", "/requests", "/helpers", `/helpers/${bat.id}`, "/profile", "/tasks", lastTask ? `/tasks/${lastTask.id}` : "/"]);
   await customer.close();
 
   const notHelper = await browser.newContext();
-  await loginAs(notHelper, PHONES.solongo);
-  await notHelper.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(notHelper, PHONES.solongo, { mode: "helper" });
   await crawl(notHelper, "applicant", ["/jobs", "/helper/apply"]);
   await notHelper.close();
 
   const helper = await browser.newContext();
-  await loginAs(helper, PHONES.bat);
-  await helper.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(helper, PHONES.bat, { mode: "helper" });
   await crawl(helper, "helper", ["/jobs", "/jobs?view=all", "/earnings", "/helper/bank", "/helper/badges", "/helper/certificates", "/profile", `/helpers/${bat.id}`, lastJob ? `/jobs/${lastJob.id}` : "/jobs", openJob ? `/jobs/${openJob.id}` : "/jobs"]);
   await helper.close();
 

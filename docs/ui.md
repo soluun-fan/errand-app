@@ -3,7 +3,7 @@
 Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, white cards, **orange** for the main action and prices. Layout patterns may be borrowed from apps users know (`reference/`), never their logo, colours or illustrations.
 
 ## Tokens
-- Colours: page `canvas #F5F4F2` · cards/sheets/inputs `bg #FFF` · ink `#1C1917` · ink-2 `#57534E` · ink-3 `#8F8A85` · line `#E8E4DF` · fill `#EFECE8` · **brand orange `#EA580C`** (fills: main button with 18 px bold white text, progress, toggles, selected borders) · **brand-ink `#C2410C`** (orange text: prices, links, Copy/Directions) · brand-bg `#FFF1E8` (category tag, badges) · held `#0A7A60/#E7F6F1` · warn `#B54708/#FEF0E1` · danger `#C0362C/#FDECEA` · eta `#0E7F40/#E8F7EE` · route `#2F6FED`. Status colours mean status only; orange never means warning.
+- Colours: page `canvas #F5F4F2` · cards/sheets/inputs `bg #FFF` · ink `#1C1917` · ink-2 `#57534E` · ink-3 `#8F8A85` · line `#E8E4DF` · fill `#EFECE8` · **brand orange `#C2410C`** (fills: 5.18:1 contrast against white, including compact button labels; main buttons, progress and toggles) · **brand-ink `#C2410C`** (orange text: prices, links, Copy/Directions) · brand-bg `#FFF1E8` (category tag, badges) · held `#0A7A60/#E7F6F1` · warn `#B54708/#FEF0E1` · danger `#C0362C/#FDECEA` · eta `#0E7F40/#E8F7EE` · route `#2F6FED`. Status colours mean status only; orange never means warning.
 - Money colours: headline prices (task price, your fee, total to pay, job chips' amount, earnings available) are **brand-ink**; breakdown lines stay ink; money held by the bank stays **held green**.
 - Buttons: primary = orange; secondary = white with a line border; small = near-black (e.g. Chat); chips: unselected white + border, selected near-black.
 - Type: **Onest** (has every Mongolian letter; load `cyrillic-ext` or Ө/Ү fall back). Body 15 px, inputs 16 px (no iOS zoom), page titles 22–24 px bold tight, card labels 13 px semibold grey. Tabular numbers for money.
@@ -18,7 +18,13 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
 - **A Map+Sheet**: home, review, searching, live.
 - **B Form**: ✕/← header, cards, sticky CTA. Post steps, SafePay create, dispute, verification.
 - **C List**: tabs and lists.
-Tab bar (floating pill, roots only): customer **Нүүр · Хэтэвч · Түүх**; helper **Ажил · Орлого · Түүх**. Chat lives inside a deal. SafePay is a home tile.
+Tab bar (floating pill, phone roots only, `src/components/app-tabs.tsx`): customer **Нүүр · Захиалах (orange accent) · Даалгавар · Профайл**; helper **Ажил · Орлого · Профайл** (2026-11-24). Chat lives inside a deal. SafePay is a home tile.
+
+- Home mode belongs to the authenticated account. Old browser-wide cookies and another account's
+  preference are ignored; sign-out clears it. Jobs/Earnings and Tasks/Post show navigation for
+  their respective purpose even when opened from the other mode. Profile controls the preferred
+  home; the customer Home tab explicitly switches back when needed. Browsing never grants worker
+  approval. Tablet navigation wraps, and job titles/statuses remain readable with enlarged text.
 
 - **D Detail** (task / job screens, `src/components/detail.tsx`): edge-to-edge map on top (`MapHero`, ~⅓ screen, route line in `route` blue) → category tag (ink pill) + status + big title (`DetailTitle`) → plain sections split by thin lines, small grey label + big value (`DetailSection`, `DetailPair` for fee | items) → addresses in grey boxes with Хуулах / Чиглэл links (`AddressBox`) → one sticky CTA. Contact = **Call | Chat** row (`ContactRow`). Borrowed layout from a Korean errand app (2026-11-16); our colours, no illustrations.
 
@@ -50,6 +56,23 @@ Tab bar (floating pill, roots only): customer **Нүүр · Хэтэвч · Тү
 ## Every screen
 One CTA · empty/loading(skeleton)/error states · works at 320px and 130% text · Slow-3G tested · no plain phone numbers · strings in i18n.
 
+### Reference-inspired refinement, 2026-11-24
+- The owner's PleaseHelp screenshots inform the hierarchy: a clear request entry, services,
+  scannable work/price cards, then real portfolios and reviews. Keep Guigere's brand and existing
+  service scope; do not copy the reference's customer counts, guarantees, care categories or assets.
+- Signed-in mobile Home shows at most two active cards with a link to all active tasks, six everyday
+  services with an accessible expansion, then specialized services. Recent public activity stays on
+  desktop. Helper discovery and finding work have explicit links on mobile; notification/install
+  prompts come after the primary choices.
+- Public and signed-in service choices share `ServiceTile`. Prices use a consistent position;
+  long Mongolian labels wrap. Helper identity/verification appears before portfolio photos.
+- Request prices, review attribution and profile values wrap instead of overflowing; headers may
+  use multiple lines. Keyboard focus is visible on links, buttons, disclosures and fields.
+- Dialogs have explicit close controls and viewport-bounded scrolling. The public fixed action bar
+  is mobile-only, with clearance in the footer; desktop uses the sticky header's request action.
+- Home labels its selected four- and five-star reviews and photo prioritization explicitly, and
+  directs readers to helper profiles for review history.
+
 ## Conventions in code
 - Tokens live in `src/app/globals.css` (`@theme`): use `bg-ink`, `text-ink-2`, `bg-fill`, `border-line`, `text-held`… never raw colours.
 - Components in `src/components/`; every one is shown in all states at **`/dev/components`** (dev only), including the deal screen in every state built from engine fixtures.
@@ -57,3 +80,4 @@ One CTA · empty/loading(skeleton)/error states · works at 320px and 130% text 
 - Money in UI comes from engine pure functions (`quoteFee`, `errandSplit`, `amountDue`) — same code the server books with. Format with `fmtMoney` → `46,000₮`.
 - Map (2026-11-24): MapLibre + OpenFreeMap, restyled Google-Maps-like in `src/lib/map-style.ts`; markers, blue dot, locate button and credit folding in `src/components/map-ui.tsx`. Pins: red = the task's place / drop-off, dark = pickup; helper = green circle; route = solid `route` blue with a white edge. Flat and north-up.
 - UX pass (2026-11-24): icons inline with text use `<Ico as={Phone} />` (`src/components/icon.tsx`); no emoji anywhere in the UI (push notification titles may keep them). Plain cards never have a border (`bg-bg shadow-card`); a 2px orange border means *selected* or *your turn* (TodoCard, price offers). Location strip: amber + Retry when failing, green while shared. Long lists show the newest few and fold the rest under "See all" (`<details>`); task history is grouped by day (`TimelineList`). Live notes (on the way / late / "are you there?") sit right under the helper card, not at the bottom. Purchases default to "buy it for me, paid back by receipt".
+- Even grids (2026-11-24): category tiles come in two groups everywhere (Home and the landing page) — everyday work `everydayGridClass` (3 across on phones, 5 on wider screens: 10 kinds = 2 full rows) and licensed work `licensedGridClass` with wide tiles (one row of 3). Phones show 6 + a "N more" button (`ExpandableGrid`); wider screens show all. Swipe rows (this season) line up with the 20 px page edge and become one even row (`auto-fit`) on wider screens. Section titles: 18 px / 24 px bold everywhere. The landing page uses the same 20 px side margin as the app. Maps keep their canvas sized to the box (`ResizeObserver`). The helper's location strip sits under the top bar.

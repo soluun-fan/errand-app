@@ -23,7 +23,7 @@ export default async function OpsPhotosPage() {
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {photos.map((p) => (
           <li key={p.id} className={`flex flex-col gap-2 rounded-card bg-bg p-2 shadow-card ${p.reports > 0 ? "ring-2 ring-danger" : ""}`}>
-            <a href={p.url} target="_blank" rel="noopener noreferrer">
+            <a href={p.url} target="_blank" rel="noopener noreferrer" aria-label={t("opsPhotos.openPhoto")}>
               {/* eslint-disable-next-line @next/next/no-img-element -- public work photo */}
               <img src={p.url} alt="" className="aspect-square w-full rounded-input bg-fill object-cover" />
             </a>
@@ -35,7 +35,7 @@ export default async function OpsPhotosPage() {
               {t("opsPhotos.openTask")}
             </Link>
             <InlineAction action={hideWorkPhotoAction} fields={{ photoId: p.id }} label={t("opsPhotos.hide")} className={`${btn.secondary} w-full text-danger`}>
-              <input name="reason" maxLength={300} placeholder={t("opsPhotos.reasonPh")} className={field} />
+              <input name="reason" maxLength={300} aria-label={t("opsPhotos.reasonPh")} placeholder={t("opsPhotos.reasonPh")} className={field} />
             </InlineAction>
           </li>
         ))}

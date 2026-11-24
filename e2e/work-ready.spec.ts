@@ -7,9 +7,8 @@ import { PHONES, loginAs } from "./support";
  */
 test("on a computer: 'use your phone', and no online switch", async ({ browser }) => {
   const ctx = await browser.newContext();
-  await loginAs(ctx, PHONES.bat);
+  await loginAs(ctx, PHONES.bat, { mode: "helper" });
   await ctx.clearCookies({ name: "e2e-device" });
-  await ctx.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
   const p = await ctx.newPage();
   await p.goto("/jobs");
   await expect(p.getByRole("heading", { name: "Ажиллахад бэлдэх" })).toBeVisible();
@@ -27,9 +26,8 @@ test("on a phone with location allowed: location turns green; notifications stil
     geolocation: { latitude: 47.918, longitude: 106.917 },
     permissions: ["geolocation"],
   });
-  await loginAs(ctx, PHONES.bat);
+  await loginAs(ctx, PHONES.bat, { mode: "helper" });
   await ctx.clearCookies({ name: "e2e-device" });
-  await ctx.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
   const p = await ctx.newPage();
   await p.goto("/jobs");
   const card = p.locator("section", { has: p.getByRole("heading", { name: "Ажиллахад бэлдэх" }) });

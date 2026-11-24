@@ -1,4 +1,4 @@
-import { ArrowLeft, Lock, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Lock, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TONE_CLASS, type Tone } from "@/lib/labels";
@@ -10,7 +10,7 @@ import { TONE_CLASS, type Tone } from "@/lib/labels";
 const base =
   "press inline-flex items-center justify-center gap-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed";
 export const btn = {
-  /** 56 px dark CTA. Disabled = fill + ink-3 (DESIGN §4.1). */
+  /** 56 px orange CTA. Disabled = fill + ink-3 (DESIGN §4.1). */
   primary: `${base} min-h-14 rounded-cta bg-brand px-5 text-[18px] font-bold text-white disabled:bg-fill disabled:text-ink-3`,
   /** Compact dark button for inside cards (e.g. "Сонгох"). */
   small: `${base} min-h-12 rounded-input bg-ink px-4 text-[15px] text-white disabled:bg-fill disabled:text-ink-3`,
@@ -32,6 +32,21 @@ export const fieldLabel = "flex flex-col gap-1.5 text-[15px] font-medium text-in
  */
 export function Wide({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`md:mx-[calc((100%-min(69rem,100vw-3rem))/2)] ${className}`}>{children}</div>;
+}
+
+/** Title of a root (tab) screen. */
+export const pageTitle = "pt-2 text-[24px] font-bold tracking-tight";
+
+/** A row that opens another screen: icon, label, optional count, chevron. `card`: standalone; otherwise a row inside a list card. */
+export function LinkRow({ href, icon: Icon, label, count, card = false }: { href: string; icon: LucideIcon; label: string; count?: number; card?: boolean }) {
+  return (
+    <Link href={href} className={`press flex min-h-14 items-center gap-3 px-4 ${card ? "rounded-card bg-bg shadow-card" : "border-b border-line last:border-b-0"}`}>
+      <Icon aria-hidden size={18} className="shrink-0 text-brand-ink" />
+      <span className="min-w-0 flex-1 font-semibold">{label}</span>
+      {count !== undefined && <span className="text-sm tabular-nums text-ink-2">{count}</span>}
+      <ChevronRight aria-hidden size={18} className="shrink-0 text-ink-2" />
+    </Link>
+  );
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -74,10 +89,10 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 export function FlowHeader({ href, icon = "←", label, title, right }: { href: string; icon?: "←" | "✕"; label: string; title?: string; right?: ReactNode }) {
   return (
     <header className="grid min-h-14 grid-cols-[48px_1fr_48px] items-center">
-      <Link href={href} aria-label={label} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+      <Link href={href} aria-label={label} className="press flex h-12 w-12 items-center justify-center rounded-full bg-bg shadow-card">
         {icon === "✕" ? <X aria-hidden size={20} /> : <ArrowLeft aria-hidden size={20} />}
       </Link>
-      {title ? <h1 className="truncate text-center text-[17px] font-bold">{title}</h1> : <span />}
+      {title ? <h1 className="min-w-0 break-words px-2 py-2 text-center text-[17px] font-bold leading-snug">{title}</h1> : <span />}
       <span className="flex justify-end text-sm text-ink-2 tabular-nums">{right}</span>
     </header>
   );

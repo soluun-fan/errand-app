@@ -1,6 +1,9 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { cookies } from "next/headers";
+import { MODE_COOKIE } from "@/lib/mode-cookie";
+import { clearPendingLogin } from "@/lib/verify-mn-login";
 import { redirect } from "next/navigation";
 import { deleteAddress } from "@/lib/addresses";
 import type { ActionResult } from "@/components/sheet";
@@ -63,5 +66,7 @@ export async function closeMyAccount(_prev: ActionResult, form: FormData): Promi
   if (blocks.length) return { error: blocks.map((b) => t(`closeAccount.block.${b}`)).join(" ") };
   if (!(await closeAccount(viewer.profile.id))) return { error: t("error.generic") };
   await (await createClient()).auth.signOut();
+  (await cookies()).delete(MODE_COOKIE);
+  await clearPendingLogin();
   redirect("/welcome?closed=1");
 }

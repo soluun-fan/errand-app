@@ -1,4 +1,4 @@
-import { CalendarClock, Landmark, MapPin, Zap } from "lucide-react";
+import { CalendarClock, ChevronRight, Landmark, MapPin, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
 import { WorkReady } from "@/components/work-ready";
@@ -185,7 +185,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const header = (
     <header className="flex items-center justify-between pt-2">
       <h1 className="text-[24px] font-bold tracking-tight">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
-      <Link href="/profile" aria-label={t("home.profile")}>
+      <Link href="/profile" aria-label={t("home.profile")} className="md:hidden">
         <Avatar name={profile.name || "?"} size={44} />
       </Link>
     </header>
@@ -229,32 +229,18 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     return (
       <>
         {header}
-        <TodoCard items={todos} t={t} />
         <AutoRefresh seconds={online ? 10 : 30} />
-        {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
-        <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
-          <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
-        </WorkReady>
-        <NewKindsCard missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
-
+        {/* order (2026-11-24): the job you are doing → offers waiting for you → to-dos → online → your applications → the feed */}
         {active.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.activeTitle")}</h2>
             {active.map((d) => (
-              <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
+              <Link key={d.id} href={`/jobs/${d.id}`} className="press grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-card bg-bg p-3 shadow-card">
                 <CategoryIcon id={d.category} tile size={20} />
-                <span className="min-w-0 flex-1 truncate text-[17px] font-semibold">{d.title}</span>
-                <StatusBadge status={d.status} t={t} />
+                <span className="min-w-0 break-words text-[17px] font-semibold">{d.title}</span>
+                <ChevronRight aria-hidden size={18} className="flex-none text-ink-2" />
+                <div className="col-start-2 -mt-1.5"><StatusBadge status={d.status} t={t} /></div>
               </Link>
-            ))}
-          </section>
-        )}
-
-        {applied.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h2 className="font-bold">{t("job.myRequests")}</h2>
-            {applied.map((a) => (
-              <JobRow key={a.deal.id} item={a} t={t} now={now} locale={locale} pic={picOf(a.deal, pics)} />
             ))}
           </section>
         )}
@@ -267,6 +253,21 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             ))}
           </section>
         )}
+
+        <TodoCard items={todos} t={t} />
+        {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
+        <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
+          <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
+        </WorkReady>
+        {applied.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="font-bold">{t("job.myRequests")}</h2>
+            {applied.map((a) => (
+              <JobRow key={a.deal.id} item={a} t={t} now={now} locale={locale} pic={picOf(a.deal, pics)} />
+            ))}
+          </section>
+        )}
+
 
         <SegmentedLinks
           current={view}
@@ -293,6 +294,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             )}
           </section>
         )}
+        <NewKindsCard key={profile.id} userId={profile.id} missing={OPEN_CATEGORIES.filter((c) => !(actor.categories ?? []).includes(c))} />
       </>
     );
   }

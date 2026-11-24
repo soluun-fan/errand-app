@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
+import { CategoryGroups } from "@/components/service-tile";
 import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/login-prompt";
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
@@ -15,19 +16,19 @@ import { btn } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { liveCategories } from "@/lib/orgs";
-import { CATEGORIES, kindFromLabel, lowestMinFee } from "@/lib/engine";
+import { lowestMinFee } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { popularStarts, seasonalStarts } from "@/lib/content";
 import { qsTitle } from "@/lib/content-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
 
-export const metadata: Metadata = {
-  title: `${APP_NAME} — гүйлгээний үйлчилгээ, баталгаатай төлбөр`,
-  description: "Улаанбаатарт хүнс авчрах, хүргэх, зөөх, засвар. Нэг хүсэлт бичихэд ойрын туслагчид санал ирүүлнэ.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: APP_NAME, description: t("common.description") };
+}
 
-const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
+const wrap = "mx-auto w-full max-w-6xl px-5 sm:px-6"; // 20 px on phones, like the app (docs/ui.md)
 
 /**
  * Public landing page (docs/decisions.md 2026-11-16, layout ideas from PleaseHelp/UBCab, our own
@@ -37,7 +38,7 @@ const wrap = "mx-auto w-full max-w-6xl px-4 sm:px-6";
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   if (await getViewer()) redirect("/");
   const closed = (await searchParams).closed === "1";
-  const [t, locale, cfg, recent, online, board, popular, seasonal] = await Promise.all([
+  const [t, locale, cfg, recent, online, board, popular, seasonal, covers, work, live] = await Promise.all([
     getT(),
     getLocale(),
     pricingConfig(),
@@ -46,15 +47,13 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
     openRequests(8),
     popularStarts(),
     seasonalStarts(),
+    kindCovers(),
+    latestWork(8),
+    liveCategories(),
   ]);
-  const work = await latestWork(8);
-  const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
-  const fromLabel = (c: (typeof CATEGORIES)[number]) => {
-    const f = kindFromLabel(c.id, cfg);
-    return f.hourly ? t("home.fromHourly", { amount: fmtMoney(f.amount) }) : t("home.from", { amount: fmtMoney(f.amount) });
-  };
+
   const steps = [
     { icon: PenLine, title: t("landing.s1t"), body: t("landing.s1b") },
     { icon: Hand, title: t("landing.s2t"), body: t("landing.s2b") },
@@ -78,20 +77,20 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         )}
         {/* top bar */}
         <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
-          <div className={`${wrap} flex min-h-16 items-center gap-6`}>
-            <Link href="/welcome" className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
+          <div className={`${wrap} flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-2`}>
+            <Link href="/welcome" className="flex shrink-0 items-center gap-2 text-[20px] font-extrabold tracking-tight">
               <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
               {APP_NAME}
             </Link>
-            <nav className="hidden items-center gap-6 text-[15px] text-ink-2 md:flex">
-              <a href="#how" className="hover:text-ink">
+            <nav aria-label={t("tabs.navigation")} className="order-last hidden w-full flex-wrap items-center gap-x-6 text-[15px] text-ink-2 md:flex lg:order-none lg:w-auto">
+              <a href="#how" className="flex min-h-12 items-center hover:text-ink">
                 {t("landing.nav.how")}
               </a>
-              <a href="#helper" className="hover:text-ink">
+              <a href="#helper" className="flex min-h-12 items-center hover:text-ink">
                 {t("landing.nav.helper")}
               </a>
             </nav>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <Link href="/login" className="flex min-h-11 items-center px-3 text-[15px] font-semibold">
                 {t("landing.nav.login")}
               </Link>
@@ -104,10 +103,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* hero: the question, search, popular starts — and real recent activity beside it */}
         <section className="bg-brand-bg/60">
-          <div className={`${wrap} grid gap-8 py-10 md:grid-cols-[1.25fr_1fr] md:items-center md:py-16`}>
+          <div className={`${wrap} grid gap-8 py-10 md:grid-cols-[1.25fr_1fr] md:items-start md:py-16`}>
             <div className="flex min-w-0 flex-col gap-5">
-              <p className="flex w-fit items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-[13px] font-medium shadow-card">
-                <span aria-hidden className="h-2 w-2 rounded-full bg-held" />
+              <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-[13px] font-medium shadow-card">
+                <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${online > 0 ? "bg-held" : "bg-ink-3"}`} />
                 {online > 0 ? t("landing.areaLive", { n: online }) : t("landing.areaIdle")}
               </p>
               <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-tight text-balance md:text-[52px]">
@@ -141,15 +140,9 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
             <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.catsTitle")}</h2>
             <p className="mt-1 text-[15px] text-ink-2">{t("home.allFrom")}</p>
           </div>
-          <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
-            {CATEGORIES.filter((c) => live.includes(c.id)).map((c) => (
-              <LoginGate key={c.id} next={`/post?cat=${c.id}`} className="press flex flex-col items-center gap-2 rounded-tile bg-bg px-2 py-4 text-center shadow-card">
-                <CategoryIcon id={c.id} tile size={26} />
-                <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${c.id}`)}</span>
-                <span className="text-[12px] text-ink-2 tabular-nums">{fromLabel(c)}</span>
-              </LoginGate>
-            ))}
-          </div>
+          <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
+            <LoginGate key={id} next={`/post?cat=${id}`} className={className}>{tile}</LoginGate>
+          )} />
         </section>
 
         {/* what people need this season (Unegui-style row) */}
@@ -179,7 +172,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   {t("landing.boardAll")} →
                 </LoginGate>
               </div>
-              <OpenBoard items={board} t={t} locale={locale} covers={await kindCovers()} />
+              <OpenBoard items={board} t={t} locale={locale} covers={covers} />
             </div>
           </section>
         )}
@@ -224,10 +217,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* why us — two-tone heading */}
         <section className={`${wrap} flex flex-col gap-6 py-12`}>
           <h2 className="text-[30px] font-extrabold tracking-tight md:text-[40px]">
-            <span className="text-ink-3">{t("landing.whyA")} </span>
+            <span className="text-ink-2">{t("landing.whyA")} </span>
             {t("landing.whyB")}
           </h2>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-4">
             {why.map((w, i) => (
               <div key={i} className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">
                 <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
@@ -256,7 +249,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* footer (UBCab-style): what we do · help · and the trust pages as cards */}
-        <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10">
+        <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10 md:pb-10">
           <div className={`${wrap} grid gap-8 md:grid-cols-[1fr_1fr_1.2fr]`}>
             <div className="flex flex-col gap-3">
               <span className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
@@ -264,9 +257,9 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 {APP_NAME}
               </span>
               <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>
-              <p className="text-[13px] text-ink-3">© 2026 {APP_NAME}</p>
+              <p className="text-[13px] text-ink-2">© 2026 {APP_NAME}</p>
             </div>
-            <nav className="grid grid-cols-2 gap-6 text-[14px]">
+            <nav aria-label={t("landing.footerServices")} className="grid grid-cols-2 gap-6 text-[14px] [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">
               <div className="flex flex-col gap-2">
                 <h3 className="font-bold">{t("landing.footerServices")}</h3>
                 <LoginGate next="/post" className="text-left text-ink-2 hover:text-ink">
@@ -295,6 +288,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   ["/help", t("info.navHelp")],
                   ["/safety", t("info.safetyTitle")],
                   ["/privacy", t("info.privacyTitle")],
+                  ["/terms", t("legal.termsTitle")],
                 ] as const
               ).map(([href, label]) => (
                 <Link key={href} href={href} className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-[15px] font-semibold hover:bg-canvas">
@@ -307,10 +301,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </footer>
 
         {/* always-there call to action */}
-        <div className="fixed inset-x-0 bottom-0 z-30 bg-ink/95 pb-[env(safe-area-inset-bottom)] text-white backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-30 bg-ink/95 pb-[env(safe-area-inset-bottom)] text-white backdrop-blur md:hidden">
           <div className={`${wrap} flex min-h-16 items-center justify-between gap-3`}>
-            <p className="min-w-0 text-[14px] font-medium md:text-[16px]">{t("landing.bar")}</p>
-            <LoginGate next="/post" className={`${btn.primary} min-h-12 flex-none px-4 text-[15px]`}>
+            <p className="hidden min-w-0 text-[14px] font-medium sm:block">{t("landing.bar")}</p>
+            <LoginGate next="/post" className={`${btn.primary} my-2 min-h-12 w-full px-4 text-[15px] sm:w-auto sm:shrink-0`}>
               {t("landing.nav.post")}
             </LoginGate>
           </div>

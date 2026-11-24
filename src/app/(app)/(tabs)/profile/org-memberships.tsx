@@ -7,7 +7,7 @@ import { type ActionResult, SubmitButton } from "@/components/sheet";
 import { btn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { Invitation } from "@/lib/orgs";
-import { answerInvite, leaveOrg } from "../orgs/actions";
+import { answerInvite, leaveOrg } from "../../orgs/actions";
 
 export function Membership({ invitation, pending }: { invitation: Invitation; pending: boolean }) {
   const t = useT();

@@ -67,22 +67,44 @@ export interface TaskListItem {
   offerCount: number;
 }
 
-/** The viewer's own errands, newest first. */
-export async function listMyTasks(viewerId: string, opts: { activeOnly?: boolean } = {}): Promise<TaskListItem[]> {
+type TaskRow = DealRow & { offers: { count: number }[] };
+
+/** Read active work independently from capped history, for either party. */
+async function ownErrandRows(viewerId: string, ownerColumn: "customer_id" | "helper_id", opts: { activeOnly?: boolean } = {}): Promise<TaskRow[]> {
   const db = createAdminClient();
-  let q = db
+  const activeStatuses = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"];
+  const closedStatuses = ["released", "refunded", "cancelled", "expired"];
+  const query = () => db
     .from("deals")
     .select("*, offers(count)")
     .eq("type", "errand")
-    .eq("customer_id", viewerId)
+    .eq(ownerColumn, viewerId)
     .order("created_at", { ascending: false })
-    .limit(50);
-  if (opts.activeOnly) q = q.in("status", ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"]);
-  const { data, error } = await q.returns<(DealRow & { offers: { count: number }[] })[]>();
-  if (error) throw new Error(error.message);
+    .order("id", { ascending: false });
+  const activeRows = async () => {
+    const rows: TaskRow[] = [];
+    for (let from = 0; ; from += 100) {
+      const { data, error } = await query().in("status", activeStatuses).range(from, from + 99).returns<TaskRow[]>();
+      if (error) throw new Error(error.message);
+      rows.push(...(data ?? []));
+      if (!data || data.length < 100) return rows;
+    }
+  };
+  const [active, past] = await Promise.all([
+    activeRows(),
+    opts.activeOnly ? Promise.resolve({ data: [] as TaskRow[], error: null }) : query().in("status", closedStatuses).limit(50).returns<TaskRow[]>(),
+  ]);
+  if (past.error) throw new Error(past.error.message);
+  // A long-running task must not disappear behind 50 newer completed tasks (including held money).
+  return [...new Map([...active, ...(past.data ?? [])].map((row) => [row.id, row])).values()]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+}
 
+/** All active errands plus the newest 50 closed errands, newest first. */
+export async function listMyTasks(viewerId: string, opts: { activeOnly?: boolean } = {}): Promise<TaskListItem[]> {
+  const rows = await ownErrandRows(viewerId, "customer_id", opts);
   const items: TaskListItem[] = [];
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const deal = (await settle(dealFromRow(row))) as ErrandDeal;
     if (opts.activeOnly && ["released", "refunded", "cancelled", "expired"].includes(deal.status)) continue;
     items.push({ deal, offerCount: row.offers?.[0]?.count ?? 0 });
@@ -181,16 +203,7 @@ export async function walletEntries(viewerId: string): Promise<WalletEntry[]> {
 
 /** Deals the viewer works on as a helper (helper history / earnings). */
 export async function listMyJobs(viewerId: string): Promise<ErrandDeal[]> {
-  const { data, error } = await createAdminClient()
-    .from("deals")
-    .select("*")
-    .eq("type", "errand")
-    .eq("helper_id", viewerId)
-    .order("created_at", { ascending: false })
-    .limit(50)
-    .returns<DealRow[]>();
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => dealFromRow(r) as ErrandDeal);
+  return (await ownErrandRows(viewerId, "helper_id")).map((r) => dealFromRow(r) as ErrandDeal);
 }
 
 /* ---------- helper side: presence, offers, nearby feed ---------- */

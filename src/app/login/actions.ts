@@ -1,5 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { MODE_COOKIE } from "@/lib/mode-cookie";
+
 import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
 import { loginRules } from "@/lib/dev";
@@ -92,5 +95,7 @@ async function finishLogin(uid: string | undefined, formData: FormData): Promise
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(MODE_COOKIE);
+  await clearPendingLogin();
   redirect("/login");
 }

@@ -68,15 +68,16 @@ export function NotifyHint() {
 
   if (state === "hidden") return null;
   return (
-    <section className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
+    <section className="flex flex-wrap items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span aria-hidden className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-brand-bg text-brand-ink">
         <Bell size={18} />
       </span>
-      <span className="min-w-0 flex-1">
+      {/* text gets the room; on narrow phones the button drops below it instead of squeezing it */}
+      <span className="min-w-0 flex-1 basis-52">
         <span className="block text-[15px] font-semibold">{t("notifyHint.title")}</span>
         <span className="block text-[13px] leading-snug text-ink-2">{t("notifyHint.body")}</span>
       </span>
-      <button type="button" disabled={state === "busy"} onClick={turnOn} className={`${btn.primary} flex-none px-4`}>
+      <button type="button" disabled={state === "busy"} onClick={turnOn} className={`${btn.primary} order-last w-full flex-none px-4 sm:order-none sm:w-auto`}>
         {t("notifyHint.go")}
       </button>
       <button type="button" aria-label={t("install.dismiss")} onClick={later} className="-ml-1 flex h-11 w-9 flex-none items-center justify-center text-ink-3">

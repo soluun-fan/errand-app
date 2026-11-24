@@ -7,6 +7,7 @@ import { loadDeal, runCommand } from "@/lib/db/deals";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
 import type { ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MODE_COOKIE, modeCookieValue, type AppMode } from "@/lib/mode-cookie";
 
 /** Demo accounts from scripts/seed.ts (docs/CONTEXT.md). */
 export const PHONES = { solongo: "97688000001", bat: "97688000011", nomin: "97688000012", ops: "97688000099" } as const;
@@ -25,7 +26,7 @@ type Cookie = { name: string; value: string; domain: string; path: string };
 const sessions = new Map<string, Cookie[]>();
 
 /** Signs in through the real phone-OTP flow (code read from the dev outbox) and puts the session cookie in the browser. */
-export async function loginAs(context: BrowserContext, phone: string, opts: { fresh?: boolean } = {}): Promise<void> {
+export async function loginAs(context: BrowserContext, phone: string, opts: { fresh?: boolean; mode?: AppMode } = {}): Promise<void> {
   // demo accounts have finished registration (current Terms / Privacy / Helper agreement); a
   // `fresh` account goes through it in the browser (onboarding.spec.ts)
   if (!opts.fresh) {
@@ -38,7 +39,14 @@ export async function loginAs(context: BrowserContext, phone: string, opts: { fr
     }
   }
   if (!sessions.has(phone)) sessions.set(phone, await signIn(phone));
+  // Account switching must not leave surplus cookie chunks from the previous session.
+  await context.clearCookies({ name: /^sb-.*-auth-token(?:\.\d+)?$/ });
   await context.addCookies(sessions.get(phone)!);
+  if (opts.mode) {
+    const { data, error } = await db.from("profiles").select("id").eq("phone", phone).single<{ id: string }>();
+    if (error || !data) throw new Error("Cannot set test mode without an account");
+    await context.addCookies([{ name: MODE_COOKIE, value: modeCookieValue(data.id, opts.mode), domain: "localhost", path: "/" }]);
+  }
   // test browsers can't hold a real push subscription: the test server (E2E_DEVICE_BYPASS=1) skips
   // the phone / notifications / location check for this cookie. Production ignores it.
   // work-ready.spec.ts removes it to test the check itself.
@@ -93,14 +101,46 @@ async function signIn(phone: string): Promise<Cookie[]> {
 export const errand = async (id: string) => (await loadDeal(db, id)) as ErrandDeal;
 
 /** Cancels test tasks that are still open (nothing is held while open) — leaves the database tidy. */
-export async function cancelIfOpen(ids: string[], customerName: string = NAMES.solongo): Promise<void> {
-  const p = await profile(customerName);
-  for (const id of ids) {
-    const d = await errand(id).catch(() => null);
-    if (d && (d.status === "open" || d.status === "awaiting_payment" || d.status === "matched")) {
-      await runCommand(db, id, { type: "cancel" }, actorFromProfile(p, Date.now())).catch(() => undefined);
+export async function cancelIfOpen(ids: string[]): Promise<void> {
+  for (const id of ids) await closeDeal(id);
+}
+
+/**
+ * Ends a test task whatever state it was left in, so leftovers never count toward the demo
+ * customer's "3 active tasks" limit (2026-11-24: three stuck "[verify] on my way" tasks blocked
+ * every posting test). Before a helper: the customer cancels. On the job: the helper reports the
+ * customer absent and the system closes it. Waiting for the check: the customer confirms.
+ */
+export async function closeDeal(id: string): Promise<void> {
+  const d = await errand(id).catch(() => null);
+  if (!d) return;
+  const actor = async (userId: string | null) => {
+    const { data } = await db.from("profiles").select("*").eq("id", userId ?? "").single<ProfileRow>();
+    return data ? actorFromProfile(data, Date.now()) : null;
+  };
+  try {
+    if (d.status === "open" || d.status === "awaiting_payment" || d.status === "matched") {
+      const c = await actor(d.customerId);
+      if (c) await runCommand(db, id, { type: "cancel" }, c);
+    } else if (d.status === "in_progress") {
+      const h = await actor(d.helperId);
+      if (h && !d.absentAt) await runCommand(db, id, { type: "customer_absent" }, h);
+      await db.from("deals").update({ absent_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", id);
+      await runCommand(db, id, { type: "absent_cancel" }, { kind: "system" });
+    } else if (d.status === "check") {
+      const c = await actor(d.customerId);
+      if (c) await runCommand(db, id, { type: "confirm" }, c);
     }
+  } catch {
+    /* best effort: a test that needs a clean slate checks for itself */
   }
+}
+
+/** Every "[verify]" task still running from an earlier (interrupted) run. */
+export async function closeLeftovers(): Promise<number> {
+  const { data } = await db.from("deals").select("id").like("title", "[verify]%").in("status", ["open", "awaiting_payment", "matched", "in_progress", "check"]);
+  for (const r of data ?? []) await closeDeal(r.id as string);
+  return data?.length ?? 0;
 }
 
 /** Fails the test on any uncaught error in the page. */

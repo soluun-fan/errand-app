@@ -24,7 +24,7 @@ test("a kind the helper hasn't picked: add it and apply in one tap", async ({ br
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] Эмнэлэг дагалдах", description: "x", category: "escort", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 2000, customerId: sol.id },
+    { id: crypto.randomUUID(), title: "[verify] Эмнэлэг дагалдах", description: "x", category: "escort", mode: "now", address: "Test", itemBudget: 0, fee: (cfg.kindMinFee.escort ?? cfg.minFee) + 2000, customerId: sol.id },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );

@@ -124,8 +124,7 @@ test("after a finished job the helper rates the customer; it never counts as a h
   const helperRatingsBefore = await helperRatings();
 
   const helper = await browser.newContext();
-  await loginAs(helper, PHONES.bat);
-  await helper.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(helper, PHONES.bat, { mode: "helper" });
   const h = await helper.newPage();
   const hErrors = watchErrors(h);
   await h.goto(`/jobs/${id}`);

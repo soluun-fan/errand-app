@@ -27,8 +27,7 @@ async function paidJob(title: string) {
 
 async function pages(browser: import("@playwright/test").Browser) {
   const hc = await browser.newContext();
-  await loginAs(hc, PHONES.bat);
-  await hc.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(hc, PHONES.bat, { mode: "helper" });
   const cc = await browser.newContext();
   await loginAs(cc, PHONES.solongo);
   return { h: await hc.newPage(), c: await cc.newPage(), close: () => Promise.all([hc.close(), cc.close()]) };

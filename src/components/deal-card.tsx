@@ -65,9 +65,10 @@ export function DealCard({
     );
     if (!rowAction) return link;
     return (
-      <div className="flex flex-col border-b border-line pb-3 last:border-b-0">
+      <div className="flex flex-col border-b border-line pb-2 last:border-b-0">
         {link}
-        <div className="flex justify-end">{rowAction}</div>
+        {/* lined up under the title (past the 44 px picture), compact — not a full extra row */}
+        <div className="-mt-2 flex pl-14">{rowAction}</div>
       </div>
     );
   }

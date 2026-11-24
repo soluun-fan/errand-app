@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { MODE_COOKIE } from "@/lib/mode-cookie";
+import { MODE_COOKIE, parseMode } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /** No session needed: the landing page, login, the cron tick (it checks CRON_SECRET itself), health. */
@@ -12,6 +12,15 @@ const PUBLIC_PATHS = ["/welcome", "/login", "/help", "/safety", "/privacy", "/te
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const sessionHeaders = new Headers();
+  const redirectWithSession = (url: URL) => {
+    const redirected = NextResponse.redirect(url);
+    for (const c of response.cookies.getAll()) redirected.cookies.set(c);
+    sessionHeaders.forEach((value, key) => redirected.headers.set(key, value));
+    // Redirect destinations depend on the current account and must not be shared by caches.
+    redirected.headers.set("Cache-Control", "private, no-store");
+    return redirected;
+  };
 
   const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
@@ -22,7 +31,10 @@ export async function updateSession(request: NextRequest) {
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
-        for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+        for (const [key, value] of Object.entries(headers)) {
+          response.headers.set(key, value);
+          sessionHeaders.set(key, value);
+        }
       },
     },
   });
@@ -37,18 +49,13 @@ export async function updateSession(request: NextRequest) {
     // visitors see the landing page; deep links go to login and come back after it
     url.pathname = path === "/" ? "/welcome" : "/login";
     url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + request.nextUrl.search)}`;
-    const redirect = NextResponse.redirect(url);
-    // keep any refreshed/cleared cookies
-    for (const c of response.cookies.getAll()) redirect.cookies.set(c);
-    return redirect;
+    return redirectWithSession(url);
   }
   // Helper mode's home is the job feed (docs/ui.md tab bar). Redirect before rendering.
-  if (signedIn && path === "/" && request.cookies.get(MODE_COOKIE)?.value === "helper") {
+  if (signedIn && path === "/" && parseMode(request.cookies.get(MODE_COOKIE)?.value, data?.claims?.sub) === "helper") {
     const url = request.nextUrl.clone();
     url.pathname = "/jobs";
-    const redirect = NextResponse.redirect(url);
-    for (const c of response.cookies.getAll()) redirect.cookies.set(c);
-    return redirect;
+    return redirectWithSession(url);
   }
   return response;
 }

@@ -1,28 +1,20 @@
-import { TabBar, type Tab } from "@/components/tab-bar";
-import { getT } from "@/i18n/server";
+import { AppTabs } from "@/components/app-tabs";
 import { getViewer } from "@/lib/auth";
 import { getMode } from "@/lib/mode";
-import { Banknote, Compass } from "lucide-react";
 
 /**
- * Root tabs. Helpers: Ажил · Орлого. Customers have one screen (Home: tasks, money, past tasks),
- * so no tab bar (docs/decisions.md 2026-11-15 "Fewer screens"). Inside a flow (post, task,
- * profile) there is no tab bar either — those pages show ✕ / ←.
+ * Root tabs on phones (the web has its top bar). Customers: Нүүр · Захиалах · Даалгавар · Профайл;
+ * helpers: Ажил · Орлого · Профайл (owner, 2026-11-24). Inside a flow (post, task, chat) there is no
+ * tab bar — those pages show ✕ / ←.
  */
 export default async function TabsLayout({ children }: LayoutProps<"/">) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const [t, mode] = await Promise.all([getT(), getMode()]);
-  if (mode !== "helper") return <div className="flex flex-1 flex-col gap-4 pb-8">{children}</div>;
-
-  const tabs: Tab[] = [
-    { href: "/jobs", label: t("tabs.jobs"), icon: <Compass aria-hidden size={22} /> },
-    { href: "/earnings", label: t("tabs.earnings"), icon: <Banknote aria-hidden size={22} /> },
-  ];
+  const mode = await getMode();
   return (
     <>
-      <div className="flex flex-1 flex-col gap-4 pb-28">{children}</div>
-      <TabBar tabs={tabs} />
+      <div className="flex flex-1 flex-col gap-4 pb-28 md:pb-8">{children}</div>
+      <AppTabs mode={mode} />
     </>
   );
 }

@@ -64,6 +64,7 @@ export function PinMap({
   useEffect(() => {
     let cancelled = false;
     let unfold: (() => void) | null = null;
+    let resize: ResizeObserver | null = null;
     Promise.all([loadMapLibre(), mapStyle(locale)])
       .then(([{ Map }, style]) => {
         if (cancelled || !box.current) return;
@@ -89,10 +90,14 @@ export function PinMap({
         m.on("error", () => setFailed(true));
         m.on("load", () => { setReady(true); unfold = foldAttributionLater(m); });
         map.current = m;
+        // keep the canvas filling its box when the layout changes size
+        resize = new ResizeObserver(() => m.resize());
+        resize.observe(box.current);
       })
       .catch(() => setFailed(true));
     return () => {
       cancelled = true;
+      resize?.disconnect();
       unfold?.();
       meMarker.current?.remove();
       map.current?.remove();

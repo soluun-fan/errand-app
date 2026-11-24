@@ -17,7 +17,7 @@ import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picke
 import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, customerChoosesHelper, categoryTrust, DEFAULT_DETAILS, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift, type QuoteLine } from "@/lib/engine";
+import { CATEGORIES, categoryConfig, customerChoosesHelper, categoryTrust, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift } from "@/lib/engine";
 import { draftKeyFor } from "@/lib/draft";
 import { titleFromBrief } from "@/lib/task-brief";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
@@ -342,16 +342,6 @@ export function PostFlow({
   if (STEPS[step] === "review" && belowMin) reason = t("post.reason.fee", { amount: fmtMoney(minFee) });
   if (STEPS[step] === "review" && overMax) reason = t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) });
 
-  const lineLabel = (l: QuoteLine) =>
-    l.key === "time"
-      ? t("price.line.time", { min: l.qty ?? 0 })
-      : l.key === "distance"
-        ? t("price.line.distance", { km: l.qty ?? 0 })
-        : l.key === "stairs"
-          ? t("price.line.stairs", { n: l.qty ?? 0 })
-          : l.key === "base"
-            ? t("price.line.base", { min: cfg.includedMinutes, km: cfg.includedKm })
-            : t(`price.line.${l.key}`);
   // fee-only (docs/decisions.md 2026-11-18): the app takes only our fee; the helper is paid directly
   const direct = cfg.payMode === "direct";
   const breakdown: MoneyRow[] = direct

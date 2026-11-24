@@ -45,8 +45,7 @@ test("a task waiting for payment shows on Home with a Pay button that opens it",
 
 test("someone not yet verified sees 'Get verified' in worker mode, and it opens the form", async ({ browser }) => {
   const ctx = await browser.newContext();
-  await loginAs(ctx, PHONES.solongo); // a customer, never applied
-  await ctx.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(ctx, PHONES.solongo, { mode: "helper" }); // a customer, never applied
   const p = await ctx.newPage();
   await p.goto("/jobs");
   await p.getByRole("link", { name: /Ажиллахын тулд баталгаажуулалт хийх/ }).click();

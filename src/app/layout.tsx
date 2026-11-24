@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Onest } from "next/font/google";
 import { I18nProvider } from "@/i18n/client";
-import { getLocale } from "@/i18n/server";
+import { getLocale, getT } from "@/i18n/server";
 import "./globals.css";
 import { APP_NAME } from "@/lib/brand";
 import { ErrorReporter } from "@/components/error-reporter";
@@ -11,10 +11,10 @@ import { Analytics } from "@vercel/analytics/next";
 // fall back to another font (UI-FLOWS §12: Mongolian renders in the same face as Latin).
 const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic", "cyrillic-ext"] });
 
-export const metadata: Metadata = {
-  title: APP_NAME,
-  description: "Errands and protected payments, held by the bank until the job is done.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: APP_NAME, description: t("common.description") };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <I18nProvider locale={locale}>{children}</I18nProvider>
         {/* uncaught browser errors → the Ops error log */}
         <ErrorReporter />
-        <Analytics />
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, LockKeyhole, Search } from "lucide-react";
+import { ArrowRight, LockKeyhole, Search, X } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { btn } from "@/components/ui";
@@ -38,9 +38,12 @@ function useLoginSheet() {
       ref={ref}
       aria-labelledby="login-gate-title"
       onClick={(e) => e.target === ref.current && close()}
-      className="mx-auto mb-0 mt-auto w-full max-w-md rounded-t-sheet bg-bg p-0 text-ink shadow-float sm:mb-auto sm:rounded-sheet"
+      className="relative mx-auto mb-0 mt-auto max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-sheet bg-bg p-0 text-ink shadow-float sm:mb-auto sm:rounded-sheet"
     >
       <div className="flex flex-col items-center gap-3 px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-7 text-center">
+        <button type="button" onClick={close} aria-label={t("common.close")} className="absolute right-2 top-2 flex h-12 w-12 items-center justify-center rounded-full text-ink-2 hover:bg-fill">
+          <X aria-hidden size={20} />
+        </button>
         <span aria-hidden className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
           <LockKeyhole size={28} />
         </span>

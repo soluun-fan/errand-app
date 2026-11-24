@@ -129,11 +129,13 @@ export interface QueueItem {
 /** Ops: withdrawals waiting to be sent, oldest first. */
 export async function withdrawalQueue(): Promise<QueueItem[]> {
   const db = createAdminClient();
-  const { data } = await db.from("withdrawals").select("*").eq("status", "requested").order("requested_at").limit(200).returns<Row[]>();
+  const { data, error } = await db.from("withdrawals").select("*").eq("status", "requested").order("requested_at").limit(200).returns<Row[]>();
+  if (error) throw new Error(error.message);
   const rows = data ?? [];
-  const { data: people } = rows.length
+  const { data: people, error: peopleError } = rows.length
     ? await db.from("profiles").select("id, name").in("id", [...new Set(rows.map((r) => r.helper_id))]).returns<{ id: string; name: string | null }[]>()
-    : { data: [] };
+    : { data: [], error: null };
+  if (peopleError) throw new Error(peopleError.message);
   const name = new Map((people ?? []).map((p) => [p.id, p.name ?? "—"]));
   return rows.map((r) => ({
     id: r.id,

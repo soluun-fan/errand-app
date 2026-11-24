@@ -18,7 +18,7 @@
   --color-fill: #efece8; /* chips, address boxes, tiles — visible on white and on the page grey */
   --color-canvas: #f5f4f2; /* the page behind the cards */
   --color-bg: #ffffff; /* cards, sheets, inputs */
-  --color-brand: #ea580c; /* orange fills (main button): white text on it is 18 px bold = large text, 3.6:1 */
+  --color-brand: #c2410c; /* orange fills: white text clears 5:1, including compact button labels */
   --color-brand-ink: #c2410c; /* orange text and links on white or the page grey: ≥ 4.7:1 */
   --color-brand-bg: #fff1e8; /* soft orange behind brand-ink (category tag) */
 
@@ -61,6 +61,17 @@ body {
  */
 fieldset {
   min-width: 0;
+}
+
+/* Every interactive element has a visible keyboard location, including cards and disclosures. */
+:where(a, button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-brand-ink);
+  outline-offset: 3px;
+}
+
+html {
+  scroll-padding-top: 6rem;
+  scroll-padding-bottom: 8rem;
 }
 
 /*

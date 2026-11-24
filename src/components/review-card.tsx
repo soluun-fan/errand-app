@@ -13,8 +13,8 @@ export function ReviewCard({ r, t }: { r: RecentReview; t: T }) {
         // eslint-disable-next-line @next/next/no-img-element -- public review photo in Supabase Storage
         <img src={r.photos[0]} alt={t("workPhotos.reviewPhoto")} loading="lazy" className="-mx-4 -mt-4 mb-1 aspect-[4/3] w-[calc(100%+2rem)] max-w-none bg-fill object-cover" />
       )}
-      <span className="flex items-center gap-1.5">
-        <span className="flex" aria-label={t("helperProfile.stars", { n: r.stars })}>
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex shrink-0" aria-label={t("helperProfile.stars", { n: r.stars })}>
           {[1, 2, 3, 4, 5].map((s) => (
             <Star key={s} aria-hidden size={14} className={s <= r.stars ? "fill-brand text-brand" : "text-line"} />
           ))}
@@ -25,8 +25,8 @@ export function ReviewCard({ r, t }: { r: RecentReview; t: T }) {
         </span>
       </span>
       <p className="line-clamp-3 flex-1 text-[14px] leading-relaxed">{r.note}</p>
-      <span className="flex items-center justify-between border-t border-line pt-2 text-[13px]">
-        <Link href={`/helpers/${r.helperId}`} className="font-semibold text-brand-ink">
+      <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-[13px]">
+        <Link href={`/helpers/${r.helperId}`} className="flex min-h-11 min-w-0 items-center break-words font-semibold text-brand-ink">
           {r.helperName} ›
         </Link>
         <span className="text-ink-2">{r.reviewer}</span>

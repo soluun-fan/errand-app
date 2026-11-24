@@ -151,6 +151,7 @@ export const en = {
   },
 
   common: {
+    description: "Find help with everyday errands, agree on the work, and follow its progress with {app}.",
     app: "Guigere",
     back: "Back",
     next: "Next",
@@ -171,10 +172,17 @@ export const en = {
     hm: "{h}h {m}m",
     m: "{m}m",
   },
+  tasksTab: {
+    active: "Now",
+    empty: "No tasks yet",
+    emptyBody: "Post your first task — helpers nearby see it straight away.",
+  },
   tabs: {
+    navigation: "Main navigation",
+    post: "Post",
+    tasks: "My tasks",
+    profile: "Profile",
     home: "Home",
-    wallet: "Payments",
-    history: "History",
     jobs: "Jobs",
     earnings: "Earnings",
   },
@@ -409,6 +417,7 @@ export const en = {
     clearanceIntro: "Care services are paused during launch. Do not request a new clearance; care requires a separate legal and safety review before it can return.",
   },
   web: {
+    findWork: "Find work",
     requests: "Requests",
     helpers: "Helpers",
     requestsTitle: "Requests waiting for a helper",
@@ -426,7 +435,8 @@ export const en = {
     noHelpers: "No helpers match yet.",
     nearbyHelpers: "Helpers on {app}",
     seeAll: "See all",
-    reviews: "What customers say",
+    reviews: "Selected customer reviews",
+    reviewsSelection: "Four- and five-star reviews, with photos shown first. Open a helper’s profile to see their review history.",
     yourTask: "Post a request like this",
     openJob: "Open",
   },
@@ -495,6 +505,10 @@ export const en = {
     gateNote: "New here? Verifying your number is all it takes.",
   },
   home: {
+    viewActive: "View all {n} active tasks",
+    moreKinds: "More services ({n})",
+    fewerKinds: "Show fewer services",
+    explore: "Explore {app}",
     kindsTitle: "Kinds of work",
     allFrom: "You name the price. Each kind has its own minimum, plus the trip for longer distances.",
     kinds: { open: "Everyday help", specialized: "Specialized · certified" },
@@ -2167,6 +2181,7 @@ export const en = {
     homeSub: "Real photos from finished jobs, shown with the customer's OK.",
   },
   opsPhotos: {
+    openPhoto: "Open full-size photo",
     title: "Public photos",
     help: "Portfolio and review photos anyone can see. Reported ones come first; 3 reports take a photo down automatically. Hide anything showing a face, a door number, documents, or that isn't the work.",
     none: "No public photos yet.",

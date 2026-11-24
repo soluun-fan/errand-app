@@ -7,7 +7,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { btn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { CategoryId } from "@/lib/engine";
-import { addWorkKinds } from "../../profile/actions";
+import { addWorkKinds } from "../profile/actions";
 
 const KEY = "tuslamj.newKindsDismissed";
 
@@ -15,23 +15,25 @@ const KEY = "tuslamj.newKindsDismissed";
  * Everyday kinds the helper hasn't picked (new ones appear over time): tasks of those kinds don't
  * reach them. One tap adds them all; ✕ hides the card until another new kind appears.
  */
-export function NewKindsCard({ missing }: { missing: CategoryId[] }) {
+export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userId: string }) {
   const t = useT();
   const sig = [...missing].sort().join(",");
+  const storageKey = `${KEY}:${userId}`;
   const [hidden, setHidden] = useState(true); // decided after reading the browser's memory
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
   useEffect(() => {
     try {
-      setHidden(localStorage.getItem(KEY) === sig);
+      setHidden(localStorage.getItem(storageKey) === sig);
     } catch {
       setHidden(false);
     }
-  }, [sig]);
+  }, [sig, storageKey]);
   if (hidden || !missing.length) return null;
 
   const dismiss = () => {
     try {
-      localStorage.setItem(KEY, sig);
+      localStorage.setItem(storageKey, sig);
     } catch {
       /* private mode: hide for this visit only */
     }
@@ -60,8 +62,15 @@ export function NewKindsCard({ missing }: { missing: CategoryId[] }) {
           disabled={busy}
           onClick={async () => {
             setBusy(true);
-            await addWorkKinds(missing);
-            setBusy(false);
+            setError(undefined);
+            try {
+              const result = await addWorkKinds(missing);
+              if (result.error) setError(result.error);
+            } catch {
+              setError(t("error.generic"));
+            } finally {
+              setBusy(false);
+            }
           }}
           className={btn.small}
         >
@@ -71,6 +80,7 @@ export function NewKindsCard({ missing }: { missing: CategoryId[] }) {
           {t("workKinds.choose")}
         </Link>
       </div>
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     </section>
   );
 }

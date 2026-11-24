@@ -1,22 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, MapPin, Plus, RotateCcw, Search, ShieldCheck, Undo2 } from "lucide-react";
+import { ArrowRight, ClipboardList, Compass, MapPin, RotateCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
+import { CategoryGroups } from "@/components/service-tile";
 import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { Avatar, PrimaryBar, Wide, btn, chipClass } from "@/components/ui";
+import { Avatar, LinkRow, Wide, chipClass } from "@/components/ui";
+import { TERMINAL_STATUSES } from "@/lib/engine";
 import { HelperCard } from "@/components/helper-card";
 import { OpenBoard } from "@/components/open-board";
 import { ReviewCard } from "@/components/review-card";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { listMyTasks, walletEntries } from "@/lib/deals/queries";
-import { firstPhotoUrls } from "@/lib/task-photos";
+import { listMyTasks } from "@/lib/deals/queries";
 import { kindCovers } from "@/lib/covers";
-import { fmtMoney } from "@/lib/format";
 import { liveCategories } from "@/lib/orgs";
-import { CATEGORIES, kindFromLabel, type CategoryId } from "@/lib/engine";
 import { getMode } from "@/lib/mode";
 import { popularStarts, seasonalStarts } from "@/lib/content";
 import { qsTitle } from "@/lib/content-rules";
@@ -31,42 +30,20 @@ import { NotifyHint } from "@/components/notify-hint";
 import { InstallHint } from "@/components/install-hint";
 import { customerTodos } from "@/lib/todo";
 
-const REFUND_KINDS = ["refund", "budget_refund"];
-/** Past tasks shown straight away; the rest open in place ("Show all"), no separate page. */
-const PAST_SHOWN = 3;
-
 /**
- * Home (redesign 2026-11-16, docs/ui.md): task first — greeting, "what do you need?", search, live
- * tasks, six categories with today's starting price, money card, past tasks with "Order again",
- * and the main button fixed in thumb reach. The customer's only tab.
+ * Home (redesign 2026-11-16, shortened 2026-11-24): task first — greeting, "what do you need?",
+ * search, quick starts, live tasks, categories with today's starting price. Money and past tasks
+ * live in the Tasks tab; open requests, helpers, their work and reviews show on the website only.
+ * Posting is the orange tab (phones) / the top bar button (web).
  */
 export default async function Home() {
   const viewer = await getViewer();
   if (!viewer) return null;
   if ((await getMode()) === "helper") redirect("/jobs");
-  const [t, locale, all, entries] = await Promise.all([getT(), getLocale(), listMyTasks(viewer.profile.id), walletEntries(viewer.profile.id)]);
-  const closed = ["released", "refunded", "cancelled", "expired"];
-  const active = all.filter((x) => !closed.includes(x.deal.status));
-  const past = all.filter((x) => closed.includes(x.deal.status));
-  const holding = all.filter((x) => x.deal.heldAmount > 0);
-  const heldNow = holding.reduce((a, x) => a + x.deal.heldAmount, 0);
-  const refunds = entries.filter((e) => REFUND_KINDS.includes(e.kind) && e.amount > 0).reduce((a, e) => a + e.amount, 0);
-  const [ownPics, covers, todos] = await Promise.all([firstPhotoUrls(past.map((x) => x.deal.id)), kindCovers(), customerTodos(viewer.profile.id, all.map((x) => x.deal))]);
-  const pastRow = (x: (typeof past)[number]) => (
-    <DealCard
-      key={x.deal.id}
-      deal={x.deal}
-      t={t}
-      locale={locale}
-      thumb={ownPics.get(x.deal.id) ?? covers.get(x.deal.category) ?? null}
-      row
-      rowAction={
-        <Link href={`/post?again=${x.deal.id}`} className="flex min-h-11 items-center gap-1.5 px-1 text-[14px] font-semibold text-brand-ink">
-          <RotateCcw aria-hidden size={16} /> {t("deal.postAgain")}
-        </Link>
-      }
-    />
-  );
+  const [t, locale, all] = await Promise.all([getT(), getLocale(), listMyTasks(viewer.profile.id)]);
+  const active = all.filter((x) => !TERMINAL_STATUSES.includes(x.deal.status));
+  const past = all.filter((x) => TERMINAL_STATUSES.includes(x.deal.status));
+  const [covers, todos] = await Promise.all([kindCovers(), customerTodos(viewer.profile.id, all.map((x) => x.deal))]);
   const everCompleted = all.some((x) => x.deal.status === "released");
   const repeat = [...new Map(all.filter((x) => x.deal.status === "released" && !x.deal.title.startsWith("[verify]")) /* test tasks never become chips */.map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
 
@@ -85,18 +62,15 @@ export default async function Home() {
   const live = await liveCategories();
   const now = Date.now();
   // the only price that is ours: the minimum (the customer names the rest; docs/decisions.md 2026-11-16)
-  const fromLabel = (c: CategoryId) => {
-    const f = kindFromLabel(c, cfg);
-    return f.hourly ? t("home.fromHourly", { amount: fmtMoney(f.amount) }) : t("home.from", { amount: fmtMoney(f.amount) });
-  };
+
   const name = viewer.profile.name?.split(" ")[0];
 
   const section = (title: string, more: string | null, body: React.ReactNode) => (
     <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between gap-2">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <h2 className="text-[18px] font-bold tracking-tight md:text-[24px]">{title}</h2>
         {more && (
-          <Link href={more} className="flex min-h-10 items-center gap-1 text-[14px] font-semibold text-brand-ink">
+          <Link href={more} className="flex min-h-12 shrink-0 items-center gap-1 text-[14px] font-semibold text-brand-ink">
             {t("web.seeAll")} <ArrowRight aria-hidden size={15} />
           </Link>
         )}
@@ -121,11 +95,11 @@ export default async function Home() {
               <Avatar name={viewer.profile.name || "?"} size={44} />
             </Link>
           </header>
-          <Link href="/profile" className="flex w-fit items-center gap-1.5 rounded-full bg-bg px-3 py-1.5 text-[13px] font-medium shadow-card">
+          <p className="flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-full bg-bg px-3 py-1.5 text-[13px] font-medium shadow-card">
             <MapPin aria-hidden size={14} className="text-brand-ink" />
             {viewer.profile.area || t("home.area")}
             {online > 0 && <span className="text-ink-2">· {t("home.online", { n: online })}</span>}
-          </Link>
+          </p>
           <h1 className="text-[24px] font-bold leading-tight tracking-tight md:text-[40px] md:font-extrabold">
             <span className="hidden md:inline">{name ? `${t("home.hello")} ${name}. ` : ""}</span>
             {t("home.hero")}
@@ -160,15 +134,17 @@ export default async function Home() {
         </div>
         <div className="flex min-w-0 flex-col gap-3">
           {/* live tasks first: the one thing that matters right now */}
-          {active.map((x) => (
+          {active.length > 0 && <h2 className="text-[15px] font-semibold">{t("tasksTab.active")}</h2>}
+          {active.slice(0, 2).map((x) => (
             <DealCard key={x.deal.id} deal={x.deal} offerCount={x.offerCount} t={t} locale={locale} />
           ))}
-          <RecentRequests items={recent} t={t} now={now} />
+          {active.length > 2 && <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-[14px] font-semibold text-brand-ink">
+            {t("home.viewActive", { n: active.length })}<ArrowRight aria-hidden size={18} className="shrink-0" />
+          </Link>}
+          <div className="hidden md:block"><RecentRequests items={recent} t={t} now={now} /></div>
         </div>
       </section>
       {/* nice-to-haves after the main thing, not before it */}
-      <NotifyHint />
-      <InstallHint />
 
       {section(
         t("home.kindsTitle"),
@@ -176,32 +152,18 @@ export default async function Home() {
         <div className="flex flex-col gap-4">
           {/* the only price that is ours is the minimum — said once, not on every tile */}
           <p className="-mt-2 text-[14px] text-ink-2">{t("home.allFrom")}</p>
-          {(["open", "specialized"] as const).map((group) => {
-            const ids = CATEGORIES.filter((c) => live.includes(c.id) && (group === "open" ? c.trust === "open" : c.trust !== "open")).map((c) => c.id);
-            if (!ids.length) return null;
-            return (
-              <nav key={group} aria-label={t(`home.kinds.${group}`)} className="flex flex-col gap-2">
-                {/* everyday work first; specialized (certified / organisation) work as its own group */}
-                <h3 className="text-[13px] font-semibold text-ink-2">{t(`home.kinds.${group}`)}</h3>
-                <div className="grid grid-cols-3 gap-2.5 md:grid-cols-6 md:gap-3">
-                  {ids.map((id) => (
-                    <Link key={id} href={`/post?cat=${id}`} className="press flex flex-col gap-2 overflow-hidden rounded-tile bg-bg p-3 shadow-card md:items-center md:py-5 md:text-center">
-                      {covers.get(id) ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- public cover in Supabase Storage
-                        <img src={covers.get(id)} alt="" loading="lazy" className="-mx-3 -mt-3 aspect-[4/3] w-[calc(100%+1.5rem)] max-w-none object-cover md:-mt-5" />
-                      ) : (
-                        <CategoryIcon id={id} tile size={20} />
-                      )}
-                      <span className="text-[14px] font-semibold leading-tight">{t(`categoryShort.${id}`)}</span>
-                      <span className="-mt-1.5 text-[12px] text-ink-2 tabular-nums">{fromLabel(id)}</span>
-                    </Link>
-                  ))}
-                </div>
-              </nav>
-            );
-          })}
+          <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
+            <Link key={id} href={`/post?cat=${id}`} className={className}>{tile}</Link>
+          )} />
         </div>,
       )}
+
+      <nav aria-label={t("home.explore")} className="grid gap-2 sm:grid-cols-2 md:hidden">
+        <LinkRow card href="/helpers" icon={UsersRound} label={t("web.helpers")} />
+        <LinkRow card href="/jobs" icon={Compass} label={t("web.findWork")} />
+      </nav>
+      <NotifyHint />
+      <InstallHint />
 
       <SeasonalRow
         t={t}
@@ -214,6 +176,8 @@ export default async function Home() {
         )}
       />
 
+      {/* discovery (open requests, helpers, their work, reviews): the website only — phones stay short (2026-11-24) */}
+      <div className="hidden flex-col gap-10 md:flex">
       {board.length > 0 && section(t("web.requestsTitle"), "/requests", <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={covers} />)}
 
       {helpers.length > 0 &&
@@ -247,83 +211,39 @@ export default async function Home() {
         section(
           t("web.reviews"),
           null,
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {reviews.map((r, i) => (
-              <li key={i}>
-                <ReviewCard r={r} t={t} />
-              </li>
-            ))}
-          </ul>,
-        )}
-
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
-        <div className="flex min-w-0 flex-col gap-4">
-          {(heldNow > 0 || refunds > 0) && (
-            <div className={`grid gap-2.5 ${heldNow > 0 && refunds > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
-              {heldNow > 0 && (
-                <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
-                  <span className="flex items-center gap-1.5 text-sm font-medium">
-                    <ShieldCheck aria-hidden size={16} /> {t("wallet.heldNow")}
-                  </span>
-                  <span className="text-[20px] font-bold tabular-nums">{fmtMoney(heldNow)}</span>
-                  <span className="text-[13px]">{t("wallet.heldNowSub", { n: holding.length })}</span>
-                </div>
-              )}
-              {refunds > 0 && (
-                <div className="flex flex-col gap-1 rounded-card bg-bg p-4 shadow-card">
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-ink-2">
-                    <Undo2 aria-hidden size={16} /> {t("wallet.refunds")}
-                  </span>
-                  <span className="text-[20px] font-bold tabular-nums">{fmtMoney(refunds)}</span>
-                  <span className="text-[13px] text-ink-2">{t("wallet.refundsSub")}</span>
-                </div>
-              )}
-            </div>
-          )}
-          <Link href="/safety" className="flex items-start gap-2 text-[14px] font-medium text-held">
-            <ShieldCheck aria-hidden size={18} className="mt-0.5 flex-none" />
-            <span>
-              {t("home.trust")} <span className="underline underline-offset-2">{t("home.howItWorks")}</span>
-            </span>
-          </Link>
-          {!everCompleted && (
-            <section className="-mx-5 flex snap-x gap-2.5 overflow-x-auto px-5 pb-1 md:mx-0 md:px-0">
-              {([1, 2, 3] as const).map((n) => (
-                <div key={n} className="w-60 flex-none snap-start rounded-card bg-bg p-4 shadow-card">
-                  <p className="font-semibold">{t(`home.explainer${n}Title`)}</p>
-                  <p className="mt-1 text-[14px] text-ink-2">{t(`home.explainer${n}Body`)}</p>
-                </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px] leading-relaxed text-ink-2">{t("web.reviewsSelection")}</p>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {reviews.map((r, i) => (
+                <li key={i}>
+                  <ReviewCard r={r} t={t} />
+                </li>
               ))}
-            </section>
-          )}
-        </div>
-
-        {past.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h2 className="text-[17px] font-bold">{t("home.past")}</h2>
-            <div className="flex flex-col rounded-card bg-bg px-4 shadow-card">
-              {past.slice(0, PAST_SHOWN).map(pastRow)}
-              {past.length > PAST_SHOWN && (
-                <details className="group">
-                  <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center text-[14px] font-semibold text-brand-ink">
-                    <span className="group-open:hidden">{t("home.pastAll", { n: past.length })}</span>
-                    <span className="hidden group-open:inline">{t("home.pastLess")}</span>
-                  </summary>
-                  {past.slice(PAST_SHOWN).map(pastRow)}
-                </details>
-              )}
-            </div>
-          </section>
+            </ul>
+          </div>,
         )}
       </div>
 
-      {/* the main action, always in thumb reach (phones; the web has it in the top bar) */}
-      <div className="md:hidden">
-        <PrimaryBar>
-          <Link href="/post" className={`${btn.primary} w-full`}>
-            <Plus aria-hidden size={20} strokeWidth={2.5} /> {t("home.postCta")}
-          </Link>
-        </PrimaryBar>
+      <div className="flex flex-col gap-4">
+        <Link href="/safety" className="flex items-start gap-2 text-[14px] font-medium text-held">
+          <ShieldCheck aria-hidden size={18} className="mt-0.5 flex-none" />
+          <span>
+            {t("home.trust")} <span className="underline underline-offset-2">{t("home.howItWorks")}</span>
+          </span>
+        </Link>
+        {!everCompleted && (
+          <section className="-mx-5 flex snap-x gap-2.5 overflow-x-auto px-5 pb-1 md:mx-0 md:px-0">
+            {([1, 2, 3] as const).map((n) => (
+              <div key={n} className="w-60 flex-none snap-start rounded-card bg-bg p-4 shadow-card">
+                <p className="font-semibold">{t(`home.explainer${n}Title`)}</p>
+                <p className="mt-1 text-[14px] text-ink-2">{t(`home.explainer${n}Body`)}</p>
+              </div>
+            ))}
+          </section>
+        )}
+        {past.length > 0 && (
+          <LinkRow card href="/tasks" icon={ClipboardList} label={t("home.past")} count={past.length} />
+        )}
       </div>
     </Wide>
   );

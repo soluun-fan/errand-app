@@ -19,7 +19,8 @@ export interface MyPayout {
 }
 
 export async function hasPayout(userId: string): Promise<boolean> {
-  const { count } = await createAdminClient().from("payout_accounts").select("user_id", { count: "exact", head: true }).eq("user_id", userId);
+  const { count, error } = await createAdminClient().from("payout_accounts").select("user_id", { count: "exact", head: true }).eq("user_id", userId);
+  if (error) throw new Error(error.message);
   return (count ?? 0) > 0;
 }
 

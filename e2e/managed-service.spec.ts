@@ -75,8 +75,7 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   // (since 2026-11-22); stand in for Ops recording that check, as /ops/withdrawals would.
   await db.from("payout_accounts").update({ verified_at: new Date().toISOString() }).eq("user_id", bat.id).is("verified_at", null);
   const helper = await browser.newContext();
-  await loginAs(helper, PHONES.bat);
-  await helper.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
+  await loginAs(helper, PHONES.bat, { mode: "helper" });
   const h = await helper.newPage();
   const hErrors = watchErrors(h);
   await h.goto("/earnings");

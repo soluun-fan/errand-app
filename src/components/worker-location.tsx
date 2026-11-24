@@ -15,13 +15,14 @@ const Context = createContext<{
   reload: () => Promise<void>;
   retry: () => Promise<void>;
   setSharing: (dealId: string, sharing: boolean) => Promise<void>;
+  /** online or on a job: location is being sent */
+  tracking: boolean;
 } | null>(null);
 
 export const useWorkerLocation = () => useContext(Context);
 
 /** Lives in the signed-in layout, so opening chat or another task keeps sharing active. */
 export function WorkerLocationProvider({ children, enabled }: { children: ReactNode; enabled: boolean }) {
-  const t = useT();
   const pathname = usePathname();
   const [state, setState] = useState<WorkerLocationState | null>(null);
   const [status, setStatus] = useState<LocationStatus>("locating");
@@ -76,20 +77,28 @@ export function WorkerLocationProvider({ children, enabled }: { children: ReactN
     }, setStatus, jobKey ? 15_000 : 60_000);
   }, [tracking, jobKey, attempt]);
 
+  return <Context.Provider value={{ state, status, reload, retry, setSharing, tracking }}>
+    {children}
+  </Context.Provider>;
+}
+
+/** The slim location strip; placed by the layout right under the top bar (2026-11-24). */
+export function WorkerLocationStrip() {
+  const t = useT();
+  const ctx = useContext(Context);
+  if (!ctx) return null;
+  const { state, status, retry, tracking } = ctx;
   const failed = status === "denied" || status === "unavailable";
-  return <Context.Provider value={{ state, status, reload, retry, setSharing }}>
-    {tracking && (state?.jobIds.length || failed) ? <div className="mx-auto w-full max-w-2xl px-5 pt-2">
+  return tracking && (state?.jobIds.length || failed) ? <div className="mx-auto w-full max-w-2xl px-5 pt-2">
       {/* one slim strip: amber when location is failing (with Retry), green while it is shared */}
-      <div role="status" className={`flex items-center gap-3 rounded-input px-3 py-2 text-sm ${failed ? "bg-warn-bg text-warn" : "bg-held-bg text-held"}`}>
+      <div role="status" className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-input px-3 py-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] ${failed ? "bg-warn-bg text-warn" : "bg-held-bg text-held"}`}>
         {failed ? <MapPinOff aria-hidden size={18} className="shrink-0" /> : <span aria-hidden className="relative flex h-2.5 w-2.5 shrink-0"><span className="absolute inset-0 animate-ping rounded-full bg-held opacity-60 motion-reduce:animate-none" /><span className="relative h-2.5 w-2.5 rounded-full bg-held" /></span>}
         <p className="min-w-0 flex-1 font-medium">{t(failed ? "job.locationError" : status === "live" ? "job.locationActive" : "job.locationLocating")}</p>
         {failed
-          ? <button type="button" className="min-h-10 shrink-0 rounded-full bg-bg px-3 font-semibold text-ink shadow-card" onClick={() => void retry()}>{t("common.retry")}</button>
-          : state?.jobIds.slice(0, 1).map(id => <Link key={id} href={`/jobs/${id}`} aria-label={t("job.locationManage")} className="inline-flex min-h-10 shrink-0 items-center gap-0.5 font-semibold underline-offset-4 hover:underline">
+          ? <button type="button" className="col-start-2 min-h-10 justify-self-start rounded-full bg-bg px-3 font-semibold text-ink shadow-card sm:col-start-auto" onClick={() => void retry()}>{t("common.retry")}</button>
+          : state?.jobIds.slice(0, 1).map(id => <Link key={id} href={`/jobs/${id}`} aria-label={t("job.locationManage")} className="col-start-2 inline-flex min-h-10 items-center gap-0.5 justify-self-start font-semibold underline-offset-4 hover:underline sm:col-start-auto">
             {t("job.locationOpen")}<ChevronRight aria-hidden size={16} />
           </Link>)}
       </div>
-    </div> : null}
-    {children}
-  </Context.Provider>;
+    </div> : null;
 }

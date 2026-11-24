@@ -1,28 +1,32 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { redirect, checkVerifyMnLogin, createAdminClient } = vi.hoisted(() => ({
+const { redirect, checkVerifyMnLogin, createAdminClient, createClient, deleteCookie, clearPendingLogin } = vi.hoisted(() => ({
+  createClient: vi.fn(),
+  deleteCookie: vi.fn(),
+  clearPendingLogin: vi.fn(),
   redirect: vi.fn(),
   checkVerifyMnLogin: vi.fn(),
   createAdminClient: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ delete: deleteCookie }) }));
 vi.mock("@/i18n/server", () => ({ getT: async () => (key: string) => key }));
 vi.mock("@/lib/dev", () => ({ loginRules: () => ({ allowed: false, showCode: false }) }));
 vi.mock("@/lib/next-path", () => ({ safeNext: () => "/" }));
 vi.mock("@/lib/legal-rules", () => ({ onboardingMissing: () => [] }));
 vi.mock("@/lib/phone", () => ({ normalizeMnPhone: (phone: string) => phone }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("@/lib/verify-mn-login", () => ({
   checkVerifyMnLogin,
-  clearPendingLogin: vi.fn(),
+  clearPendingLogin,
   pendingLogin: vi.fn(async () => null),
   startVerifyMnLogin: vi.fn(),
   verifyMnLoginEnabled: () => true,
 }));
 
-import { login } from "./actions";
+import { login, signOut } from "./actions";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -53,4 +57,14 @@ it("lets the successful login redirect escape the provider-status error handler"
     displayInstruction: "Send 123456",
   } }, form)).rejects.toThrow("NEXT_REDIRECT");
   expect(redirect).toHaveBeenCalledWith("/");
+});
+
+it("clears account mode and pending login on sign-out", async () => {
+  const authSignOut = vi.fn().mockResolvedValue({ error: null });
+  createClient.mockResolvedValue({ auth: { signOut: authSignOut } });
+  await expect(signOut()).rejects.toThrow("NEXT_REDIRECT");
+  expect(authSignOut).toHaveBeenCalledOnce();
+  expect(deleteCookie).toHaveBeenCalledWith("mode");
+  expect(clearPendingLogin).toHaveBeenCalledOnce();
+  expect(redirect).toHaveBeenCalledWith("/login");
 });

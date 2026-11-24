@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
     const query = {
       select: () => query,
       eq: () => query,
+      in: () => query,
       order: () => query,
       limit: () => query,
       returns: () => Promise.resolve(mocks.results[table]),
@@ -20,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
   },
 }) }));
 
-import { earningsSummary } from "../withdrawals";
+import { earningsSummary, withdrawalQueue } from "../withdrawals";
 
 beforeEach(() => {
   mocks.results = {
@@ -29,6 +30,17 @@ beforeEach(() => {
     withdrawals: { data: [], error: null },
     payout_accounts: { data: { verified_at: "2026-11-20T00:00:00Z" }, error: null },
   };
+});
+
+it("does not present a failed payout queue read as no withdrawals waiting", async () => {
+  mocks.results.withdrawals = { data: null, error: { message: "queue unavailable" } };
+  await expect(withdrawalQueue()).rejects.toThrow("queue unavailable");
+});
+
+it("does not hide failed recipient lookups in the payout queue", async () => {
+  mocks.results.withdrawals.data = [{ helper_id: "helper-a" }];
+  mocks.results.profiles = { data: null, error: { message: "recipients unavailable" } };
+  await expect(withdrawalQueue()).rejects.toThrow("recipients unavailable");
 });
 
 it("keeps queued money separate and uses the configured automatic payout interval", async () => {

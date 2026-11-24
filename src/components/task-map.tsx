@@ -107,6 +107,7 @@ export function TaskMap({
   useEffect(() => {
     let cancelled = false;
     let unfold: (() => void) | null = null;
+    let resize: ResizeObserver | null = null;
     Promise.all([loadMapLibre(), mapStyle(locale)])
       .then(([{ Map }, style]) => {
         if (cancelled || !box.current) return;
@@ -128,10 +129,14 @@ export function TaskMap({
         });
         m.on("load", () => { setReady(true); setFailed(false); unfold = foldAttributionLater(m); });
         map.current = m;
+        // the box can change size after the map starts (fonts, sidebars, a wider screen): keep the canvas filling it
+        resize = new ResizeObserver(() => m.resize());
+        resize.observe(box.current);
       })
       .catch(() => setFailed(true));
     return () => {
       cancelled = true;
+      resize?.disconnect();
       unfold?.();
       map.current?.remove();
       map.current = null;
