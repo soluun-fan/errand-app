@@ -40,6 +40,17 @@ async function main() {
       console.log(`     last tick calls: ${codes}${hint}`);
     }
   }
+  // free-plan limits (owner, 2026-11-23: no paid plans yet) — warn well before a limit stops the app
+  const usage = await db.rpc("usage_status");
+  if (usage.error) {
+    console.log(`WARN usage: unavailable (${usage.error.code || "connection failed"}; apply migration 20261123000000)`);
+  } else {
+    const u = usage.data as { db_bytes: number; file_bytes: number };
+    for (const [label, bytes, limit] of [["database", u.db_bytes, 500e6], ["files", u.file_bytes, 1e9]] as const) {
+      const pct = Math.round((Number(bytes) / limit) * 100);
+      console.log(`${pct >= 70 ? "WARN" : "OK"} ${label}: ${(Number(bytes) / 1e6).toFixed(1)} MB of the free ${limit / 1e6} MB (${pct}%)${pct >= 70 ? " — plan an upgrade" : ""}`);
+    }
+  }
   if (failed) process.exitCode = 1;
 }
 

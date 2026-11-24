@@ -73,3 +73,22 @@ export async function purgeJobRoutes(): Promise<number> {
   const { data } = await createAdminClient().rpc("purge_job_routes").throwOnError();
   return Number(data ?? 0);
 }
+
+/**
+ * Privacy (2026-11-23): a helper's last position is needed only while they're working. Clear it an
+ * hour after they went offline, and a day after the last sample even if they never pressed offline
+ * (dispatch ignores positions older than 10 minutes anyway). Running jobs keep their own trail.
+ */
+export async function purgeIdlePresence(now = Date.now()): Promise<number> {
+  const db = createAdminClient();
+  const clear = { lat: null, lng: null };
+  const hourAgo = new Date(now - 3_600_000).toISOString();
+  const dayAgo = new Date(now - 86_400_000).toISOString();
+  const [offline, forgotten] = await Promise.all([
+    db.from("helper_presence").update(clear).eq("online", false).not("lat", "is", null).lt("updated_at", hourAgo).select("user_id"),
+    db.from("helper_presence").update({ ...clear, online: false }).not("lat", "is", null).lt("updated_at", dayAgo).select("user_id"),
+  ]);
+  if (offline.error) throw offline.error;
+  if (forgotten.error) throw forgotten.error;
+  return (offline.data?.length ?? 0) + (forgotten.data?.length ?? 0);
+}

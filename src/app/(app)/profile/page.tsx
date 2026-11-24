@@ -92,6 +92,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
         {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
         {(actor.helperApproved || viewer.profile.helper_status === "approved") && <Link href="/helper/record" className={btn.secondary}>{t("standards.recordTitle")}</Link>}
+        <Link href="/support" className={btn.secondary}>{t("support.title")}</Link>
       </section>
 
       <section className="flex flex-col gap-2">

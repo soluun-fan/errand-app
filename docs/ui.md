@@ -55,4 +55,4 @@ One CTA · empty/loading(skeleton)/error states · works at 320px and 130% text 
 - Components in `src/components/`; every one is shown in all states at **`/dev/components`** (dev only), including the deal screen in every state built from engine fixtures.
 - Strings: server `const t = await getT()`, client `useT()`. Keys in `src/i18n/en.ts` (source of truth), `mn.ts` (draft).
 - Money in UI comes from engine pure functions (`quoteFee`, `errandSplit`, `amountDue`) — same code the server books with. Format with `fmtMoney` → `46,000₮`.
-- Map: `MapSlot` renders a neutral placeholder until a map provider is chosen (see decisions.md).
+- Map (2026-11-24): MapLibre + OpenFreeMap, restyled Google-Maps-like in `src/lib/map-style.ts`; markers, blue dot, locate button and credit folding in `src/components/map-ui.tsx`. Pins: red = the task's place / drop-off, dark = pickup; helper = green circle; route = solid `route` blue with a white edge. Flat and north-up.

@@ -38,7 +38,7 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );
-  expect(t.deal.serviceFee).toBe(1500); // 20,000₮ job → 1,500₮ service & safety fee
+  expect(t.deal.serviceFee).toBe(2000); // 10% of the 20,000₮ price (2026-11-22)
   await insertDeal(db, t);
   const id = t.deal.id;
   created.push(id);
@@ -47,20 +47,20 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   await runCommand(db, id, { type: "apply", note: "" }, batActor);
   await runCommand(db, id, { type: "choose", helperId: bat.id }, solActor);
 
-  // 1. the customer pays the full 21,500₮ (simulated bank: no wire.mn key in tests)
+  // 1. the customer pays the full 22,000₮ (simulated bank: no wire.mn key in tests)
   const customer = await browser.newContext();
   await loginAs(customer, PHONES.solongo);
   const c = await customer.newPage();
   const cErrors = watchErrors(c);
   await c.goto(`/tasks/${id}`);
   const sheet = c.locator("dialog[open]");
-  await expect(sheet.getByText("21,500₮ төлөх")).toBeVisible();
+  await expect(sheet.getByText("22,000₮ төлөх")).toBeVisible();
   await sheet.getByRole("button", { name: "Khan Bank" }).click();
   await expect.poll(async () => (await errand(id)).status, { timeout: 30_000 }).toBe("matched");
   expect((await errand(id)).heldAmount).toBe(amountDue(await errand(id)));
-  expect((await errand(id)).heldAmount).toBe(21_500);
+  expect((await errand(id)).heldAmount).toBe(22_000);
 
-  // 2. the job is done and confirmed: 20,000₮ is owed to Bat, 1,500₮ is our fee
+  // 2. the job is done and confirmed: 20,000₮ is owed to Bat, 2,000₮ is our fee
   const before = Number((await db.rpc("payable_balance", { p_user: bat.id })).data ?? 0);
   await runCommand(db, id, { type: "start" }, batActor);
   await runCommand(db, id, { type: "record_handover" }, batActor);
@@ -71,7 +71,9 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   const available = Number((await db.rpc("payable_balance", { p_user: bat.id })).data ?? 0);
   expect(available - before).toBe(20_000);
 
-  // 3. Bat withdraws everything from the earnings tab
+  // 3. Bat withdraws everything from the earnings tab. Withdrawals need a bank-checked account
+  // (since 2026-11-22); stand in for Ops recording that check, as /ops/withdrawals would.
+  await db.from("payout_accounts").update({ verified_at: new Date().toISOString() }).eq("user_id", bat.id).is("verified_at", null);
   const helper = await browser.newContext();
   await loginAs(helper, PHONES.bat);
   await helper.addCookies([{ name: "mode", value: "helper", domain: "localhost", path: "/" }]);
@@ -79,21 +81,27 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   const hErrors = watchErrors(h);
   await h.goto("/earnings");
   await h.getByRole("button", { name: `${available.toLocaleString("en-US")}₮ татах` }).click();
-  await h.locator("dialog[open]").getByRole("button", { name: "Татах", exact: true }).click();
+  await h.locator("dialog[open]").getByRole("button", { name: "Татах хүсэлт илгээх", exact: true }).click();
   await expect
     .poll(async () => (await db.from("withdrawals").select("amount, status").eq("helper_id", bat.id).order("requested_at", { ascending: false }).limit(1).single()).data)
     .toMatchObject({ amount: available, status: "requested" });
   const { data: w } = await db.from("withdrawals").select("id, reference").eq("helper_id", bat.id).order("requested_at", { ascending: false }).limit(1).single<{ id: string; reference: string }>();
-  expect(Number((await db.rpc("payable_balance", { p_user: bat.id })).data ?? 0)).toBe(0);
+  await expect.poll(async () => Number((await db.rpc("payable_balance", { p_user: bat.id })).data ?? 0)).toBe(0);
 
   // 4. Ops sees it with the full account and the reference, sends it, taps "Sent"
   const ops = await browser.newContext();
   await loginAs(ops, PHONES.ops);
   const o = await ops.newPage();
   await o.goto("/ops/withdrawals");
-  const card = o.locator("section", { hasText: w!.reference });
-  await expect(card.getByText("5000004417")).toBeVisible();
-  await card.getByRole("button", { name: "Шилжүүлсэн" }).click();
+  // the innermost box holding both this reference and its "record the transfer" button is its card
+  const record = "Дууссан банкны шилжүүлгийг бүртгэх";
+  const card = o.locator(":is(div, section)", { hasText: w!.reference }).filter({ has: o.getByRole("button", { name: record }) }).last();
+  await expect(card.getByText("5000004417", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: record }).click();
+  // since 2026-11-22 "sent" needs the bank's own transaction number
+  const dlg = o.locator("dialog[open]");
+  await dlg.getByLabel("Банкны гүйлгээний дугаар").fill("E2E-BANK-REF-123");
+  await dlg.getByRole("button", { name: "Шилжүүлгийг бүртгэх" }).click();
   await expect.poll(async () => (await db.from("withdrawals").select("status").eq("id", w!.id).single()).data?.status).toBe("sent");
 
   // 5. Bat sees it as sent

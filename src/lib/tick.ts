@@ -9,7 +9,7 @@ import { purgeLooseTaskPhotos } from "@/lib/task-photos";
 import { purgeLooseReviewPhotos } from "@/lib/work-photos";
 import { runAutoPayouts } from "@/lib/withdrawals";
 import { sweepRefunds } from "@/lib/payments/service";
-import { markLateHelpers, nudgeStaleLocations, purgeJobRoutes } from "@/lib/standards-tick";
+import { markLateHelpers, nudgeStaleLocations, purgeIdlePresence, purgeJobRoutes } from "@/lib/standards-tick";
 
 export interface TickResult {
   settled: number;
@@ -57,6 +57,7 @@ export async function runTick(now = Date.now()): Promise<TickResult> {
   const photosPurged = await purgeLooseTaskPhotos(now).catch((e) => (console.error("task photo purge failed", e), 0));
   await purgeLooseReviewPhotos(now).catch((e) => console.error("review photo purge failed", e));
   await purgeJobRoutes().catch((e) => console.error("route purge failed", e));
+  await purgeIdlePresence(now).catch((e) => console.error("presence purge failed", e));
   // earnings unclaimed for N days are asked for automatically (V1 spec A4)
   await runAutoPayouts().catch((e) => console.error("auto payouts failed", e));
   // refunds the ledger holds that wire hasn't done yet (new ones and retries)

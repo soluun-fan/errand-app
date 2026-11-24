@@ -39,7 +39,8 @@ test("a helper without a bank account adds one before working", async ({ browser
 
     const { data: row } = await db.from("payout_accounts").select("bank, account_number, holder_name, verified_at").eq("user_id", nomin.id).single();
     expect(row).toMatchObject({ bank: "Хаан банк", account_number: "5000002290", holder_name: NAMES.nomin });
-    expect(row!.verified_at).not.toBeNull(); // her ID-checked name matched
+    // a matching name no longer proves ownership (2026-11-22): it waits for Ops' bank check
+    expect(row!.verified_at).toBeNull();
 
     // the profile shows only the last 4 digits
     await h.goto("/helper/bank");

@@ -1,5 +1,30 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-24 — Google-Maps-like maps, still key-free (owner picked the free option over real
+  Google Maps).** `src/lib/map-style.ts` restyles OpenFreeMap "liberty" in the browser: grey land,
+  white streets, warm main roads, blue water, green parks, grey labels; no relief, 3D buildings or
+  US shields. Street/POI names in Cyrillic; place names (city, district, neighbourhood) Mongolian if
+  tagged else Latin, because OSM stores many in both scripts in one string; the city name hides at
+  street zoom. Markers (`src/components/map-ui.tsx`): teardrop pins (red = place/drop-off, dark =
+  pickup), blue "you are here" dot with halo, round locate button, solid blue route with a white
+  edge, white price chips. Flat, north-up (no rotate/tilt). The pin picker's pin lifts while
+  dragging and drops back. Credits fold to ⓘ after 5 s or the first drag (OSM guidelines).
+  The restyled style is validated against the MapLibre style spec in tests.
+
+- **2026-11-23 — Review fixes, contact, privacy.**
+  - Code review of 2026-11-22/23: approved helpers without an ID-checked name could never get a
+    bank account approved → Ops may confirm the ID in the same bank check (`identityConfirmed`,
+    approved helpers only). ID approval now tells Ops a bank check is waiting. Bank checks log
+    their outcome (`payout.checked`). Accounts verified under the old name-only rule go back to the
+    check queue (migration `20261123020000`).
+  - **Help & contact:** channels set by Ops at `/ops/support` (any may be empty) and "Message our
+    team" (Ops inbox + push, 5 a day per person, contacts masked). Ops calls back.
+  - **Privacy:** idle helper positions cleared (1 h offline / 24 h stale); job routes deleted when a
+    helper closes their account; the privacy page states route retention from the live setting.
+    The fixed ~300 m blur grid stays on purpose (per-task jitter would let overlaps narrow a home).
+  - Old error-log entries of 2026-11-19/20 came from back-to-back deploys and missing migrations;
+    none recurred, so they are stale.
+
 - **2026-11-22 — Quick bundle + settings (owner: "sure… I accept those").**
   - **"Want to raise the price?"** (not a fixed +1,000₮): after `nudge_after_minutes` with no
     application the customer sees +500 / +1,000 / +1,500₮ or their own amount (`set_price`); the

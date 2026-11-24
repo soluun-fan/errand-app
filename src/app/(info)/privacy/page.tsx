@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { APP_NAME } from "@/lib/brand";
 import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
+import { getRules } from "@/lib/rules";
 
 export const metadata: Metadata = { title: `${APP_NAME} — Нууцлалын бодлого` };
 
@@ -12,7 +13,8 @@ export const metadata: Metadata = { title: `${APP_NAME} — Нууцлалын �
  */
 export default async function PrivacyPage() {
   const t = await getT();
-  const sections = (["What", "Why", "Who", "Keep", "Rights"] as const).map((k) => ({ title: t(`info.p${k}T`), body: t(`info.p${k}B`) }));
+  const routeDays = (await getRules().catch(() => null))?.routeRetentionDays ?? 30; // live Ops setting
+  const sections = (["What", "Why", "Who", "Keep", "Rights"] as const).map((k) => ({ title: t(`info.p${k}T`), body: t(`info.p${k}B`, { routeDays }) }));
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />

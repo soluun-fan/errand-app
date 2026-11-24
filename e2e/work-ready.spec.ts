@@ -13,7 +13,7 @@ test("on a computer: 'use your phone', and no online switch", async ({ browser }
   const p = await ctx.newPage();
   await p.goto("/jobs");
   await expect(p.getByRole("heading", { name: "Ажиллахад бэлдэх" })).toBeVisible();
-  await expect(p.getByText(/Ажиллахын тулд Гүйгээрэй апп-ыг утсаараа/)).toBeVisible();
+  await expect(p.getByText(/Ажиллахын тулд Guigere апп-ыг утсаараа/)).toBeVisible();
   await expect(p.getByRole("switch")).toHaveCount(0);
   await ctx.close();
 });

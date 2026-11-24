@@ -52,12 +52,13 @@ test("the customer chats with an applicant before choosing; nobody else can read
   await h.goto(`/chat/${id}`);
   await expect(h.getByText("маргааш 9 цагт")).toBeVisible();
 
-  // another helper (not an applicant) can't open it
+  // another helper (not an applicant) can't read it: they only get their own, separate thread
+  // for a question before applying (pre-application chat), which starts empty
   const other = await browser.newContext();
   await loginAs(other, PHONES.nomin);
   const o = await other.newPage();
   await o.goto(`/chat/${id}`);
-  await expect(o.getByText("could not be found")).toBeVisible();
+  await expect(o.getByText("Санал өгөхөөс өмнөх хувийн яриа")).toBeVisible();
   await expect(o.getByText("маргааш 9 цагт")).toHaveCount(0);
   await Promise.all([customer.close(), helper.close(), other.close()]);
 });

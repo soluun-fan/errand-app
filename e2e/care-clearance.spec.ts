@@ -8,8 +8,8 @@ import { PHONES, loginAs } from "./support";
 test("helper credentials focus on launch services, not care work", async ({ page, context }) => {
   await loginAs(context, PHONES.bat);
   await page.goto("/helper/badges");
-  await expect(page.getByText("Жолооны үнэмлэх")).toBeVisible();
-  await expect(page.getByText("Өөрийн машин")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Жолооны үнэмлэх/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Өөрийн машин/ })).toBeVisible();
   await expect(page.getByText("Хүүхэд харах")).toHaveCount(0);
   await expect(page.getByText("Ахмад, өвчтөн асрах")).toHaveCount(0);
 

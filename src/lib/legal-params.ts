@@ -30,5 +30,6 @@ export async function legalParams(t: T): Promise<Record<string, string | number>
     perDay: r.withdrawalsPerDay,
     autoDays: r.autoPayoutDays,
     dayjobCap: r.dayjobPairMonthCap,
+    routeDays: r.routeRetentionDays,
   };
 }

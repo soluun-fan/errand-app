@@ -1,0 +1,74 @@
+# Nightly encrypted database backup (docs/deploy.md "Backups on the free plan"). Supabase's free
+# plan keeps no daily backups, so we make our own: dump the production database, encrypt it with
+# the owner's age public key (only the owner's private key can open it), keep it 30 days as a
+# workflow artifact. Uploaded photos (Storage) are not included.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   BACKUP_DB_URL   Supabase → Connect → "Session pooler" connection string, with the password
+#   AGE_RECIPIENT   the owner's age public key (age1…); the private key never leaves the owner
+name: Backup
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 02:00 Ulaanbaatar
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          if [ -z "$BACKUP_DB_URL" ] || [ -z "$AGE_RECIPIENT" ]; then
+            echo "::error::Set BACKUP_DB_URL and AGE_RECIPIENT in the repository secrets (docs/deploy.md)"
+            exit 1
+          fi
+          case "$AGE_RECIPIENT" in age1*) ;; *) echo "::error::AGE_RECIPIENT must be an age public key (age1…)"; exit 1;; esac
+
+      - name: Install the Postgres 17 client and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age
+
+      - name: Dump and encrypt
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          stamp=$(date -u +%Y%m%d-%H%M)
+          mkdir -p out
+          # our schemas + auth users (phones) — what's needed to rebuild the app's data; custom format
+          # so a restore can pick tables. Never written unencrypted outside the runner's temp disk.
+          /usr/lib/postgresql/17/bin/pg_dump "$BACKUP_DB_URL" \
+            --format=custom --no-owner --no-privileges \
+            --schema=public --schema=private --schema=auth \
+            --file="out/db-$stamp.dump"
+          size=$(stat -c %s "out/db-$stamp.dump")
+          if [ "$size" -lt 10000 ]; then echo "::error::Backup is suspiciously small ($size bytes)"; exit 1; fi
+          age -r "$AGE_RECIPIENT" -o "out/db-$stamp.dump.age" "out/db-$stamp.dump"
+          shred -u "out/db-$stamp.dump"
+          echo "Encrypted backup: $(stat -c %s "out/db-$stamp.dump.age") bytes"
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.STAMP }}
+          path: out/*.age
+          retention-days: 30
+          if-no-files-found: error

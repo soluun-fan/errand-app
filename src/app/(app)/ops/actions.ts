@@ -17,6 +17,8 @@ import { decideCertificate, decideOrganization, setCategoryLive } from "@/lib/or
 import { createCoverSlot, setCover } from "@/lib/covers";
 import { updateRules, type PlatformRules } from "@/lib/rules";
 import { liftPause, voidMark } from "@/lib/standards";
+import { closeSupportRequest, saveSupportSettings } from "@/lib/support";
+import { cleanFacebook } from "@/lib/support-rules";
 import { resolveUnpaid } from "@/lib/direct-pay";
 import { decideBadge } from "@/lib/badges";
 import { decideWithdrawal, markAccountChecked } from "@/lib/withdrawals";
@@ -404,6 +406,7 @@ export async function checkAccountAction(_prev: ActionResult, form: FormData): P
     updatedAt: String(form.get("accountUpdatedAt") ?? ""),
     bankHolderName: String(form.get("bankHolderName") ?? ""),
     reference: String(form.get("bankReference") ?? ""),
+    identityConfirmed: form.get("identityConfirmed") === "on",
   });
   if (result === "changed") return { error: t("error.changed") };
   if (result !== "ok") return { error: t(`opsWithdraw.checkError.${result}`) };
@@ -442,6 +445,36 @@ export async function liftPauseAction(_prev: ActionResult, form: FormData): Prom
   const id = String(form.get("helperId") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: t("error.changed") };
   await liftPause(id, viewer.profile.id);
+  refresh();
+  return { done: true };
+}
+
+/* ---------- help & contact (2026-11-23) ---------- */
+
+export async function saveSupportSettingsAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const text = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max) || null;
+  const phone = text("phone", 40);
+  const email = text("email", 120);
+  const fbRaw = text("facebook", 200);
+  const facebook = fbRaw ? cleanFacebook(fbRaw) : null;
+  if ((phone && !/^[+\d][\d\s-]{5,}$/.test(phone)) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || (fbRaw && !facebook)) {
+    return { error: t("opsSupport.invalid") };
+  }
+  await saveSupportSettings(viewer.profile.id, { phone, email, facebook, hours: text("hours", 120) });
+  refresh();
+  return { done: true };
+}
+
+export async function closeSupportAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const id = String(form.get("id") ?? "");
+  const note = String(form.get("note") ?? "").trim().slice(0, 1000) || null;
+  if (!/^[0-9a-f-]{36}$/i.test(id) || !(await closeSupportRequest(id, viewer.profile.id, note))) return { error: t("error.changed") };
   refresh();
   return { done: true };
 }

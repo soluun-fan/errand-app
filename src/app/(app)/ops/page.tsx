@@ -1,3 +1,4 @@
+import { openSupportCount } from "@/lib/support";
 import Link from "next/link";
 import { reportedPhotoCount } from "@/lib/work-photos";
 import { withdrawalQueue } from "@/lib/withdrawals";
@@ -19,7 +20,7 @@ import { tickHeartbeat } from "@/lib/scheduler";
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts, errorsOpen] = await Promise.all([
+  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts, errorsOpen, supportOpen] = await Promise.all([
     getT(),
     reviewQueue(),
     openIncidentCounts(),
@@ -30,6 +31,7 @@ export default async function OpsHome() {
     reportedPhotoCount(),
     withdrawalQueue(),
     openErrorCount(),
+    openSupportCount().catch(() => 0),
   ]);
   const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());
@@ -77,6 +79,7 @@ export default async function OpsHome() {
         {row("/ops/helpers", "🪪", t("ops.title"), queue.length ? String(queue.length) : null)}
         {row("/ops/errors", "🧯", t("opsErrors.title"), errorsOpen ? String(errorsOpen) : null, errorsOpen > 0)}
         {row("/ops/marks", "⏰", t("opsMarks.title"), null)}
+        {row("/ops/support", "💬", t("opsSupport.title"), supportOpen ? String(supportOpen) : null, supportOpen > 0)}
         {row("/ops/safety", "🛡️", t("opsSafety.title"), null)}
         {row("/ops/pricing", "🏷️", t("opsPricing.title"), null)}
         {row("/ops/rules", "⏱️", t("opsRules.title"), null)}

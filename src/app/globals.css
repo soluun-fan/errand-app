@@ -104,3 +104,24 @@ dialog::backdrop {
   .animate-tracker, dialog[open] { animation: none; }
   .press:active { transform: none; }
 }
+
+/* ---------- maps (2026-11-23, Google-Maps-like feel) ---------- */
+/* "you are here": a blue dot with a soft, breathing halo */
+.map-me { position: relative; width: 18px; height: 18px; border-radius: 9999px; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3); }
+.map-me::after { content: ""; position: absolute; inset: -12px; border-radius: 9999px; background: rgb(26 115 232 / 0.18); animation: map-halo 2.4s ease-out infinite; }
+@keyframes map-halo { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+/* the centre pin lifts while the map moves and drops back with a small bounce */
+.map-pin { transition: transform 160ms ease-out; transform-origin: 50% 100%; }
+.map-pin[data-lifted="true"] { transform: translateY(-10px); }
+.map-pin-shadow { transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.map-pin-shadow[data-lifted="true"] { transform: scale(0.6); opacity: 0.35; }
+@keyframes map-drop { 0% { transform: translateY(-10px); } 60% { transform: translateY(2px); } 100% { transform: translateY(0); } }
+.map-pin[data-dropped="true"] { animation: map-drop 260ms ease-out; }
+/* calmer MapLibre chrome: small attribution, no blue focus box on the canvas */
+.maplibregl-ctrl-attrib.maplibregl-compact { font-size: 10px; }
+.maplibregl-canvas:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  .map-me::after { animation: none; }
+  .map-pin, .map-pin-shadow { transition: none; }
+  .map-pin[data-dropped="true"] { animation: none; }
+}

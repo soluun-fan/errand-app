@@ -352,9 +352,9 @@ Migrations, in order:
 - **Web geolocation limits:** background tracking stops when the screen locks. Reliable live tracking and push on iOS need a PWA install or a native app.
 - Private Vercel testing can skip helper ID and payout-bank collection with `UNVERIFIED_HELPERS_TEST_MODE=true`; any verified Mongolian phone can opt into helper work. Never use this mode for public launch.
 - **Privacy:**
-  - The 300 m fuzz is a fixed grid, so repeated tasks from one home always land in the same cell; jitter per deal may be better.
-  - The pickup address text is shown pre-match (fine for stores, not for homes). The pickup pin is fuzzed pre-match like the task pin.
-  - `helper_presence` holds precise live locations. Retention and deletion policy are undecided.
+  - The ~300 m fuzz is a fixed grid on purpose (2026-11-23): repeat tasks from one home show the same cell. Per-task jitter was rejected because overlapping jittered cells narrow down the home.
+  - Pickup address text and pin are hidden until the helper is matched (`exact` on the job page).
+  - `helper_presence` positions are cleared 1 h after going offline, or 24 h after the last sample (`purgeIdlePresence` in the tick). Job routes: 30 days (`route_retention_days`).
 - **Trust and safety:**
   - Helper verification is a manual Ops review (no ДАН integration or automatic face match yet).
   - SOS reaches Ops by push only (no SMS or phone fallback), and nobody is on duty yet.

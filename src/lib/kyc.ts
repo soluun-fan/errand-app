@@ -1,4 +1,6 @@
 import "server-only";
+import { notify } from "@/lib/push";
+import { adminIds } from "@/lib/safety";
 import type { CategoryId } from "@/lib/engine";
 import { KYC_LEVEL_VERIFIED, KYC_RETENTION_DAYS, type KycDoc } from "@/lib/kyc-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -189,6 +191,13 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
       })
       .eq("id", a.user_id)
       .throwOnError();
+    // code review 2026-11-23: approval doesn't check the bank account — tell Ops one is waiting,
+    // or the helper's first withdrawal fails with nobody knowing why
+    if (pay) {
+      await adminIds()
+        .then((ids) => notify(ids, { title: "push.payoutCheckTitle", body: "push.payoutCheckBody", url: "/ops/withdrawals", tag: `payout-${a.user_id}` }))
+        .catch(() => undefined); // best effort: the approval itself is saved
+    }
   } else {
     await db
       .from("profiles")

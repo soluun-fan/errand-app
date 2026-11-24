@@ -18,6 +18,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
       eq: (key: string, value: unknown) => { filters.push([key, value]); return q; },
       is: (key: string, value: unknown) => { filters.push([key, value]); return q; },
       maybeSingle: () => q,
+      throwOnError: () => q,
       update: (values: Record<string, unknown>) => { mocks.writes.push({ values, filters }); return q; },
       then: (resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) => Promise.resolve(mocks.results.shift()).then(resolve, reject),
     };
@@ -100,4 +101,20 @@ it("stores the manual bank transfer reference with the atomic ledger decision", 
   expect(mocks.rpc).toHaveBeenCalledWith("decide_withdrawal", {
     p_id: "withdrawal", p_ops: "ops", p_sent: true, p_note: "Bank transaction: BANK-123",
   });
+});
+
+it("an approved helper without an ID-checked name can be approved when Ops confirms the ID (code review 2026-11-23)", async () => {
+  // without the box: still refused
+  reads(account, { verified_name: null, helper_status: "approved" });
+  await expect(markAccountChecked("helper", "ops", evidence)).resolves.toBe("identity");
+  // the box only counts for already-approved helpers
+  reads(account, { verified_name: null, helper_status: null });
+  await expect(markAccountChecked("helper", "ops", { ...evidence, identityConfirmed: true })).resolves.toBe("identity");
+  // approved helper + Ops confirmed the ID: approved, and the bank's name becomes the checked name
+  mocks.writes.length = 0;
+  reads(account, { verified_name: null, helper_status: "approved" });
+  mocks.results.push({ data: [{ user_id: "helper" }], error: null }, { data: null, error: null });
+  await expect(markAccountChecked("helper", "ops", { ...evidence, identityConfirmed: true })).resolves.toBe("ok");
+  expect(mocks.writes.map((w) => w.values)).toEqual([expect.objectContaining({ verified_at: expect.any(String) }), { verified_name: "Тест Бат" }]);
+  expect(mocks.audit).toHaveBeenLastCalledWith("ops", "payout.checked", "helper", expect.objectContaining({ approved: true, identityConfirmed: true }));
 });

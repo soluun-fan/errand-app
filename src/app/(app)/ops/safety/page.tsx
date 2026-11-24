@@ -9,7 +9,7 @@ import { ControlsForm } from "./controls-form";
 
 /** /ops/safety — pause switches, money caps, what's held right now, and the Ops audit log. */
 /** A logged action in words ("payout.added" → "added a bank account"); unknown ones show their code. */
-const ACTIONS = new Set(["badge_approve", "badge_reject", "category_on", "category_off", "certificate_approve", "certificate_reject", "content_cover_set", "content_cover_clear", "content_workPhoto_hide", "controls_update", "incident_acknowledge", "incident_resolve", "keywords_update", "org_invite", "org_remove", "org_approved", "org_rejected", "org_suspended", "payments_unpaidResolved", "payout_added", "payout_changed", "payout_checked", "pricing_update", "pricing_kindMin", "quick_start_create", "quick_start_update", "quick_start_delete", "rules_update", "withdrawal_sent", "withdrawal_failed", "errors_resolve", "account_closed"] as const);
+const ACTIONS = new Set(["badge_approve", "badge_reject", "category_on", "category_off", "certificate_approve", "certificate_reject", "content_cover_set", "content_cover_clear", "content_workPhoto_hide", "controls_update", "incident_acknowledge", "incident_resolve", "keywords_update", "org_invite", "org_remove", "org_approved", "org_rejected", "org_suspended", "payments_unpaidResolved", "payout_added", "payout_changed", "payout_checked", "payout_bank_check_recorded", "marks_void", "marks_lift_pause", "support_settings", "support_done", "pricing_update", "pricing_kindMin", "quick_start_create", "quick_start_update", "quick_start_delete", "rules_update", "withdrawal_sent", "withdrawal_failed", "errors_resolve", "account_closed"] as const);
 type ActionKey = typeof ACTIONS extends Set<infer K> ? K : never;
 
 export default async function OpsSafetyPage() {

@@ -5,8 +5,10 @@ import { loadMapLibre } from "@/lib/map-loader";
 import type { GeoJSONSource, Map as MlMap, Marker } from "maplibre-gl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useT } from "@/i18n/client";
-import { MAP_STYLE, UB_CENTER } from "./pin-map";
+import { useLocale, useT } from "@/i18n/client";
+import { mapStyle } from "@/lib/map-style";
+import { LocateButton, chipElement, foldAttributionLater, helperElement, meElement, pinElement } from "./map-ui";
+import { UB_CENTER } from "./pin-map";
 
 export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area" | "pickupArea";
 
@@ -20,17 +22,23 @@ export interface MapMarker {
   href?: string;
 }
 
-const STYLE: Record<MarkerKind, string> = {
-  task: "h-9 w-9 rounded-full border-[3px] border-white bg-danger text-white shadow-float",
-  pickup: "h-9 w-9 rounded-full border-[3px] border-white bg-ink text-white shadow-float",
-  helper: "h-10 w-10 rounded-full border-[3px] border-white bg-held text-white shadow-float",
-  me: "h-5 w-5 rounded-full border-[3px] border-white bg-[#1a73e8] shadow-float",
-  job: "min-h-8 rounded-full border-2 border-white bg-ink px-2.5 text-[13px] font-bold text-white shadow-float",
-  // approximate place (before a helper is matched): a soft circle, no exact point
-  area: "h-24 w-24 rounded-full border-2 border-danger/60 bg-danger/15",
+/** Approximate places (before a helper is matched): a soft circle, no exact point. */
+const AREA: Partial<Record<MarkerKind, string>> = {
+  area: "h-24 w-24 rounded-full border-2 border-[#ea4335]/60 bg-[#ea4335]/15",
   pickupArea: "h-24 w-24 rounded-full border-2 border-ink/50 bg-ink/10",
 };
-const GLYPH: Partial<Record<MarkerKind, string>> = { task: "↘", pickup: "●", helper: "🧍" };
+
+/** Google-Maps-like marker for each kind (2026-11-23) and where it is anchored. */
+function markerFor(mk: MapMarker): { el: HTMLElement; anchor: "bottom" | "center" } {
+  if (mk.kind === "task") return { el: pinElement("red", mk.label), anchor: "bottom" };
+  if (mk.kind === "pickup") return { el: pinElement("dark", mk.label), anchor: "bottom" };
+  if (mk.kind === "helper") return { el: helperElement(), anchor: "center" };
+  if (mk.kind === "me") return { el: meElement(), anchor: "center" };
+  if (mk.kind === "job") return { el: chipElement(mk.label ?? ""), anchor: "center" };
+  const el = document.createElement("div");
+  el.className = AREA[mk.kind] ?? "";
+  return { el, anchor: "center" };
+}
 
 /** Points of a route line, drawn in order (e.g. helper → pickup → drop-off). */
 export interface RoutePoint {
@@ -73,7 +81,9 @@ export function TaskMap({
   openUrl?: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
+  const [locating, setLocating] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const placed = useRef<Marker[]>([]);
@@ -86,30 +96,38 @@ export function TaskMap({
 
   useEffect(() => {
     let cancelled = false;
-    loadMapLibre()
-      .then(({ Map }) => {
+    let unfold: (() => void) | null = null;
+    Promise.all([loadMapLibre(), mapStyle(locale)])
+      .then(([{ Map }, style]) => {
         if (cancelled || !box.current) return;
         const m = new Map({
           container: box.current,
-          style: MAP_STYLE,
+          style,
           center: [UB_CENTER.lng, UB_CENTER.lat],
           zoom: 12,
           attributionControl: { compact: true },
+          // flat and north-up, like a phone map in normal use
+          dragRotate: false,
+          pitchWithRotate: false,
         });
+        m.touchZoomRotate.disableRotation();
         m.on("error", () => setFailed(true));
         // one tap opens the navigation app; dragging and pinching still move the map
         m.on("click", () => {
           if (openUrlRef.current) window.open(openUrlRef.current, "_blank", "noopener,noreferrer");
         });
-        m.on("load", () => { setReady(true); setFailed(false); });
+        m.on("load", () => { setReady(true); setFailed(false); unfold = foldAttributionLater(m); });
         map.current = m;
       })
       .catch(() => setFailed(true));
     return () => {
       cancelled = true;
+      unfold?.();
       map.current?.remove();
       map.current = null;
     };
+    // the map is created once per page (the locale doesn't change while it's open)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -135,30 +153,39 @@ export function TaskMap({
       const src = m.getSource("route") as GeoJSONSource | undefined;
       if (src) src.setData(line);
       else {
-        // docs/ui.md: routes use the route token (blue)
-        const color = getComputedStyle(document.documentElement).getPropertyValue("--color-route").trim() || "#2f6fed";
+        // a solid blue route with a white edge (docs/ui.md: routes use the route token)
+        const color = getComputedStyle(document.documentElement).getPropertyValue("--color-route").trim() || "#1a73e8";
         m.addSource("route", { type: "geojson", data: line });
+        m.addLayer({
+          id: "route-casing",
+          type: "line",
+          source: "route",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ffffff", "line-width": 8 },
+        });
         m.addLayer({
           id: "route",
           type: "line",
           source: "route",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": color, "line-width": 4, "line-opacity": 0.75, "line-dasharray": [1, 1.6] },
+          paint: { "line-color": color, "line-width": 5 },
         });
       }
       for (const mk of all) {
-        const el = document.createElement(mk.href ? "button" : "div");
-        el.className = `flex items-center justify-center ${STYLE[mk.kind]}`;
-        el.textContent = mk.kind === "job" ? (mk.label ?? "") : (GLYPH[mk.kind] ?? "");
-        if (mk.label && mk.kind !== "job") el.title = mk.label;
+        const { el, anchor } = markerFor(mk);
         if (mk.href) {
+          el.setAttribute("role", "button");
+          el.tabIndex = 0;
+          el.style.cursor = "pointer";
           el.setAttribute("aria-label", mk.label ?? t("map.open"));
-          el.addEventListener("click", (e) => {
+          const go = (e: Event) => {
             e.stopPropagation(); // a marker link wins over "open in Google Maps"
             router.push(mk.href as string);
-          });
+          };
+          el.addEventListener("click", go);
+          el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(e); });
         }
-        placed.current.push(new Marker({ element: el }).setLngLat([mk.lng, mk.lat]).addTo(m));
+        placed.current.push(new Marker({ element: el, anchor }).setLngLat([mk.lng, mk.lat]).addTo(m));
       }
       if (all.length === 1) m.jumpTo({ center: [all[0].lng, all[0].lat], zoom: all[0].kind === "area" || all[0].kind === "pickupArea" ? 14 : 15 });
       else if (all.length > 1) {
@@ -178,6 +205,27 @@ export function TaskMap({
     <div className={`relative overflow-hidden ${rounded ? "rounded-card border border-line" : ""} ${className}`}>
       <div ref={box} className={`absolute inset-0 h-full w-full ${openUrl ? "cursor-pointer" : ""}`} role="region" aria-label={t("map.label")} />
       {failed && <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-sm text-ink-2">{t("map.failed")}</div>}
+      {showMe && ready && (
+        <LocateButton
+          label={t("map.myLocation")}
+          busy={locating}
+          className="bottom-8 right-3"
+          onClick={() => {
+            if (!("geolocation" in navigator)) return;
+            setLocating(true);
+            navigator.geolocation.getCurrentPosition(
+              (p) => {
+                setLocating(false);
+                const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+                setMe(pos);
+                map.current?.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(map.current.getZoom(), 15) });
+              },
+              () => setLocating(false),
+              { enableHighAccuracy: true, timeout: 10_000 },
+            );
+          }}
+        />
+      )}
       {openUrl && (
         <a
           href={openUrl}

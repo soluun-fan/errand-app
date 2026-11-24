@@ -106,6 +106,12 @@ export default async function OpsWithdrawalsPage() {
                   {t("opsWithdraw.checkReference")}
                   <input name="bankReference" required minLength={3} maxLength={120} className={field} autoComplete="off" />
                 </label>
+                {!a.verifiedName && (
+                  <label className="flex min-h-11 items-start gap-2 text-[14px]">
+                    <input type="checkbox" name="identityConfirmed" className="mt-1 size-5" />
+                    {t("opsWithdraw.identityConfirm")}
+                  </label>
+                )}
               </InlineAction>
             </Card>
           ))}

@@ -26,7 +26,7 @@ test("register (name, 18+, Terms + Privacy), use the app, then close the account
   // 1. any app page sends a new person to registration first
   await p.goto("/");
   await p.waitForURL(/\/onboarding/);
-  await expect(p.getByRole("heading", { name: "Гүйгээрэй апп-д тавтай морил" })).toBeVisible();
+  await expect(p.getByRole("heading", { name: "Guigere апп-д тавтай морил" })).toBeVisible();
 
   // The age attestation is required before proceeding.
   await p.getByLabel("Таны нэр").fill("Туршилт Хэрэглэгч");

@@ -66,17 +66,22 @@ async function signIn(phone: string): Promise<Cookie[]> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const c = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
   let session = null;
-  const token = saved()[phone];
+  // sessions are kept per project, so local and staging runs don't overwrite each other
+  const key = `${new URL(url).hostname.split(".")[0]}:${phone}`;
+  const token = saved()[key];
   if (token) session = (await c.auth.refreshSession({ refresh_token: token })).data.session;
   if (!session) {
     const sent = await c.auth.signInWithOtp({ phone: `+${phone}` });
     if (sent.error) throw new Error(sent.error.message);
     const { data: code } = await db.rpc("dev_latest_sms_code", { p_phone: phone });
-    const { data, error } = await c.auth.verifyOtp({ phone: `+${phone}`, token: String(code), type: "sms" });
+    // hosted test projects use Supabase's fixed test codes for the demo numbers (config.toml
+    // [auth.sms.test_otp]), which never reach the SMS outbox
+    const otp = code ? String(code) : (process.env.E2E_FIXED_OTP ?? "123456");
+    const { data, error } = await c.auth.verifyOtp({ phone: `+${phone}`, token: otp, type: "sms" });
     if (error || !data.session) throw new Error(error?.message ?? "no session");
     session = data.session;
   }
-  save(phone, session.refresh_token);
+  save(key, session.refresh_token);
   const data = { session };
   const value = "base64-" + Buffer.from(JSON.stringify(data.session)).toString("base64url");
   const name = `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;

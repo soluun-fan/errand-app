@@ -4,10 +4,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { loadMapLibre } from "@/lib/map-loader";
 import type { Map as MlMap, Marker } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
+import { BASE_STYLE_URL, mapStyle } from "@/lib/map-style";
+import { LocateButton, foldAttributionLater, meElement, pinElement, pinSvg } from "./map-ui";
 
-/** Open-source map (MapLibre) on free OpenStreetMap-based tiles — no API key (docs/decisions.md). */
-export const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+/** Open-source map (MapLibre) on free OpenStreetMap-based tiles — no API key (docs/decisions.md). Restyled in lib/map-style.ts. */
+export const MAP_STYLE = BASE_STYLE_URL;
 /** Sükhbaatar Square. */
 export const UB_CENTER = { lat: 47.9186, lng: 106.9177 };
 
@@ -18,13 +20,8 @@ export interface Pin {
 
 export type PinKind = "drop" | "pickup";
 
-/** Centre pin and fixed-marker looks: pickup ● (dark), drop-off / task place ↘ (red). */
-const PIN_GLYPH: Record<PinKind, string> = { drop: "📍", pickup: "⚫" };
-const MARKER_CLASS: Record<PinKind, string> = {
-  drop: "h-8 w-8 rounded-full border-[3px] border-white bg-danger text-white shadow-float",
-  pickup: "h-8 w-8 rounded-full border-[3px] border-white bg-ink text-white shadow-float",
-};
-const MARKER_GLYPH: Record<PinKind, string> = { drop: "↘", pickup: "●" };
+/** Pickup is a dark pin, drop-off / the task's place a red one (Google-Maps-like, 2026-11-23). */
+const PIN_COLOR = { drop: "red", pickup: "dark" } as const;
 
 /**
  * Ride-app style pin picker: the pin stays in the middle, the map moves under it. Reports the
@@ -49,7 +46,11 @@ export function PinMap({
   start?: Pin | null;
 }) {
   const t = useT();
+  const locale = useLocale();
   const box = useRef<HTMLDivElement>(null);
+  const meMarker = useRef<Marker | null>(null);
+  const [lifted, setLifted] = useState(false);
+  const [drops, setDrops] = useState(0);
   const map = useRef<MlMap | null>(null);
   const otherMarker = useRef<Marker | null>(null);
   const changed = useRef(onChange);
@@ -61,28 +62,38 @@ export function PinMap({
 
   useEffect(() => {
     let cancelled = false;
-    loadMapLibre()
-      .then(({ Map }) => {
+    let unfold: (() => void) | null = null;
+    Promise.all([loadMapLibre(), mapStyle(locale)])
+      .then(([{ Map }, style]) => {
         if (cancelled || !box.current) return;
         const from = value ?? start ?? UB_CENTER;
         const m = new Map({
           container: box.current,
-          style: MAP_STYLE,
+          style,
           center: [from.lng, from.lat],
           zoom: value || start ? 15 : 12,
           attributionControl: { compact: true },
+          dragRotate: false,
+          pitchWithRotate: false,
         });
+        m.touchZoomRotate.disableRotation();
+        // the pin lifts while the map moves and drops when it stops
+        m.on("movestart", () => setLifted(true));
         m.on("moveend", () => {
+          setLifted(false);
+          setDrops((n) => n + 1);
           const c = m.getCenter();
           changed.current({ lat: Math.round(c.lat * 1e6) / 1e6, lng: Math.round(c.lng * 1e6) / 1e6 });
         });
         m.on("error", () => setFailed(true));
-        m.on("load", () => setReady(true));
+        m.on("load", () => { setReady(true); unfold = foldAttributionLater(m); });
         map.current = m;
       })
       .catch(() => setFailed(true));
     return () => {
       cancelled = true;
+      unfold?.();
+      meMarker.current?.remove();
       map.current?.remove();
       map.current = null;
     };
@@ -107,10 +118,7 @@ export function PinMap({
     let cancelled = false;
     loadMapLibre().then(({ Marker }) => {
       if (cancelled) return;
-      const el = document.createElement("div");
-      el.className = `flex items-center justify-center ${MARKER_CLASS[other.kind]}`;
-      el.textContent = MARKER_GLYPH[other.kind];
-      otherMarker.current = new Marker({ element: el }).setLngLat([other.lng, other.lat]).addTo(m);
+      otherMarker.current = new Marker({ element: pinElement(PIN_COLOR[other.kind]), anchor: "bottom" }).setLngLat([other.lng, other.lat]).addTo(m);
     });
     return () => {
       cancelled = true;
@@ -127,7 +135,13 @@ export function PinMap({
       (p) => {
         setLocating(false);
         changed.current({ lat: Math.round(p.coords.latitude * 1e6) / 1e6, lng: Math.round(p.coords.longitude * 1e6) / 1e6 });
-        map.current?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
+        const m = map.current;
+        m?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
+        // the blue "you are here" dot stays where the phone was
+        if (m) void loadMapLibre().then(({ Marker }) => {
+          meMarker.current?.remove();
+          meMarker.current = new Marker({ element: meElement() }).setLngLat([p.coords.longitude, p.coords.latitude]).addTo(m);
+        });
       },
       () => { setLocating(false); setLocationError(true); },
       { enableHighAccuracy: true, timeout: 10_000 },
@@ -139,18 +153,17 @@ export function PinMap({
     <div>
     <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
       <div ref={box} className="absolute inset-0 h-full w-full" aria-label={t("map.pinLabel")} role="application" />
-      {/* the fixed centre pin */}
-      <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-4xl drop-shadow">
-        {PIN_GLYPH[kind]}
-      </span>
-      <button
-        type="button"
-        disabled={locating}
-        onClick={locate}
-        className="absolute bottom-10 right-3 z-10 flex min-h-11 items-center gap-1.5 rounded-full bg-bg px-4 text-sm font-semibold shadow-float"
-      >
-        {locating ? "…" : "◎"} {t("map.myLocation")}
-      </button>
+      {/* the fixed centre pin: its tip marks the spot; a small shadow shows where it will land */}
+      <span aria-hidden data-lifted={lifted} className="map-pin-shadow pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/30" />
+      <span
+        aria-hidden
+        key={drops}
+        data-lifted={lifted}
+        data-dropped={!lifted && drops > 0}
+        className="map-pin pointer-events-none absolute left-1/2 top-1/2 -ml-[17px] -mt-[45px] drop-shadow-[0_2px_2px_rgb(0_0_0/0.25)]"
+        dangerouslySetInnerHTML={{ __html: pinSvg(PIN_COLOR[kind], 34) }}
+      />
+      <LocateButton label={t("map.myLocation")} busy={locating} onClick={locate} className="bottom-10 right-3" />
       {!value && (
         <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">{t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}</span>
       )}

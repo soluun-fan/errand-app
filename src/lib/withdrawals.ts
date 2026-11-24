@@ -206,6 +206,8 @@ export async function markAccountChecked(userId: string, opsId: string, evidence
   updatedAt: string;
   bankHolderName: string;
   reference: string;
+  /** Ops ticked "I checked their ID and it matches" — for helpers approved before names were recorded. */
+  identityConfirmed?: boolean;
 }): Promise<"ok" | "changed" | "identity" | "holder" | "evidence"> {
   const reference = evidence.reference.trim();
   const holder = cleanLegalName(evidence.bankHolderName);
@@ -213,14 +215,18 @@ export async function markAccountChecked(userId: string, opsId: string, evidence
   const db = createAdminClient();
   const [account, profile] = await Promise.all([
     db.from("payout_accounts").select("bank, account_number, holder_name, updated_at, verified_at").eq("user_id", userId).maybeSingle<{ bank: string; account_number: string; holder_name: string; updated_at: string; verified_at: string | null }>(),
-    db.from("profiles").select("verified_name").eq("id", userId).maybeSingle<{ verified_name: string | null }>(),
+    db.from("profiles").select("verified_name, helper_status").eq("id", userId).maybeSingle<{ verified_name: string | null; helper_status: string | null }>(),
   ]);
   if (account.error) throw new Error(account.error.message);
   if (profile.error) throw new Error(profile.error.message);
   const a = account.data;
   if (!a || a.verified_at || a.updated_at !== evidence.updatedAt) return "changed";
-  if (!profile.data?.verified_name) return "identity";
-  if (!payoutNameOk(profile.data.verified_name, holder) || !payoutNameOk(a.holder_name, holder)) return "holder";
+  // Helpers approved before names were recorded (code review 2026-11-23): Ops may confirm the ID in
+  // this same step, so their earnings aren't stuck forever. Only for already-approved helpers.
+  const confirmIdentity = !profile.data?.verified_name && evidence.identityConfirmed === true && profile.data?.helper_status === "approved";
+  const identityName = profile.data?.verified_name ?? (confirmIdentity ? holder : null);
+  if (!identityName) return "identity";
+  if (!payoutNameOk(identityName, holder) || !payoutNameOk(a.holder_name, holder)) return "holder";
   // Persist evidence before approving. If the account changes meanwhile, CAS refuses approval.
   // The audit event records a check of this specific snapshot, not a successful approval.
   await audit(opsId, "payout.bank_check_recorded", userId, {
@@ -232,7 +238,13 @@ export async function markAccountChecked(userId: string, opsId: string, evidence
     .eq("bank", a.bank).eq("account_number", a.account_number).eq("holder_name", a.holder_name)
     .is("verified_at", null).select("user_id");
   if (error) throw new Error(error.message);
-  return data?.length ? "ok" : "changed";
+  const approved = Boolean(data?.length);
+  if (approved && confirmIdentity) {
+    await db.from("profiles").update({ verified_name: holder }).eq("id", userId).is("verified_name", null).throwOnError();
+  }
+  // the outcome is logged too, so an investigation can tell an approval from a refused attempt
+  await audit(opsId, "payout.checked", userId, { approved, reference, identityConfirmed: confirmIdentity, last4: a.account_number.slice(-4) });
+  return approved ? "ok" : "changed";
 }
 
 /** Background job: earnings left unclaimed for `autoPayoutDays` are asked for automatically. */

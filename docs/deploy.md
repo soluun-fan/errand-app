@@ -89,6 +89,28 @@ Set `VERIFY_MN_API_KEY` as a server-only secret in `.env.local` or Vercel Enviro
 - **SOS** on every live task: 102 / 103 and an alert to Ops with the phone's position. Turn on notifications for your admin account at **Profile → Operations** on the phone you carry.
 - Secrets are only in Vercel's encrypted settings and Supabase Vault (the scheduler secret), never in git.
 
+## Backups on the free plan
+
+`.github/workflows/backup.yml` runs every night at 02:00 Ulaanbaatar time: it dumps the production
+database (app data and login accounts, not uploaded photos), encrypts it so **only your private key
+can open it**, and keeps it 30 days under GitHub → Actions → Backup → the run → Artifacts.
+
+One-time setup on your Mac:
+1. `brew install age`, then `age-keygen -o ~/guigeeree-backup-key.txt`. It prints a public key
+   (`age1…`). **Keep the key file safe and copy it somewhere off this Mac** (USB or password
+   manager): without it no backup can be opened.
+2. GitHub → errand-app → Settings → Secrets and variables → Actions → New repository secret:
+   - `AGE_RECIPIENT` = the public key `age1…`
+   - `BACKUP_DB_URL` = Supabase → your project → **Connect** → **Session pooler** connection string,
+     with the database password filled in.
+3. Actions → Backup → **Run workflow** once and check it turns green.
+
+Restore (practise once on staging, then monthly):
+1. Download the artifact, unzip it, then `age -d -i ~/guigeeree-backup-key.txt -o db.dump db-….dump.age`.
+2. `pg_restore --no-owner --no-privileges --clean --if-exists --dbname "<target connection string>" db.dump`.
+   Restore into staging first; restoring into production replaces its data.
+3. Delete `db.dump` afterwards: it holds personal data unencrypted.
+
 ## Staging (test changes before production)
 
 The staging project is **errand-extra** (Supabase ref `ivaoltwgzxntytqnwkih`). Its keys live in the
@@ -99,6 +121,10 @@ git-ignored `.env.staging.local`; production stays linked (`supabase/.temp/proje
 - `npm run staging:check`: the same read-only checks as `check:live`, against staging.
 - `npm run staging:seed`: the demo users and one demo task (safe to repeat; skips if deals exist).
 - `npm run staging:dev`: run the app on your Mac against staging.
+- `npm run staging:build` then `npm run staging:e2e`: the browser tests against staging. The build
+  bakes the staging address into the page code, so run `npm run build` again before using a local
+  production build against your own `.env.local`. Demo numbers sign in with Supabase's fixed test
+  code (pushed with `supabase config push --remote=ivaoltwgzxntytqnwkih`).
 - Phone login on staging: Supabase → errand-extra → Authentication → Providers → Phone → add
   **test phone numbers** (the seed's +976 8800 00xx numbers) with a fixed code, or connect the same
   Send SMS hook as production. Never point a public deployment at staging.
@@ -108,8 +134,12 @@ git-ignored `.env.staging.local`; production stays linked (`supabase/.temp/proje
 Do these in order. Each step says who does it. Values are pasted into Vercel → Settings → Environment Variables (🔒 = tick **Sensitive**), never into chat or git. After changing variables: Deployments → ⋯ → **Redeploy**.
 
 ### 1. Plans (you, ~10 min)
-- [ ] **Supabase Pro** (≈ $25/month): Supabase → Organization → Billing. Free projects pause after a week without use and have no proper backups.
-- [ ] **Vercel Pro** (≈ $20/month): the free plan doesn't allow commercial use. The region is already Seoul (`vercel.json`).
+- [ ] **Free plans for now (owner, 2026-11-23: no paid plans until the app succeeds).** What covers the gaps:
+  - Backups: the nightly encrypted backup below (Supabase Free keeps none).
+  - Limits: `npm run check:live` shows database and file use against the free 500 MB / 1 GB; upgrade at 70%.
+  - Pausing: Supabase pauses idle free projects; the 20-second scheduler and the uptime monitor keep it active.
+- [ ] **Vercel Pro** (≈ $20/month, owner 2026-11-23): Hobby doesn't allow commercial use. The region is already Seoul (`vercel.json`).
+- [ ] Later, when it pays for itself: **Supabase Pro** (≈ $25/month, daily backups).
 - [ ] Deploy as in "On vercel.com" above, then run `npm run scheduler:configure -- https://<your address>` and check `--status`. Without this, nothing auto-confirms, expires, refunds or pays out.
 - [ ] Optional but recommended: your own domain (Vercel → Domains), then run `scheduler:configure` again with it.
 

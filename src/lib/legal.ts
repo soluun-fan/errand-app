@@ -74,6 +74,9 @@ export async function closeAccount(userId: string): Promise<boolean> {
     db.from("saved_addresses").delete().eq("user_id", userId),
     db.from("saved_helpers").delete().or(`customer_id.eq.${userId},helper_id.eq.${userId}`),
     db.from("helper_presence").delete().eq("user_id", userId),
+    // helper standards (2026-11-22): live job position and the routes kept for disputes
+    db.from("job_locations").delete().eq("helper_id", userId),
+    db.from("job_location_points").delete().eq("helper_id", userId),
   ]);
   const { error } = await db
     .from("profiles")
