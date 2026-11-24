@@ -6,6 +6,8 @@ import { chipClass } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { LANGUAGES } from "@/lib/engine/types";
 import { saveLanguagesAction } from "./actions";
+import { Globe } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** Languages the helper speaks besides Mongolian (self-declared; customers can ask for one). */
 export function LanguagesForm({ current }: { current: readonly string[] }) {
@@ -13,7 +15,7 @@ export function LanguagesForm({ current }: { current: readonly string[] }) {
   const [state, action] = useActionState<ActionResult, FormData>(saveLanguagesAction, {});
   return (
     <form action={action} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
-      <h2 className="font-bold">🌐 {t("badges.languagesTitle")}</h2>
+      <h2 className="font-bold"><Ico as={Globe} /> {t("badges.languagesTitle")}</h2>
       <p className="text-sm text-ink-2">{t("badges.languagesSub")}</p>
       <div className="flex flex-wrap gap-2">
         {LANGUAGES.map((l) => (

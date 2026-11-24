@@ -17,7 +17,7 @@ export function PriceDeltaCard({
 }: {
   selected: boolean;
   onSelect: () => void;
-  icon: string;
+  icon: ReactNode;
   title: string;
   sub?: string;
   delta?: string;
@@ -30,11 +30,11 @@ export function PriceDeltaCard({
       aria-checked={selected}
       onClick={onSelect}
       className={`press relative flex min-h-36 flex-col items-start gap-1.5 rounded-card bg-bg p-3.5 text-left ${
-        selected ? "border-2 border-brand" : "border border-line"
+        selected ? "border-2 border-brand shadow-card" : "border-2 border-transparent shadow-card"
       }`}
     >
       <span className="flex w-full items-start justify-between">
-        <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-input bg-fill text-2xl">
+        <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
           {icon}
         </span>
         <span
@@ -73,7 +73,7 @@ export function OptionCard({
   selected: boolean;
   disabled?: boolean;
   onSelect: () => void;
-  icon: string;
+  icon: ReactNode;
   title: string;
   meta?: string;
   sub?: ReactNode;
@@ -91,7 +91,7 @@ export function OptionCard({
         selected ? "border-2 border-brand" : "border-2 border-transparent"
       }`}
     >
-      <span aria-hidden className="flex h-14 w-14 flex-none items-center justify-center rounded-input bg-fill text-2xl">
+      <span aria-hidden className="flex h-14 w-14 flex-none items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -122,10 +122,10 @@ export function DashedAdd({ label, onClick }: { label: string; onClick: () => vo
 }
 
 /** Switch row (DESIGN §4.12). */
-export function ToggleRow({ icon, title, sub, checked, onChange }: { icon: string; title: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function ToggleRow({ icon, title, sub, checked, onChange }: { icon: ReactNode; title: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-card border border-line bg-bg p-3">
-      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-input bg-fill text-2xl">
+    <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-card bg-bg p-3 shadow-card">
+      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
         {icon}
       </span>
       <span className="min-w-0 flex-1">

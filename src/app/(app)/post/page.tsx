@@ -14,6 +14,7 @@ import { pricingConfig } from "@/lib/pricing";
 import { openTaskCount, isFirstTask } from "@/lib/safety";
 import Link from "next/link";
 import { PostFlow, type Draft, type InviteTarget } from "./post-flow";
+import { Ban } from "lucide-react";
 
 /** The typed budget, without a paid top-up or the +10% buffer. */
 function typedBudget(d: ErrandDeal): number {
@@ -101,7 +102,7 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       <>
         <FlowHeader href={helperId ? `/helpers/${helperId}` : "/helpers"} icon="✕" label={t("common.close")} />
         <EmptyState
-          icon="🙅"
+          icon={<Ban aria-hidden size={28} />}
           title={t("invite.unavailableTitle")}
           body={t("invite.unavailable")}
           action={

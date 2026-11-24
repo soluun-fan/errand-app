@@ -12,6 +12,7 @@ function caption(p: ProofView, t: T): string {
 /** HH:mm in Ulaanbaatar — when the photo reached us (the order of events). */
 const clock = (ms: number) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ulaanbaatar" }).format(ms);
 import type { ProofView } from "@/lib/proofs";
+import { MapPin } from "lucide-react";
 
 /** Proof photos / videos of a deal (signed URLs, valid 1 h), with reuse flags shown as warnings. */
 export function ProofGallery({
@@ -42,7 +43,7 @@ export function ProofGallery({
             )
           ) : p.note === "check-out" ? (
             <div className="flex aspect-square w-full items-center justify-center rounded-input bg-fill text-[40px]" aria-hidden>
-              📍
+              <MapPin aria-hidden size={36} className="text-ink-3" />
             </div>
           ) : (
             <div className="aspect-square w-full rounded-input bg-fill" />

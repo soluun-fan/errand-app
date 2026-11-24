@@ -7,7 +7,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { listMyJobs } from "@/lib/deals/queries";
 import { errandSplit } from "@/lib/engine";
-import { fmtDateTime, fmtMoney } from "@/lib/format";
+import { UB_TZ, fmtDateTime, fmtMoney } from "@/lib/format";
 import { myPayout } from "@/lib/payout";
 import { earningsSummary } from "@/lib/withdrawals";
 import { pendingEarningsStage } from "@/lib/earnings-rules";
@@ -34,6 +34,50 @@ export default async function EarningsPage() {
   });
   const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
   const testHelper = unverifiedHelpersTestMode && viewer.profile.test_helper;
+  // this calendar month (Ulaanbaatar) — a quick sense of how the month is going
+  const month = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: UB_TZ, year: "numeric", month: "2-digit" }).format(ms);
+  const monthJobs = finished.filter((d) => viaApp(d) && month(d.createdAt) === month(now));
+  const monthTotal = monthJobs.reduce((a, d) => a + net(d), 0);
+  const pill: Record<string, string> = { sent: "bg-held-bg text-held", failed: "bg-danger-bg text-danger", requested: "bg-warn-bg text-warn" };
+
+  // one payout: status pill + amount, bank and date; the references fold under "Details"
+  const payoutRow = (w: (typeof sum.recent)[number]) => (
+    <div key={w.id} className="flex flex-col gap-1 border-b border-line py-3 last:border-b-0">
+      <div className="flex items-center gap-3">
+        <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${pill[w.status] ?? "bg-fill text-ink-2"}`}>
+          {t(`earnings.status.${w.status}`)}
+          {w.auto ? ` · ${t("earnings.auto")}` : ""}
+        </span>
+        <span className="flex-1" />
+        <span className={`font-bold tabular-nums ${w.status === "failed" ? "text-ink-3 line-through" : ""}`}>{fmtMoney(w.amount)}</span>
+      </div>
+      <span className="text-sm text-ink-2">{w.bank} {w.account} · {fmtDateTime(w.decidedAt ?? w.requestedAt, locale)}</span>
+      <details className="text-sm text-ink-2">
+        <summary className="inline-flex min-h-9 cursor-pointer items-center font-medium">{t("earnings.details")}</summary>
+        <span className="block">{t("earnings.requestedAt", { time: fmtDateTime(w.requestedAt, locale) })}</span>
+        {w.status !== "requested" && w.decidedAt !== null && <span className="block">{t(w.status === "sent" ? "earnings.sentAt" : "earnings.failedAt", { time: fmtDateTime(w.decidedAt, locale) })}</span>}
+        <span className="block break-words">{w.reference}</span>
+        {w.bankReference && <span className="block break-words">{t("earnings.bankReference", { reference: w.bankReference })}</span>}
+      </details>
+    </div>
+  );
+  const jobRow = (d: (typeof finished)[number]) => (
+    <Link key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 border-b border-line py-3 last:border-b-0">
+      <CategoryIcon id={d.category} tile size={20} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold">{d.title}</span>
+        <span className="block text-sm text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>
+      </span>
+      {viaApp(d) ? (
+        <span className="font-bold tabular-nums text-held">+{fmtMoney(net(d))}</span>
+      ) : (
+        <span className="text-right text-[13px] text-ink-2">
+          {fmtMoney(net(d))}
+          <span className="block">{t("earnings.paidDirectly")}</span>
+        </span>
+      )}
+    </Link>
+  );
 
   return (
     <>
@@ -84,7 +128,8 @@ export default async function EarningsPage() {
       {pending.length > 0 && (
         <section className="flex flex-col">
           <h2 className="font-bold">{t("earnings.pendingJobs")}</h2>
-          <p className="mt-1 text-[13px] text-ink-2">{t("earnings.pendingExplain")}</p>
+          <p className="mb-2 mt-1 text-[13px] text-ink-2">{t("earnings.pendingExplain")}</p>
+          <div className="rounded-card bg-bg px-4 shadow-card">
           {pending.map(({ job, stage }) => (
             <Link key={job.id} href={`/jobs/${job.id}`} className="press flex min-h-12 items-center gap-3 border-b border-line py-3 last:border-b-0">
               <CategoryIcon id={job.category} tile size={20} />
@@ -98,52 +143,38 @@ export default async function EarningsPage() {
               <span className="shrink-0 font-bold tabular-nums">{fmtMoney(net(job))}</span>
             </Link>
           ))}
+          </div>
         </section>
       )}
 
       {sum.recent.length > 0 && (
         <section className="flex flex-col">
-          <h2 className="mb-1 font-bold">{t("earnings.history")}</h2>
-          {sum.recent.map((w) => (
-            <div key={w.id} className="flex items-center gap-3 border-b border-line py-3 last:border-b-0">
-              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                <span className="block font-semibold">
-                  {t(`earnings.status.${w.status}`)}
-                  {w.auto ? ` · ${t("earnings.auto")}` : ""}
-                </span>
-                <span className="block text-sm text-ink-2">
-                  {t("earnings.requestedAt", { time: fmtDateTime(w.requestedAt, locale) })}
-                </span>
-                {w.status !== "requested" && w.decidedAt !== null && <span className="block text-sm text-ink-2">{t(w.status === "sent" ? "earnings.sentAt" : "earnings.failedAt", { time: fmtDateTime(w.decidedAt, locale) })}</span>}
-                <span className="block break-words text-sm text-ink-2">{w.bank} {w.account} · {w.reference}</span>
-                {w.bankReference && <span className="block break-words text-sm text-ink-2">{t("earnings.bankReference", { reference: w.bankReference })}</span>}
-              </span>
-              <span className={`font-bold tabular-nums ${w.status === "failed" ? "text-ink-3 line-through" : ""}`}>{fmtMoney(w.amount)}</span>
-            </div>
-          ))}
+          <h2 className="mb-2 font-bold">{t("earnings.history")}</h2>
+          <div className="rounded-card bg-bg px-4 shadow-card">
+            {sum.recent.slice(0, 3).map(payoutRow)}
+            {sum.recent.length > 3 && (
+              <details className="group">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center font-semibold text-brand-ink group-open:hidden">{t("web.seeAll")} ({sum.recent.length})</summary>
+                {sum.recent.slice(3).map(payoutRow)}
+              </details>
+            )}
+          </div>
         </section>
       )}
 
       {finished.length > 0 && (
         <section className="flex flex-col">
-          <h2 className="mb-1 font-bold">{t("earnings.finished")}</h2>
-          {finished.map((d) => (
-            <a key={d.id} href={`/jobs/${d.id}`} className="press flex items-center gap-3 border-b border-line py-3 last:border-b-0">
-              <CategoryIcon id={d.category} tile size={20} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">{d.title}</span>
-                <span className="block text-sm text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>
-              </span>
-              {viaApp(d) ? (
-                <span className="font-bold tabular-nums text-held">+{fmtMoney(net(d))}</span>
-              ) : (
-                <span className="text-right text-[13px] text-ink-2">
-                  {fmtMoney(net(d))}
-                  <span className="block">{t("earnings.paidDirectly")}</span>
-                </span>
-              )}
-            </a>
-          ))}
+          <h2 className="font-bold">{t("earnings.finished")}</h2>
+          <p className="mb-2 text-[13px] text-ink-2">{t("earnings.thisMonth", { amount: fmtMoney(monthTotal), n: monthJobs.length })}</p>
+          <div className="rounded-card bg-bg px-4 shadow-card">
+            {finished.slice(0, 8).map(jobRow)}
+            {finished.length > 8 && (
+              <details className="group">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center font-semibold text-brand-ink group-open:hidden">{t("web.seeAll")} ({finished.length})</summary>
+                {finished.slice(8).map(jobRow)}
+              </details>
+            )}
+          </div>
         </section>
       )}
     </>

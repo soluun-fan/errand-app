@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { removePush, savePush } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
 import { btn } from "./ui";
+import { Bell } from "lucide-react";
 
 type State = "loading" | "unsupported" | "off" | "on" | "denied";
 
@@ -74,8 +75,8 @@ export function PushToggle() {
 
   return (
     <div className="flex items-center gap-3">
-      <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-xl">
-        🔔
+      <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-xl text-brand-ink">
+        <Bell aria-hidden size={22} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold">{t("job.notifications")}</span>

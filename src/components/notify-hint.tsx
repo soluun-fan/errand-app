@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { savePush } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
@@ -19,6 +19,8 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
  * 2026-11-18 — mandatory for helpers, strongly asked of customers: payment windows are minutes long).
  * Hidden when on, or when this browser can't do it.
  */
+const LATER = "notify-hint-later";
+
 export function NotifyHint() {
   const t = useT();
   const [state, setState] = useState<"hidden" | "off" | "busy">("hidden");
@@ -27,6 +29,10 @@ export function NotifyHint() {
   useEffect(() => {
     if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     if (Notification.permission === "denied") return;
+    try {
+      // "Later" hides it on this device for a week
+      if (Number(localStorage.getItem(LATER) ?? 0) > Date.now()) return;
+    } catch { /* storage unavailable */ }
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => reg.pushManager.getSubscription())
@@ -53,9 +59,16 @@ export function NotifyHint() {
     }
   }
 
+  const later = () => {
+    try {
+      localStorage.setItem(LATER, String(Date.now() + 7 * 86_400_000));
+    } catch { /* storage unavailable */ }
+    setState("hidden");
+  };
+
   if (state === "hidden") return null;
   return (
-    <section className="flex items-center gap-3 rounded-card border-2 border-brand bg-bg p-3 shadow-card">
+    <section className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span aria-hidden className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-brand-bg text-brand-ink">
         <Bell size={18} />
       </span>
@@ -65,6 +78,9 @@ export function NotifyHint() {
       </span>
       <button type="button" disabled={state === "busy"} onClick={turnOn} className={`${btn.primary} flex-none px-4`}>
         {t("notifyHint.go")}
+      </button>
+      <button type="button" aria-label={t("install.dismiss")} onClick={later} className="-ml-1 flex h-11 w-9 flex-none items-center justify-center text-ink-3">
+        <X aria-hidden size={18} />
       </button>
     </section>
   );

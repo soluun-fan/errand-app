@@ -6,6 +6,8 @@ import { useT } from "@/i18n/client";
 import { RING_TIMEOUT_MS, type CallLog } from "@/lib/call-rules";
 import { browserClient } from "@/lib/supabase/browser";
 import { answerCall, callSetup, callStatus, endCall, getIncoming, placeCall } from "./actions";
+import { Mic, MicOff, Phone, Video, VideoOff } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 type Phase = "idle" | "outgoing" | "incoming" | "connecting" | "live" | "ended";
 interface Incoming {
@@ -318,10 +320,10 @@ export function CallPanel({
         <div className="flex flex-col gap-1.5">
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => start(false)} className={btn.secondary}>
-              📞 {t("call.voice")}
+              <Ico as={Phone} /> {t("call.voice")}
             </button>
             <button type="button" onClick={() => start(true)} className={btn.secondary}>
-              📹 {t("call.video")}
+              <Ico as={Video} /> {t("call.video")}
             </button>
           </div>
           <p className="text-xs text-ink-2">{t("call.privacyNote")}</p>
@@ -333,7 +335,7 @@ export function CallPanel({
           <span>{message}</span>
           {showFallback && (
             <button type="button" className={`${btn.small} self-start`} onClick={onFallback}>
-              🎙 {t("call.tryVoice")}
+              <Ico as={Mic} /> {t("call.tryVoice")}
             </button>
           )}
         </div>
@@ -347,7 +349,7 @@ export function CallPanel({
               ✕
             </button>
             <button type="button" onClick={accept} className="flex h-16 w-16 items-center justify-center rounded-full bg-held text-2xl" aria-label={t("call.accept")}>
-              {incoming.video ? "📹" : "📞"}
+              {incoming.video ? <Ico as={Video} size={24} /> : <Ico as={Phone} size={24} />}
             </button>
           </div>
         </div>
@@ -365,11 +367,11 @@ export function CallPanel({
           </p>
           <div className="flex gap-4">
             <button type="button" onClick={toggleMute} className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl" aria-label={muted ? t("call.unmute") : t("call.mute")} aria-pressed={muted}>
-              {muted ? "🔇" : "🎙"}
+              {muted ? <Ico as={MicOff} size={24} /> : <Ico as={Mic} size={24} />}
             </button>
             {video && (
               <button type="button" onClick={toggleCam} className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl" aria-label={camOff ? t("call.cameraOn") : t("call.cameraOff")} aria-pressed={camOff}>
-                {camOff ? "🚫" : "📷"}
+                {camOff ? <Ico as={VideoOff} size={24} /> : <Ico as={Video} size={24} />}
               </button>
             )}
             <button

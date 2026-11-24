@@ -37,7 +37,7 @@ test("the customer adds and removes task photos while the task is open", async (
   await loginAs(context, PHONES.solongo);
   await page.goto(`/tasks/${id}`);
   await page.waitForLoadState("networkidle");
-  await page.getByLabel("📷 Зураг нэмэх").setInputFiles({ name: "a.png", mimeType: "image/png", buffer: PNG });
+  await page.getByLabel("Зураг нэмэх").setInputFiles({ name: "a.png", mimeType: "image/png", buffer: PNG });
   await expect(page.getByRole("img", { name: "Ажлын зураг 1" })).toBeVisible(UPLOAD);
   expect((await db.from("task_photos").select("id").eq("deal_id", id)).data).toHaveLength(1);
   await page.getByRole("button", { name: "1-р зургийг хасах" }).click();

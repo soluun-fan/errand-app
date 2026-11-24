@@ -94,8 +94,8 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
   function label() {
     if (kind === "start") return t("proof.startTake");
     if (kind === "progress") return t("proof.progressTake");
-    if (done) return `📷 ${t("proof.retake")}`;
-    return `📷 ${kind === "receipt" ? t("proof.take") : t("proof.takeOrVideo")}`;
+    if (done) return t("proof.retake");
+    return kind === "receipt" ? t("proof.take") : t("proof.takeOrVideo");
   }
 
   const fileInput = (
@@ -125,7 +125,7 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
+    <div className="flex flex-col gap-3 rounded-card bg-bg shadow-card p-4">
       <div>
         <p className="font-semibold">
           {t(TEXT[kind].title)} {done && <span className="text-held">· {t("proof.done")}</span>}

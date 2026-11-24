@@ -7,6 +7,8 @@ import { fmtDateTime } from "@/lib/format";
 import { reportProblem, sendSos } from "@/app/(app)/safety/actions";
 import { BottomSheet, SubmitButton, type ActionResult } from "./sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "./ui";
+import { Ambulance, Phone } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** Best-effort position for an SOS: never waits more than 6 s and never blocks sending. */
 function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
@@ -79,10 +81,10 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
         <p className="text-[16px]">{t("safety.sosLead")}</p>
         <div className="grid grid-cols-2 gap-2">
           <a href={`tel:${EMERGENCY_NUMBERS.police}`} className={`${btn.danger} w-full`}>
-            📞 {t("safety.police", { n: EMERGENCY_NUMBERS.police })}
+            <Ico as={Phone} /> {t("safety.police", { n: EMERGENCY_NUMBERS.police })}
           </a>
           <a href={`tel:${EMERGENCY_NUMBERS.ambulance}`} className={`${btn.danger} w-full`}>
-            🚑 {t("safety.ambulance", { n: EMERGENCY_NUMBERS.ambulance })}
+            <Ico as={Ambulance} /> {t("safety.ambulance", { n: EMERGENCY_NUMBERS.ambulance })}
           </a>
         </div>
         <hr className="border-line" />

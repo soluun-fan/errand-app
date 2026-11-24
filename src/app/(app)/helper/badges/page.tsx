@@ -8,6 +8,8 @@ import { BadgeForm } from "./badge-form";
 import { LanguagesForm } from "./languages-form";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 import { notFound } from "next/navigation";
+import { AlarmClock, Car, IdCard } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /**
  * /helper/badges — what lets a helper take tasks with conditions (docs/decisions.md 2026-11-18): a
@@ -43,9 +45,9 @@ export default async function BadgesPage() {
       <Note tone="info">{t("badges.intro")}</Note>
 
       <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
-        <p>🚗 {t("conditions.b.driver")}: <b>{b?.driver ? t("badges.yes") : t("badges.no")}</b></p>
-        <p>🚙 {t("conditions.b.car")}: <b>{b?.car ? t("badges.yes") : t("badges.no")}</b></p>
-        <p>⏰ {pct === null ? t("badges.onTimeNew") : t("badges.onTime", { pct, n: record.jobs })}</p>
+        <p><Ico as={IdCard} /> {t("conditions.b.driver")}: <b>{b?.driver ? t("badges.yes") : t("badges.no")}</b></p>
+        <p><Ico as={Car} /> {t("conditions.b.car")}: <b>{b?.car ? t("badges.yes") : t("badges.no")}</b></p>
+        <p><Ico as={AlarmClock} /> {pct === null ? t("badges.onTimeNew") : t("badges.onTime", { pct, n: record.jobs })}</p>
       </section>
 
       {mine.length > 0 && (
@@ -53,7 +55,7 @@ export default async function BadgesPage() {
           <h2 className="font-bold">{t("badges.requests")}</h2>
           {mine.map((x) => (
             <p key={x.id} className="rounded-input bg-fill p-3 text-[15px]">
-              {x.kind === "driver" ? "🚗" : "🚙"} {Object.values(x.info).join(" · ")} — <b>{t(`badges.status.${x.status}`)}</b>
+              {x.kind === "driver" ? <Ico as={IdCard} /> : <Ico as={Car} />} {Object.values(x.info).join(" · ")} — <b>{t(`badges.status.${x.status}`)}</b>
               {x.reviewNote && <span className="block text-sm text-ink-2">{x.reviewNote}</span>}
             </p>
           ))}

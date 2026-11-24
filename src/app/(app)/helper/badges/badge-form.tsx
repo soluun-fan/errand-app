@@ -7,6 +7,8 @@ import { field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { prepareDoc } from "../../orgs/actions";
 import { requestBadgeAction } from "./actions";
+import { Car, IdCard } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** Send a driver's licence or car registration for Ops to check. */
 export function BadgeForm({ kind }: { kind: "driver" | "car" }) {
@@ -17,7 +19,7 @@ export function BadgeForm({ kind }: { kind: "driver" | "car" }) {
   if (state.done) return <p className="rounded-input bg-held-bg p-3 text-sm text-held">{t("badges.sent")}</p>;
   return (
     <form action={action} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
-      <h2 className="font-bold">{kind === "driver" ? `🚗 ${t("badges.driverTitle")}` : `🚙 ${t("badges.carTitle")}`}</h2>
+      <h2 className="font-bold">{kind === "driver" ? <><Ico as={IdCard} /> {t("badges.driverTitle")}</> : <><Ico as={Car} /> {t("badges.carTitle")}</>}</h2>
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="docPath" value={doc ?? ""} />
       {kind === "driver" ? (

@@ -37,7 +37,7 @@ export function AddressInput({ label, hint, placeholder, value, pin, kind = "dro
   const query = value.trim().toLocaleLowerCase();
   const matches = choices.filter((a) => allChoices || !query || `${a.label} ${a.address}`.toLocaleLowerCase().includes(query));
   return (
-    <section className="rounded-card border border-line bg-bg p-4 shadow-card" aria-labelledby={`${id}-label`}>
+    <section className="rounded-card bg-bg p-4 shadow-card" aria-labelledby={`${id}-label`}>
       <div className="mb-3 flex items-center gap-2">
         <span aria-hidden className={`flex h-7 w-7 items-center justify-center rounded-full ${kind === "pickup" ? "bg-ink text-white" : "bg-brand-bg text-brand-ink"}`}><MapPin size={15} /></span>
         <label id={`${id}-label`} htmlFor={`${id}-address`} className="flex-1 text-[16px] font-bold">{label}</label>

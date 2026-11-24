@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import type { ReactNode } from "react";
 import { Countdown } from "@/components/countdown";
+import { TimelineList } from "@/components/timeline-list";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { OfferCard, type OfferPerson } from "@/components/offer-card";
 import { ConfirmSheet, type FormAction } from "@/components/sheet";
@@ -33,6 +34,8 @@ import type { OnTime } from "@/lib/badges";
 import type { DirectPayState, PayeeAccount } from "@/lib/direct-pay";
 import { PriceChangeCard } from "@/components/price-change-card";
 import { ReviewPhotoPicker } from "@/components/review-photo-picker";
+import { Hash, HeartPulse, MessageCircle, Phone } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 export interface DealViewProps {
   deal: ErrandDeal;
@@ -112,11 +115,11 @@ export function ContactRow({ dealId, unread, canCall, t, withHelper = null }: { 
     <div className={`grid gap-2 ${canCall ? "grid-cols-2" : "grid-cols-1"}`}>
       {canCall && (
         <Link href={href} className={`${btn.secondary} w-full`}>
-          📞 {t("call.voice")}
+          <Ico as={Phone} /> {t("call.voice")}
         </Link>
       )}
       <Link href={href} className={`${btn.small} relative w-full`}>
-        💬 {t("chat.open")}
+        <Ico as={MessageCircle} /> {t("chat.open")}
         {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
       </Link>
     </div>
@@ -594,6 +597,28 @@ export function DealView(p: DealViewProps) {
         />
       )}
 
+      {deal.status === "matched" && arriveBy(deal) !== null && (
+        <div className="flex flex-col gap-2 px-5 pt-2">
+          <Note tone={helperLate(deal, Date.now()) ? "warn" : "info"}>
+            {helperLate(deal, Date.now())
+              ? t("standards.customerLate", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })
+              : t("standards.customerArriveBy", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })}
+            {deal.enRouteAt && !helperLate(deal, Date.now()) ? ` ${t("noShow.customerEnRoute", { helper: helperName })}` : ""}
+          </Note>
+          {(deal.arriveExtendMinutes ?? 0) > 0 && !helperLate(deal, Date.now()) && (
+            <Note tone="grey">{t("noShow.customerDelay", { helper: helperName, n: deal.arriveExtendMinutes ?? 0 })}</Note>
+          )}
+        </div>
+      )}
+      {isCustomer && deal.status === "in_progress" && deal.absentAt && (
+        <div className="flex flex-col gap-2 px-5 pt-2">
+          <Note tone="bad">
+            {t("noShow.customerAsked", { helper: helperName, time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000), fee: fmtMoney(deal.cancelFee) })}
+          </Note>
+          <InlineAction action={p.action} fields={{ ...fields, intent: "customer_present" }} label={t("noShow.imHere")} className={`${btn.primary} w-full`} />
+        </div>
+      )}
+
       {p.safety}
 
       {isCustomer && (
@@ -657,7 +682,7 @@ export function DealView(p: DealViewProps) {
                   <div className="flex flex-col gap-2">
                   {/* talk before choosing: each applicant has their own chat and call */}
                   <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall={callsEnabled()} t={t} />
-                  {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">🩹 {t("care.firstAidBadge")}</p>}
+                  {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held"><Ico as={HeartPulse} size={14} /> {t("care.firstAidBadge")}</p>}
                   {p.applicantBadges?.get(o.helperId) && <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />}
                   {p.needsCall && !p.careCalls?.has(o.helperId) && (
                     <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
@@ -819,7 +844,7 @@ export function DealView(p: DealViewProps) {
 
       {p.handoverCode && (
         <section className="flex flex-col items-center gap-1 rounded-card bg-bg p-4 text-center shadow-card" aria-label={t("conditions.codeTitle")}>
-          <h2 className="font-bold">🔢 {t("conditions.codeTitle")}</h2>
+          <h2 className="font-bold"><Ico as={Hash} /> {t("conditions.codeTitle")}</h2>
           <p className="text-[40px] font-extrabold tracking-[0.3em] tabular-nums text-brand-ink">{p.handoverCode}</p>
           <p className="text-sm text-ink-2">{t("conditions.codeSub")}</p>
         </section>
@@ -852,37 +877,8 @@ export function DealView(p: DealViewProps) {
       </DetailSection>
 
       <DetailSection label={t("deal.timeline")}>
-        <ol className="flex flex-col gap-3 pt-1">
-          {[...events].reverse().map((e, i) => (
-            <li key={i} className="flex gap-3 text-sm">
-              <span className="w-24 flex-none text-ink-2 tabular-nums">{fmtDateTime(e.at, locale)}</span>
-              <span>{describeEvent(e.code, e.data, t, name)}</span>
-            </li>
-          ))}
-        </ol>
+        <TimelineList events={[...events].reverse()} describe={(e) => describeEvent(e.code, e.data, t, name)} locale={locale} moreLabel={t("web.seeAll")} />
       </DetailSection>
-
-      {deal.status === "matched" && arriveBy(deal) !== null && (
-        <div className="flex flex-col gap-2 px-5 pt-2">
-          <Note tone={helperLate(deal, Date.now()) ? "warn" : "info"}>
-            {helperLate(deal, Date.now())
-              ? t("standards.customerLate", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })
-              : t("standards.customerArriveBy", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })}
-            {deal.enRouteAt && !helperLate(deal, Date.now()) ? ` ${t("noShow.customerEnRoute", { helper: helperName })}` : ""}
-          </Note>
-          {(deal.arriveExtendMinutes ?? 0) > 0 && !helperLate(deal, Date.now()) && (
-            <Note tone="grey">{t("noShow.customerDelay", { helper: helperName, n: deal.arriveExtendMinutes ?? 0 })}</Note>
-          )}
-        </div>
-      )}
-      {isCustomer && deal.status === "in_progress" && deal.absentAt && (
-        <div className="flex flex-col gap-2 px-5 pt-2">
-          <Note tone="bad">
-            {t("noShow.customerAsked", { helper: helperName, time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000), fee: fmtMoney(deal.cancelFee) })}
-          </Note>
-          <InlineAction action={p.action} fields={{ ...fields, intent: "customer_present" }} label={t("noShow.imHere")} className={`${btn.primary} w-full`} />
-        </div>
-      )}
 
       {(primary || secondary.length > 0) && (
         <PrimaryBar>

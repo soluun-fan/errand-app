@@ -5,6 +5,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { reviewQueue } from "@/lib/kyc";
+import { CircleCheck } from "lucide-react";
 
 /** /ops/helpers — helper applications waiting for review (admins only; others get a 404). */
 export default async function OpsHelpersPage() {
@@ -15,7 +16,7 @@ export default async function OpsHelpersPage() {
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("ops.title")} />
       {queue.length === 0 ? (
-        <EmptyState icon="✅" title={t("ops.empty")} />
+        <EmptyState icon={<CircleCheck aria-hidden size={28} />} title={t("ops.empty")} />
       ) : (
         <ul className="flex flex-col">
           {queue.map((a) => (

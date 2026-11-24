@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight, MapPinOff } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { getWorkerLocationState, setJobLocationSharing, updateWorkerLocation } from "@/app/(app)/jobs/actions";
 import { startLocationUpdates, type LocationStatus } from "@/lib/location-client";
 import type { WorkerLocationState } from "@/lib/location-rules";
 import { useT } from "@/i18n/client";
-import { btn } from "./ui";
 
 const Context = createContext<{
   state: WorkerLocationState | null;
@@ -78,13 +78,16 @@ export function WorkerLocationProvider({ children, enabled }: { children: ReactN
 
   const failed = status === "denied" || status === "unavailable";
   return <Context.Provider value={{ state, status, reload, retry, setSharing }}>
-    {tracking && (state?.jobIds.length || failed) ? <div className="mx-auto w-full max-w-2xl px-5 py-2">
-      <div role="status" className="rounded-input bg-held-bg p-3 text-sm">
-        <p>{t(failed ? "job.locationError" : status === "live" ? "job.locationActive" : "job.locationLocating")}</p>
-        {failed && <button type="button" className={btn.text} onClick={() => void retry()}>{t("common.retry")}</button>}
-        {state?.jobIds.map(id => <Link key={id} href={`/jobs/${id}`} className="inline-flex min-h-11 items-center font-semibold underline">
-          {t("job.locationManage")}
-        </Link>)}
+    {tracking && (state?.jobIds.length || failed) ? <div className="mx-auto w-full max-w-2xl px-5 pt-2">
+      {/* one slim strip: amber when location is failing (with Retry), green while it is shared */}
+      <div role="status" className={`flex items-center gap-3 rounded-input px-3 py-2 text-sm ${failed ? "bg-warn-bg text-warn" : "bg-held-bg text-held"}`}>
+        {failed ? <MapPinOff aria-hidden size={18} className="shrink-0" /> : <span aria-hidden className="relative flex h-2.5 w-2.5 shrink-0"><span className="absolute inset-0 animate-ping rounded-full bg-held opacity-60 motion-reduce:animate-none" /><span className="relative h-2.5 w-2.5 rounded-full bg-held" /></span>}
+        <p className="min-w-0 flex-1 font-medium">{t(failed ? "job.locationError" : status === "live" ? "job.locationActive" : "job.locationLocating")}</p>
+        {failed
+          ? <button type="button" className="min-h-10 shrink-0 rounded-full bg-bg px-3 font-semibold text-ink shadow-card" onClick={() => void retry()}>{t("common.retry")}</button>
+          : state?.jobIds.slice(0, 1).map(id => <Link key={id} href={`/jobs/${id}`} aria-label={t("job.locationManage")} className="inline-flex min-h-10 shrink-0 items-center gap-0.5 font-semibold underline-offset-4 hover:underline">
+            {t("job.locationOpen")}<ChevronRight aria-hidden size={16} />
+          </Link>)}
       </div>
     </div> : null}
     {children}

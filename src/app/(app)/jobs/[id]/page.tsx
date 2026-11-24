@@ -43,6 +43,8 @@ import { liveSos } from "@/lib/incidents";
 import { organizationNames } from "@/lib/orgs";
 import { ContactRow } from "../../tasks/[id]/deal-view";
 import { jobAction, removeMyProof } from "../actions";
+import { Hash } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /**
  * The helper's view of one task (docs/screens-helper-ops.md): what it pays, how far, and the
@@ -261,7 +263,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`}>
           {deal.details.require?.handoverCode && (
             <label className={fieldLabel}>
-              🔢 {t("conditions.codeAsk")}
+              <Ico as={Hash} /> {t("conditions.codeAsk")}
               <input name="code" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required autoComplete="off" className={`${field} text-center text-[24px] font-bold tracking-[0.3em] tabular-nums`} />
             </label>
           )}

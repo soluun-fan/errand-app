@@ -6,6 +6,8 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { certificateQueue } from "@/lib/orgs";
 import { DecideCert } from "./decide-cert";
+import { HeartPulse } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** /ops/certificates — trade certificates waiting for a check (oldest first). Admins only. */
 export default async function OpsCertificatesPage() {
@@ -37,7 +39,7 @@ export default async function OpsCertificatesPage() {
             </a>
           )}
           {categoryTrust(c.category) === "care" && <Note tone="warn">{t("opsCerts.careCheck")}</Note>}
-          {c.firstAid && <Note tone="info">🩹 {t("opsCerts.firstAidClaimed")}</Note>}
+          {c.firstAid && <Note tone="info"><Ico as={HeartPulse} size={16} /> {t("opsCerts.firstAidClaimed")}</Note>}
           <DecideCert id={c.id} />
         </section>
       ))}

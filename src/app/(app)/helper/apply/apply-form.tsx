@@ -9,6 +9,8 @@ import { compressImage } from "@/lib/image-client";
 import { BANKS, KYC_DOCS, type KycDoc } from "@/lib/kyc-rules";
 import { browserClient } from "@/lib/supabase/browser";
 import { prepareKycUpload, submitKyc } from "./actions";
+import { Lock } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** One document slot: camera / file → (compress if photo) → signed upload into the applicant's folder. */
 function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | undefined; onDone: (p: string) => void; onError: (m: string) => void }) {
@@ -111,7 +113,7 @@ export function ApplyForm() {
         {KYC_DOCS.map((d) => (
           <DocSlot key={d} doc={d} path={files[d]} onDone={(p) => setFiles((x) => ({ ...x, [d]: p }))} onError={setError} />
         ))}
-        <p className="text-sm text-ink-2">🔒 {t("kyc.privacy")}</p>
+        <p className="text-sm text-ink-2"><Ico as={Lock} size={16} /> {t("kyc.privacy")}</p>
       </section>
 
       <section className="flex flex-col gap-3">

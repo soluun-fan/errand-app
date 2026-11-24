@@ -2,6 +2,7 @@ import { TabBar, type Tab } from "@/components/tab-bar";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getMode } from "@/lib/mode";
+import { Banknote, Compass } from "lucide-react";
 
 /**
  * Root tabs. Helpers: Ажил · Орлого. Customers have one screen (Home: tasks, money, past tasks),
@@ -15,8 +16,8 @@ export default async function TabsLayout({ children }: LayoutProps<"/">) {
   if (mode !== "helper") return <div className="flex flex-1 flex-col gap-4 pb-8">{children}</div>;
 
   const tabs: Tab[] = [
-    { href: "/jobs", label: t("tabs.jobs"), icon: "🧭" },
-    { href: "/earnings", label: t("tabs.earnings"), icon: "💰" },
+    { href: "/jobs", label: t("tabs.jobs"), icon: <Compass aria-hidden size={22} /> },
+    { href: "/earnings", label: t("tabs.earnings"), icon: <Banknote aria-hidden size={22} /> },
   ];
   return (
     <>

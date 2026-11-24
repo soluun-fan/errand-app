@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { reportClientError } from "@/app/report-error";
 import { EmptyState, btn } from "@/components/ui";
 import { useT } from "@/i18n/client";
+import { TriangleAlert } from "lucide-react";
 
 /** Plain message + retry; reassures that money didn't move (UI-FLOWS §0.9). */
 export default function AppError({ error, retry }: { error: unknown; retry: () => void }) {
@@ -16,7 +17,7 @@ export default function AppError({ error, retry }: { error: unknown; retry: () =
   }, [error]);
   return (
     <EmptyState
-      icon="⚠️"
+      icon={<TriangleAlert aria-hidden size={28} />}
       title={t("common.errorTitle")}
       body={t("common.errorBody")}
       action={

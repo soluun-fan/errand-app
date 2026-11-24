@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, Info, MapPin, PencilLine, X } from "lucide-react";
+import { ArrowLeft, Briefcase, CalendarDays, ChevronDown, DoorOpen, Hand, House, Info, Lock, MapPin, PencilLine, Receipt, Ruler, ShoppingBag, Sparkles, User, Users, Weight, Wrench, X } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { AddressInput, type AddressChoice } from "@/components/address-input";
@@ -23,6 +23,8 @@ import { titleFromBrief } from "@/lib/task-brief";
 import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { postTask, type PostState } from "./actions";
+import { Ico } from "@/components/icon";
+import type { LucideIcon } from "lucide-react";
 
 /** One decision per screen (redesign): kind of task → what exactly → where & when → review. */
 const STEPS = ["type", "what", "where", "review"] as const;
@@ -32,7 +34,7 @@ const DURATIONS = [30, 60, 90, 120, 180, 240, 360, 480];
 
 /** "flexible": not urgent — the post stays open for the Ops search window (24 h), offers don't lapse. */
 type When = "now" | "today" | "tomorrow" | "pick" | "flexible";
-const KIND_ICON: Record<AddressKind, string> = { home: "🏠", work: "💼", other: "📍" };
+const KIND_ICON: Record<AddressKind, LucideIcon> = { home: House, work: Briefcase, other: MapPin };
 
 export interface Draft {
   variety?: JobVariety;
@@ -165,7 +167,8 @@ export function PostFlow({
     carryByHelper: true,
     heavy: false,
     roundTrip: false,
-    buyForMe: false,
+    // purchases default to "buy it for me, paid back by receipt" (owner, 2026-11-24)
+    buyForMe: true,
     itemBudget: "",
     budgetBuffer: false,
     people: 1,
@@ -556,7 +559,7 @@ export function PostFlow({
               <div className="flex gap-2" role="radiogroup">
                 {(["home", "work", "other"] as const).map((k) => (
                   <button key={k} type="button" role="radio" aria-checked={d.saveAs === k} onClick={() => set("saveAs", d.saveAs === k ? "" : k)} className={chipClass(d.saveAs === k)}>
-                    <span aria-hidden>{KIND_ICON[k]}</span> {t(`task.saved.${k}`)}
+                    <Ico as={KIND_ICON[k]} size={16} /> {t(`task.saved.${k}`)}
                   </button>
                 ))}
               </div>
@@ -570,7 +573,7 @@ export function PostFlow({
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.distance")}</legend>
               {measuredKm !== null ? (
-                <p className="rounded-input bg-fill px-4 py-3 text-[16px] font-medium">📏 {t("map.measured", { km: measuredKm.toFixed(1) })}</p>
+                <p className="rounded-input bg-fill px-4 py-3 text-[16px] font-medium"><Ico as={Ruler} /> {t("map.measured", { km: measuredKm.toFixed(1) })}</p>
               ) : (
                 <>
                   <div className="flex gap-2" role="radiogroup">
@@ -598,7 +601,7 @@ export function PostFlow({
             <div className="flex flex-wrap gap-2" role="radiogroup">
               {(["now", "flexible", "today", "tomorrow", "pick"] as const).map((w) => (
                 <button key={w} type="button" role="radio" aria-checked={d.when === w} onClick={() => set("when", w)} className={chipClass(d.when === w)}>
-                  {w === "pick" ? "🗓 " : ""}
+                  {w === "pick" ? <><Ico as={CalendarDays} size={16} />{" "}</> : ""}
                   {w === "flexible"
                     ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })
                     : t(w === "now" ? "task.whenNow" : w === "today" ? "task.whenToday" : w === "tomorrow" ? "task.whenTomorrow" : "task.whenPick")}
@@ -641,15 +644,15 @@ export function PostFlow({
             {care && <Note tone="info">{t("care.pilotHours", { from: cfg.careDayStartHour, to: cfg.careDayEndHour, hours: cfg.careMaxMinutes / 60 })}</Note>}
           </fieldset>
 
-          <details className="group rounded-card border border-line bg-bg px-4" open={d.heavy || d.tools || undefined}>
+          <details className="group rounded-card bg-bg shadow-card px-4" open={d.heavy || d.tools || undefined}>
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium text-ink-2">
               {t("addressEntry.extraOptions")}
               <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
             </summary>
             <p className="pb-3 text-sm text-ink-2">{t("addressEntry.extraHelp")}</p>
             <div className="mb-4 flex flex-col gap-3">
-              <ToggleRow icon="🧊" title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
-              <ToggleRow icon="🧰" title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
+              <ToggleRow icon={<Weight aria-hidden size={24} />} title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
+              <ToggleRow icon={<Wrench aria-hidden size={24} />} title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
             </div>
           </details>
 
@@ -660,12 +663,12 @@ export function PostFlow({
                 <PriceDeltaCard
                   selected={d.carryByHelper}
                   onSelect={() => set("carryByHelper", true)}
-                  icon="🧍‍♂️"
+                  icon={<Hand aria-hidden size={24} />}
                   title={t("task.carryHelper")}
                   sub={t("task.carryHelperSub")}
                   delta={stairs ? `+${fmtMoney(stairs.amount)}` : t("task.perFloor", { amount: fmtMoney(cfg.carryPerFloor) })}
                 />
-                <PriceDeltaCard selected={!d.carryByHelper} onSelect={() => set("carryByHelper", false)} icon="🚪" title={t("task.carrySelf")} sub={t("task.carrySelfSub")} delta={`+${fmtMoney(0)}`} free />
+                <PriceDeltaCard selected={!d.carryByHelper} onSelect={() => set("carryByHelper", false)} icon={<DoorOpen aria-hidden size={24} />} title={t("task.carrySelf")} sub={t("task.carrySelfSub")} delta={`+${fmtMoney(0)}`} free />
               </div>
               {needTwo && <Note tone="warn">{t("task.needTwo")}</Note>}
             </fieldset>
@@ -675,8 +678,8 @@ export function PostFlow({
             <fieldset className="flex flex-col gap-3">
               <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.buyTitle")}</legend>
               <div className="grid grid-cols-2 gap-2" role="radiogroup">
-                <PriceDeltaCard selected={!d.buyForMe} onSelect={() => set("buyForMe", false)} icon="🧾" title={t("task.buySelf")} sub={t("task.buySelfSub")} delta={`+${fmtMoney(0)}`} free />
-                <PriceDeltaCard selected={d.buyForMe} onSelect={() => set("buyForMe", true)} icon="🛍️" title={t("task.buyForMe")} sub={t("task.buyForMeSub")} />
+                <PriceDeltaCard selected={d.buyForMe} onSelect={() => set("buyForMe", true)} icon={<Receipt aria-hidden size={24} />} title={t("task.buyForMe")} sub={t("task.buyForMeSub")} />
+                <PriceDeltaCard selected={!d.buyForMe} onSelect={() => set("buyForMe", false)} icon={<ShoppingBag aria-hidden size={24} />} title={t("task.buySelf")} sub={t("task.buySelfSub")} delta={`+${fmtMoney(0)}`} free />
               </div>
               {d.buyForMe && (
                 <label className={fieldLabel}>
@@ -688,7 +691,7 @@ export function PostFlow({
               {/* the +10% buffer is only meaningful when the money is held */}
               {d.buyForMe && !direct && (
                 <ToggleRow
-                  icon="🧾"
+                  icon={<Receipt aria-hidden size={24} />}
                   title={t("task.buffer")}
                   sub={itemBudget > 0 ? t("task.bufferSub", { amount: fmtMoney(heldItemBudget(itemBudget, true, cfg) - itemBudget) }) : t("task.bufferSubEmpty")}
                   checked={d.budgetBuffer}
@@ -704,7 +707,7 @@ export function PostFlow({
       {STEPS[step] === "review" && (
         <>
           {startStep === STEPS.indexOf("review") && <Note tone="info">{t("task.repeatNote")}</Note>}
-          <div className="flex flex-col gap-2 rounded-card border border-line bg-bg p-4">
+          <div className="flex flex-col gap-2 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewRequest")}</h2>
               <button type="button" onClick={() => setStep(1)} aria-label={t("addressEntry.editRequest")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
@@ -716,7 +719,7 @@ export function PostFlow({
             <ConditionChips variety={d.variety} require={d.require} t={t} />
             {brief.trim() !== title.trim() && <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-2">{brief}</p>}
           </div>
-          <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
+          <div className="flex flex-col gap-3 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewPlaces")}</h2>
               <button type="button" onClick={() => setStep(2)} aria-label={t("addressEntry.editPlaces")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
@@ -732,7 +735,7 @@ export function PostFlow({
                 selected={d.people === 1}
                 disabled={needTwo}
                 onSelect={() => set("people", 1)}
-                icon="🧍"
+                icon={<User aria-hidden size={24} />}
                 title={t("task.oneHelper")}
                 sub={needTwo ? t("task.tooHeavy") : undefined}
                 price="" 
@@ -740,7 +743,7 @@ export function PostFlow({
               <OptionCard
                 selected={d.people === 2}
                 onSelect={() => set("people", 2)}
-                icon="🧍🧍"
+                icon={<Users aria-hidden size={24} />}
                 title={t("task.twoHelpers")}
                 sub={t("task.twoHelpersSub")}
                 price="" 
@@ -813,20 +816,20 @@ export function PostFlow({
 
           {invite ? (
             <ToggleRow
-              icon="👥"
+              icon={<Users aria-hidden size={24} />}
               title={t("invite.openAfter", { name: invite.name })}
               sub={t("invite.openAfterSub", { minutes: d.when === "now" ? cfg.inviteMinutes : cfg.inviteMinutesScheduled })}
               checked={openAfter}
               onChange={setOpenAfter}
             />
           ) : posterChooses ? <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p> : d.when === "flexible" ? null : (
-            <ToggleRow icon="✨" title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
+            <ToggleRow icon={<Sparkles aria-hidden size={24} />} title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
           )}
 
           {posterChooses && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>}
           {categoryConfig(d.category).checkHours && <p className="text-sm text-ink-2">{t("specialized.check", { hours: categoryConfig(d.category).checkHours! })}</p>}
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
-            <span aria-hidden>🔒</span>
+            <Lock aria-hidden size={14} className="shrink-0" />
             {t("task.heldLine")}
           </p>
         </>

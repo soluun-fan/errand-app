@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_MARK } from "@/lib/brand";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { SubmitButton } from "@/components/sheet";
 import { Card, Note, btn } from "@/components/ui";
@@ -64,7 +65,7 @@ export function RecipientVerification({
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <header className="flex flex-col gap-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">T</span>
+        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">{APP_MARK}</span>
         <h1 className="text-2xl font-bold">{t("verifyRecipient.publicTitle")}</h1>
         <p className="text-[15px] text-ink-2">{t("verifyRecipient.publicIntro")}</p>
       </header>

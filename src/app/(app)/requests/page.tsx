@@ -7,6 +7,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { LAUNCH_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { openRequests } from "@/lib/public-snapshot";
+import { Search } from "lucide-react";
 
 /**
  * /requests — browse every open request (Unegui-style listing): category chips, newest / best paid.
@@ -60,7 +61,7 @@ export default async function RequestsPage({ searchParams }: PageProps<"/request
         </Link>
       </nav>
       {items.length === 0 ? (
-        <EmptyState icon="🔎" title={t("web.noRequests")} />
+        <EmptyState icon={<Search aria-hidden size={28} />} title={t("web.noRequests")} />
       ) : (
         <OpenBoard items={items} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={await kindCovers()} />
       )}

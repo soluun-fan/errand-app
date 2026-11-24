@@ -7,6 +7,8 @@ import { useT } from "@/i18n/client";
 import { MAX_VOICE_SECONDS } from "@/lib/call-rules";
 import { browserClient } from "@/lib/supabase/browser";
 import { prepareVoice, sendVoice } from "./actions";
+import { Mic } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 const TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/ogg"];
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -117,7 +119,7 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; w
         onClick={start}
         className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl disabled:opacity-50"
       >
-        {busy ? "…" : "🎙"}
+        {busy ? "…" : <Ico as={Mic} size={22} />}
       </button>
     );
   },

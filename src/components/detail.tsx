@@ -91,7 +91,7 @@ export function AddressBox({
   directionsUrl,
   directionsLabel,
 }: {
-  icon: string;
+  icon: ReactNode;
   label: string;
   address: string | null;
   hidden?: string;

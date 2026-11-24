@@ -70,7 +70,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
   };
 
   return (
-    <section className={`flex flex-col gap-4 rounded-card border p-4 ${online ? "border-held bg-held-bg" : "border-line"}`}>
+    <section className={`flex flex-col gap-4 rounded-card p-4 ${online ? "bg-held-bg" : "bg-bg shadow-card"}`}>
       <div className="flex items-center gap-3">
         <span aria-hidden className={`h-3 w-3 flex-none rounded-full ${online ? "bg-held" : "bg-ink-3"}`} />
         <span className="min-w-0 flex-1">

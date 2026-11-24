@@ -9,6 +9,8 @@ import { fmtDateTime } from "@/lib/format";
 import { applicationForOps } from "@/lib/kyc";
 import { KYC_DOCS } from "@/lib/kyc-rules";
 import { decideKyc } from "../actions";
+import { FileText } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 const CHECKS = ["name", "last4", "age", "selfie", "payout"] as const;
 
@@ -49,7 +51,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
               {f ? (
                 f.pdf ? (
                   <a href={f.url} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} aspect-[4/3] w-full`}>
-                    📄 {t("ops.openPdf")}
+                    <Ico as={FileText} /> {t("ops.openPdf")}
                   </a>
                 ) : (
                   <a href={f.url} target="_blank" rel="noopener noreferrer">

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { APP_MARK } from "@/lib/brand";
 import { LOCALES } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
@@ -32,7 +33,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         ))}
       </form>
       <div className="flex flex-col gap-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">T</span>
+        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">{APP_MARK}</span>
         <h1 className="text-2xl font-bold">{t("login.title")}</h1>
         <p className="text-[15px] text-ink-2">{t(verifyMn ? "login.verifyIntro" : "login.sub")}</p>
       </div>

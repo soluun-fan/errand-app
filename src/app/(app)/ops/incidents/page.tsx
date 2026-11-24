@@ -11,6 +11,8 @@ import { incidentQueue } from "@/lib/incidents";
 import { googlePlaceUrl } from "@/lib/maps";
 import { normalizeMnPhone } from "@/lib/phone";
 import { acknowledge, resolve } from "../actions";
+import { CircleCheck, MapPin, Phone } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /**
  * /ops/incidents — SOS first, then other open reports, then the latest resolved. Admins only.
@@ -25,7 +27,7 @@ export default async function OpsIncidentsPage() {
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsIncidents.title")} />
       <AutoRefresh seconds={15} />
       {items.length === 0 ? (
-        <EmptyState icon="✅" title={t("opsIncidents.empty")} />
+        <EmptyState icon={<CircleCheck aria-hidden size={28} />} title={t("opsIncidents.empty")} />
       ) : (
         <ul className="flex flex-col gap-3">
           {items.map((i) => {
@@ -53,12 +55,12 @@ export default async function OpsIncidentsPage() {
                   <div className="flex flex-wrap gap-2">
                     {tel && i.status !== "resolved" && (
                       <a href={`tel:${tel}`} className={btn.secondary}>
-                        📞 {t("opsIncidents.call", { name: i.reporter.name })}
+                        <Ico as={Phone} size={16} /> {t("opsIncidents.call", { name: i.reporter.name })}
                       </a>
                     )}
                     {i.position && (
                       <a href={googlePlaceUrl(i.position)} target="_blank" rel="noopener noreferrer" className={btn.secondary}>
-                        📍 {i.position.accuracy !== null ? t("opsIncidents.whereAcc", { m: i.position.accuracy }) : t("opsIncidents.where")}
+                        <Ico as={MapPin} size={16} /> {i.position.accuracy !== null ? t("opsIncidents.whereAcc", { m: i.position.accuracy }) : t("opsIncidents.where")}
                       </a>
                     )}
                   </div>

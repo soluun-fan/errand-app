@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Camera, Lock, Phone, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
@@ -12,6 +12,7 @@ import { decodeCallLog } from "@/lib/call-rules";
 import { prepareChatImage, sendChat } from "./actions";
 import { CallPanel } from "./call-panel";
 import { VoiceRecorder, type VoiceRecorderHandle } from "./voice-recorder";
+import { Ico } from "@/components/icon";
 
 /**
  * The conversation: messages, composer and photo button. New messages arrive through Supabase
@@ -107,7 +108,7 @@ export function ChatRoom({
     <div className="flex flex-1 flex-col gap-3">
       {!callsAvailable && !textOnly && <p className="rounded-input bg-fill p-3 text-sm text-ink-2">{t("call.temporarilyUnavailable")}</p>}
       {!textOnly && canCall && <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />}
-      <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">🔒 {t("chat.safety")}</p>
+      <p className="rounded-input bg-warn-bg p-3 text-sm text-warn"><Ico as={Lock} size={16} /> {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
         {messages.length === 0 && <li className="py-8 text-center text-[15px] text-ink-2">{t("chat.empty")}</li>}
@@ -117,7 +118,7 @@ export function ChatRoom({
             const time = log.kind === "ended" ? `${Math.floor(log.seconds / 60)}:${String(log.seconds % 60).padStart(2, "0")}` : "";
             return (
               <li key={m.id} className="self-center rounded-full bg-fill px-3 py-1 text-sm text-ink-2">
-                {log.video ? "📹" : "📞"} {log.video ? `${t("call.log.video")} · ` : ""}
+                {log.video ? <Ico as={Video} size={16} /> : <Ico as={Phone} size={16} />} {log.video ? `${t("call.log.video")} · ` : ""}
                 {t(`call.log.${log.kind}`, { time })} · {fmtClock(m.at)}
               </li>
             );
@@ -171,7 +172,7 @@ export function ChatRoom({
           {!recording && (
           <>
           {!textOnly && <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
-            📷
+            <Ico as={Camera} size={22} />
           </button>}
           <label className="sr-only" htmlFor="chat-text">
             {t("chat.placeholder")}

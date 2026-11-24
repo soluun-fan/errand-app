@@ -23,7 +23,7 @@ export function CareCheckOut({ dealId, done }: { dealId: string; done: boolean }
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line bg-bg p-4">
+    <div className="flex flex-col gap-3 rounded-card bg-bg shadow-card p-4">
       <div>
         <p className="font-semibold">
           {t("care.checkOutTitle")} {done && <span className="text-held">· {t("proof.done")}</span>}
@@ -32,7 +32,7 @@ export function CareCheckOut({ dealId, done }: { dealId: string; done: boolean }
       </div>
       {!done && (
         <button type="button" disabled={busy} onClick={go} className={`${btn.primary} w-full`}>
-          {busy ? t("proof.uploading") : `📍 ${t("care.checkOut")}`}
+          {busy ? t("proof.uploading") : t("care.checkOut")}
         </button>
       )}
       {error && (

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fmtCountdown } from "@/lib/format";
+import { Timer } from "lucide-react";
 
 /**
  * Live countdown on server time: `serverNow` is the server's clock when the page rendered,
@@ -38,7 +39,7 @@ export function Countdown({ until, serverNow, template, pill = false }: { until:
       role="timer"
       aria-live="off"
     >
-      {pill && <span aria-hidden>⏱</span>}
+      {pill && <Timer aria-hidden size={14} className="shrink-0" />}
       {text}
     </span>
   );

@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { APP_NAME } from "@/lib/brand";
+import { APP_MARK, APP_NAME } from "@/lib/brand";
 import Link from "next/link";
 import type { T } from "@/i18n";
 import { NavLink } from "./nav-link";
@@ -14,7 +14,7 @@ export function WebNav({ t, name, helper }: { t: T; name: string; helper: boolea
     <header className="sticky top-0 z-30 hidden border-b border-line bg-bg/95 backdrop-blur md:block">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center gap-6 px-6">
         <Link href="/" className="flex items-center gap-2 text-[19px] font-extrabold tracking-tight">
-          <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">T</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
           {APP_NAME}
         </Link>
         <nav className="flex items-center gap-1 text-[15px]">

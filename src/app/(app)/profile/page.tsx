@@ -1,4 +1,4 @@
-import { ChevronRight, Heart, UserRound } from "lucide-react";
+import { AlarmClock, Briefcase, ChevronRight, CircleHelp, Heart, House, IdCard, Landmark, LifeBuoy, MapPin, ScrollText, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
 import { TodoCard } from "@/components/todo-card";
 import { helperTodos } from "@/lib/todo";
 import Link from "next/link";
@@ -18,8 +18,9 @@ import { OPEN_CATEGORIES } from "@/lib/engine";
 import { closeMyAccount, removeAddress } from "./actions";
 import { ConfirmSheet } from "@/components/sheet";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { Ico } from "@/components/icon";
 
-const KIND_ICON = { home: "🏠", work: "💼", other: "📍" } as const;
+const KIND_ICON = { home: <House aria-hidden size={22} />, work: <Briefcase aria-hidden size={22} />, other: <MapPin aria-hidden size={22} /> } as const;
 
 function Segmented({ name, value, options, action }: { name: string; value: string; options: [string, string][]; action: (f: FormData) => Promise<void> }) {
   return (
@@ -52,6 +53,14 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
     </div>
   );
 
+  const menuRow = (href: string, icon: LucideIcon, label: string) => (
+    <Link href={href} className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
+      <Ico as={icon} size={18} className="text-brand-ink" />
+      <span className="flex-1 font-semibold">{label}</span>
+      <ChevronRight aria-hidden size={18} className="text-ink-2" />
+    </Link>
+  );
+
   return (
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("profile.title")} />
@@ -64,36 +73,6 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
           <WorkKinds all={OPEN_CATEGORIES} mine={profile.categories} />
         </section>
       )}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[17px] font-bold">{t("org.my")}</h2>
-        {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
-        {orgs.filter((o) => o.status === "pending" || o.status === "approved").map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
-          <span className="block font-semibold">{o.name}</span><span className="text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
-        </Link>)}
-        {/* closed or refused companies stay reachable, folded away */}
-        {orgs.some((o) => o.status === "suspended" || o.status === "rejected") && (
-          <details className="rounded-card bg-bg px-4 py-3 shadow-card">
-            <summary className="cursor-pointer text-[15px] font-semibold text-ink-2">
-              {t("org.closedCount", { n: orgs.filter((o) => o.status === "suspended" || o.status === "rejected").length })}
-            </summary>
-            <div className="mt-2 flex flex-col">
-              {orgs.filter((o) => o.status === "suspended" || o.status === "rejected").map((o) => (
-                <Link key={o.id} href={`/orgs/${o.id}`} className="flex justify-between gap-3 border-t border-line py-2.5 text-[15px]">
-                  <span className="min-w-0 truncate">{o.name}</span>
-                  <span className="flex-none text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
-                </Link>
-              ))}
-            </div>
-          </details>
-        )}
-        {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
-        <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
-        {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && <Link href="/helper/bank" className={btn.secondary}>{t("payout.title")}</Link>}
-        {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/certificates" className={btn.secondary}>{t("cert.title")}</Link>}
-        {actor.helperApproved && !unverifiedHelpersTestMode && <Link href="/helper/badges" className={btn.secondary}>{t("badges.title")}</Link>}
-        {(actor.helperApproved || viewer.profile.helper_status === "approved") && <Link href="/helper/record" className={btn.secondary}>{t("standards.recordTitle")}</Link>}
-        <Link href="/support" className={btn.secondary}>{t("support.title")}</Link>
-      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-ink-2">{t("mode.label")}</h2>
@@ -116,24 +95,16 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
           row(t("profile.helperStatus"), actor.helperApproved ? profile.kyc_level < 3 ? t("kyc.badgeUnverified") : t("profile.helperApproved") : t(`helper.${profile.helper_status === "pending" ? "inReview" : "needed"}`))}
       </Card>
 
-      {/* people: my saved helpers (customer) · my public profile (approved helper) */}
-      {(mode === "customer" || actor.helperApproved) && (
-      <nav className="flex flex-col rounded-card bg-bg shadow-card">
-        {mode === "customer" && (
-          <Link href="/helpers?saved=1" className="press flex min-h-14 items-center gap-3 border-b border-line px-4 last:border-b-0">
-            <Heart aria-hidden size={18} className="text-brand-ink" />
-            <span className="flex-1 font-semibold">{t("helperProfile.savedTitle")}</span>
-            <ChevronRight aria-hidden size={18} className="text-ink-2" />
-          </Link>
-        )}
-        {actor.helperApproved && (
-          <Link href={`/helpers/${profile.id}`} className="press flex min-h-14 items-center gap-3 px-4">
-            <UserRound aria-hidden size={18} className="text-brand-ink" />
-            <span className="flex-1 font-semibold">{t("helperProfile.title")}</span>
-            <ChevronRight aria-hidden size={18} className="text-ink-2" />
-          </Link>
-        )}
-      </nav>
+      {/* one menu of places to go: people, then (helpers) payout, papers and record */}
+      {(mode === "customer" || actor.helperApproved || viewer.profile.helper_status === "approved") && (
+        <nav className="flex flex-col rounded-card bg-bg shadow-card">
+          {mode === "customer" && menuRow("/helpers?saved=1", Heart, t("helperProfile.savedTitle"))}
+          {actor.helperApproved && menuRow(`/helpers/${profile.id}`, UserRound, t("helperProfile.title"))}
+          {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && menuRow("/helper/bank", Landmark, t("payout.title"))}
+          {(actor.helperApproved || viewer.profile.helper_status === "approved") && menuRow("/helper/record", AlarmClock, t("standards.recordTitle"))}
+          {actor.helperApproved && !unverifiedHelpersTestMode && menuRow("/helper/certificates", ScrollText, t("cert.title"))}
+          {actor.helperApproved && !unverifiedHelpersTestMode && menuRow("/helper/badges", IdCard, t("badges.title"))}
+        </nav>
       )}
 
       {mode === "customer" && (
@@ -142,7 +113,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
           {addresses.length === 0 ? (
             <p className="text-[15px] text-ink-2">{t("profile.addressesEmpty")}</p>
           ) : (
-            <ul className="flex flex-col rounded-card border border-line bg-bg">
+            <ul className="flex flex-col rounded-card bg-bg shadow-card">
               {addresses.map((a) => {
                 const label = a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`);
                 const bits = [
@@ -180,12 +151,38 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
 
       {profile.role === "admin" && (
         <Link href="/ops" className={`${btn.secondary} w-full`}>
-          🛡️ {t("opsHome.title")}
+          <Ico as={ShieldCheck} /> {t("opsHome.title")}
         </Link>
       )}
-      <Link href="/help" className={`${btn.secondary} w-full`}>
-        {t("profile.help")}
-      </Link>
+      <nav className="flex flex-col rounded-card bg-bg shadow-card">
+        {menuRow("/support", LifeBuoy, t("support.title"))}
+        {menuRow("/help", CircleHelp, t("profile.help"))}
+      </nav>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-ink-2">{t("org.my")}</h2>
+        {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
+        {orgs.filter((o) => o.status === "pending" || o.status === "approved").map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
+          <span className="block font-semibold">{o.name}</span><span className="text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+        </Link>)}
+        {/* closed or refused companies stay reachable, folded away */}
+        {orgs.some((o) => o.status === "suspended" || o.status === "rejected") && (
+          <details className="rounded-card bg-bg px-4 py-3 shadow-card">
+            <summary className="cursor-pointer text-[15px] font-semibold text-ink-2">
+              {t("org.closedCount", { n: orgs.filter((o) => o.status === "suspended" || o.status === "rejected").length })}
+            </summary>
+            <div className="mt-2 flex flex-col">
+              {orgs.filter((o) => o.status === "suspended" || o.status === "rejected").map((o) => (
+                <Link key={o.id} href={`/orgs/${o.id}`} className="flex justify-between gap-3 border-t border-line py-2.5 text-[15px]">
+                  <span className="min-w-0 truncate">{o.name}</span>
+                  <span className="flex-none text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+                </Link>
+              ))}
+            </div>
+          </details>
+        )}
+        {memberships.filter((m) => !orgs.some((o) => o.id === m.orgId)).map((m) => <Membership key={m.orgId} invitation={m} pending={false} />)}
+        <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
+      </section>
       {/* the documents they agreed to, always one tap away */}
       <nav aria-label={t("legal.docs")} className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[14px]">
         <Link href="/terms" className="font-medium text-ink-2 underline underline-offset-2">{t("legal.termsTitle")}</Link>

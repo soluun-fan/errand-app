@@ -6,3 +6,6 @@
  */
 export const APP_NAME = "Guigere";
 export const APP_NAME_LATIN = "Guigere";
+
+/** The letter in the orange app mark (login, top bars, footer). */
+export const APP_MARK = APP_NAME_LATIN.charAt(0).toUpperCase();

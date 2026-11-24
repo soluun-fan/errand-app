@@ -1,5 +1,5 @@
 import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
-import { APP_NAME } from "@/lib/brand";
+import { APP_MARK, APP_NAME } from "@/lib/brand";
 import { kindCovers } from "@/lib/covers";
 import { latestWork } from "@/lib/work-photos";
 import { WorkCard } from "@/components/work-photos";
@@ -80,7 +80,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
           <div className={`${wrap} flex min-h-16 items-center gap-6`}>
             <Link href="/welcome" className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">T</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
               {APP_NAME}
             </Link>
             <nav className="hidden items-center gap-6 text-[15px] text-ink-2 md:flex">
@@ -260,7 +260,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           <div className={`${wrap} grid gap-8 md:grid-cols-[1fr_1fr_1.2fr]`}>
             <div className="flex flex-col gap-3">
               <span className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
-                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">T</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">{APP_MARK}</span>
                 {APP_NAME}
               </span>
               <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>

@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { Heart, Search } from "lucide-react";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { HelperCard } from "@/components/helper-card";
@@ -69,7 +69,7 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
         ))}
       </nav>
       {people.length === 0 ? (
-        <EmptyState icon={onlySaved ? "♡" : "🔎"} title={onlySaved ? t("helperProfile.savedEmpty") : t("web.noHelpers")} body={onlySaved ? t("helperProfile.savedEmptyBody") : undefined} />
+        <EmptyState icon={onlySaved ? <Heart aria-hidden size={28} /> : <Search aria-hidden size={28} />} title={onlySaved ? t("helperProfile.savedEmpty") : t("web.noHelpers")} body={onlySaved ? t("helperProfile.savedEmptyBody") : undefined} />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {people.map((h) => (

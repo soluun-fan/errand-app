@@ -1,4 +1,4 @@
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, Lock, X } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TONE_CLASS, type Tone } from "@/lib/labels";
@@ -46,7 +46,7 @@ export function Note({ tone, children, className = "" }: { tone: Tone; children:
 export function HeldBadge({ children }: { children: ReactNode }) {
   return (
     <p className="inline-flex items-center gap-2 self-start rounded-full bg-held-bg px-3 py-1.5 text-sm font-semibold text-held">
-      <span aria-hidden>🔒</span>
+      <Lock aria-hidden size={14} className="shrink-0" />
       {children}
     </p>
   );
@@ -100,11 +100,11 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div aria-hidden className={`animate-pulse rounded-card bg-fill ${className}`} />;
 }
 
-export function EmptyState({ icon, title, body, action }: { icon?: string; title: string; body?: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; title: string; body?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
       {icon && (
-        <span aria-hidden className="mb-1 flex h-16 w-16 items-center justify-center rounded-full bg-fill text-3xl">
+        <span aria-hidden className="mb-1 flex h-16 w-16 items-center justify-center rounded-full bg-fill text-3xl text-ink-2">
           {icon}
         </span>
       )}

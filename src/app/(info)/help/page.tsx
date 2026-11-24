@@ -4,6 +4,8 @@ import { CATEGORIES, lowestMinFee } from "@/lib/engine";
 import { getT } from "@/i18n/server";
 import { fmtMoney } from "@/lib/format";
 import { pricingConfig } from "@/lib/pricing";
+import { Lock } from "lucide-react";
+import { Ico } from "@/components/icon";
 
 /** "How it works" — the plain-words explanation, with the formal terms at the end (UI-FLOWS §0.6). */
 export default async function HelpPage() {
@@ -16,14 +18,14 @@ export default async function HelpPage() {
       <h1 className="text-[24px] font-bold tracking-tight">{t("help.title")}</h1>
       <ol className="flex flex-col gap-2">
         {(["s1", "s2", "s3"] as const).map((k, i) => (
-          <li key={k} className="flex gap-3 rounded-card border border-line bg-bg p-4">
+          <li key={k} className="flex gap-3 rounded-card bg-bg shadow-card p-4">
             <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-brand-bg text-sm font-bold text-brand-ink">{i + 1}</span>
             <span className="text-[15px]">{t(`help.${k}`, { amount: fmtMoney(lowestMinFee(CATEGORIES.map((c) => c.id), cfg)), hours: cfg.errandCheckHours })}</span>
           </li>
         ))}
       </ol>
       <Card>
-        <h2 className="font-bold">🔒 {t("help.protectTitle")}</h2>
+        <h2 className="font-bold"><Ico as={Lock} /> {t("help.protectTitle")}</h2>
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[15px]">
           <li>{t("help.protect1")}</li>
           <li>{t("help.protect2")}</li>
