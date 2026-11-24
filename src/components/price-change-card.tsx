@@ -27,7 +27,9 @@ export function PriceChangeCard({
   pay: ReactNode | null;
   t: T;
 }) {
-  if (deal.status !== "matched" && deal.status !== "in_progress") return null;
+  if (deal.status !== "matched" && deal.status !== "in_progress" && deal.status !== "check") return null;
+  // after "done" (2026-11-24): settle a problem between you first — only a lower price, by agreement
+  const settle = deal.status === "check";
   const fields = { dealId: deal.id };
   const pc = deal.priceChange && deal.priceChange.status !== "paid" ? deal.priceChange : null;
   const proposeSheet = (label: string, start: number) => (
@@ -36,8 +38,8 @@ export function PriceChangeCard({
       fields={{ ...fields, intent: "propose_price" }}
       trigger={label}
       triggerClass={`${btn.text} min-h-10 px-1 text-brand-ink`}
-      title={t("priceChange.title")}
-      body={t("priceChange.body", { amount: fmtMoney(deal.fee), name: otherName })}
+      title={settle ? t("settle.title") : t("priceChange.title")}
+      body={settle ? t(me === "customer" ? "settle.bodyCustomer" : "settle.bodyHelper", { amount: fmtMoney(deal.fee), name: otherName }) : t("priceChange.body", { amount: fmtMoney(deal.fee), name: otherName })}
       confirmLabel={t("price.counterSend")}
     >
       <label className={fieldLabel}>
@@ -48,6 +50,11 @@ export function PriceChangeCard({
   );
 
   if (!pc) {
+    if (settle) {
+      // a sensible first offer: 20% off, rounded to 500₮
+      const start = Math.max(0, Math.round((deal.fee * 0.8) / 500) * 500);
+      return <div className="flex justify-center">{proposeSheet(t(me === "customer" ? "settle.offer" : "settle.offerHelper"), start)}</div>;
+    }
     return <div className="flex justify-center">{proposeSheet(t("priceChange.propose"), deal.fee)}</div>;
   }
 
@@ -69,6 +76,7 @@ export function PriceChangeCard({
         <>
           <p className="text-[16px] font-semibold">{t("priceChange.youProposed", { amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
           <p className="text-[14px] text-ink-2">{t("priceChange.waiting", { name: otherName })}</p>
+          {settle && <p className="text-[13px] text-ink-2">{t("settle.deadline")}</p>}
           <InlineAction action={action} fields={{ ...fields, intent: "withdraw_price" }} label={t("priceChange.withdraw")} className={`${btn.text} self-center`} />
         </>
       ) : (
@@ -86,6 +94,7 @@ export function PriceChangeCard({
             <InlineAction action={action} fields={{ ...fields, intent: "answer_price", accept: "1" }} label={t("priceChange.accept")} className={`${btn.small} w-full`} />
           </div>
           <div className="flex justify-center">{proposeSheet(t("priceChange.answerOther"), pc.fee)}</div>
+          {settle && <p className="text-[13px] text-ink-2">{t("settle.deadline")}</p>}
         </>
       )}
     </section>

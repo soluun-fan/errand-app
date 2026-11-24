@@ -162,6 +162,10 @@ export interface EngineConfig {
   arriveMinutes: number;
   /** …late after this much more; then the customer may cancel free or get another helper. */
   lateGraceMinutes: number;
+  /** After "done", a partial-refund offer the other side hasn't answered goes to Ops after this long. */
+  settleHours: number;
+  absentGraceMinutes: number;
+  maxDelayMinutes: number;
   titleMax: number;
   descriptionMax: number;
   /** Carrying up stairs without a lift: per floor above the first. */
@@ -235,6 +239,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
   backOutGraceMinutes: 10,
   arriveMinutes: 45,
   lateGraceMinutes: 15,
+  settleHours: 24,
+  absentGraceMinutes: 10,
+  maxDelayMinutes: 30,
   titleMax: 40,
   descriptionMax: 500,
   carryPerFloor: 1500,

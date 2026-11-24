@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
       eq(key: string, value: unknown) { query.filters.push([key, value]); return builder; },
       in(key: string, value: unknown) { query.filters.push([key, value]); return builder; },
       maybeSingle() { return builder; },
+      returns() { return builder; },
       throwOnError() { throws = true; return builder; },
       then(resolve: (r: unknown) => unknown, reject: (e: unknown) => unknown) {
         const result = results.shift();
@@ -68,9 +69,9 @@ it("preserves online presence when the optional tracking table is unavailable", 
 });
 
 it("updates online presence and records running jobs for the authenticated helper only", async () => {
-  results.push({ data: { online: true } }, { data: [{ deal_id: "shared-job" }] }, { data: null });
+  results.push({ data: { online: true } }, { data: [{ deal_id: "shared-job", deals: { status: "in_progress", en_route_at: null } }, { deal_id: "not-yet", deals: { status: "matched", en_route_at: null } }] }, { data: null });
   await saveWorkerLocation("helper", { lat: 47.92, lng: 106.92 });
-  expect(queries[1].filters).toContainEqual(["deals.status", "in_progress"]);
+  expect(queries[1].filters).toContainEqual(["deals.status", ["in_progress", "matched"]]);
   expect(queries[1].filters).toContainEqual(["deals.helper_id", "helper"]);
   expect(queries[2]).toMatchObject({ operation: "update", filters: [["user_id", "helper"], ["online", true]] });
   expect(rpcs).toEqual([{ fn: "record_job_position", args: { p_helper: "helper", p_lat: 47.92, p_lng: 106.92 } }]);

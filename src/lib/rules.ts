@@ -58,6 +58,9 @@ export interface PlatformRules {
   sosRepingMinutes: number;
   sosRepingForMinutes: number;
   chatRetentionDays: number;
+  settleHours: number;
+  absentGraceMinutes: number;
+  maxDelayMinutes: number;
 }
 
 interface Row {
@@ -103,6 +106,9 @@ interface Row {
   sos_reping_minutes?: number;
   sos_reping_for_minutes?: number;
   chat_retention_days?: number;
+  settle_hours?: number;
+  absent_grace_minutes?: number;
+  max_delay_minutes?: number;
 }
 
 /** Waves as stored, checked; anything odd falls back to the built-in waves (never breaks dispatch). */
@@ -164,6 +170,9 @@ export async function getRules(): Promise<PlatformRules> {
     sosRepingMinutes: data.sos_reping_minutes ?? 2,
     sosRepingForMinutes: data.sos_reping_for_minutes ?? 30,
     chatRetentionDays: data.chat_retention_days ?? 90,
+    settleHours: data.settle_hours ?? 24,
+    absentGraceMinutes: data.absent_grace_minutes ?? 10,
+    maxDelayMinutes: data.max_delay_minutes ?? 30,
   };
 }
 
@@ -215,6 +224,9 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       sos_reping_minutes: next.sosRepingMinutes,
       sos_reping_for_minutes: next.sosRepingForMinutes,
       chat_retention_days: next.chatRetentionDays,
+      settle_hours: next.settleHours,
+      absent_grace_minutes: next.absentGraceMinutes,
+      max_delay_minutes: next.maxDelayMinutes,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

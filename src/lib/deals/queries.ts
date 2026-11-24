@@ -18,7 +18,9 @@ async function settle(deal: Deal): Promise<Deal> {
   const cmd = dueCommand(deal, Date.now());
   if (!cmd) return deal;
   try {
-    return (await runCommand(createAdminClient(), deal.id, cmd, SYSTEM)).deal;
+    const after = (await runCommand(createAdminClient(), deal.id, cmd, SYSTEM)).deal;
+    await tellAboutAutomatic(cmd.type, after).catch((e) => console.error("automatic notice failed", e));
+    return after;
   } catch {
     // Someone else (another request or the job) settled it first; just reload.
     return (await loadDeal(createAdminClient(), deal.id)) ?? deal;
@@ -29,13 +31,15 @@ async function settle(deal: Deal): Promise<Deal> {
 export async function settleDueDeals(now = Date.now()): Promise<number> {
   const db = createAdminClient();
   const iso = new Date(now).toISOString();
-  const [a, b, c] = await Promise.all([
+  const [a, b, c, d] = await Promise.all([
     db.from("deals").select("*").eq("type", "errand").eq("status", "awaiting_payment").lte("pay_by", iso).limit(200),
     db.from("deals").select("*").eq("type", "errand").eq("status", "open").lte("match_by", iso).limit(200),
     db.from("deals").select("*").eq("status", "check").lte("check_until", iso).limit(200),
+    // "customer isn't here" countdowns (the engine decides whether the time is up)
+    db.from("deals").select("*").eq("type", "errand").eq("status", "in_progress").not("absent_at", "is", null).limit(200),
   ]);
   let n = 0;
-  for (const row of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? [])] as DealRow[]) {
+  for (const row of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? []), ...(d.data ?? [])] as DealRow[]) {
     const deal = dealFromRow(row);
     const after = await settle(deal);
     if (after.version !== deal.version) n++;
@@ -318,4 +322,18 @@ export async function myApplications(helperId: string): Promise<JobListItem[]> {
     .returns<{ deal_id: string }[]>();
   const deals = await dealsByIds((data ?? []).map((o) => o.deal_id));
   return [...deals.values()].map((deal) => ({ deal, distanceKm: null }));
+}
+
+/** Pushes for what the background job decided on its own (2026-11-24): no-show cancels, escalated offers. */
+async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
+  if (d.type !== "errand" || !d.helperId) return;
+  const { notify } = await import("@/lib/push");
+  if (type === "absent_cancel") {
+    await notify([d.customerId], { title: "push.absentCancelledTitle", body: "push.absentCancelledCustomer", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` });
+    await notify([d.helperId], { title: "push.absentCancelledTitle", body: "push.absentCancelledHelper", params: { title: d.title }, url: `/jobs/${d.id}`, tag: `job-${d.id}` });
+  } else if (type === "escalate_offer") {
+    const { adminIds } = await import("@/lib/safety");
+    await notify([d.customerId, d.helperId], { title: "push.offerEscalatedTitle", body: "push.offerEscalatedBody", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` });
+    await notify(await adminIds(), { title: "push.offerEscalatedTitle", body: "push.offerEscalatedOps", params: { title: d.title }, url: "/ops", tag: `dispute-${d.id}` });
+  }
 }

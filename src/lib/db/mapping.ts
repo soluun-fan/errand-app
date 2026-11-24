@@ -64,6 +64,9 @@ export interface DealRow {
   invite_open_after?: boolean | null;
   handover_proof_at: string | null;
   assigned_at?: string | null;
+  en_route_at?: string | null;
+  arrive_extend_minutes?: number | null;
+  absent_at?: string | null;
   pay_mode?: string | null;
   price: number | null;
   buyer_fee: number | null;
@@ -235,6 +238,9 @@ export function dealFromRow(row: DealRow, offers: OfferRow[] = [], dispute: Disp
           : null,
       handoverProofAt: toMs(row.handover_proof_at),
       assignedAt: toMs(row.assigned_at ?? null),
+      enRouteAt: toMs(row.en_route_at ?? null),
+      arriveExtendMinutes: Number(row.arrive_extend_minutes ?? 0),
+      absentAt: toMs(row.absent_at ?? null),
       payMode: row.pay_mode === "direct" ? "direct" : "held",
     };
     return d;
@@ -343,6 +349,9 @@ export function dealToRow(d: Deal): DealRow {
       invite_open_after: d.invite?.openAfter ?? true,
       handover_proof_at: toIso(d.handoverProofAt),
       assigned_at: toIso(d.assignedAt),
+      en_route_at: toIso(d.enRouteAt ?? null),
+      arrive_extend_minutes: d.arriveExtendMinutes ?? 0,
+      absent_at: toIso(d.absentAt ?? null),
       pay_mode: d.payMode,
     };
   }

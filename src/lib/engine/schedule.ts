@@ -1,4 +1,5 @@
-import { apply } from "./deal";
+import { HOUR_MS, MINUTE_MS } from "./config";
+import { apply, ruleOf } from "./deal";
 import type { Command, Deal, Transition } from "./types";
 
 /**
@@ -8,7 +9,15 @@ import type { Command, Deal, Transition } from "./types";
  * - matched but unpaid past its payment window → expire (helper released; back to searching, or expired)
  */
 export function dueCommand(deal: Deal, now: number): Command | null {
+  // after "done", an open partial-refund offer holds the release; unanswered for long, Ops decides
+  if (deal.type === "errand" && deal.status === "check" && deal.priceChange?.status === "proposed") {
+    return now >= deal.priceChange.at + ruleOf(deal, "settleHours") * HOUR_MS ? { type: "escalate_offer" } : null;
+  }
   if (deal.status === "check" && deal.checkUntil !== null && now >= deal.checkUntil) return { type: "auto_release" };
+  // "customer isn't here" and no answer in time: cancelled, the helper is paid the trip
+  if (deal.type === "errand" && deal.status === "in_progress" && deal.absentAt && now >= deal.absentAt + ruleOf(deal, "absentGraceMinutes") * MINUTE_MS) {
+    return { type: "absent_cancel" };
+  }
   if (deal.type === "errand" && deal.status === "open" && deal.matchBy !== null && now >= deal.matchBy) {
     return { type: "expire" };
   }

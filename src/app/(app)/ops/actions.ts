@@ -311,6 +311,9 @@ const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves" | "payMod
   sosRepingMinutes: [1, 30],
   sosRepingForMinutes: [5, 240],
   chatRetentionDays: [7, 730],
+  settleHours: [1, 168],
+  absentGraceMinutes: [3, 60],
+  maxDelayMinutes: [0, 120],
 };
 
 export async function saveRules(_prev: ActionResult, form: FormData): Promise<ActionResult> {

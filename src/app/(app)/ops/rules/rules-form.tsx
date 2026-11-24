@@ -32,6 +32,9 @@ const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "standards" 
     fields: [
       ["arriveMinutes", "min"],
       ["lateGraceMinutes", "min"],
+      ["maxDelayMinutes", "min"],
+      ["absentGraceMinutes", "min"],
+      ["settleHours", "h"],
       ["arriveRadiusM", "m"],
       ["positionMaxAgeSeconds", "sec"],
       ["locationStaleMinutes", "min"],

@@ -5,12 +5,13 @@ import { Countdown } from "@/components/countdown";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
 import { OfferCard, type OfferPerson } from "@/components/offer-card";
 import { ConfirmSheet, type FormAction } from "@/components/sheet";
+import { InlineAction } from "@/components/inline-action";
 import { StatusBadge } from "@/components/status-badge";
 import { StepTracker } from "@/components/step-tracker";
 import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, arriveBy, autoPickAt, categoryTrust, errandSplit, helperLate, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
+import { amountDue, arriveBy, autoPickAt, categoryTrust, errandSplit, helperLate, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
 import { fmtClock, fmtDateTime, fmtMoney } from "@/lib/format";
 import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
 import { CustomerTaskMap } from "@/components/customer-task-map";
@@ -862,12 +863,24 @@ export function DealView(p: DealViewProps) {
       </DetailSection>
 
       {deal.status === "matched" && arriveBy(deal) !== null && (
-        <div className="px-5 pt-2">
+        <div className="flex flex-col gap-2 px-5 pt-2">
           <Note tone={helperLate(deal, Date.now()) ? "warn" : "info"}>
             {helperLate(deal, Date.now())
               ? t("standards.customerLate", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })
               : t("standards.customerArriveBy", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })}
+            {deal.enRouteAt && !helperLate(deal, Date.now()) ? ` ${t("noShow.customerEnRoute", { helper: helperName })}` : ""}
           </Note>
+          {(deal.arriveExtendMinutes ?? 0) > 0 && !helperLate(deal, Date.now()) && (
+            <Note tone="grey">{t("noShow.customerDelay", { helper: helperName, n: deal.arriveExtendMinutes ?? 0 })}</Note>
+          )}
+        </div>
+      )}
+      {isCustomer && deal.status === "in_progress" && deal.absentAt && (
+        <div className="flex flex-col gap-2 px-5 pt-2">
+          <Note tone="bad">
+            {t("noShow.customerAsked", { helper: helperName, time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000), fee: fmtMoney(deal.cancelFee) })}
+          </Note>
+          <InlineAction action={p.action} fields={{ ...fields, intent: "customer_present" }} label={t("noShow.imHere")} className={`${btn.primary} w-full`} />
         </div>
       )}
 

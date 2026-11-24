@@ -325,8 +325,45 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         <div className="mx-auto w-full max-w-2xl px-5 pt-3">
           <Note tone={helperLate(deal, now) ? "bad" : "info"}>
             <span className="font-semibold">{t("standards.arriveBy", { time: fmtClock(arriveBy(deal) as number) })}</span>{" "}
-            {helperLate(deal, now) ? t("standards.youAreLate") : t("standards.arriveHint")}
+            {helperLate(deal, now) ? t("standards.youAreLate") : deal.enRouteAt ? t("noShow.enRouteNote") : t("standards.arriveHint")}
           </Note>
+          {/* "On my way" shares the helper's location from now; "Need more time?" for traffic (2026-11-24) */}
+          {!helperLate(deal, now) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {!deal.enRouteAt && <InlineAction action={jobAction} fields={{ dealId: deal.id, intent: "on_my_way" }} label={t("noShow.onMyWay")} className={btn.small} />}
+              {[15, 30]
+                .filter((m) => (deal.arriveExtendMinutes ?? 0) + m <= ruleOf(deal, "maxDelayMinutes"))
+                .map((m) => (
+                  <ConfirmSheet
+                    key={m}
+                    action={jobAction}
+                    fields={{ dealId: deal.id, intent: "need_time", minutes: String(m) }}
+                    trigger={t("noShow.needTime", { n: m })}
+                    triggerClass={btn.secondary}
+                    title={t("noShow.needTimeTitle", { n: m })}
+                    body={t("noShow.needTimeBody", { time: fmtClock((arriveBy(deal) as number) + m * 60_000) })}
+                    confirmLabel={t("noShow.needTimeGo")}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+      {mine && deal.status === "in_progress" && deal.location && (
+        <div className="mx-auto w-full max-w-2xl px-5 pt-3">
+          {deal.absentAt ? (
+            <Note tone="warn">{t("noShow.waiting", { time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000) })}</Note>
+          ) : (
+            <ConfirmSheet
+              action={jobAction}
+              fields={{ dealId: deal.id, intent: "customer_absent" }}
+              trigger={t("noShow.report")}
+              triggerClass={btn.text}
+              title={t("noShow.reportTitle")}
+              body={t("noShow.reportBody", { minutes: ruleOf(deal, "absentGraceMinutes"), fee: fmtMoney(deal.cancelFee) })}
+              confirmLabel={t("noShow.reportGo")}
+            />
+          )}
         </div>
       )}
       {(["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status)) && <AutoRefresh seconds={10} />}

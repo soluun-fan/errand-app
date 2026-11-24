@@ -176,6 +176,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           cmd = (CANCEL_REASONS as readonly string[]).includes(reason) ? { type: "cancel", reason } : { type: "cancel" };
         }
         else if (intent === "replace_helper") cmd = { type: "replace_helper" };
+        else if (intent === "customer_present") cmd = { type: "customer_present" };
         else if (intent === "choose") cmd = { type: "choose", helperId: String(form.get("helperId") ?? "") };
         else if (intent === "answer_price") cmd = { type: "answer_price", accept: form.get("accept") === "1" };
         else if (intent === "withdraw_price") cmd = { type: "withdraw_price" };
@@ -229,6 +230,9 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           await runDispatch(dealId);
         }
         if (cmd.type === "open_to_all") await runDispatch(dealId); // the first wave goes out now
+        if (cmd.type === "customer_present" && r.deal.type === "errand" && r.deal.helperId) {
+          await notify([r.deal.helperId], { title: "push.presentTitle", body: "push.presentBody", params: { title: r.deal.title }, url: `/jobs/${dealId}`, tag: `job-${dealId}` }).catch(() => undefined);
+        }
         // "want to raise the price?": tell helpers again, now with the higher price
         if (cmd.type === "set_price" && form.get("raise") === "1") await resendAfterRaise(dealId).catch((e) => console.error("resend after raise failed", e));
         if ((cmd.type === "propose_price" || cmd.type === "answer_price") && r.deal.type === "errand" && r.deal.helperId) {

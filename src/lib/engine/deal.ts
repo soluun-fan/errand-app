@@ -318,6 +318,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     autoPickMinutes: cfg.autoPickMinutes,
     arriveMinutes: cfg.arriveMinutes,
     lateGraceMinutes: cfg.lateGraceMinutes,
+    settleHours: cfg.settleHours,
+    absentGraceMinutes: cfg.absentGraceMinutes,
+    maxDelayMinutes: cfg.maxDelayMinutes,
   };
   const freeFirst = input.firstTask === true && cfg.firstTaskFree;
   if (freeFirst) details.freeFirst = true; // shown in the money breakdown
@@ -357,6 +360,9 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     location,
     payBy: null,
     assignedAt: null,
+    enRouteAt: null,
+    arriveExtendMinutes: 0,
+    absentAt: null,
     details,
     itemBudget,
     fee: input.fee,
@@ -413,6 +419,9 @@ export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
     autoPickMinutes: DEFAULT_CONFIG.autoPickMinutes,
     arriveMinutes: DEFAULT_CONFIG.arriveMinutes,
     lateGraceMinutes: DEFAULT_CONFIG.lateGraceMinutes,
+    settleHours: DEFAULT_CONFIG.settleHours,
+    absentGraceMinutes: DEFAULT_CONFIG.absentGraceMinutes,
+    maxDelayMinutes: DEFAULT_CONFIG.maxDelayMinutes,
   };
   return fallback[key];
 }
@@ -423,7 +432,8 @@ export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
  */
 export function arriveBy(e: ErrandDeal): number | null {
   if (e.assignedAt === null) return null;
-  return Math.max(e.scheduledAt ?? 0, e.assignedAt + ruleOf(e, "arriveMinutes") * MINUTE_MS);
+  // "Need more time?" moves it (traffic happens in Ulaanbaatar; no late mark within the extra minutes)
+  return Math.max(e.scheduledAt ?? 0, e.assignedAt + ruleOf(e, "arriveMinutes") * MINUTE_MS) + (e.arriveExtendMinutes ?? 0) * MINUTE_MS;
 }
 
 /** Paid but not started well past the arrive-by time: the customer may cancel free or replace them. */
@@ -507,6 +517,9 @@ function reopenWithoutHelper(tx: Tx<Deal>, d: ErrandDeal, helperId: string, reas
 
 /** The match lapsed before payment (timeout or helper withdrew): back to searching. */
 function unassignHelper(e: ErrandDeal): void {
+  e.enRouteAt = null;
+  e.arriveExtendMinutes = 0;
+  e.absentAt = null;
   e.helperId = null;
   e.payeeOrgId = null;
   e.payBy = null;
@@ -821,6 +834,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
           } else if (d.status === "matched" && helperLate(d, ctx.now)) {
             // the helper didn't come: no cancellation fee for them, and it counts on their record
             tx.ev("helper_no_show", { helperId: d.helperId as string });
+          } else if (d.status === "matched" && (d.arriveExtendMinutes ?? 0) > 0) {
+            // the helper asked for more time and the customer would rather not wait: free, no mark
+            tx.ev("cancelled_after_delay", { helperId: d.helperId as string });
           } else if (d.status === "matched") {
             const helperId = d.helperId as string;
             const fee = Math.min(d.cancelFee, d.heldAmount);
@@ -946,9 +962,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const e = asErrand(d, "propose a new price for");
       const u = requireUser(ctx);
       const by = u.id === e.customerId ? "customer" : u.id === e.helperId ? "helper" : fail("FORBIDDEN", "Only the customer or the assigned helper can propose a price");
-      requireStatus(e, "propose a new price for", "matched", "in_progress");
+      requireStatus(e, "propose a new price for", "matched", "in_progress", "check");
       if (e.priceChange?.status === "awaiting_payment") fail("ILLEGAL_TRANSITION", "The agreed new price is waiting for payment");
-      checkPrice(e, cmd.price, ctx.now);
+      if (e.status === "check") {
+        // after "done" (2026-11-24, "settle it between you first"): only a lower price — a partial
+        // refund, by agreement — may be offered, down to 0; the minimum price doesn't apply
+        assertMoney(cmd.price, "price");
+        if (cmd.price >= e.fee) fail("INVALID_INPUT", "After the job only a lower price (a partial refund) can be offered");
+      } else checkPrice(e, cmd.price, ctx.now);
       if (cmd.price === e.fee) fail("INVALID_INPUT", "That is already the price");
       // a new proposal from either side replaces the last one (it's an answer, too)
       e.priceChange = { fee: cmd.price, from: e.fee, by, status: "proposed", providerRef: null, at: ctx.now };
@@ -959,12 +980,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
     case "answer_price": {
       const e = asErrand(d, "answer a price on");
       const u = requireUser(ctx);
-      requireStatus(e, "answer a price on", "matched", "in_progress");
+      requireStatus(e, "answer a price on", "matched", "in_progress", "check");
       const pc = e.priceChange;
       if (!pc || pc.status !== "proposed") fail("ILLEGAL_TRANSITION", "No price proposal to answer");
       const proposal = pc as PriceChange;
       const other = proposal.by === "customer" ? e.helperId : e.customerId;
       if (u.id !== other) fail("FORBIDDEN", "Only the other side can answer this price");
+      // after "done": whatever the answer, the customer gets the normal time again to confirm or report
+      if (e.status === "check") e.checkUntil = Math.max(e.checkUntil ?? 0, ctx.now + e.checkHours * HOUR_MS);
       if (!cmd.accept) {
         e.priceChange = null;
         tx.ev("price_declined", { price: proposal.fee });
@@ -1127,10 +1150,94 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       break;
     }
 
+    case "on_my_way": {
+      const e = asErrand(d, "set off for");
+      requireAssignedHelper(ctx, e);
+      requireStatus(e, "set off for", "matched");
+      if (e.enRouteAt) break; // pressing it twice changes nothing
+      e.enRouteAt = ctx.now;
+      tx.ev("en_route", { helperId: e.helperId as string });
+      break;
+    }
+
+    case "need_time": {
+      const e = asErrand(d, "ask for more time on");
+      requireAssignedHelper(ctx, e);
+      requireStatus(e, "ask for more time on", "matched");
+      if (!Number.isInteger(cmd.minutes) || cmd.minutes < 5 || cmd.minutes > 120) fail("INVALID_INPUT", "Minutes must be 5–120");
+      if (helperLate(e, ctx.now)) fail("ILLEGAL_TRANSITION", "Already late — the customer decides now");
+      const total = (e.arriveExtendMinutes ?? 0) + cmd.minutes;
+      if (total > ruleOf(e, "maxDelayMinutes")) fail("INVALID_INPUT", `At most ${ruleOf(e, "maxDelayMinutes")} extra minutes per job`);
+      e.arriveExtendMinutes = total;
+      tx.ev("helper_delay", { helperId: e.helperId as string, minutes: cmd.minutes });
+      break;
+    }
+
+    case "customer_absent": {
+      const e = asErrand(d, "report the customer absent on");
+      requireAssignedHelper(ctx, e);
+      requireStatus(e, "report the customer absent on", "in_progress");
+      if (e.absentAt) fail("ILLEGAL_TRANSITION", "Already reported; the customer is being asked");
+      e.absentAt = ctx.now;
+      tx.ev("customer_absent", { helperId: e.helperId as string });
+      break;
+    }
+
+    case "customer_present": {
+      const e = asErrand(d, "answer on");
+      const u = requireUser(ctx);
+      if (u.id !== e.customerId) fail("FORBIDDEN", "Only the customer can answer");
+      requireStatus(e, "answer on", "in_progress");
+      if (!e.absentAt) fail("ILLEGAL_TRANSITION", "Nothing to answer");
+      e.absentAt = null;
+      tx.ev("customer_responded");
+      break;
+    }
+
+    case "absent_cancel": {
+      // the customer never answered: the task ends; the helper is paid the trip fee and any shopping
+      // they already did, the rest goes back to the customer (2026-11-24, customer no-show)
+      const e = asErrand(d, "cancel");
+      requireKind(ctx, "system", "No-show cancel");
+      requireStatus(e, "cancel", "in_progress");
+      if (!e.absentAt || ctx.now < e.absentAt + ruleOf(e, "absentGraceMinutes") * MINUTE_MS) fail("ILLEGAL_TRANSITION", "The customer still has time to answer");
+      const helperId = e.helperId as string;
+      const payee = payable(e.payeeOrgId ?? helperId);
+      const spent = Math.min(e.receiptAmount ?? 0, e.itemBudget, e.heldAmount);
+      if (spent > 0) tx.fromHold("item_reimburse", spent, payee);
+      const fee = Math.min(e.cancelFee, e.heldAmount); // what's left after the shopping was reimbursed
+      if (fee > 0) tx.fromHold("cancel_fee", fee, payee);
+      refundAll(tx, "customer_absent");
+      if (e.priceChange?.status !== "paid") e.priceChange = null;
+      e.absentAt = null;
+      e.status = "cancelled";
+      tx.ev("cancel_fee_paid", e.payeeOrgId ? { amount: fee, helperId, orgId: e.payeeOrgId } : { amount: fee, helperId });
+      tx.ev("cancelled", { by: "system", reason: "customer_absent" });
+      break;
+    }
+
+    case "escalate_offer": {
+      // nobody answered a partial-refund offer after "done": Ops decides, like any dispute
+      const e = asErrand(d, "escalate an offer on");
+      requireKind(ctx, "system", "Escalating an offer");
+      requireStatus(e, "escalate an offer on", "check");
+      const pc = e.priceChange;
+      if (!pc || pc.status !== "proposed") fail("ILLEGAL_TRANSITION", "No offer is waiting");
+      const offer = pc as PriceChange;
+      if (ctx.now < offer.at + ruleOf(e, "settleHours") * HOUR_MS) fail("ILLEGAL_TRANSITION", "The other side still has time to answer");
+      e.priceChange = null;
+      e.status = "disputed";
+      e.dispute = { openedBy: e.customerId, reason: "no_agreement", note: `offer ${offer.fee} (from ${offer.from}) by ${offer.by}`, at: ctx.now, outcome: null, decidedBy: null, decidedAt: null };
+      tx.ev("offer_escalated", { price: offer.fee, by: offer.by });
+      tx.ev("disputed", { reason: "no_agreement" });
+      break;
+    }
+
     case "auto_release": {
       requireKind(ctx, "system", "Auto-release");
       requireStatus(d, "auto-release", "check");
       if (d.checkUntil === null || ctx.now < d.checkUntil) fail("ILLEGAL_TRANSITION", "Check window has not ended yet");
+      if (d.type === "errand" && d.priceChange?.status === "proposed") fail("ILLEGAL_TRANSITION", "A partial-refund offer is waiting for an answer");
       release(tx, "auto");
       break;
     }

@@ -7,11 +7,14 @@ export async function workerLocationState(helperId: string): Promise<WorkerLocat
   const db = createAdminClient();
   const [presence, jobs] = await Promise.all([
     db.from("helper_presence").select("online").eq("user_id", helperId).maybeSingle<{ online: boolean }>().throwOnError(),
-    db.from("job_locations").select("deal_id, deals!inner(status, helper_id)")
-      .eq("helper_id", helperId).eq("deals.helper_id", helperId).eq("deals.status", "in_progress"),
+    // running jobs, and jobs the helper is on the way to ("On my way", 2026-11-24)
+    db.from("job_locations").select("deal_id, deals!inner(status, helper_id, en_route_at)")
+      .eq("helper_id", helperId).eq("deals.helper_id", helperId).in("deals.status", ["in_progress", "matched"])
+      .returns<{ deal_id: string; deals: { status: string; en_route_at: string | null } }[]>(),
   ]);
   if (jobs.error && !missingTable(jobs.error, "job_locations")) throw jobs.error;
-  return { online: presence.data?.online === true, available: !jobs.error, jobIds: (jobs.data ?? []).map(j => j.deal_id) };
+  const live = (jobs.data ?? []).filter((j) => j.deals.status === "in_progress" || j.deals.en_route_at !== null);
+  return { online: presence.data?.online === true, available: !jobs.error, jobIds: live.map((j) => j.deal_id) };
 }
 
 export async function saveWorkerLocation(helperId: string, pos: { lat: number; lng: number }): Promise<WorkerLocationState> {
@@ -28,10 +31,11 @@ export async function saveWorkerLocation(helperId: string, pos: { lat: number; l
 /** Customer-only read. Rechecks ownership and current assignment before reading a position. */
 export async function customerJobLocation(dealId: string, customerId: string): Promise<JobLocation> {
   const db = createAdminClient();
-  const { data: deal } = await db.from("deals").select("helper_id, status")
+  const { data: deal } = await db.from("deals").select("helper_id, status, en_route_at")
     .eq("id", dealId).eq("customer_id", customerId).eq("type", "errand")
-    .maybeSingle<{ helper_id: string | null; status: string }>().throwOnError();
-  if (!deal?.helper_id || deal.status !== "in_progress") return { available: true, sharing: false, position: null };
+    .maybeSingle<{ helper_id: string | null; status: string; en_route_at?: string | null }>().throwOnError();
+  const tracked = deal?.status === "in_progress" || (deal?.status === "matched" && Boolean(deal.en_route_at));
+  if (!deal?.helper_id || !tracked) return { available: true, sharing: false, position: null };
   const { data, error } = await db.from("job_locations").select("lat, lng, updated_at")
     .eq("deal_id", dealId).eq("helper_id", deal.helper_id)
     .maybeSingle<{ lat: number | null; lng: number | null; updated_at: string }>();

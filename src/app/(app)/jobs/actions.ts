@@ -364,6 +364,22 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       }
       cmd = { type: "start" };
     }
+    else if (intent === "on_my_way") cmd = { type: "on_my_way" };
+    else if (intent === "need_time") {
+      const minutes = Number(form.get("minutes"));
+      if (![15, 30].includes(minutes)) return { error: t("error.generic") };
+      cmd = { type: "need_time", minutes };
+    }
+    else if (intent === "customer_absent") {
+      // evidence first: the helper must really be at the customer's place (same check as Start)
+      const before = await loadDeal(db, dealId);
+      if (before?.type !== "errand" || !before.location) return { error: t("error.changed") };
+      if (!(await deviceCheckBypassed(viewer.profile))) {
+        const at = await startPositionCheck(viewer.profile.id, { ...before, pickupLocation: null, category: "queue" });
+        if (!at.ok) return { error: at.reason === "far" ? t("noShow.notThere", { meters: at.meters.toLocaleString("en-US") }) : t("standards.positionNeeded") };
+      }
+      cmd = { type: "customer_absent" };
+    }
     else if (intent === "finish") {
       // a handover photo (or care check-out) that is still there — one taken back doesn't count
       if ((await proofCount(dealId, "handover", viewer.profile.id)) === 0) return { error: t("proof.missing") };
@@ -408,6 +424,16 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       });
     } else if (cmd.type === "propose_price" || cmd.type === "answer_price") {
       await notifyPriceChange(deal, cmd, viewer.profile.name || "—", deal.customerId, `/tasks/${dealId}`);
+    } else if (cmd.type === "on_my_way" || cmd.type === "need_time" || cmd.type === "customer_absent") {
+      // the customer hears about it at once — for "not here", it's the reason to answer quickly
+      const key = cmd.type === "on_my_way" ? "enRoute" : cmd.type === "need_time" ? "delay" : "absent";
+      await notify([deal.customerId], {
+        title: `push.${key}Title` as const,
+        body: `push.${key}Body` as const,
+        params: { name: viewer.profile.name || "—", title: deal.title, minutes: cmd.type === "need_time" ? cmd.minutes : ruleOf(deal, "absentGraceMinutes") },
+        url: `/tasks/${dealId}`,
+        tag: `task-${dealId}`,
+      }).catch(() => undefined);
     } else if (intent === "accept_counter") {
       await notify([deal.customerId], {
         title: "push.counterAcceptedTitle",

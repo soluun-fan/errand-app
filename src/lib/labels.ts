@@ -67,6 +67,7 @@ export const CUSTOMER_TAGS = ["clear", "ready", "respectful", "unreachable", "wr
 
 /** A dispute reason is stored as its key; older rows may hold free text. */
 export function disputeReasonLabel(reason: string, t: T): string {
+  if (reason === "no_agreement") return t("settle.noAgreement"); // an unanswered offer after "done" (2026-11-24)
   return (DISPUTE_REASONS as readonly string[]).includes(reason) ? t(`dispute.reasons.${reason as DisputeReason}`) : reason;
 }
 
@@ -115,7 +116,14 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
     case "helper_late":
     case "helper_no_show":
     case "helper_replaced":
+    case "en_route":
+    case "customer_absent":
       return t(`event.${code}`, { name: name(data.helperId) });
+    case "helper_delay":
+      return t("event.helper_delay", { name: name(data.helperId), minutes: Number(data.minutes ?? 0) });
+    case "customer_responded":
+    case "cancelled_after_delay":
+      return t(`event.${code}`);
     case "receipt_recorded":
       return t("event.receipt_recorded", { amount: money("amount") });
     case "topup_requested":
@@ -131,6 +139,8 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return t("event.cancel_fee_paid", { amount: money("amount"), name: data.orgId ? name(data.orgId) : name(data.helperId) });
     case "refunded":
       return t("event.refunded", { amount: money("amount") });
+    case "offer_escalated":
+      return t("event.offer_escalated", { amount: money("price") });
     case "cancelled": {
       const base = t(data.by === "helper" ? "event.cancelled_helper" : "event.cancelled");
       const why = String(data.reason ?? "");

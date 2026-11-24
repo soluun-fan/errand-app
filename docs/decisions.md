@@ -1,5 +1,22 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-24 — Settle it between customer and helper (owner picked no-show, settle-first,
+  on-my-way + reliability; "not too discouraging for helpers — UB traffic").** The app supplies the
+  facts, the two people decide, Ops is the fallback. Migration `20261124000000`.
+  - **On my way:** `on_my_way` (matched) shares location from then (not only at Start); the
+    customer sees it on the map.
+  - **Need more time?** `need_time` +15/+30 min (total ≤ `max_delay_minutes`, before being late):
+    arrive-by moves, **no late mark**; the customer is told and may cancel free.
+  - **Customer no-show:** `customer_absent` only when the helper is at the customer's place
+    (same location check as Start); the customer gets `absent_grace_minutes` to tap "I'm here";
+    otherwise `absent_cancel`: the helper is paid the trip fee + shopping already bought, the rest
+    is refunded.
+  - **Settle first after "done":** either side may offer a lower price (a partial refund, down to
+    0, minimum price not applied); accept = difference refunded at once; auto-release waits while
+    an offer is open; unanswered after `settle_hours` → `escalate_offer` (dispute "no_agreement").
+  - **Reliability shown positive-only** (on-time %, jobs done); late marks stay private.
+  - Lateness discount was not chosen.
+
 - **2026-11-24 — Place search and busy areas (owner: "do those you can do later").**
   - **Place search** on the pin picker (`src/lib/geocode.ts`, `src/components/place-search.tsx`):
     Photon (komoot, OpenStreetMap), key-free, Mongolia only, biased to central UB with a fixed point.

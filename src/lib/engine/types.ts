@@ -144,6 +144,12 @@ export interface TaskRules {
   arriveMinutes?: number;
   /** …and counts as late this long after that (scheduled tasks: after the booked time). */
   lateGraceMinutes?: number;
+  /** After "done": an unanswered partial-refund offer goes to Ops after this long (2026-11-24). */
+  settleHours?: number;
+  /** After "customer isn't here", the customer has this long to answer before the task is cancelled. */
+  absentGraceMinutes?: number;
+  /** "Need more time?": at most this many minutes in total per job. */
+  maxDelayMinutes?: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -248,6 +254,12 @@ export interface ErrandDeal extends DealBase {
   payBy: number | null;
   /** When the current helper was chosen (null while nobody is). Backing out later than the grace counts against them. */
   assignedAt: number | null;
+  /** The helper tapped "On my way" (2026-11-24): their location is shared from now, not only at Start. */
+  enRouteAt?: number | null;
+  /** Minutes the helper added to arrive-by ("Need more time?", e.g. traffic). No late mark within them. */
+  arriveExtendMinutes?: number;
+  /** The helper reported the customer isn't there; the customer has a short time to answer. */
+  absentAt?: number | null;
   /**
    * How money moves (owner, 2026-11-18): "held" — the whole amount is held until the customer
    * confirms (escrow); "direct" — only our service fee goes through the payment provider and the
@@ -392,6 +404,12 @@ export type Command =
   | { type: "cancel"; reason?: string } // customer may say why (CANCEL_REASONS, 2026-11-22)
   | { type: "expire" }
   | { type: "start" }
+  | { type: "on_my_way" } // helper: set off; location shared from now
+  | { type: "need_time"; minutes: number } // helper: running late (traffic) — arrive-by moves, no late mark
+  | { type: "customer_absent" } // helper at the place, the customer doesn't respond
+  | { type: "customer_present" } // customer: "I'm here" — stops the countdown
+  | { type: "absent_cancel" } // system: the customer never answered — cancelled, the helper is paid the trip
+  | { type: "escalate_offer" } // system: a partial-refund offer after "done" went unanswered — Ops decides
   | { type: "mark_late" } // system: the paid helper hasn't started by the arrive-by time + grace
   | { type: "replace_helper" } // customer: the helper is late — drop them and search again (no fee)
   | { type: "record_receipt"; amount: number }
