@@ -16,6 +16,7 @@ import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nea
 import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
+import { busyAreas } from "@/lib/busy-areas";
 import { fuzz, helperStart } from "@/lib/maps";
 import { latestApplication } from "@/lib/kyc";
 import { OnlineCard } from "./online-card";
@@ -208,12 +209,14 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const todos = await helperTodos(viewer);
   if (actor.helperApproved) {
     const now = Date.now();
-    const [presence, offersAll, nearby, mine, applied] = await Promise.all([
+    const [presence, offersAll, nearby, mine, applied, busy] = await Promise.all([
       getPresence(profile.id),
       myOffers(profile.id, now),
       view === "near" ? nearbyFeed(profile.id) : Promise.resolve([]),
       listMyJobs(profile.id),
       myApplications(profile.id),
+      // where tasks are waiting across the city (coarse squares); never blocks the page
+      view === "near" ? busyAreas().catch(() => []) : Promise.resolve([]),
     ]);
     const appliedIds = new Set(applied.map((a) => a.deal.id));
     const offers = offersAll.filter((o) => !appliedIds.has(o.deal.id));
@@ -276,7 +279,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <Board sp={sp} viewerId={profile.id} from={from} mine={actor.categories ?? []} t={t} locale={locale} />
         ) : (
           <section className="flex flex-col gap-2">
-            <TaskMap markers={jobPins([...offers, ...applied, ...feed])} showMe className="h-64" />
+            <TaskMap markers={[...busy.map((c) => ({ lat: c.lat, lng: c.lng, kind: "busy" as const, label: String(c.count) })), ...jobPins([...offers, ...applied, ...feed])]} showMe className="h-64" />
+            {busy.length > 0 && <p className="text-[13px] text-ink-2">{t("job.busyLegend")}</p>}
             {feed.length === 0 ? (
               <p className="text-[15px] text-ink-2">
                 {t("job.nearbyEmpty")}{" "}

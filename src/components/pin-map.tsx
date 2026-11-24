@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useT } from "@/i18n/client";
 import { BASE_STYLE_URL, mapStyle } from "@/lib/map-style";
 import { LocateButton, foldAttributionLater, meElement, pinElement, pinSvg } from "./map-ui";
+import { PlaceSearch } from "./place-search";
 
 /** Open-source map (MapLibre) on free OpenStreetMap-based tiles — no API key (docs/decisions.md). Restyled in lib/map-style.ts. */
 export const MAP_STYLE = BASE_STYLE_URL;
@@ -164,8 +165,14 @@ export function PinMap({
         dangerouslySetInnerHTML={{ __html: pinSvg(PIN_COLOR[kind], 34) }}
       />
       <LocateButton label={t("map.myLocation")} busy={locating} onClick={locate} className="bottom-10 right-3" />
+      <PlaceSearch
+        onPick={(p) => {
+          changed.current({ lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 });
+          map.current?.flyTo({ center: [p.lng, p.lat], zoom: 17 });
+        }}
+      />
       {!value && (
-        <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">{t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}</span>
+        <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">{t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}</span>
       )}
     </div>
     {locationError && <p role="status" className="mt-2 text-sm text-ink-2">{t("addressEntry.locationFailed")}</p>}

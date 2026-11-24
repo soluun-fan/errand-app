@@ -2,7 +2,7 @@
 
 # Tuslamj Hub
 
-**Гүйгээрэй (Guigeeree)** — Mongolian (UB-first) errand service; the name lives in `src/lib/brand.ts` + `common.app` (texts use `{app}`). Customers post small physical tasks; verified helpers (independent providers) do them. **Managed service (V1, 2026-11-18):** the customer buys the service from us and prepays the full amount through wire.mn; we pay the helper per task after the customer confirms, into withdraw-only Earnings. **SafePay** reuses the same engine for buying from strangers (later).
+**Guigere** (was Гүйгээрэй until 2026-11-20) — Mongolian (UB-first) errand service; the name lives in `src/lib/brand.ts` + `common.app` (texts use `{app}`). Customers post small physical tasks; verified helpers (independent providers) do them. **Managed service (V1, 2026-11-18):** the customer buys the service from us and prepays the full amount through wire.mn; we pay the helper per task after the customer confirms, into withdraw-only Earnings. **SafePay** reuses the same engine for buying from strangers (later).
 
 **New here? Read `docs/CONTEXT.md` first** — the whole picture (product, architecture, lifecycle, dispatch, status, weak spots) on one page.
 

@@ -1,5 +1,14 @@
 # Decisions & open questions (read only when asked "why")
 
+- **2026-11-24 — Place search and busy areas (owner: "do those you can do later").**
+  - **Place search** on the pin picker (`src/lib/geocode.ts`, `src/components/place-search.tsx`):
+    Photon (komoot, OpenStreetMap), key-free, Mongolia only, biased to central UB with a fixed point.
+    Only the typed text is sent, never a position or pin (stated in the privacy policy). Names are
+    tidied (traditional script removed, "Улан-Батор" → "Улаанбаатар"). Reverse lookup ("address
+    from pin") is deliberately not done: it would send home coordinates to a third party.
+  - **Busy areas** on the helper's nearby map (`src/lib/busy-rules.ts`): open tasks counted per
+    0.01° square (~1 km), coarser than the ~300 m blur; the map still frames the helper's own jobs.
+
 - **2026-11-24 — Google-Maps-like maps, still key-free (owner picked the free option over real
   Google Maps).** `src/lib/map-style.ts` restyles OpenFreeMap "liberty" in the browser: grey land,
   white streets, warm main roads, blue water, green parks, grey labels; no relief, 3D buildings or

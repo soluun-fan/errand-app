@@ -10,7 +10,7 @@ import { mapStyle } from "@/lib/map-style";
 import { LocateButton, chipElement, foldAttributionLater, helperElement, meElement, pinElement } from "./map-ui";
 import { UB_CENTER } from "./pin-map";
 
-export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area" | "pickupArea";
+export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area" | "pickupArea" | "busy";
 
 export interface MapMarker {
   lat: number;
@@ -35,6 +35,16 @@ function markerFor(mk: MapMarker): { el: HTMLElement; anchor: "bottom" | "center
   if (mk.kind === "helper") return { el: helperElement(), anchor: "center" };
   if (mk.kind === "me") return { el: meElement(), anchor: "center" };
   if (mk.kind === "job") return { el: chipElement(mk.label ?? ""), anchor: "center" };
+  if (mk.kind === "busy") {
+    // where tasks are waiting (a ~1 km square, not a place): bigger for more tasks
+    const n = Number(mk.label ?? 1);
+    const size = Math.min(72, 34 + n * 6);
+    const el = document.createElement("div");
+    el.className = "flex items-center justify-center rounded-full border-2 border-[#f29900]/70 bg-[#f29900]/25 text-[13px] font-bold text-[#b06000]";
+    el.style.width = el.style.height = `${size}px`;
+    el.textContent = String(n);
+    return { el, anchor: "center" };
+  }
   const el = document.createElement("div");
   el.className = AREA[mk.kind] ?? "";
   return { el, anchor: "center" };
@@ -187,10 +197,13 @@ export function TaskMap({
         }
         placed.current.push(new Marker({ element: el, anchor }).setLngLat([mk.lng, mk.lat]).addTo(m));
       }
-      if (all.length === 1) m.jumpTo({ center: [all[0].lng, all[0].lat], zoom: all[0].kind === "area" || all[0].kind === "pickupArea" ? 14 : 15 });
-      else if (all.length > 1) {
+      // busy areas are background: frame the helper's own jobs (and position) when there are any
+      const own = all.filter((mk) => mk.kind !== "busy");
+      const frame = own.length > 0 ? own : all;
+      if (frame.length === 1) m.jumpTo({ center: [frame[0].lng, frame[0].lat], zoom: frame[0].kind === "area" || frame[0].kind === "pickupArea" ? 14 : frame[0].kind === "busy" ? 13 : 15 });
+      else if (frame.length > 1) {
         const b = new LngLatBounds();
-        for (const mk of all) b.extend([mk.lng, mk.lat]);
+        for (const mk of frame) b.extend([mk.lng, mk.lat]);
         m.fitBounds(b, { padding: 56, maxZoom: 15, duration: 0 });
       }
     });
