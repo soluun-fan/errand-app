@@ -372,3 +372,7 @@ Rollout: Stage 0 = pay helper via QPay after the job, app only records it. Stage
 - **Multi-person jobs:** "keep recruiting" for 2+ helpers needs split payouts per helper.
 - **Address search:** written addresses and saved/recent suggestions, with optional confirmed map pins; public place search (Nominatim / paid geocoder) remains deferred.
 - **Unanswered top-up:** should a pending over-budget request expire (e.g. after 30 min → treat as declined)? Today it waits; the helper can drop items instead.
+
+## 2026-11-24 — Lower starting prices
+Owner: day jobs (түр ажил) at least 4,000₮ an hour; most errands should start at 3–4k because it depends on the kind, the distance and how easy it is. Rule of thumb now: ~4,000₮ per hour of expected work, 3,000₮ for quick (~30 min) jobs, a bit more for heavy work or tools. General minimum 4,000₮ (queue, other); trash/shop/deliver 3,000₮; repair 4,000₮; assembly 5,000₮; carry 6,000₮ (stairs still added per floor); escort 8,000₮ (~2 h); day jobs 4,000₮/h. Plumbing, electrical, cleaning and care unchanged. Floors only — the trip, night extra, stairs and "raise the price?" nudge still apply; all editable at /ops/pricing (migration 20261124010000).
+Open: Mongolia's minimum wage is 792,000₮/month (≈4,714₮/h) and is set to rise to ~1,000,000₮ from 2027. Helpers are contractors, but a day-job floor below the hourly minimum wage is the one place a labour inspector could point at; consider 5,000₮/h (and ~6,000₮/h in 2027).

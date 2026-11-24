@@ -87,10 +87,11 @@ describe("minimum price per kind", () => {
       "select category, min_fee, min_hourly from public.category_settings where category in ('trash','shop','carry','dayjob','childcare') order by category",
     );
     expect([...r.rows].sort((a, b) => a.category.localeCompare(b.category))).toEqual([
-      { category: "carry", min_fee: 10000, min_hourly: null },
+      // lowered 2026-11-24 (migration 20261124010000): ~4,000₮ an hour, 3,000₮ for quick jobs
+      { category: "carry", min_fee: 6000, min_hourly: null },
       { category: "childcare", min_fee: null, min_hourly: 8000 },
-      { category: "dayjob", min_fee: null, min_hourly: 6000 },
-      { category: "shop", min_fee: null, min_hourly: null },
+      { category: "dayjob", min_fee: null, min_hourly: 4000 },
+      { category: "shop", min_fee: 3000, min_hourly: null },
       { category: "trash", min_fee: 3000, min_hourly: null },
     ]);
     const both = await sqlError(svc("update public.category_settings set min_fee = 5000, min_hourly = 5000 where category = 'shop'"));

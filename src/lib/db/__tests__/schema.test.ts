@@ -778,7 +778,8 @@ describe("pricing (helpers keep 100%, flat service fee)", () => {
   it("settings are one server-only row whose defaults match the engine", async () => {
     const row = await as(db, "service_role", null, async (tx) => (await tx.query<Record<string, unknown>>(`select * from public.pricing_settings`)).rows);
     expect(row).toHaveLength(1);
-    expect(row[0]).toMatchObject({ base_fee: 5000, per_half_hour: 3000, per_km: 1500, heavy_fee: 3000, tools_fee: 2000, night_fee: 1000, price_down_bps: 2000, price_up_bps: 3000 });
+    // base fee lowered to 4,000₮ on 2026-11-24 (migration 20261124010000); the engine default stays 5,000₮
+    expect(row[0]).toMatchObject({ base_fee: 4000, per_half_hour: 3000, per_km: 1500, heavy_fee: 3000, tools_fee: 2000, night_fee: 1000, price_down_bps: 2000, price_up_bps: 3000 });
     expect(row[0].service_fee_tiers).toEqual(DEFAULT_CONFIG.serviceFeeTiers);
     expect(row[0]).toMatchObject({ service_fee_bps: DEFAULT_CONFIG.serviceFeeBps, service_fee_min: DEFAULT_CONFIG.serviceFeeMin, service_fee_max: DEFAULT_CONFIG.serviceFeeMax });
     const bad = await sqlError(as(db, "service_role", null, (tx) => tx.query(`update public.pricing_settings set price_down_bps = 9000`)));
