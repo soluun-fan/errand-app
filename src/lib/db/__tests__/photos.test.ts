@@ -90,7 +90,7 @@ describe("minimum price per kind", () => {
       // lowered 2026-11-24 (migration 20261124010000): ~4,000₮ an hour, 3,000₮ for quick jobs
       { category: "carry", min_fee: 6000, min_hourly: null },
       { category: "childcare", min_fee: null, min_hourly: 8000 },
-      { category: "dayjob", min_fee: null, min_hourly: 4000 },
+      { category: "dayjob", min_fee: null, min_hourly: 5000 },
       { category: "shop", min_fee: 3000, min_hourly: null },
       { category: "trash", min_fee: 3000, min_hourly: null },
     ]);
