@@ -11,7 +11,7 @@ import { ProofUploader } from "@/components/proof-uploader";
 import { CareCheckOut } from "@/components/care-check-out";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
-import { AddressBox, DetailPair, DetailSection, DetailTitle, MapHero } from "@/components/detail";
+import { AddressBox, DetailRows, DetailSection, DetailTitle, MapHero } from "@/components/detail";
 import { StatusBadge } from "@/components/status-badge";
 import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
@@ -418,21 +418,35 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
       {mine && <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />}
 
-      {/* what it pays | what to buy — "no purchase" is said, not implied */}
-      <DetailPair
-        left={{ label: payee ? t("org.payee", { name: payee.name }) : t("job.feeLabel"), value: <span className="text-[24px] font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span> }}
-        right={{
-          label: t("job.itemsLabel"),
-          value:
-            deal.itemBudget > 0 ? (
+      {/* the key facts in one lined card (PleaseHelp-style): what it pays · what to buy · when */}
+      <DetailRows
+        rows={[
+          {
+            label: payee ? t("org.payee", { name: payee.name }) : t("job.feeLabel"),
+            value: <span className="text-[22px] font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span>,
+          },
+          {
+            label: t("job.itemsLabel"),
+            value:
+              deal.itemBudget > 0 ? (
+                <>
+                  <span className="block text-[17px] font-bold tabular-nums">{t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}</span>
+                  <span className="block text-sm text-ink-2">{t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}</span>
+                </>
+              ) : (
+                <span className="text-[17px] font-semibold">{t("job.noItems")}</span>
+              ),
+          },
+          {
+            label: t("job.whenLabel"),
+            value: (
               <>
-                <span className="block text-[18px] font-bold tabular-nums">{t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}</span>
-                <span className="block text-sm text-ink-2">{t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}</span>
+                <span className="block text-[17px] font-bold">{when}</span>
+                {effort.length > 0 && <span className="block text-[14px] text-ink-2">{effort.join(" · ")}</span>}
               </>
-            ) : (
-              <span className="text-[18px] font-bold">{t("job.noItems")}</span>
             ),
-        }}
+          },
+        ]}
       />
 
       {deal.payMode !== "direct" && !payeeOrgId && ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status) && (
@@ -441,10 +455,6 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </DetailSection>
       )}
 
-      <DetailSection label={t("job.whenLabel")}>
-        <p className="text-[18px] font-bold">{when}</p>
-        {effort.length > 0 && <p className="text-[15px] text-ink-2">{effort.join(" · ")}</p>}
-      </DetailSection>
 
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>

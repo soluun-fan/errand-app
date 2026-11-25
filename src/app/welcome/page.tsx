@@ -13,7 +13,9 @@ import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/logi
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { btn } from "@/components/ui";
+import { SeeAllArrow, SectionHeader, btn, seeAllClass } from "@/components/ui";
+import { ReviewCard } from "@/components/review-card";
+import { recentReviews } from "@/lib/helper-profile";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { liveCategories } from "@/lib/orgs";
@@ -40,7 +42,7 @@ const wrap = "mx-auto w-full max-w-6xl px-5 sm:px-6"; // 20 px on phones, like t
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   if (await getViewer()) redirect("/");
   const closed = (await searchParams).closed === "1";
-  const [t, locale, cfg, recent, online, board, popular, seasonal, covers, work, live, stats, company] = await Promise.all([
+  const [t, locale, cfg, recent, online, board, popular, seasonal, covers, work, live, stats, company, reviews] = await Promise.all([
     getT(),
     getLocale(),
     pricingConfig(),
@@ -55,6 +57,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
     publicStats(),
     // the footer's company lines are a nice-to-have: the landing page never fails over them
     getSupportSettings().catch(() => null),
+    recentReviews(4),
   ]);
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
@@ -155,10 +158,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* categories with today's starting price */}
         <section className={`${wrap} flex flex-col gap-5 py-12`}>
-          <div>
-            <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.catsTitle")}</h2>
-            <p className="mt-1 text-[15px] text-ink-2">{t("home.allFrom")}</p>
-          </div>
+          <SectionHeader size="lg" title={t("landing.catsTitle")} sub={t("home.allFrom")} />
           <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
             <LoginGate key={id} next={`/post?cat=${id}`} className={className}>{tile}</LoginGate>
           )} />
@@ -182,15 +182,16 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {board.length > 0 && (
           <section className="bg-bg py-12">
             <div className={`${wrap} flex flex-col gap-5`}>
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.boardTitle")}</h2>
-                  <p className="mt-1 text-[15px] text-ink-2">{t("landing.boardSub")}</p>
-                </div>
-                <LoginGate next="/jobs?view=all" className="flex min-h-11 items-center gap-1 text-[15px] font-semibold text-brand-ink">
-                  {t("landing.boardAll")} →
-                </LoginGate>
-              </div>
+              <SectionHeader
+                size="lg"
+                title={t("landing.boardTitle")}
+                sub={t("landing.boardSub")}
+                more={
+                  <LoginGate next="/jobs?view=all" className={seeAllClass}>
+                    {t("landing.boardAll")} <SeeAllArrow />
+                  </LoginGate>
+                }
+              />
               <OpenBoard items={board} t={t} locale={locale} covers={covers} />
             </div>
           </section>
@@ -199,10 +200,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* helpers' finished work: real photos, each agreed by that job's customer */}
         {work.length > 0 && (
           <section className={`${wrap} flex flex-col gap-5 py-12`}>
-            <div>
-              <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("workPhotos.homeTitle")}</h2>
-              <p className="mt-1 text-[15px] text-ink-2">{t("workPhotos.homeSub")}</p>
-            </div>
+            <SectionHeader size="lg" title={t("workPhotos.homeTitle")} sub={t("workPhotos.homeSub")} />
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {work.map((p) => (
                 <li key={p.id}>
@@ -213,13 +211,24 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           </section>
         )}
 
+        {/* what customers say: 4★ and up with a written note, photo reviews first (PleaseHelp-style) */}
+        {reviews.length > 0 && (
+          <section className={`${wrap} flex flex-col gap-5 pb-12`}>
+            <SectionHeader size="lg" title={t("web.reviews")} sub={t("web.reviewsSelection")} />
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {reviews.map((r, i) => (
+                <li key={i}>
+                  <ReviewCard r={r} t={t} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {/* how it works, 4 steps */}
         <section id="how" className="scroll-mt-20 py-12">
           <div className={`${wrap} flex flex-col gap-6`}>
-            <div>
-              <h2 className="text-[26px] font-extrabold tracking-tight md:text-[32px]">{t("landing.howTitle")}</h2>
-              <p className="mt-1 text-[15px] text-ink-2">{t("landing.howSub")}</p>
-            </div>
+            <SectionHeader size="lg" title={t("landing.howTitle")} sub={t("landing.howSub")} />
             <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((s, i) => (
                 <li key={i} className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">

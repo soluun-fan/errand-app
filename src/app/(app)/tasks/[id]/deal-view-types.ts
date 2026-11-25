@@ -10,6 +10,8 @@ import type { ProofView } from "@/lib/proofs";
 import type { TaskPhotoView } from "@/lib/task-photos";
 import type { ReactNode } from "react";
 
+export type ApplicantSort = "recommended" | "near" | "rating";
+
 export interface DealViewProps {
   deal: ErrandDeal;
   events: TimelineItem[];
@@ -33,7 +35,10 @@ export interface DealViewProps {
   /** Dispatch progress while the task is open (how many helpers were notified). */
   dispatch?: { notified: number } | null;
   /** Live applicants, best first (dispatch score); the first is "Recommended". */
-  ranked?: { helperId: string; distanceKm: number | null }[];
+  /** Live applicants, best first (`rankApplicants`): the first is "Recommended". */
+  ranked?: { helperId: string; distanceKm: number | null; rating: number; ratingCount: number; completed: number }[];
+  /** How the customer sorts the applicants (the recommendation stays marked either way). */
+  applicantSort?: ApplicantSort;
   /** Live helper position during the job (customer only). */
   helperLocation?: JobLocation | null;
   /** Photo / video proof with signed URLs. */

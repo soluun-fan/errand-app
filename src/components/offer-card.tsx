@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { T } from "@/i18n";
@@ -19,9 +19,12 @@ export function OfferCard({
   t,
   action,
   badge,
+  badgeNote,
   href,
   organization,
 }: {
+  /** Why it's recommended, e.g. "closest · best rated". */
+  badgeNote?: string;
   person: OfferPerson;
   note?: string;
   t: T;
@@ -34,7 +37,14 @@ export function OfferCard({
 }) {
   return (
     <div className={`flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card ${badge ? "border-2 border-brand" : ""}`}>
-      {badge && <span className="self-start rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">★ {badge}</span>}
+      {badge && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">
+            <Star aria-hidden size={12} className="fill-brand text-brand" /> {badge}
+          </span>
+          {badgeNote && <span className="text-[13px] text-ink-2">{badgeNote}</span>}
+        </p>
+      )}
       {/* who: name gets the full width; badges wrap under it */}
       <div className="flex items-center gap-3">
         <Avatar name={person.name} size={52} />

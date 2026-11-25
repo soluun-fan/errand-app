@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronRight, Lock, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronRight, Lock, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TONE_CLASS, type Tone } from "@/lib/labels";
@@ -36,6 +36,28 @@ export function Wide({ children, className = "" }: { children: ReactNode; classN
 
 /** Title of a root (tab) screen. */
 export const pageTitle = "pt-2 text-[24px] font-bold tracking-tight";
+
+/** "See all →" on the right of a section heading (a Link, or the landing page's login gate). */
+export const seeAllClass = "flex min-h-12 shrink-0 items-center gap-1 text-[14px] font-semibold text-brand-ink";
+export const SeeAllArrow = () => <ArrowRight aria-hidden size={15} />;
+
+/**
+ * One heading for every content section (PleaseHelp-style): the title, an optional grey line under
+ * it, and "See all →" on the right, bottom-aligned. `lg` is the public landing page's larger scale.
+ */
+export function SectionHeader({ title, sub, more, size = "md", id }: { title: string; sub?: string; more?: ReactNode; size?: "md" | "lg"; id?: string }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+      <div className="min-w-0">
+        <h2 id={id} className={size === "lg" ? "text-[24px] font-extrabold tracking-tight md:text-[32px]" : "text-[18px] font-bold tracking-tight md:text-[24px]"}>
+          {title}
+        </h2>
+        {sub && <p className={`mt-1 text-ink-2 ${size === "lg" ? "text-[15px]" : "text-[14px]"}`}>{sub}</p>}
+      </div>
+      {more}
+    </div>
+  );
+}
 
 /** A row that opens another screen: icon, label, optional count, chevron. `card`: standalone; otherwise a row inside a list card. */
 export function LinkRow({ href, icon: Icon, label, count, card = false }: { href: string; icon: LucideIcon; label: string; count?: number; card?: boolean }) {

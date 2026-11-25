@@ -413,3 +413,16 @@ Owner: "lets start then. anything we can include and should include" (after the 
   - "closes in …" on Now jobs;
   - **slide to finish** (`SlideSubmit`): a tap does nothing, the keyboard still works.
 - **Kept as is:** the customer chooses the helper (trust, given how common fraud is); the applicant cap already exists (`maxApplicants`, 5). Not copied from PleaseHelp: "no cancelling after a match", claims that chats are monitored, and dress/behaviour orders (they read like an employer's).
+
+## 2026-11-25 — Recommending a helper; PleaseHelp layout
+Owner: "customer should be the one to choose. probably the closest one they should actually recommend, with other better rated ones then coming up after". Chose "depends on job" and "their layout, our look" ("references and diagrams/lines", not their colours).
+- **The customer always chooses.** The best-ranked applicant is marked "Recommended", with a "why" line next to it (closest · best rated · most jobs done). Tabs let the customer sort: Recommended · Closest · Best rated.
+- **What "best" means depends on the job** (`rankProfile`, `RANK_WEIGHTS`):
+  - **Now**, for a quick errand needed right away: distance 60, rating 20, reliability 10, experience 10.
+  - **Planned**, for anything booked for later or done in a home or with a person (repair, assembly, cleaning, plumbing, electrical, escort, care): distance 25, rating 40, reliability 15, experience 20.
+  - Dispatch waves use the same weights.
+  - The standards penalty and the 4.5★ rating prior are unchanged.
+- **Layout from PleaseHelp, in our colours:**
+  - one `SectionHeader` everywhere: title, grey line under it, "See all →" on the right;
+  - a reviews row on the landing page (4★ and up with a note, photo reviews first);
+  - the helper's job screen shows Pay · Shopping · When as one card of label/value rows split by thin lines (`DetailRows`).

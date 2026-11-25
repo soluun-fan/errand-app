@@ -29,10 +29,11 @@ import { recipientVerificationForOwner } from "@/lib/verify-mn";
 import { RecipientVerificationCard } from "./recipient-verification-card";
 import { customerJobLocation } from "@/lib/job-location";
 
-export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
+export default async function TaskPage({ params, searchParams }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const applicantSort = sp.sort === "near" || sp.sort === "rating" ? sp.sort : "recommended";
   let deal = await getDealForViewer(id, viewer);
   if (!deal || deal.type !== "errand") notFound();
   if (deal.customerId !== viewer.profile.id && viewer.profile.role !== "admin") redirect(`/jobs/${id}`);
@@ -124,6 +125,7 @@ export default async function TaskPage({ params }: PageProps<"/tasks/[id]">) {
       action={taskAction}
       dispatch={dispatch}
       ranked={ranked}
+      applicantSort={applicantSort}
       organizations={await organizationNames([deal.payeeOrgId, ...deal.offers.map((o) => o.orgId)])}
       helperLocation={helperLocation}
       chat={chat}

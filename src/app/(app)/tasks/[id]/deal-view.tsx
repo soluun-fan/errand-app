@@ -15,7 +15,8 @@ import { StepTracker } from "@/components/step-tracker";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { TaskPhotoManager } from "@/components/task-photo-manager";
 import { TimelineList } from "@/components/timeline-list";
-import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
+import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, chipClass, field, fieldLabel } from "@/components/ui";
+import { recommendReasons } from "@/lib/dispatch/plan";
 import type { T } from "@/i18n";
 import type { OnTime } from "@/lib/badges";
 import { callParty, callsEnabled } from "@/lib/calls";
@@ -101,6 +102,13 @@ export function DealView(p: DealViewProps) {
       const rb = rankOf(b.helperId);
       return (ra < 0 ? 1e9 : ra) - (rb < 0 ? 1e9 : rb);
     });
+  // the recommendation is the best-ranked applicant; the customer may sort by distance or rating instead
+  const recommendedId = applicants.length > 1 ? applicants[0].helperId : null;
+  const why = recommendReasons(p.ranked ?? []).map((r) => t(`deal.why.${r}`));
+  const sortBy = p.applicantSort ?? "recommended";
+  const rankedOf = (h: string) => p.ranked?.find((r) => r.helperId === h);
+  if (sortBy === "near") applicants.sort((a, b) => (rankedOf(a.helperId)?.distanceKm ?? 1e9) - (rankedOf(b.helperId)?.distanceKm ?? 1e9));
+  if (sortBy === "rating") applicants.sort((a, b) => (rankedOf(b.helperId)?.rating ?? 0) - (rankedOf(a.helperId)?.rating ?? 0));
   const pickAt = autoPickAt(deal, serverNow);
   const topUp = deal.topUp;
   const topUpPending = deal.status === "in_progress" && topUp?.status === "pending" ? topUp : null;
@@ -252,12 +260,27 @@ export function DealView(p: DealViewProps) {
           <h2 className="font-bold">{t("deal.offers", { n: applicants.length, max: deal.maxApplicants })}</h2>
           {deal.category === "escort" && <p className="text-sm text-ink-2">{t("care.posterChoice")}</p>}
           {applicants.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
+          {applicants.length > 1 && (
+            <nav aria-label={t("deal.sortLabel")} className="flex flex-wrap gap-2">
+              {(["recommended", "near", "rating"] as const).map((s) => (
+                <Link
+                  key={s}
+                  href={s === "recommended" ? `/tasks/${deal.id}` : `/tasks/${deal.id}?sort=${s}`}
+                  scroll={false}
+                  aria-current={sortBy === s ? "page" : undefined}
+                  className={chipClass(sortBy === s)}
+                >
+                  {t(`deal.sort.${s}`)}
+                </Link>
+              ))}
+            </nav>
+          )}
           {applicants.length > 0 && pickAt !== null && (
             <p className="self-start rounded-full bg-fill px-3 py-1 text-sm font-medium">
               <Countdown until={pickAt} serverNow={serverNow} template={t("deal.autoPickIn")} />
             </p>
           )}
-          {applicants.map((o, i) => {
+          {applicants.map((o) => {
             const pp = person(people.get(o.helperId), t("deal.newHelper"));
             const km = p.ranked?.find((r) => r.helperId === o.helperId)?.distanceKm ?? null;
             const agreed = o.price ?? deal.postedFee; // what choosing this helper costs
@@ -274,7 +297,8 @@ export function DealView(p: DealViewProps) {
                 person={pp}
                 organization={o.orgId ? p.organizations?.get(o.orgId) : undefined}
                 href={`/helpers/${o.helperId}`}
-                badge={i === 0 && applicants.length > 1 ? t("deal.recommended") : undefined}
+                badge={o.helperId === recommendedId ? t("deal.recommended") : undefined}
+                badgeNote={o.helperId === recommendedId && why.length ? why.join(" · ") : undefined}
                 note={[priceLine, km !== null ? t("job.away", { km: km.toFixed(1) }) : null, o.note].filter(Boolean).join(" · ")}
                 t={t}
                 action={

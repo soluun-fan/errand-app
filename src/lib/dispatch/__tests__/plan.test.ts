@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CITY_WAVE, WAVES, bayesRating, distanceKm, dueWave, pickWave, score, type Candidate } from "../plan";
+import { CITY_WAVE, RANK_WEIGHTS, WAVES, bayesRating, distanceKm, dueWave, pickWave, rankProfile, recommendReasons, score, type Candidate } from "../plan";
 
 const c = (helperId: string, distanceKm: number | null, o: Partial<Candidate> = {}): Candidate => ({
   helperId,
@@ -68,4 +68,33 @@ describe("distanceKm", () => {
     expect(distanceKm({ lat: 47.9186, lng: 106.9177 }, { lat: 47.9276, lng: 106.9177 })).toBeCloseTo(1.0007, 3);
     expect(distanceKm({ lat: 47.9, lng: 106.9 }, { lat: 47.9, lng: 106.9 })).toBe(0);
   });
+});
+
+describe("rank profile: now vs planned (2026-11-25)", () => {
+  it("a quick errand for now is ranked mostly by distance; booked or in-home work by trust", () => {
+    expect(rankProfile({ scheduledAt: null, mode: "now", category: "shop" })).toBe("now");
+    expect(rankProfile({ scheduledAt: Date.now(), mode: "now", category: "shop" })).toBe("planned");
+    expect(rankProfile({ scheduledAt: null, mode: "schedule", category: "deliver" })).toBe("planned");
+    expect(rankProfile({ scheduledAt: null, mode: "now", category: "cleaning" })).toBe("planned");
+  });
+
+  it("for now: the close 4.6★ helper wins; for planned work: the 4.9★ helper 2 km away wins", () => {
+    const close = c("close", 0.3, { ratingSum: 4.6 * 20, ratingCount: 20, completed: 20 });
+    const great = c("great", 2, { ratingSum: 4.9 * 60, ratingCount: 60, completed: 60 });
+    expect(score(close, "now")).toBeGreaterThan(score(great, "now"));
+    expect(score(great, "planned")).toBeGreaterThan(score(close, "planned"));
+  });
+
+  it("weights add up to 1 in both profiles", () => {
+    for (const w of Object.values(RANK_WEIGHTS)) expect(w.distance + w.rating + w.reliability + w.experience).toBeCloseTo(1);
+  });
+});
+
+describe("recommendReasons", () => {
+  const r = (distanceKm: number | null, rating: number, ratingCount: number, completed: number) => ({ distanceKm, rating, ratingCount, completed });
+  it("says where the recommended helper leads", () => {
+    expect(recommendReasons([r(0.4, 4.8, 10, 30), r(1.2, 4.6, 8, 12)])).toEqual(["closest", "bestRated", "mostJobs"]);
+    expect(recommendReasons([r(0.4, 4.5, 0, 0), r(1.2, 4.9, 30, 40)])).toEqual(["closest"]);
+  });
+  it("nothing to compare with one applicant", () => expect(recommendReasons([r(0.4, 4.8, 10, 30)])).toEqual([]));
 });

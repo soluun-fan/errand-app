@@ -4,7 +4,7 @@ import { autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, ruleOf
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { dueWave, pickWave, WAVES, type Candidate } from "./plan";
+import { dueWave, pickWave, rankProfile, WAVES, type Candidate } from "./plan";
 import { getRules } from "@/lib/rules";
 import { rankApplicants } from "./rank";
 import { rankLowerSet } from "@/lib/standards";
@@ -111,7 +111,7 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId);
     const lower = await rankLowerSet(rows.map((r) => r.helper_id));
     const candidates = rows.map(toCandidate).map((c) => (lower.has(c.helperId) ? { ...c, penalty: MARK_RANK_PENALTY } : c));
-    const picks = pickWave(candidates, due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves);
+    const picks = pickWave(candidates, due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves, rankProfile(deal));
 
     // Notified helpers may apply until the task closes; the wave timer only paces the widening.
     const expires = deal.matchBy ?? now + 30 * 60_000;

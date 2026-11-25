@@ -6,7 +6,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { Avatar, LinkRow, Wide, chipClass } from "@/components/ui";
+import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, chipClass, seeAllClass } from "@/components/ui";
 import { TERMINAL_STATUSES } from "@/lib/engine";
 import { HelperCard } from "@/components/helper-card";
 import { OpenBoard } from "@/components/open-board";
@@ -67,14 +67,16 @@ export default async function Home() {
 
   const section = (title: string, more: string | null, body: React.ReactNode) => (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-        <h2 className="text-[18px] font-bold tracking-tight md:text-[24px]">{title}</h2>
-        {more && (
-          <Link href={more} className="flex min-h-12 shrink-0 items-center gap-1 text-[14px] font-semibold text-brand-ink">
-            {t("web.seeAll")} <ArrowRight aria-hidden size={15} />
-          </Link>
-        )}
-      </div>
+      <SectionHeader
+        title={title}
+        more={
+          more && (
+            <Link href={more} className={seeAllClass}>
+              {t("web.seeAll")} <SeeAllArrow />
+            </Link>
+          )
+        }
+      />
       {body}
     </section>
   );

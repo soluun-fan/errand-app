@@ -44,28 +44,67 @@ export function bayesRating(sum: number, count: number): number {
 }
 
 /**
- * Higher is better, 0..1.
- * - distance 55%: 1 at the door, 0.5 at 1.5 km, ~0.13 at 10 km
- * - rating 25%: 3★ → 0, 5★ → 1
- * - reliability 10%: share of offers turned into jobs (with a prior, new helpers start at 0.5)
- * - experience 10%: grows with completed jobs, saturates around 50
+ * What "best" means depends on the job (owner, 2026-11-25: "the closest one … with better rated ones
+ * after"): for a job that needs someone **now** speed wins, so distance leads; for a **planned** job
+ * — booked for later, or work in someone's home or with a person — trust matters more than a
+ * kilometre, so rating and experience lead.
  */
-export function score(c: Candidate): number {
+export type RankProfile = "now" | "planned";
+export const RANK_WEIGHTS: Record<RankProfile, { distance: number; rating: number; reliability: number; experience: number }> = {
+  now: { distance: 0.6, rating: 0.2, reliability: 0.1, experience: 0.1 },
+  planned: { distance: 0.25, rating: 0.4, reliability: 0.15, experience: 0.2 },
+};
+
+/** Work at someone's home or with a person: chosen on trust even when it's for right now. */
+const IN_HOME = new Set(["repair", "assembly", "cleaning", "plumbing", "electrical", "escort", "childcare", "eldercare"]);
+
+export function rankProfile(task: { scheduledAt: number | null; mode: string; category: string }): RankProfile {
+  return task.scheduledAt === null && task.mode !== "schedule" && !IN_HOME.has(task.category) ? "now" : "planned";
+}
+
+/**
+ * Higher is better, 0..1 (minus any standards penalty). Parts, each 0..1:
+ * - distance: 1 at the door, 0.5 at 1.5 km, ~0.13 at 10 km
+ * - rating: 3★ → 0, 5★ → 1 (with a prior, see `bayesRating`)
+ * - reliability: share of offers turned into jobs (with a prior, new helpers start at 0.5)
+ * - experience: grows with completed jobs, saturates around 50
+ */
+export function score(c: Candidate, profile: RankProfile = "now"): number {
+  const w = RANK_WEIGHTS[profile];
   const distance = c.distanceKm === null ? 0.1 : 1 / (1 + c.distanceKm / 1.5);
   const rating = Math.min(1, Math.max(0, (bayesRating(c.ratingSum, c.ratingCount) - 3) / 2));
   const reliability = (c.won30d + 1) / (c.offers30d + 2);
   const experience = Math.min(1, Math.log1p(c.completed) / Math.log1p(50));
-  return 0.55 * distance + 0.25 * rating + 0.1 * reliability + 0.1 * experience - (c.penalty ?? 0);
+  return w.distance * distance + w.rating * rating + w.reliability * reliability + w.experience * experience - (c.penalty ?? 0);
+}
+
+/** Why the first applicant is recommended: the parts where they lead the others. */
+export type RecommendReason = "closest" | "bestRated" | "mostJobs";
+
+export function recommendReasons(ranked: readonly { distanceKm: number | null; rating: number; ratingCount: number; completed: number }[]): RecommendReason[] {
+  const [top, ...rest] = ranked;
+  if (!top || rest.length === 0) return [];
+  const reasons: RecommendReason[] = [];
+  if (top.distanceKm !== null && rest.every((r) => r.distanceKm === null || r.distanceKm >= top.distanceKm!)) reasons.push("closest");
+  if (top.ratingCount > 0 && rest.every((r) => r.rating <= top.rating)) reasons.push("bestRated");
+  if (top.completed > 0 && rest.every((r) => r.completed <= top.completed)) reasons.push("mostJobs");
+  return reasons;
 }
 
 /** The helpers to offer the task to in `wave`: not offered before, best first. */
-export function pickWave(candidates: readonly Candidate[], wave: number, alreadyOffered: ReadonlySet<string>, waves: readonly Wave[] = WAVES) {
+export function pickWave(
+  candidates: readonly Candidate[],
+  wave: number,
+  alreadyOffered: ReadonlySet<string>,
+  waves: readonly Wave[] = WAVES,
+  profile: RankProfile = "now",
+) {
   const w = waves[wave];
   return candidates
     .filter((c) => !alreadyOffered.has(c.helperId))
     // helpers or tasks without a position are only reached by the last (widest) wave
     .filter((c) => (c.distanceKm === null ? wave === waves.length - 1 : c.distanceKm <= w.radiusKm))
-    .map((c) => ({ ...c, score: score(c) }))
+    .map((c) => ({ ...c, score: score(c, profile) }))
     .sort((a, b) => b.score - a.score || (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9) || a.helperId.localeCompare(b.helperId))
     .slice(0, w.max);
 }

@@ -63,18 +63,19 @@ export function DetailSection({ label, children, className = "" }: { label: stri
   );
 }
 
-/** Two values side by side (e.g. fee | items), split by a vertical line. */
-export function DetailPair({ left, right }: { left: { label: string; value: ReactNode }; right: { label: string; value: ReactNode } }) {
+/**
+ * The key facts as label | value rows split by thin lines (PleaseHelp-style "Price / When / Where"),
+ * on one white card. Labels sit in a fixed column so the values line up.
+ */
+export function DetailRows({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   return (
-    <dl className="grid grid-cols-2 rounded-card bg-bg p-4 shadow-card">
-      <div className="flex flex-col gap-1 pr-3">
-        <dt className="text-[13px] font-semibold text-ink-2">{left.label}</dt>
-        <dd>{left.value}</dd>
-      </div>
-      <div className="flex flex-col gap-1 border-l border-line pl-3">
-        <dt className="text-[13px] font-semibold text-ink-2">{right.label}</dt>
-        <dd>{right.value}</dd>
-      </div>
+    <dl className="flex flex-col rounded-card bg-bg px-4 shadow-card">
+      {rows.map((r, i) => (
+        <div key={r.label} className={`grid grid-cols-[6.5rem_minmax(0,1fr)] items-baseline gap-3 py-3.5 ${i > 0 ? "border-t border-line" : ""}`}>
+          <dt className="text-[14px] font-medium text-ink-2">{r.label}</dt>
+          <dd className="min-w-0">{r.value}</dd>
+        </div>
+      ))}
     </dl>
   );
 }
