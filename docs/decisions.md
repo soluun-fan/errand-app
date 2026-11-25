@@ -397,3 +397,19 @@ After studying PleaseHelp (site-study skill), owner: "then do those". Their "req
 - **Work photos show the job's final price** (the agreed fee after any change or partial refund; never the shopping). Only for photos agreed under the new wording that says so (`work_photos.show_price`); photos agreed earlier were promised "only the kind of job is shown" and keep that promise.
 - **Numbers band** on the landing page: finished jobs, approved helpers, average rating + number of customer reviews (`public_stats()`). Real totals only; each number appears once it passes a floor (100 jobs, 20 helpers, 30 reviews — `STATS_FLOOR`), and the band needs at least two. "[verify]" tasks never count.
 - **Company details in the footer** (name, registration number, address, plus support phone/email), filled in by Ops at /ops/support; empty = hidden. Migration 20261125010000.
+
+## 2026-11-25 — Mongolia research → safety and helper changes
+Owner: "lets start then. anything we can include and should include" (after the PleaseHelp helper videos and the Mongolia research).
+- **Day jobs ≥ 6,000₮/h** (migration 20261125020000): the minimum wage becomes 1,000,000₮/month and 5,952.30₮/hour on 2027-01-01 (tripartite decision of 2026-08-17).
+- **Paying outside the app** (online fraud: 12,233 cases and about 694 billion₮ lost in 2025):
+  - A chat message that talks about transfers, bank accounts or cash is flagged (`mentionsOffAppPayment`), unless the task is an older pay-the-helper-directly one.
+  - The reader sees a warning under that message; the sender sees a reminder.
+  - The chat screen now has "Report a problem" (and SOS) for the two people on the task.
+  - Phone numbers, links, handles and long digit runs (bank accounts) were already hidden.
+- **Ops can pause an account** from an incident, for 7 or 30 days, with a reason; it is audited and can be lifted. A paused helper gets no new jobs; a paused customer can't post. Running tasks finish normally. The chat's safety line now says both accounts can be suspended. A matching terms clause is an open question for the lawyer (docs/advisor-questions.md).
+- **Helper Jobs screen:**
+  - an online pill in the header that jumps to the online card;
+  - Now / Scheduled filter chips on "All jobs";
+  - "closes in …" on Now jobs;
+  - **slide to finish** (`SlideSubmit`): a tap does nothing, the keyboard still works.
+- **Kept as is:** the customer chooses the helper (trust, given how common fraud is); the applicant cap already exists (`maxApplicants`, 5). Not copied from PleaseHelp: "no cancelling after a match", claims that chats are monitored, and dress/behaviour orders (they read like an employer's).

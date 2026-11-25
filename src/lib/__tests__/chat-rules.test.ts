@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHAT_GRACE_MS, chatAccess, cleanMessage, maskContacts, type ChatDealView } from "@/lib/chat-rules";
+import { CHAT_GRACE_MS, chatAccess, cleanMessage, maskContacts, mentionsOffAppPayment, type ChatDealView } from "@/lib/chat-rules";
 
 const deal = (o: Partial<ChatDealView> = {}): ChatDealView => ({ status: "matched", customerId: "c", helperId: "h", endedAt: null, ...o });
 const NOW = 1_800_000_000_000;
@@ -85,4 +85,25 @@ describe("cleanMessage", () => {
     expect(cleanMessage("   ")).toBeNull();
     expect(cleanMessage("x".repeat(1001))).toBeNull();
   });
+});
+
+describe("mentionsOffAppPayment", () => {
+  it.each([
+    "Миний данс руу шилжүүлээрэй",
+    "Дансаар явуулчих",
+    "бэлэн мөнгөөр өгье",
+    "Бэлнээр төлж болох уу?",
+    "Шууд төлчих, апп-аас гадуур",
+    "dansaar shiljuulchih",
+    "Can you pay me directly in cash?",
+    "Send it to my bank account",
+  ])("flags %s", (text) => expect(mentionsOffAppPayment(text)).toBe(true));
+
+  it.each([
+    "Би бэлэн боллоо, 10 минутад очно",
+    "Орцны код 1234, 5 давхар",
+    "QPay-ээр апп дээр төлсөн",
+    "Баярлалаа, маш сайн хийлээ",
+    "I'm ready, on my way",
+  ])("leaves %s alone", (text) => expect(mentionsOffAppPayment(text)).toBe(false));
 });

@@ -18,12 +18,12 @@ export function RecipientVerificationCard({
   verification: RecipientVerificationOwnerView | null;
 }) {
   const t = useT();
+  const [absoluteLink, setAbsoluteLink] = useState("");
   const [state, action] = useActionState(async (previous: RecipientInviteActionState, form: FormData) => {
     const next = await createRecipientInvite(previous, form);
     setAbsoluteLink(next.sharePath ? new URL(next.sharePath, window.location.origin).toString() : "");
     return next;
   }, initial);
-  const [absoluteLink, setAbsoluteLink] = useState("");
   const status = state.status ?? verification?.status;
   const phone = state.phone ?? verification?.phone;
   const sharePath = state.sharePath;

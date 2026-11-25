@@ -149,3 +149,33 @@ export async function isFirstTask(customerId: string): Promise<boolean> {
   if (error || count === null) return false;
   return count === 0;
 }
+
+/* ---------- pausing an account (Ops) ---------- */
+
+/** How long Ops can pause an account from an incident (2026-11-25). */
+export const PAUSE_DAYS = [7, 30] as const;
+export type PauseDays = (typeof PAUSE_DAYS)[number];
+
+/** Paused right now? (`suspended_until` in the future — also set by the helper-standards pause.) */
+export function isPaused(profile: { suspended_until: string | null }, now = Date.now()): boolean {
+  return profile.suspended_until !== null && Date.parse(profile.suspended_until) > now;
+}
+
+/**
+ * Ops pauses an account, e.g. both sides of a deal paid outside the app (2026-11-25). A paused
+ * helper gets no new jobs; a paused customer can't post. Tasks already running finish as normal.
+ * Never shortens an existing pause. Audited with the reason.
+ */
+export async function pauseAccount(opsId: string, userId: string, days: PauseDays, reason: string, now = Date.now()): Promise<void> {
+  const db = createAdminClient();
+  const { data } = await db.from("profiles").select("suspended_until").eq("id", userId).maybeSingle<{ suspended_until: string | null }>();
+  if (!data) throw new Error("account not found");
+  const until = Math.max(now + days * 86_400_000, data.suspended_until ? Date.parse(data.suspended_until) : 0);
+  await db.from("profiles").update({ suspended_until: new Date(until).toISOString() }).eq("id", userId).throwOnError();
+  await audit(opsId, "account.paused", userId, { days, reason, until: new Date(until).toISOString() });
+}
+
+export async function liftAccountPause(opsId: string, userId: string): Promise<void> {
+  await createAdminClient().from("profiles").update({ suspended_until: null }).eq("id", userId).throwOnError();
+  await audit(opsId, "account.pause_lifted", userId, {});
+}

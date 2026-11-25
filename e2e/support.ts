@@ -154,3 +154,16 @@ export async function ledgerClean(): Promise<unknown[]> {
   const { data } = await db.rpc("ledger_invariant_violations");
   return data ?? [];
 }
+
+/** Drags a slide-to-confirm handle (SlideSubmit) all the way to the end, like a thumb would. */
+export async function slideToSubmit(page: Page, name: RegExp | string): Promise<void> {
+  const handle = page.getByRole("button", { name });
+  const box = await handle.boundingBox();
+  const track = await handle.locator("..").boundingBox();
+  if (!box || !track) throw new Error("slide control not visible");
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width - 4, y, { steps: 12 });
+  await page.mouse.up();
+}

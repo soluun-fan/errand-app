@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CalendarClock, ChevronRight, Landmark, MapPin, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
@@ -14,7 +15,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
 import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
-import { fmtDateTime, fmtMoney } from "@/lib/format";
+import { fmtDateTime, fmtDuration, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { busyAreas } from "@/lib/busy-areas";
 import { fuzz, helperStart } from "@/lib/maps";
@@ -91,6 +92,10 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
               <span className="flex items-center gap-1.5">
                 <Zap aria-hidden size={14} className="flex-none text-brand-ink" />
                 <b className="font-semibold text-brand-ink">{t("task.whenNow")}</b> · {dur}
+                {/* a "now" job closes at its match deadline: say how long is left */}
+                {d.status === "open" && d.matchBy !== null && now > 0 && d.matchBy > now && (
+                  <span className="text-ink-2"> · {t("job.closesIn", { time: fmtDuration(d.matchBy - now, t) })}</span>
+                )}
               </span>
             )}
           </span>
@@ -125,7 +130,7 @@ function Thumb({ pic, t }: { pic: NonNullable<Pic>; t: T }) {
  */
 /** "Бүх ажил": every open post in the city, with category + sort filters (links, so it works without JS). */
 async function Board({ sp, viewerId, from, mine, t, locale }: {
-  sp: { cat?: string | string[]; sort?: string | string[] };
+  sp: { cat?: string | string[]; sort?: string | string[]; when?: string | string[] };
   viewerId: string;
   from: { lat: number; lng: number } | null;
   mine: readonly CategoryId[];
@@ -134,13 +139,19 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
 }) {
   const cat = LAUNCH_CATEGORIES.find((c) => c.id === sp.cat)?.id;
   const sort: BoardSort = sp.sort === "new" || sp.sort === "pay" ? sp.sort : from ? "near" : "new";
-  const items = await browseOpenDeals(viewerId, { category: cat, sort, from });
+  // Now / scheduled (PleaseHelp-style): a helper free right now wants the "now" jobs first
+  const when = sp.when === "now" || sp.when === "later" ? sp.when : undefined;
+  const items = (await browseOpenDeals(viewerId, { category: cat, sort, from })).filter(
+    (i) => !when || (when === "now") === (i.deal.scheduledAt === null && i.deal.mode !== "schedule"),
+  );
   const pics = await loadPics(items);
-  const href = (p: { cat?: string; sort?: string }) => {
+  const href = (p: { cat?: string; sort?: string; when?: string }) => {
     const q = new URLSearchParams({ view: "all" });
     const c = "cat" in p ? p.cat : cat;
     const s = p.sort ?? sort;
+    const w = "when" in p ? p.when : when;
     if (c) q.set("cat", c);
+    if (w) q.set("when", w);
     q.set("sort", s);
     return `/jobs?${q}`;
   };
@@ -156,7 +167,13 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
           </Link>
         ))}
       </nav>
-      <nav aria-label={t("job.sort")} className="flex gap-2">
+      <nav aria-label={t("job.sort")} className="-mx-5 flex items-center gap-2 overflow-x-auto px-5">
+        {(["now", "later"] as const).map((w) => (
+          <Link key={w} href={href({ when: when === w ? undefined : w })} aria-current={when === w ? "page" : undefined} className={chipClass(when === w)}>
+            {w === "now" ? <Zap aria-hidden size={14} /> : <CalendarClock aria-hidden size={14} />} {t(`job.when_${w}`)}
+          </Link>
+        ))}
+        <span aria-hidden className="mx-1 h-6 w-px flex-none bg-line" />
         {(["near", "new", "pay"] as const).map((s) =>
           s === "near" && !from ? null : (
             <Link key={s} href={href({ sort: s })} aria-current={sort === s ? "page" : undefined} className={chipClass(sort === s)}>
@@ -182,14 +199,19 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const { profile, actor } = viewer;
   const view = sp.view === "all" ? "all" : "near";
 
-  const header = (
-    <header className="flex items-center justify-between pt-2">
+  /** `status`: the online pill (approved helpers) — always in sight, like PleaseHelp's header switch. */
+  const pageHeader = (status?: ReactNode) => (
+    <header className="flex items-center justify-between gap-3 pt-2">
       <h1 className="text-[24px] font-bold tracking-tight">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
-      <Link href="/profile" aria-label={t("home.profile")} className="md:hidden">
-        <Avatar name={profile.name || "?"} size={44} />
-      </Link>
+      <span className="flex items-center gap-2">
+        {status}
+        <Link href="/profile" aria-label={t("home.profile")} className="md:hidden">
+          <Avatar name={profile.name || "?"} size={44} />
+        </Link>
+      </span>
     </header>
   );
+  const header = pageHeader();
   // no bank account, no work: customers pay the helper straight into it (docs/decisions.md 2026-11-18)
   if (actor.helperApproved && !isActiveTestHelper(profile) && !(await hasPayout(profile.id))) {
     return (
@@ -228,7 +250,15 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     const pics = await loadPics([...applied, ...offers, ...feed]);
     return (
       <>
-        {header}
+        {pageHeader(
+          <a
+            href="#online"
+            className={`flex min-h-10 items-center gap-2 rounded-full px-3.5 text-[14px] font-semibold ${online ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}
+          >
+            <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${online ? "bg-held" : "bg-ink-3"}`} />
+            {online ? t("job.pillOnline", { km: presence?.radiusKm ?? 3 }) : t("job.offline")}
+          </a>,
+        )}
         <AutoRefresh seconds={online ? 10 : 30} />
         {/* order (2026-11-24): the job you are doing → offers waiting for you → to-dos → online → your applications → the feed */}
         {active.length > 0 && (
@@ -256,9 +286,11 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
 
         <TodoCard items={todos} t={t} />
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
-        <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
-          <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
-        </WorkReady>
+        <div id="online" className="scroll-mt-20">
+          <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
+            <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
+          </WorkReady>
+        </div>
         {applied.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="font-bold">{t("job.myRequests")}</h2>

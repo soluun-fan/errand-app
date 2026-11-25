@@ -14,7 +14,7 @@ import { hasOpenUnpaid } from "@/lib/direct-pay";
 import { liveCategories } from "@/lib/orgs";
 import { pricingConfig } from "@/lib/pricing";
 import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
-import { getControls, isPausedError, openTaskCount, isFirstTask } from "@/lib/safety";
+import { getControls, isPaused, isPausedError, openTaskCount, isFirstTask } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_TASK_PHOTO_BYTES, attachTaskPhotos, createTaskPhotoSlot, type TaskPhotoSlot } from "@/lib/task-photos";
 
@@ -57,6 +57,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
   // Safety controls (docs/decisions.md "Safety pack"); the database enforces the pause too.
   const controls = await getControls();
   if (controls.postingPaused) return { error: t("safety.postingPaused"), step: STEP.review };
+  // paused by Ops (e.g. paying outside the app); running tasks continue
+  if (isPaused(viewer.profile)) return { error: t("safety.accountPaused"), step: STEP.review };
   // a helper reported they weren't paid for an earlier job: settle that first (Ops resolves)
   if (await hasOpenUnpaid(viewer.profile.id)) return { error: t("directPay.blockedPosting"), step: STEP.review };
   const [openTasks, firstTask] = await Promise.all([openTaskCount(viewer.profile.id), isFirstTask(viewer.profile.id)]);

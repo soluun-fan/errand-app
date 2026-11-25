@@ -52,6 +52,17 @@ test("the customer chats with an applicant before choosing; nobody else can read
   await h.goto(`/chat/${id}`);
   await expect(h.getByText("маргааш 9 цагт")).toBeVisible();
 
+  // asking to be paid outside the app: flagged, the sender is reminded, the reader is warned (2026-11-25)
+  const hbox = h.locator("textarea, input[type=text]").last();
+  await hbox.fill("Тэгвэл дансаар шилжүүлчих, хямд болно");
+  await hbox.locator("xpath=ancestor::form[1]").getByRole("button", { name: "Илгээх", exact: true }).click();
+  await expect(h.getByText(/Сануулга: төлбөрөө зөвхөн/)).toBeVisible();
+  await expect
+    .poll(async () => (await db.from("messages").select("flags").eq("deal_id", id).eq("from_user_id", bat.id)).data?.flatMap((m) => m.flags))
+    .toContain("pay_outside");
+  await c.reload();
+  await expect(c.getByText(/Аппаас гадуур хэзээ ч бүү төлөөрэй/)).toBeVisible();
+
   // another helper (not an applicant) can't read it: they only get their own, separate thread
   // for a question before applying (pre-application chat), which starts empty
   const other = await browser.newContext();

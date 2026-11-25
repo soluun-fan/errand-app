@@ -10,7 +10,9 @@ import { fmtDateTime } from "@/lib/format";
 import { incidentQueue } from "@/lib/incidents";
 import { googlePlaceUrl } from "@/lib/maps";
 import { normalizeMnPhone } from "@/lib/phone";
-import { acknowledge, resolve } from "../actions";
+import { PAUSE_DAYS } from "@/lib/safety";
+import type { Locale, T } from "@/i18n";
+import { acknowledge, liftAccountPauseAction, pauseAccountAction, resolve } from "../actions";
 import { CircleCheck, MapPin, Phone } from "lucide-react";
 import { Ico } from "@/components/icon";
 
@@ -64,6 +66,12 @@ export default async function OpsIncidentsPage() {
                       </a>
                     )}
                   </div>
+                  {/* pause either person (e.g. both paid outside the app) — or lift a pause */}
+                  <div className="flex flex-wrap gap-2">
+                    {[i.reporter, ...(i.subject ? [i.subject] : [])].map((who) => (
+                      <PauseControl key={who.id} who={who} t={t} locale={locale} />
+                    ))}
+                  </div>
                   {i.status === "resolved" ? (
                     <p className="text-sm text-ink-2">
                       ✓ {i.handledBy}: {i.opsNote}
@@ -96,5 +104,44 @@ export default async function OpsIncidentsPage() {
         </ul>
       )}
     </>
+  );
+}
+
+/** Pause one person's account for 7 or 30 days with a reason, or lift an existing pause. */
+function PauseControl({ who, t, locale }: { who: { id: string; name: string; pausedUntil: number | null }; t: T; locale: Locale }) {
+  if (who.pausedUntil !== null) {
+    return (
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-input bg-warn-bg px-3 py-2 text-sm text-warn">
+        {t("opsIncidents.pausedUntil", { name: who.name, date: fmtDateTime(who.pausedUntil, locale) })}
+        <InlineAction action={liftAccountPauseAction} fields={{ userId: who.id }} label={t("opsIncidents.lift")} className={btn.small} />
+      </div>
+    );
+  }
+  return (
+    <ConfirmSheet
+      action={pauseAccountAction}
+      fields={{ userId: who.id }}
+      trigger={t("opsIncidents.pause", { name: who.name })}
+      triggerClass={`${btn.secondary} text-danger`}
+      title={t("opsIncidents.pauseTitle", { name: who.name })}
+      body={t("opsIncidents.pauseBody")}
+      confirmLabel={t("opsIncidents.pause", { name: who.name })}
+      confirmClass={btn.danger}
+    >
+      <label className={fieldLabel}>
+        {t("opsIncidents.pauseDays")}
+        <select name="days" defaultValue="7" className={field}>
+          {PAUSE_DAYS.map((d) => (
+            <option key={d} value={d}>
+              {t("opsIncidents.days", { n: d })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={fieldLabel}>
+        {t("opsIncidents.pauseReason")}
+        <textarea name="reason" rows={3} maxLength={500} required minLength={5} className={field} />
+      </label>
+    </ConfirmSheet>
   );
 }

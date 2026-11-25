@@ -129,3 +129,25 @@ export function cleanMessage(raw: string): string | null {
   if (!t || t.length > CHAT_MAX_CHARS) return null;
   return t;
 }
+
+/* ---------- paying outside the app ---------- */
+
+// Cyrillic has no \b in JS regexes, so stems are matched as substrings. "бэлэн" alone means
+// "ready", so only the cash forms count; QPay is how the app itself is paid, so it doesn't count.
+const OFF_APP_PAY = [
+  /данс/i, // account: данс, дансаар, дансруу, дансны
+  /шилжүүл/i, // transfer
+  /бэлэн\s*мөнгө|бэлнээр|бэлнээ\b/i, // cash
+  /шууд\s*(?:төл|өг)|гадуур\s*(?:төл|тооц)|апп(?:-?аа?с)?\s*гадуур/i, // pay directly / outside the app
+  /\b(?:dans|shilj[uü]+l|beln[ie]+r|belen\s*m[oö]ng)/i, // the same in Latin letters
+  /\b(?:cash|bank\s*account|iban|wire\s*(?:me|it)|transfer\s*(?:me|it|the\s*money)|pay\s*(?:me|you)\s*directly|outside\s*(?:the\s*)?app)\b/i,
+];
+
+/**
+ * True when a message talks about paying outside the app (2026-11-25: online fraud is Mongolia's
+ * most common crime; money held in the app is the protection). Not blocked — the reader is warned
+ * and shown how to report it, the sender is reminded.
+ */
+export function mentionsOffAppPayment(text: string): boolean {
+  return OFF_APP_PAY.some((re) => re.test(text));
+}

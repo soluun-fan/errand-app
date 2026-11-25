@@ -260,7 +260,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     const ready = handoverLive && !needReceipt && deal.topUp?.status !== "pending";
     if (ready) {
       primary = (
-        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={`✓ ${t("proof.finish")}`} className={`${btn.primary} w-full`}>
+        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={t("proof.finishSlide")} className={`${btn.primary} w-full`} slide>
           {deal.details.require?.handoverCode && (
             <label className={fieldLabel}>
               <Ico as={Hash} /> {t("conditions.codeAsk")}

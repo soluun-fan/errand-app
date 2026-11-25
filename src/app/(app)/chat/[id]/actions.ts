@@ -42,7 +42,7 @@ export async function prepareChatImage(dealId: string, bytes: number, withHelper
  * Sends one message. Access is re-checked here (the database also refuses client writes);
  * contact details are masked and the sender is told; the other side gets a push without content.
  */
-export async function sendChat(dealId: string, text: string, imagePath: string | null, withHelper: string | null = null): Promise<{ error?: string; masked?: boolean }> {
+export async function sendChat(dealId: string, text: string, imagePath: string | null, withHelper: string | null = null): Promise<{ error?: string; masked?: boolean; payOutside?: boolean }> {
   const t = await getT();
   const ctx = await senderContext(dealId, withHelper);
   if (!ctx || (ctx.access.inquiry && imagePath !== null)) return { error: t("chat.closed") };
@@ -55,6 +55,7 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
     text: String(text ?? "").slice(0, 2000),
     imagePath,
     inquiry: ctx.access.inquiry,
+    checkPayment: ctx.deal.payMode !== "direct",
   });
   if (!r.ok) return { error: t(r.reason === "rate" ? "chat.slowDown" : r.reason === "closed" ? "chat.closed" : "chat.empty") };
   const toCustomer = ctx.access.counterpartId === ctx.deal.customerId;
@@ -67,7 +68,7 @@ export async function sendChat(dealId: string, text: string, imagePath: string |
     tag: `chat-${dealId}${toCustomer ? `-${ctx.access.threadHelperId}` : "-h"}`,
   });
   refresh();
-  return { masked: r.masked };
+  return { masked: r.masked, payOutside: r.payOutside };
 }
 
 /* ---------- voice messages (also the fallback when a call can't connect) ---------- */

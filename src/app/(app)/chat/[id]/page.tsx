@@ -7,6 +7,9 @@ import { accessFor, loadThread, markSeen } from "@/lib/chat";
 import { loadDeal } from "@/lib/db/deals";
 import { publicProfiles } from "@/lib/deals/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { SafetyBar } from "@/components/safety-bar";
+import { SOS_STATUSES } from "@/lib/incident-rules";
+import { isParty, liveSos } from "@/lib/incidents";
 import { ChatRoom } from "./chat-room";
 
 /**
@@ -35,6 +38,9 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
   await markSeen(deal.id, access.threadHelperId, me);
   const other = people.get(access.counterpartId);
   const back = me === deal.customerId ? `/tasks/${deal.id}` : `/jobs/${deal.id}`;
+  // "Report a problem" (and SOS while they may meet) right here, for the two people on the task
+  const canReport = Boolean(deal.helperId) && isParty(deal, me) && access.threadHelperId === deal.helperId;
+  const sos = canReport ? await liveSos(deal.id, me) : null;
 
   return (
     <>
@@ -46,6 +52,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
           <p className="text-sm text-ink-2">{access.inquiry ? t("chat.beforeApplying") : deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
         </div>
       </div>
+      {canReport && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
       <ChatRoom
         dealId={deal.id}
         messages={messages}
@@ -57,6 +64,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         canCall={callsEnabled() && access.canSend && callParty(deal, me, withHelper)?.helperId === access.threadHelperId}
         initialCallId={initialCallId}
         withHelper={me === deal.customerId ? access.threadHelperId : null}
+        canReport={canReport}
       />
     </>
   );

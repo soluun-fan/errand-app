@@ -3,7 +3,7 @@ import { insertDeal, runCommand } from "@/lib/db/deals";
 import { actorFromProfile } from "@/lib/db/mapping";
 import { amountDue, createErrand } from "@/lib/engine";
 import { pricingConfig } from "@/lib/pricing";
-import { NAMES, PHONES, cancelIfOpen, db, errand, ledgerClean, loginAs, profile } from "./support";
+import { NAMES, PHONES, cancelIfOpen, db, errand, ledgerClean, loginAs, profile, slideToSubmit } from "./support";
 
 /**
  * Task conditions (docs/decisions.md 2026-11-18): a task needing a driver's licence and a handover
@@ -92,11 +92,15 @@ test("a licence-only task: Bat sends his licence, Ops approves, then he can appl
   await h.goto(`/jobs/${id}`);
   await expect(h.getByText("4821")).toHaveCount(0); // never on the helper's screen
   await h.locator("input[name=code]").fill("1111");
-  await h.getByRole("button", { name: /Дууссан гэж/ }).click();
+  await slideToSubmit(h, /Гулсуулж дуусгах/);
   await expect(h.getByText(/Код буруу байна/)).toBeVisible();
   expect((await errand(id)).status).toBe("in_progress");
   await h.locator("input[name=code]").fill("4821");
-  await h.getByRole("button", { name: /Дууссан гэж/ }).click();
+  // a plain tap never finishes a job (slide to finish, 2026-11-25)
+  await h.getByRole("button", { name: /Гулсуулж дуусгах/ }).click();
+  await h.waitForTimeout(1500);
+  expect((await errand(id)).status).toBe("in_progress");
+  await slideToSubmit(h, /Гулсуулж дуусгах/);
   await expect.poll(async () => (await errand(id)).status).toBe("check");
   await runCommand(db, id, { type: "confirm" }, actorFromProfile(sol, Date.now()));
   await Promise.all([helper.close(), ops.close(), customer.close()]);

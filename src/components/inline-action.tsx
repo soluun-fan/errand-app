@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 import { SubmitButton, type ActionResult, type FormAction } from "./sheet";
+import { SlideSubmit } from "./slide-submit";
 
 /** A form that runs a server action in one tap (no confirm sheet) and shows its error inline. */
 export function InlineAction({
@@ -11,7 +12,10 @@ export function InlineAction({
   className,
   children,
   done,
+  slide,
 }: {
+  /** Slide to submit instead of a tap — for steps that must not happen by accident (finishing a job). */
+  slide?: boolean;
   action: FormAction;
   fields: Record<string, string>;
   label: string;
@@ -34,7 +38,7 @@ export function InlineAction({
           {state.error}
         </p>
       )}
-      <SubmitButton className={className}>{label}</SubmitButton>
+      {slide ? <SlideSubmit label={label} /> : <SubmitButton className={className}>{label}</SubmitButton>}
     </form>
   );
 }

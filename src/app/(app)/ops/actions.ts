@@ -8,7 +8,7 @@ import { getViewer } from "@/lib/auth";
 import { acknowledgeIncident, resolveIncident } from "@/lib/incidents";
 import { updateKindMinimum, updatePricing, type PricingSettings } from "@/lib/pricing";
 import { cleanTiers, percentToBps, wholeAmount } from "@/lib/pricing-rules";
-import { audit, updateControls } from "@/lib/safety";
+import { PAUSE_DAYS, audit, liftAccountPause, pauseAccount, updateControls, type PauseDays } from "@/lib/safety";
 import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
 import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rules";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
@@ -73,6 +73,33 @@ export async function acknowledge(_prev: ActionResult, form: FormData): Promise<
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
   if (!(await acknowledgeIncident(String(form.get("id") ?? ""), viewer.profile.id))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+/** Pause an account from an incident (7 or 30 days, with a reason) — e.g. paying outside the app. */
+export async function pauseAccountAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const userId = parseOr(Uuid, form.get("userId"));
+  const days = Number(form.get("days"));
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 500);
+  if (!userId || !(PAUSE_DAYS as readonly number[]).includes(days)) return { error: t("error.generic") };
+  if (reason.length < 5) return { error: t("opsIncidents.noteNeeded") };
+  if (userId === viewer.profile.id) return { error: t("error.generic") };
+  await pauseAccount(viewer.profile.id, userId, days as PauseDays, reason);
+  refresh();
+  return { done: true };
+}
+
+export async function liftAccountPauseAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const userId = parseOr(Uuid, form.get("userId"));
+  if (!userId) return { error: t("error.generic") };
+  await liftAccountPause(viewer.profile.id, userId);
   refresh();
   return { done: true };
 }

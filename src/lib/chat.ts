@@ -1,6 +1,6 @@
 import "server-only";
 import { getRules } from "@/lib/rules";
-import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, type ChatAccess } from "@/lib/chat-rules";
+import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, mentionsOffAppPayment, type ChatAccess } from "@/lib/chat-rules";
 import { hadRealCall } from "@/lib/call-rules";
 import type { Viewer } from "@/lib/auth";
 import { categoryTrust, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
@@ -22,6 +22,8 @@ export interface ChatMessage {
   audioUrl: string | null;
   audioSeconds: number | null;
   masked: boolean;
+  /** Talks about paying outside the app (the reader is warned; see `mentionsOffAppPayment`). */
+  payOutside: boolean;
   seen: boolean;
   at: number;
 }
@@ -160,6 +162,7 @@ export async function loadThread(dealId: string, helperId: string, viewerId: str
     audioUrl: r.audio_path ? (urlOf.get(r.audio_path) ?? null) : null,
     audioSeconds: r.audio_seconds,
     masked: (r.flags ?? []).includes("contact_masked"),
+    payOutside: (r.flags ?? []).includes("pay_outside"),
     seen: r.seen_at !== null,
     at: Date.parse(r.created_at),
   }));
@@ -188,11 +191,12 @@ export async function markSeen(dealId: string, helperId: string, viewerId: strin
     .is("seen_at", null);
 }
 
-export type SendResult = { ok: true; masked: boolean } | { ok: false; reason: "empty" | "rate" | "closed" };
+export type SendResult = { ok: true; masked: boolean; payOutside: boolean } | { ok: false; reason: "empty" | "rate" | "closed" };
 
 /**
  * Stores one message after the caller checked `accessFor().canSend`. Masks contact details, applies
- * the per-minute rate limit, and flags masked messages for Ops (repeat offenders show up there).
+ * the per-minute rate limit, and flags masked messages and talk of paying outside the app
+ * (`checkPayment`: off for older pay-the-helper-directly tasks, where that talk is expected).
  */
 export async function storeMessage(p: {
   dealId: string;
@@ -203,6 +207,7 @@ export async function storeMessage(p: {
   inquiry?: boolean;
   audioPath?: string | null;
   audioSeconds?: number | null;
+  checkPayment?: boolean;
 }): Promise<SendResult> {
   const db = createAdminClient();
   const body = p.text.trim() ? cleanMessage(p.text) : "";
@@ -216,6 +221,7 @@ export async function storeMessage(p: {
     .gt("created_at", since);
   if ((count ?? 0) >= CHAT_RATE_PER_MINUTE) return { ok: false, reason: "rate" };
   const { text, masked } = maskContacts(body);
+  const payOutside = (p.checkPayment ?? true) && mentionsOffAppPayment(body);
   await db
     .from("messages")
     .insert({
@@ -226,10 +232,10 @@ export async function storeMessage(p: {
       image_path: p.imagePath ?? null,
       audio_path: p.audioPath ?? null,
       audio_seconds: p.audioPath ? (p.audioSeconds ?? null) : null,
-      flags: [...(masked ? ["contact_masked"] : []), ...(p.inquiry ? ["inquiry"] : [])],
+      flags: [...(masked ? ["contact_masked"] : []), ...(payOutside ? ["pay_outside"] : []), ...(p.inquiry ? ["inquiry"] : [])],
     })
     .throwOnError();
-  return { ok: true, masked };
+  return { ok: true, masked, payOutside };
 }
 
 const AUDIO_EXT: Record<string, string> = {

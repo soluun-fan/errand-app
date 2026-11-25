@@ -20,7 +20,11 @@ export function RecipientVerification({
   inviteValid: boolean;
 }) {
   const t = useT();
-  const [state, action] = useActionState(async (previous: RecipientVerificationActionState, form: FormData) => {
+  const [view, setView] = useState(verification);
+  const [linkValid, setLinkValid] = useState(inviteValid);
+  const [error, setError] = useState("");
+  const checking = useRef(false);
+  const [, action] = useActionState(async (previous: RecipientVerificationActionState, form: FormData) => {
     const next = await beginRecipientVerification(previous, form);
     if (next.view) {
       setView(next.view);
@@ -39,10 +43,6 @@ export function RecipientVerification({
     }
     return next;
   }, initial);
-  const [view, setView] = useState(verification);
-  const [linkValid, setLinkValid] = useState(inviteValid);
-  const [error, setError] = useState("");
-  const checking = useRef(false);
 
   useEffect(() => {
     if (!linkValid || (view.status !== "PENDING" && view.status !== "CREATING")) return;

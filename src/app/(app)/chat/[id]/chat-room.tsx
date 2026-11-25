@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Camera, Lock, Phone, Video } from "lucide-react";
+import { ArrowUp, Camera, Lock, Phone, ShieldAlert, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/i18n/client";
@@ -30,7 +30,10 @@ export function ChatRoom({
   canCall,
   initialCallId,
   withHelper,
+  canReport,
 }: {
+  /** The viewer can use "Report a problem" on this task (shown on this screen). */
+  canReport: boolean;
   /** The applicant this conversation is with (customer side, while choosing); null otherwise. */
   withHelper: string | null;
   dealId: string;
@@ -78,7 +81,8 @@ export function ChatRoom({
       if (r.error) setNotice({ tone: "bad", text: r.error });
       else {
         if (!imagePath) setText("");
-        if (r.masked) setNotice({ tone: "warn", text: t("chat.maskedNote") });
+        if (r.payOutside) setNotice({ tone: "warn", text: t("chat.payOutsideSent") });
+        else if (r.masked) setNotice({ tone: "warn", text: t("chat.maskedNote") });
       }
     } finally {
       setBusy(false);
@@ -145,6 +149,13 @@ export function ChatRoom({
               {m.masked ? ` · ${t("chat.maskedTag")}` : ""}
               {m.fromMe && m.seen ? ` · ${t("chat.seen")}` : ""}
             </span>
+            {/* the reader is warned where it matters: next to the message asking for money outside the app */}
+            {m.payOutside && !m.fromMe && (
+              <p className="mt-1 flex max-w-[80%] items-start gap-1.5 rounded-input bg-warn-bg px-3 py-2 text-[13px] leading-snug text-warn">
+                <ShieldAlert aria-hidden size={16} className="mt-px shrink-0" />
+                {t(canReport ? "chat.payOutsideWarn" : "chat.payOutsideWarnBefore")}
+              </p>
+            )}
           </li>
           );
         })}

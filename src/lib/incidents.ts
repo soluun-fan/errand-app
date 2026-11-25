@@ -113,8 +113,9 @@ export interface IncidentForOps {
   kind: IncidentKind;
   status: "open" | "acknowledged" | "resolved";
   note: string;
-  reporter: { id: string; name: string; role: "customer" | "helper"; phone: string | null };
-  subject: { id: string; name: string } | null;
+  /** `pausedUntil`: the account is paused by Ops (or the standards) until then, else null. */
+  reporter: { id: string; name: string; role: "customer" | "helper"; phone: string | null; pausedUntil: number | null };
+  subject: { id: string; name: string; pausedUntil: number | null } | null;
   position: { lat: number; lng: number; accuracy: number | null } | null;
   alerts: number;
   lastAlertAt: number;
@@ -156,11 +157,16 @@ export async function incidentQueue(): Promise<IncidentForOps[]> {
   const people = [...new Set(rows.flatMap((r) => [r.reporter_id, r.subject_id, r.handled_by]).filter((x): x is string => Boolean(x)))];
   const deals = [...new Set(rows.map((r) => r.deal_id))];
   const [{ data: profs }, { data: ds }] = await Promise.all([
-    db.from("profiles").select("id, name, phone").in("id", people).returns<{ id: string; name: string; phone: string | null }[]>(),
+    db.from("profiles").select("id, name, phone, suspended_until").in("id", people).returns<{ id: string; name: string; phone: string | null; suspended_until: string | null }[]>(),
     db.from("deals").select("id, title, status, customer_id").in("id", deals).returns<{ id: string; title: string; status: string; customer_id: string | null }[]>(),
   ]);
   const p = new Map((profs ?? []).map((x) => [x.id, x]));
   const d = new Map((ds ?? []).map((x) => [x.id, x]));
+  const now = Date.now();
+  const pausedUntil = (id: string) => {
+    const until = p.get(id)?.suspended_until;
+    return until && Date.parse(until) > now ? Date.parse(until) : null;
+  };
   return rows.map((r) => ({
     id: r.id,
     dealId: r.deal_id,
@@ -174,8 +180,9 @@ export async function incidentQueue(): Promise<IncidentForOps[]> {
       name: p.get(r.reporter_id)?.name || "—",
       role: d.get(r.deal_id)?.customer_id === r.reporter_id ? "customer" : "helper",
       phone: p.get(r.reporter_id)?.phone ?? null,
+      pausedUntil: pausedUntil(r.reporter_id),
     },
-    subject: r.subject_id ? { id: r.subject_id, name: p.get(r.subject_id)?.name || "—" } : null,
+    subject: r.subject_id ? { id: r.subject_id, name: p.get(r.subject_id)?.name || "—", pausedUntil: pausedUntil(r.subject_id) } : null,
     position: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng, accuracy: r.accuracy_m } : null,
     alerts: r.alerts,
     lastAlertAt: Date.parse(r.last_alert_at),
