@@ -21,7 +21,19 @@ export default async function OpsPaymentsPage() {
   const db = createAdminClient();
   const unpaid = await openUnpaidReports();
   const titles = unpaid.length
-    ? new Map(((await db.from("deals").select("id, title").in("id", unpaid.map((u) => u.dealId))).data ?? []).map((d) => [d.id as string, d.title as string]))
+    ? new Map(
+        (
+          (
+            await db
+              .from("deals")
+              .select("id, title")
+              .in(
+                "id",
+                unpaid.map((u) => u.dealId),
+              )
+          ).data ?? []
+        ).map((d) => [d.id as string, d.title as string]),
+      )
     : new Map<string, string>();
   const { data: refunds } = await db
     .from("provider_refunds")
@@ -29,12 +41,16 @@ export default async function OpsPaymentsPage() {
     .or("status.eq.manual_required,and(status.eq.failed,attempts.gte.3)")
     .order("created_at")
     .limit(100)
-    .returns<{ id: string; deal_id: string; amount: number; status: string; error: string | null; attempts: number; created_at: string }[]>();
+    .returns<
+      { id: string; deal_id: string; amount: number; status: string; error: string | null; attempts: number; created_at: string }[]
+    >();
 
   return (
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsPay.title")} />
-      <Note tone="info">{activeProvider() === "wire" ? t("opsPay.wireOn") : t("opsPay.mockOn")}</Note>
+      <Note tone="info">
+        {activeProvider() === "wire" ? t("opsPay.wireOn") : activeProvider() === "mock" ? t("opsPay.mockOn") : t("pay.unavailable")}
+      </Note>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPay.unpaidTitle", { n: unpaid.length })}</h2>
@@ -44,7 +60,9 @@ export default async function OpsPaymentsPage() {
             <Link href={`/tasks/${u.dealId}`} className="font-semibold underline">
               {titles.get(u.dealId) ?? u.dealId}
             </Link>
-            <p className="text-sm text-ink-2">{t("opsPay.unpaidLine", { amount: fmtMoney(u.amount), when: fmtDateTime(u.reportedAt, locale) })}</p>
+            <p className="text-sm text-ink-2">
+              {t("opsPay.unpaidLine", { amount: fmtMoney(u.amount), when: fmtDateTime(u.reportedAt, locale) })}
+            </p>
             <ConfirmSheet
               action={resolveUnpaidAction}
               fields={{ dealId: u.dealId }}
@@ -68,7 +86,9 @@ export default async function OpsPaymentsPage() {
             <Link href={`/tasks/${r.deal_id}`} className="font-semibold underline">
               {fmtMoney(Number(r.amount))} · {r.status}
             </Link>
-            <p className="text-sm text-ink-2">{t("opsPay.refundLine", { when: fmtDateTime(Date.parse(r.created_at), locale), attempts: r.attempts })}</p>
+            <p className="text-sm text-ink-2">
+              {t("opsPay.refundLine", { when: fmtDateTime(Date.parse(r.created_at), locale), attempts: r.attempts })}
+            </p>
             {r.error && <p className="break-words text-xs text-danger">{r.error}</p>}
           </Card>
         ))}

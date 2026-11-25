@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
+import { DEFAULT_CONFIG, categoryTrust, type CategoryId, type EngineConfig } from "./config";
 import { assertMoney } from "./errors";
 import type { Deal, ErrandDetails } from "./types";
 
@@ -95,7 +95,7 @@ export function amountDue(deal: Deal): number {
 
 /** True if `atMs` falls in the night window in local (Ulaanbaatar) time. */
 export function isNight(atMs: number, cfg: EngineConfig = DEFAULT_CONFIG): boolean {
-  const hour = Math.floor((atMs / 3_600_000 + cfg.utcOffsetHours) % 24 + 24) % 24;
+  const hour = Math.floor(((atMs / 3_600_000 + cfg.utcOffsetHours) % 24) + 24) % 24;
   return cfg.nightStartHour > cfg.nightEndHour
     ? hour >= cfg.nightStartHour || hour < cfg.nightEndHour
     : hour >= cfg.nightStartHour && hour < cfg.nightEndHour;
@@ -121,13 +121,20 @@ export function careTimeOk(startMs: number, minutes: number, cfg: EngineConfig =
  * hourly floor × hours — plus the trip (distance beyond the included km, and the way back) and the
  * night extra; a second person doubles the labour part. The customer names any price at or above it.
  */
-export function taskMinFee(category: CategoryId, d: Pick<ErrandDetails, "km" | "minutes" | "roundTrip" | "people">, atMs: number | undefined, cfg: EngineConfig = DEFAULT_CONFIG): number {
+export function taskMinFee(
+  category: CategoryId,
+  d: Pick<ErrandDetails, "km" | "minutes" | "roundTrip" | "people">,
+  atMs: number | undefined,
+  cfg: EngineConfig = DEFAULT_CONFIG,
+): number {
   const hourly = cfg.kindMinHourly[category];
   const minutes = Number.isFinite(d.minutes) && d.minutes > 0 ? d.minutes : cfg.includedMinutes;
   let labour = hourly ? ceilStep((hourly * minutes) / 60, cfg) : (cfg.kindMinFee[category] ?? cfg.minFee);
   if (d.people === 2) labour *= 2;
   const km = Number.isFinite(d.km) && d.km > 0 ? d.km : 0;
-  const trip = roundStep(Math.max(0, km - cfg.includedKm) * cfg.perKm, cfg) + (d.roundTrip && km > 0 ? roundStep(bps(km * cfg.perKm, cfg.roundTripBps), cfg) : 0);
+  const trip =
+    roundStep(Math.max(0, km - cfg.includedKm) * cfg.perKm, cfg) +
+    (d.roundTrip && km > 0 ? roundStep(bps(km * cfg.perKm, cfg.roundTripBps), cfg) : 0);
   return labour + trip + (atMs !== undefined && isNight(atMs, cfg) ? cfg.nightFee : 0);
 }
 
@@ -142,7 +149,8 @@ export function kindFromLabel(category: CategoryId, cfg: EngineConfig = DEFAULT_
   if (!h) return { amount: cfg.kindMinFee[category] ?? cfg.minFee, hourly: false };
   // everyday hourly kinds (day jobs) are advertised per job — the usual length × the hourly floor —
   // never "per hour": helpers are contractors paid per task (V1 spec A3). Care keeps its hourly label.
-  if (categoryTrust(category) !== "care") return { amount: h * Math.max(1, Math.round(categoryConfig(category).minutes / 60)), hourly: false };
+  if (categoryTrust(category) !== "care")
+    return { amount: h * Math.max(1, Math.round((cfg.kindMinutes[category] ?? cfg.includedMinutes) / 60)), hourly: false };
   return { amount: h, hourly: true };
 }
 

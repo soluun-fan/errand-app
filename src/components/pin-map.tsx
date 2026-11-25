@@ -55,7 +55,9 @@ export function PinMap({
   const map = useRef<MlMap | null>(null);
   const otherMarker = useRef<Marker | null>(null);
   const changed = useRef(onChange);
-  changed.current = onChange;
+  useEffect(() => {
+    changed.current = onChange;
+  }, [onChange]);
   const [failed, setFailed] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState(false);
@@ -88,7 +90,10 @@ export function PinMap({
           changed.current({ lat: Math.round(c.lat * 1e6) / 1e6, lng: Math.round(c.lng * 1e6) / 1e6 });
         });
         m.on("error", () => setFailed(true));
-        m.on("load", () => { setReady(true); unfold = foldAttributionLater(m); });
+        m.on("load", () => {
+          setReady(true);
+          unfold = foldAttributionLater(m);
+        });
         map.current = m;
         // keep the canvas filling its box when the layout changes size
         resize = new ResizeObserver(() => m.resize());
@@ -111,7 +116,8 @@ export function PinMap({
     const m = map.current;
     if (!m || !value) return;
     const c = m.getCenter();
-    if (Math.abs(c.lat - value.lat) > 1e-5 || Math.abs(c.lng - value.lng) > 1e-5) m.jumpTo({ center: [value.lng, value.lat], zoom: Math.max(m.getZoom(), 15) });
+    if (Math.abs(c.lat - value.lat) > 1e-5 || Math.abs(c.lng - value.lng) > 1e-5)
+      m.jumpTo({ center: [value.lng, value.lat], zoom: Math.max(m.getZoom(), 15) });
   }, [value, ready]);
 
   // the other point, as a fixed marker
@@ -124,7 +130,9 @@ export function PinMap({
     let cancelled = false;
     loadMapLibre().then(({ Marker }) => {
       if (cancelled) return;
-      otherMarker.current = new Marker({ element: pinElement(PIN_COLOR[other.kind]), anchor: "bottom" }).setLngLat([other.lng, other.lat]).addTo(m);
+      otherMarker.current = new Marker({ element: pinElement(PIN_COLOR[other.kind]), anchor: "bottom" })
+        .setLngLat([other.lng, other.lat])
+        .addTo(m);
     });
     return () => {
       cancelled = true;
@@ -135,7 +143,10 @@ export function PinMap({
 
   const locate = () => {
     setLocationError(false);
-    if (!("geolocation" in navigator)) { setLocationError(true); return; }
+    if (!("geolocation" in navigator)) {
+      setLocationError(true);
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (p) => {
@@ -144,12 +155,16 @@ export function PinMap({
         const m = map.current;
         m?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 });
         // the blue "you are here" dot stays where the phone was
-        if (m) void loadMapLibre().then(({ Marker }) => {
-          meMarker.current?.remove();
-          meMarker.current = new Marker({ element: meElement() }).setLngLat([p.coords.longitude, p.coords.latitude]).addTo(m);
-        });
+        if (m)
+          void loadMapLibre().then(({ Marker }) => {
+            meMarker.current?.remove();
+            meMarker.current = new Marker({ element: meElement() }).setLngLat([p.coords.longitude, p.coords.latitude]).addTo(m);
+          });
       },
-      () => { setLocating(false); setLocationError(true); },
+      () => {
+        setLocating(false);
+        setLocationError(true);
+      },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   };
@@ -157,30 +172,40 @@ export function PinMap({
   if (failed) return <p className="rounded-card bg-fill p-4 text-sm text-ink-2">{t("map.failed")}</p>;
   return (
     <div>
-    <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
-      <div ref={box} className="absolute inset-0 h-full w-full" aria-label={t("map.pinLabel")} role="application" />
-      {/* the fixed centre pin: its tip marks the spot; a small shadow shows where it will land */}
-      <span aria-hidden data-lifted={lifted} className="map-pin-shadow pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/30" />
-      <span
-        aria-hidden
-        key={drops}
-        data-lifted={lifted}
-        data-dropped={!lifted && drops > 0}
-        className="map-pin pointer-events-none absolute left-1/2 top-1/2 -ml-[17px] -mt-[45px] drop-shadow-[0_2px_2px_rgb(0_0_0/0.25)]"
-        dangerouslySetInnerHTML={{ __html: pinSvg(PIN_COLOR[kind], 34) }}
-      />
-      <LocateButton label={t("map.myLocation")} busy={locating} onClick={locate} className="bottom-10 right-3" />
-      <PlaceSearch
-        onPick={(p) => {
-          changed.current({ lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 });
-          map.current?.flyTo({ center: [p.lng, p.lat], zoom: 17 });
-        }}
-      />
-      {!value && (
-        <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">{t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}</span>
+      <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
+        <div ref={box} className="absolute inset-0 h-full w-full" aria-label={t("map.pinLabel")} role="application" />
+        {/* the fixed centre pin: its tip marks the spot; a small shadow shows where it will land */}
+        <span
+          aria-hidden
+          data-lifted={lifted}
+          className="map-pin-shadow pointer-events-none absolute left-1/2 top-1/2 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/30"
+        />
+        <span
+          aria-hidden
+          key={drops}
+          data-lifted={lifted}
+          data-dropped={!lifted && drops > 0}
+          className="map-pin pointer-events-none absolute left-1/2 top-1/2 -ml-[17px] -mt-[45px] drop-shadow-[0_2px_2px_rgb(0_0_0/0.25)]"
+          dangerouslySetInnerHTML={{ __html: pinSvg(PIN_COLOR[kind], 34) }}
+        />
+        <LocateButton label={t("map.myLocation")} busy={locating} onClick={locate} className="bottom-10 right-3" />
+        <PlaceSearch
+          onPick={(p) => {
+            changed.current({ lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 });
+            map.current?.flyTo({ center: [p.lng, p.lat], zoom: 17 });
+          }}
+        />
+        {!value && (
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">
+            {t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}
+          </span>
+        )}
+      </div>
+      {locationError && (
+        <p role="status" className="mt-2 text-sm text-ink-2">
+          {t("addressEntry.locationFailed")}
+        </p>
       )}
-    </div>
-    {locationError && <p role="status" className="mt-2 text-sm text-ink-2">{t("addressEntry.locationFailed")}</p>}
     </div>
   );
 }

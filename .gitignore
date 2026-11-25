@@ -52,3 +52,6 @@ next-env.d.ts
 
 # test sessions kept between browser-test runs (e2e/support.ts)
 /e2e/.auth/
+
+# Other sites captured for design study (site-study skill) — never shipped
+reference/inspo/

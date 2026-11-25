@@ -1,9 +1,11 @@
+import { toJson } from "./json";
 /**
  * Deal repository: the only place that writes deals. Load → engine.apply → one atomic RPC.
  *
  * Takes the Supabase client as a parameter (service-role in the app, see
  * src/lib/supabase/admin.ts) so scripts and tests can reuse it.
  */
+import type { Database } from "./database.types";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { EngineError, apply, categoryTrust, type Actor, type Command, type Deal, type Transition } from "@/lib/engine";
 import { applyTransitionArgs, dealFromRow, insertDealArgs, type DealRow, type DisputeRow, type OfferRow } from "./mapping";
@@ -20,10 +22,15 @@ export class DbError extends Error {
 /** SQLSTATE raised by apply_transition() when someone else changed the deal first. */
 const CONFLICT = "PT409";
 
-export async function loadDeal(db: SupabaseClient, id: string): Promise<Deal | null> {
+export async function loadDeal(db: SupabaseClient<Database>, id: string): Promise<Deal | null> {
   const [deal, offers, dispute] = await Promise.all([
     db.from("deals").select("*").eq("id", id).maybeSingle<DealRow>(),
-    db.from("offers").select("helper_id, org_id, note, price, proposed_by, created_at").eq("deal_id", id).order("created_at").returns<OfferRow[]>(),
+    db
+      .from("offers")
+      .select("helper_id, org_id, note, price, proposed_by, created_at")
+      .eq("deal_id", id)
+      .order("created_at")
+      .returns<OfferRow[]>(),
     db.from("disputes").select("*").eq("deal_id", id).maybeSingle<DisputeRow>(),
   ]);
   for (const r of [deal, offers, dispute]) if (r.error) throw new DbError(r.error);
@@ -31,11 +38,12 @@ export async function loadDeal(db: SupabaseClient, id: string): Promise<Deal | n
 }
 
 /** Persists a deal fresh from createErrand()/createGoods(). */
-export async function insertDeal(db: SupabaseClient, t: Transition): Promise<void> {
+export async function insertDeal(db: SupabaseClient<Database>, t: Transition): Promise<void> {
   if (t.deal.type === "errand" && categoryTrust(t.deal.category) === "care") {
     throw new DbError({ message: "this kind of task is not available right now" });
   }
-  const { error } = await db.rpc("insert_deal", insertDealArgs(t));
+  const args = insertDealArgs(t);
+  const { error } = await db.rpc("insert_deal", { ...args, p_deal: toJson(args.p_deal) });
   if (error) throw new DbError(error);
 }
 
@@ -47,7 +55,7 @@ export async function insertDeal(db: SupabaseClient, t: Transition): Promise<voi
  * Throws EngineError for rule violations, DbError for storage failures.
  */
 export async function runCommand(
-  db: SupabaseClient,
+  db: SupabaseClient<Database>,
   dealId: string,
   cmd: Command,
   actor: Actor,
@@ -58,14 +66,24 @@ export async function runCommand(
     const before = await loadDeal(db, dealId);
     if (!before) throw new EngineError("INVALID_INPUT", "Deal not found");
     const now = opts.now?.() ?? Date.now();
-    if (before.type === "errand" && before.status === "open" && categoryTrust(before.category) === "care"
-        && ["choose", "accept", "apply", "reprice", "counter", "accept_counter", "open_to_all"].includes(cmd.type)) {
+    if (
+      before.type === "errand" &&
+      before.status === "open" &&
+      categoryTrust(before.category) === "care" &&
+      ["choose", "accept", "apply", "reprice", "counter", "accept_counter", "open_to_all"].includes(cmd.type)
+    ) {
       throw new DbError({ message: "this kind of task is not available right now" });
     }
     const t = apply(before, cmd, { now, actor });
     if (t.duplicate) return t;
 
-    const { error } = await db.rpc("apply_transition", applyTransitionArgs(before, t, now));
+    const args = applyTransitionArgs(before, t, now);
+    const { error } = await db.rpc("apply_transition", {
+      ...args,
+      p_deal: toJson(args.p_deal),
+      p_dispute: toJson(args.p_dispute),
+      p_ledger: toJson(args.p_ledger),
+    });
     if (!error) return t;
     if (error.code === CONFLICT && attempt < attempts) continue;
     throw new DbError(error);

@@ -385,7 +385,9 @@ Migrations, in order:
 
 ## 13. How code is written here (conventions)
 
-There's no ESLint or Prettier config: **match the surrounding code.** That means 2-space indent, double quotes, semicolons, trailing commas, lines up to about 140 characters, and named exports (default exports only where Next requires them: pages, layouts, routes). TypeScript is `strict`. Import from `@/…` (= `src/…`). The **React Compiler is on** (`reactCompiler: true`), so don't add `useMemo` or `useCallback` for performance.
+Run `npm run lint`, `npm run format:check`, and `npm run typecheck`. Prettier formats changed source/configuration files (`npm run format`) with 2-space indent, double quotes, semicolons, trailing commas, and a 140-character print width; CI compares against the PR base or previous push. Use named exports (default exports only where Next requires them). TypeScript is `strict`. Import from `@/…` (= `src/…`). The React Compiler is on, so don't add `useMemo` or `useCallback` for performance.
+
+Supabase clients use `src/lib/db/database.types.ts`, generated from all migrations in disposable Postgres. After a schema change, run `npm run db:types`; CI rejects stale types. Category default durations and review windows are in `category_settings` (`20261125000000_category_timing.sql`) and editable at `/ops/pricing`. Apply this migration before deploying the updated app; existing deals keep their saved terms. Hosted migrations remain a separate approved rollout.
 
 ### Shape of the code
 - **Pure logic is separate from I/O.**

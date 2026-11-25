@@ -4,6 +4,7 @@ import { kindCovers } from "@/lib/covers";
 import { latestWork } from "@/lib/work-photos";
 import { WorkCard } from "@/components/work-photos";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CategoryIcon } from "@/components/category-icon";
@@ -17,11 +18,12 @@ import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { liveCategories } from "@/lib/orgs";
 import { lowestMinFee } from "@/lib/engine";
-import { fmtMoney } from "@/lib/format";
+import { fmtCount, fmtMoney } from "@/lib/format";
 import { popularStarts, seasonalStarts } from "@/lib/content";
 import { qsTitle } from "@/lib/content-rules";
 import { pricingConfig } from "@/lib/pricing";
-import { onlineHelperCount, openRequests, recentRequests } from "@/lib/public-snapshot";
+import { onlineHelperCount, openRequests, publicStats, recentRequests } from "@/lib/public-snapshot";
+import { getSupportSettings } from "@/lib/support";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -38,7 +40,7 @@ const wrap = "mx-auto w-full max-w-6xl px-5 sm:px-6"; // 20 px on phones, like t
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   if (await getViewer()) redirect("/");
   const closed = (await searchParams).closed === "1";
-  const [t, locale, cfg, recent, online, board, popular, seasonal, covers, work, live] = await Promise.all([
+  const [t, locale, cfg, recent, online, board, popular, seasonal, covers, work, live, stats, company] = await Promise.all([
     getT(),
     getLocale(),
     pricingConfig(),
@@ -50,6 +52,9 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
     kindCovers(),
     latestWork(8),
     liveCategories(),
+    publicStats(),
+    // the footer's company lines are a nice-to-have: the landing page never fails over them
+    getSupportSettings().catch(() => null),
   ]);
   const now = Date.now();
   // the only price that is ours is the minimum; customers name their own
@@ -60,6 +65,20 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
     { icon: ShieldCheck, title: t("landing.s3t"), body: t("landing.s3b") },
     { icon: Star, title: t("landing.s4t"), body: t("landing.s4b") },
   ];
+  /** The numbers band: label → value, only the numbers that passed their floor. */
+  const statItems: [string, ReactNode][] = [];
+  if (stats?.done != null) statItems.push([t("landing.stats.done"), fmtCount(stats.done)]);
+  if (stats?.helpers != null) statItems.push([t("landing.stats.helpers"), fmtCount(stats.helpers)]);
+  if (stats?.reviews) {
+    statItems.push([
+      t("landing.stats.rating"),
+      <span key="r" className="inline-flex items-center gap-1.5">
+        <Star aria-hidden className="size-[0.8em] fill-brand text-brand" />
+        {stats.reviews.avg.toFixed(1)}
+      </span>,
+    ]);
+    statItems.push([t("landing.stats.reviews"), fmtCount(stats.reviews.count)]);
+  }
   const why = [
     { icon: ShieldCheck, title: t("landing.w1t"), body: t("landing.w1b") },
     { icon: BadgeCheck, title: t("landing.w2t"), body: t("landing.w2b") },
@@ -214,6 +233,21 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           </div>
         </section>
 
+        {/* real totals, only once they're big enough (publicStats) */}
+        {stats && (
+          <section aria-labelledby="stats-title" className="bg-brand-bg/60 py-10">
+            <h2 id="stats-title" className="sr-only">{t("landing.stats.title")}</h2>
+            <dl className={`${wrap} grid gap-x-2 gap-y-6 text-center ${statItems.length === 3 ? "grid-cols-3" : "grid-cols-2"} md:auto-cols-fr md:grid-flow-col md:grid-cols-none`}>
+              {statItems.map(([label, value]) => (
+                <div key={label} className="flex flex-col-reverse items-center justify-end gap-1">
+                  <dt className="text-[13px] leading-snug text-balance text-ink-2 sm:text-[14px]">{label}</dt>
+                  <dd className="text-[26px] font-extrabold tabular-nums tracking-tight sm:text-[30px] md:text-[38px]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
+
         {/* why us — two-tone heading */}
         <section className={`${wrap} flex flex-col gap-6 py-12`}>
           <h2 className="text-[30px] font-extrabold tracking-tight md:text-[40px]">
@@ -257,7 +291,23 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 {APP_NAME}
               </span>
               <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>
-              <p className="text-[13px] text-ink-2">© 2026 {APP_NAME}</p>
+              {/* company details as Ops entered them (/ops/support); an empty one isn't shown */}
+              {company && (company.company_name || company.company_reg_no || company.company_address || company.phone || company.email) && (
+                <address className="flex flex-col gap-0.5 break-words text-[13px] not-italic leading-relaxed text-ink-2">
+                  {(company.company_name || company.company_reg_no) && (
+                    <span>{[company.company_name, company.company_reg_no && t("landing.regNo", { n: company.company_reg_no })].filter(Boolean).join(" · ")}</span>
+                  )}
+                  {company.company_address && <span>{company.company_address}</span>}
+                  {(company.phone || company.email) && (
+                    <span>
+                      {company.phone && <a href={`tel:${company.phone.replace(/[^\d+]/g, "")}`} className="hover:text-ink">{company.phone}</a>}
+                      {company.phone && company.email && " · "}
+                      {company.email && <a href={`mailto:${company.email}`} className="hover:text-ink">{company.email}</a>}
+                    </span>
+                  )}
+                </address>
+              )}
+              <p className="mt-1 text-[13px] text-ink-2">© 2026 {APP_NAME}</p>
             </div>
             <nav aria-label={t("landing.footerServices")} className="grid grid-cols-2 gap-6 text-[14px] [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">
               <div className="flex flex-col gap-2">

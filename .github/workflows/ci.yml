@@ -21,11 +21,21 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Formatting of changed files
+        run: npm run format:check
+        env:
+          FORMAT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: Database types match migrations
+        run: npm run db:types:check
       - name: Type check
         run: npm run typecheck
       - name: Tests (engine, money, migrations in PGlite)

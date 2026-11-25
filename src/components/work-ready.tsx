@@ -17,8 +17,10 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
-const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+const isIos = () =>
+  /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes("Macintosh") && navigator.maxTouchPoints > 1);
+const isStandalone = () =>
+  window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 /**
  * "Ready to work" (owner, 2026-11-18: errands run on phones, location and notifications on — or
@@ -37,19 +39,25 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   const sendPosition = useCallback(() => {
-    if (!navigator.geolocation) { setGeo("unsupported"); return; }
+    if (!navigator.geolocation) {
+      setGeo("unsupported");
+      return;
+    }
     setGeo("loading");
     navigator.geolocation.getCurrentPosition(
       async (p) => {
         try {
-          setGeo(await reportPosition(p.coords.latitude, p.coords.longitude) ? "on" : "off");
-        } catch { setGeo("off"); }
+          setGeo((await reportPosition(p.coords.latitude, p.coords.longitude)) ? "on" : "off");
+        } catch {
+          setGeo("off");
+        }
       },
       (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "off"),
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Read device permissions after hydration; these capabilities are owned by the browser. */
   useEffect(() => {
     if (!enforce) return;
     setMounted(true);
@@ -84,13 +92,16 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         .catch(() => setGeo("off"));
     else setGeo("off");
   }, [enforce, publicKey, sendPosition]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function turnOnPush() {
     setPush("loading");
     try {
       if ((await Notification.requestPermission()) !== "granted") return setPush("denied");
       const reg = await navigator.serviceWorker.ready;
-      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey as string) }));
+      const sub =
+        (await reg.pushManager.getSubscription()) ??
+        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey as string) }));
       const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
       await savePush({ endpoint: j.endpoint, keys: j.keys });
       setPush("on");
@@ -106,7 +117,10 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
 
   const step = (icon: ReactNode, title: string, body: string, done: boolean, action: ReactNode) => (
     <li className="flex items-start gap-3 py-3">
-      <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-full ${done ? "bg-held-bg text-held" : "bg-brand-bg text-brand-ink"}`}>
+      <span
+        aria-hidden
+        className={`flex h-10 w-10 flex-none items-center justify-center rounded-full ${done ? "bg-held-bg text-held" : "bg-brand-bg text-brand-ink"}`}
+      >
         {done ? "✓" : icon}
       </span>
       <span className="min-w-0 flex-1">
@@ -118,7 +132,10 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
   );
 
   return (
-    <section aria-labelledby="ready-title" className="flex max-h-[70vh] flex-col overflow-y-auto rounded-card border-2 border-brand bg-bg p-4 text-left shadow-card">
+    <section
+      aria-labelledby="ready-title"
+      className="flex max-h-[70vh] flex-col overflow-y-auto rounded-card border-2 border-brand bg-bg p-4 text-left shadow-card"
+    >
       <h2 id="ready-title" className="text-[17px] font-bold">
         {t("workReady.title")}
       </h2>
@@ -127,11 +144,21 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         {step(<Smartphone size={18} />, t("workReady.phone"), phone ? t("workReady.phoneOk") : t("workReady.phoneBody"), phone, null)}
         {phone &&
           ios &&
-          step(<Share size={18} />, t("workReady.install"), installed ? t("workReady.installOk") : t("workReady.installBody"), installed, null)}
+          step(
+            <Share size={18} />,
+            t("workReady.install"),
+            installed ? t("workReady.installOk") : t("workReady.installBody"),
+            installed,
+            null,
+          )}
         {step(
           <Bell size={18} />,
           t("workReady.notifications"),
-          push === "denied" ? t(ios ? "workReady.notifDeniedIos" : "workReady.notifDenied") : push === "unsupported" ? t(ios && !installed ? "workReady.notifAfterInstall" : "workReady.notifUnsupported") : t("workReady.notifBody"),
+          push === "denied"
+            ? t(ios ? "workReady.notifDeniedIos" : "workReady.notifDenied")
+            : push === "unsupported"
+              ? t(ios && !installed ? "workReady.notifAfterInstall" : "workReady.notifUnsupported")
+              : t("workReady.notifBody"),
           push === "on",
           push === "off" && phone && installed ? (
             <button type="button" onClick={turnOnPush} className={`${btn.primary} w-full`}>
@@ -142,7 +169,11 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         {step(
           <MapPin size={18} />,
           t("workReady.location"),
-          geo === "denied" ? t(ios ? "workReady.geoDeniedIos" : "workReady.geoDenied") : geo === "unsupported" ? t("workReady.geoUnsupported") : t("workReady.geoBody"),
+          geo === "denied"
+            ? t(ios ? "workReady.geoDeniedIos" : "workReady.geoDenied")
+            : geo === "unsupported"
+              ? t("workReady.geoUnsupported")
+              : t("workReady.geoBody"),
           geo === "on",
           geo === "off" && phone ? (
             <button type="button" onClick={sendPosition} className={`${btn.primary} w-full`}>

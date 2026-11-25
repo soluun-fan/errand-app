@@ -12,7 +12,11 @@ import { PricingForm } from "./pricing-form";
 const DAY = Date.UTC(2026, 10, 16, 4); // 12:00 Ulaanbaatar — examples are priced by day
 
 /** Sample jobs priced with the current settings, so Ops sees the effect of a change at a glance. */
-const EXAMPLES: { key: "groceries" | "groceriesFar" | "queue" | "wardrobe" | "fridge"; category: CategoryId; details: Partial<ErrandDetails> }[] = [
+const EXAMPLES: {
+  key: "groceries" | "groceriesFar" | "queue" | "wardrobe" | "fridge";
+  category: CategoryId;
+  details: Partial<ErrandDetails>;
+}[] = [
   { key: "groceries", category: "shop", details: { km: 1 } },
   { key: "groceriesFar", category: "shop", details: { km: 3 } },
   { key: "queue", category: "queue", details: { minutes: 120 } },
@@ -55,7 +59,8 @@ export default async function OpsPricingPage() {
         <div className="flex flex-col rounded-card bg-bg shadow-card">
           {CATEGORIES.map((c) => {
             const k = kinds.find((x) => x.category === c.id);
-            return <KindMinForm key={c.id} category={c.id} minFee={k?.minFee ?? null} minHourly={k?.minHourly ?? null} general={p.baseFee} />;
+            if (!k) throw new Error(`Category settings missing: ${c.id}`);
+            return <KindMinForm key={c.id} {...k} general={p.baseFee} />;
           })}
         </div>
       </section>

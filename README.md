@@ -43,6 +43,9 @@ Sign in with a demo number — no SMS is sent, the code is always **123456**:
 |---|---|
 | `npm test` | All tests: deal engine, mapping, and the SQL schema (runs the migrations in an in-process Postgres — no Docker needed) |
 | `npm run typecheck` | TypeScript |
+| `npm run lint` | Next.js, React and TypeScript lint checks |
+| `npm run format` / `format:check` | Format/check changed source and configuration files; CI compares against the PR base or previous push |
+| `npm run db:types` / `db:types:check` | Generate/check Supabase types from all local migrations in disposable Postgres; no hosted access required |
 | `/dev/components` (in the app) | Component gallery + the deal screen in every state, from fixtures (dev only) |
 | `npm run dev` / `build` / `start` | Next.js |
 

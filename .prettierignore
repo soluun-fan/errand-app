@@ -1,0 +1,12 @@
+node_modules/
+.next/
+public/
+prototype/
+archive/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+next-env.d.ts
+src/lib/db/database.types.ts
+supabase/.temp/

@@ -86,6 +86,9 @@ export interface FeeTier {
 }
 
 export interface EngineConfig {
+  /** Per-category defaults from category_settings, snapshotted when a task is posted. */
+  kindMinutes: Partial<Record<CategoryId, number>>;
+  kindCheckHours: Partial<Record<CategoryId, number>>;
   /** Lowest task price by day (night adds `nightFee`) — for kinds without their own minimum. */
   minFee: number;
   /**
@@ -191,6 +194,8 @@ export interface EngineConfig {
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
+  kindMinutes: Object.fromEntries(CATEGORIES.map((c) => [c.id, c.minutes])),
+  kindCheckHours: Object.fromEntries(CATEGORIES.filter((c) => c.checkHours !== undefined).map((c) => [c.id, c.checkHours!])),
   minFee: 5000,
   maxJobTotal: 200_000,
   suggestBps: 12_500,

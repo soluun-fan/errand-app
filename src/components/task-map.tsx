@@ -40,7 +40,8 @@ function markerFor(mk: MapMarker): { el: HTMLElement; anchor: "bottom" | "center
     const n = Number(mk.label ?? 1);
     const size = Math.min(72, 34 + n * 6);
     const el = document.createElement("div");
-    el.className = "flex items-center justify-center rounded-full border-2 border-[#f29900]/70 bg-[#f29900]/25 text-[13px] font-bold text-[#b06000]";
+    el.className =
+      "flex items-center justify-center rounded-full border-2 border-[#f29900]/70 bg-[#f29900]/25 text-[13px] font-bold text-[#b06000]";
     el.style.width = el.style.height = `${size}px`;
     el.textContent = String(n);
     return { el, anchor: "center" };
@@ -101,7 +102,9 @@ export function TaskMap({
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
   const openUrlRef = useRef(openUrl);
-  openUrlRef.current = openUrl;
+  useEffect(() => {
+    openUrlRef.current = openUrl;
+  }, [openUrl]);
   const key = JSON.stringify(markers) + JSON.stringify(me) + JSON.stringify(route) + String(routeFromMe);
 
   useEffect(() => {
@@ -127,7 +130,11 @@ export function TaskMap({
         m.on("click", () => {
           if (openUrlRef.current) window.open(openUrlRef.current, "_blank", "noopener,noreferrer");
         });
-        m.on("load", () => { setReady(true); setFailed(false); unfold = foldAttributionLater(m); });
+        m.on("load", () => {
+          setReady(true);
+          setFailed(false);
+          unfold = foldAttributionLater(m);
+        });
         map.current = m;
         // the box can change size after the map starts (fonts, sidebars, a wider screen): keep the canvas filling it
         resize = new ResizeObserver(() => m.resize());
@@ -198,14 +205,20 @@ export function TaskMap({
             router.push(mk.href as string);
           };
           el.addEventListener("click", go);
-          el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(e); });
+          el.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") go(e);
+          });
         }
         placed.current.push(new Marker({ element: el, anchor }).setLngLat([mk.lng, mk.lat]).addTo(m));
       }
       // busy areas are background: frame the helper's own jobs (and position) when there are any
       const own = all.filter((mk) => mk.kind !== "busy");
       const frame = own.length > 0 ? own : all;
-      if (frame.length === 1) m.jumpTo({ center: [frame[0].lng, frame[0].lat], zoom: frame[0].kind === "area" || frame[0].kind === "pickupArea" ? 14 : frame[0].kind === "busy" ? 13 : 15 });
+      if (frame.length === 1)
+        m.jumpTo({
+          center: [frame[0].lng, frame[0].lat],
+          zoom: frame[0].kind === "area" || frame[0].kind === "pickupArea" ? 14 : frame[0].kind === "busy" ? 13 : 15,
+        });
       else if (frame.length > 1) {
         const b = new LngLatBounds();
         for (const mk of frame) b.extend([mk.lng, mk.lat]);
@@ -221,8 +234,17 @@ export function TaskMap({
 
   return (
     <div className={`relative overflow-hidden ${rounded ? "rounded-card border border-line" : ""} ${className}`}>
-      <div ref={box} className={`absolute inset-0 h-full w-full ${openUrl ? "cursor-pointer" : ""}`} role="region" aria-label={t("map.label")} />
-      {failed && <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-sm text-ink-2">{t("map.failed")}</div>}
+      <div
+        ref={box}
+        className={`absolute inset-0 h-full w-full ${openUrl ? "cursor-pointer" : ""}`}
+        role="region"
+        aria-label={t("map.label")}
+      />
+      {failed && (
+        <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-sm text-ink-2">
+          {t("map.failed")}
+        </div>
+      )}
       {showMe && ready && (
         <LocateButton
           label={t("map.myLocation")}

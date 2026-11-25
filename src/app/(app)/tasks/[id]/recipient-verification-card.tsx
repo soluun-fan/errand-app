@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { SubmitButton } from "@/components/sheet";
 import { Card, Note, btn, field, fieldLabel } from "@/components/ui";
@@ -18,15 +18,15 @@ export function RecipientVerificationCard({
   verification: RecipientVerificationOwnerView | null;
 }) {
   const t = useT();
-  const [state, action] = useActionState(createRecipientInvite, initial);
+  const [state, action] = useActionState(async (previous: RecipientInviteActionState, form: FormData) => {
+    const next = await createRecipientInvite(previous, form);
+    setAbsoluteLink(next.sharePath ? new URL(next.sharePath, window.location.origin).toString() : "");
+    return next;
+  }, initial);
   const [absoluteLink, setAbsoluteLink] = useState("");
   const status = state.status ?? verification?.status;
   const phone = state.phone ?? verification?.phone;
   const sharePath = state.sharePath;
-
-  useEffect(() => {
-    setAbsoluteLink(sharePath ? new URL(sharePath, window.location.origin).toString() : "");
-  }, [sharePath]);
 
   return (
     <Card>
@@ -42,7 +42,9 @@ export function RecipientVerificationCard({
           {status === "EXPIRED" && <Note tone="warn">{t("verifyRecipient.expired")}</Note>}
           {absoluteLink ? (
             <div className="flex flex-col gap-2 rounded-input bg-fill p-3">
-              <p className="break-all text-sm" dir="ltr">{absoluteLink}</p>
+              <p className="break-all text-sm" dir="ltr">
+                {absoluteLink}
+              </p>
               <CopyButton text={absoluteLink} />
               {phone && <p className="text-xs text-ink-2">{t("verifyRecipient.linkFor", { phone })}</p>}
             </div>
@@ -65,7 +67,11 @@ export function RecipientVerificationCard({
               />
             </label>
             <p className="text-sm text-ink-2">{t("verifyRecipient.ownerPrice")}</p>
-            {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+            {state.error && (
+              <p role="alert" className="text-sm text-danger">
+                {state.error}
+              </p>
+            )}
             <SubmitButton className={`${btn.secondary} w-full`}>
               {sharePath || verification ? t("verifyRecipient.newLink") : t("verifyRecipient.createLink")}
             </SubmitButton>

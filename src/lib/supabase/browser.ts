@@ -1,5 +1,7 @@
 "use client";
 
+import type { Database } from "@/lib/db/database.types";
+
 import { createBrowserClient } from "@supabase/ssr";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
@@ -8,5 +10,5 @@ import { supabasePublishableKey, supabaseUrl } from "./env";
  * upload URL the server issued — the token in that URL is what authorises the upload.
  */
 export function browserClient() {
-  return createBrowserClient(supabaseUrl(), supabasePublishableKey());
+  return createBrowserClient<Database>(supabaseUrl(), supabasePublishableKey());
 }

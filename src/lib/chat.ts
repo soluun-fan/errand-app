@@ -49,21 +49,34 @@ export async function accessFor(deal: ErrandDeal, viewer: Viewer, now = Date.now
   }
   const applicants = deal.status === "open" ? liveOffers(deal, now).map((o) => o.helperId) : [];
   let inquiryHelper: string | null = null;
-  const openForQuestions = deal.status === "open" && categoryTrust(deal.category) !== "care" && (deal.matchBy === null || now < deal.matchBy);
-  if (openForQuestions && threadOwner && !deal.offers.some(o => o.helperId === threadOwner)) {
+  const openForQuestions =
+    deal.status === "open" && categoryTrust(deal.category) !== "care" && (deal.matchBy === null || now < deal.matchBy);
+  if (openForQuestions && threadOwner && !deal.offers.some((o) => o.helperId === threadOwner)) {
     const invited = invitedOnly(deal, now);
     if (invited === null || invited === threadOwner) {
       // An approved helper can initiate their own thread. An owner can reply only after a helper asked.
       if (viewerId !== deal.customerId && viewer.actor.helperApproved && !hadThread) {
         inquiryHelper = viewerId;
       } else if (hadThread && (viewerId === deal.customerId || viewer.actor.helperApproved)) {
-        const { data } = await createAdminClient().from("messages").select("id").eq("deal_id", deal.id)
-          .eq("helper_id", threadOwner).eq("from_user_id", threadOwner).contains("flags", ["inquiry"]).limit(1);
+        const { data } = await createAdminClient()
+          .from("messages")
+          .select("id")
+          .eq("deal_id", deal.id)
+          .eq("helper_id", threadOwner)
+          .eq("from_user_id", threadOwner)
+          .contains("flags", ["inquiry"])
+          .limit(1);
         if (data?.length) inquiryHelper = threadOwner;
       }
     }
   }
-  return chatAccess({ status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended, applicants, inquiryHelper }, viewerId, now, hadThread, withHelper);
+  return chatAccess(
+    { status: deal.status, customerId: deal.customerId, helperId: deal.helperId, endedAt: ended, applicants, inquiryHelper },
+    viewerId,
+    now,
+    hadThread,
+    withHelper,
+  );
 }
 
 /** Called for the task owner. Each helper starts one private conversation per task. */
@@ -73,12 +86,19 @@ export async function questionThreads(deal: ErrandDeal, viewerId: string): Promi
   const db = createAdminClient();
   // Page through messages so a busy conversation cannot hide another helper's question.
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await db.from("messages").select("helper_id, from_user_id, seen_at")
-      .eq("deal_id", deal.id).contains("flags", ["inquiry"]).neq("from_user_id", viewerId)
-      .order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
+    const { data, error } = await db
+      .from("messages")
+      .select("helper_id, from_user_id, seen_at")
+      .eq("deal_id", deal.id)
+      .contains("flags", ["inquiry"])
+      .neq("from_user_id", viewerId)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(offset, offset + 499);
     if (error) throw new Error(error.message);
     for (const row of data ?? []) {
-      if (row.helper_id === row.from_user_id) threads.set(row.helper_id, (threads.get(row.helper_id) ?? 0) + (row.seen_at ? 0 : 1));
+      if (row.helper_id && row.helper_id === row.from_user_id)
+        threads.set(row.helper_id, (threads.get(row.helper_id) ?? 0) + (row.seen_at ? 0 : 1));
     }
     if (!data || data.length < 500) break;
   }
@@ -97,7 +117,10 @@ export async function hadCareCall(dealId: string, helperId: string): Promise<boo
     .returns<{ text: string }[]>();
   // the required length is an Ops setting (platform_rules), the same number the database checks
   const min = (await getRules().catch(() => null))?.careCallMinSeconds;
-  return hadRealCall((data ?? []).map((m) => m.text), min);
+  return hadRealCall(
+    (data ?? []).map((m) => m.text),
+    min,
+  );
 }
 
 /** The viewer's conversation, oldest first, with 1-hour signed photo URLs. */
@@ -110,18 +133,20 @@ export async function loadThread(dealId: string, helperId: string, viewerId: str
     .eq("helper_id", helperId)
     .order("created_at")
     .limit(500)
-    .returns<{
-      id: string;
-      from_user_id: string | null;
-      is_system: boolean;
-      text: string;
-      image_path: string | null;
-      audio_path: string | null;
-      audio_seconds: number | null;
-      flags: string[];
-      seen_at: string | null;
-      created_at: string;
-    }[]>();
+    .returns<
+      {
+        id: string;
+        from_user_id: string | null;
+        is_system: boolean;
+        text: string;
+        image_path: string | null;
+        audio_path: string | null;
+        audio_seconds: number | null;
+        flags: string[];
+        seen_at: string | null;
+        created_at: string;
+      }[]
+    >();
   const rows = data ?? [];
   const paths = rows.flatMap((r) => [r.image_path, r.audio_path]).filter((p): p is string => Boolean(p));
   const signed = paths.length ? ((await db.storage.from(CHAT_BUCKET).createSignedUrls(paths, 3600)).data ?? []) : [];
@@ -207,7 +232,13 @@ export async function storeMessage(p: {
   return { ok: true, masked };
 }
 
-const AUDIO_EXT: Record<string, string> = { "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/aac": "aac" };
+const AUDIO_EXT: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/ogg": "ogg",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/aac": "aac",
+};
 export const CHAT_AUDIO_MIME = Object.keys(AUDIO_EXT);
 
 /** Upload slot for a chat photo (JPEG) or a voice clip (one of `CHAT_AUDIO_MIME`). */
@@ -246,7 +277,9 @@ export async function purgeExpiredChats(now = Date.now()): Promise<number> {
   for (const { id } of (deals ?? []) as { id: string }[]) {
     const { data: msgs } = await db.from("messages").select("id, image_path, audio_path").eq("deal_id", id);
     if (!msgs?.length) continue;
-    const paths = msgs.flatMap((m) => [m.image_path as string | null, m.audio_path as string | null]).filter((x): x is string => Boolean(x));
+    const paths = msgs
+      .flatMap((m) => [m.image_path as string | null, m.audio_path as string | null])
+      .filter((x): x is string => Boolean(x));
     if (paths.length) await db.storage.from(CHAT_BUCKET).remove(paths);
     await db.from("messages").delete().eq("deal_id", id);
     removed += msgs.length;

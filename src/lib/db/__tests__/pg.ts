@@ -2,57 +2,11 @@
  * Test database: real Postgres (PGlite, in-process WASM) with the project's migrations
  * applied on top of minimal stand-ins for what Supabase provides (auth schema, roles).
  */
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { PGlite, type Transaction } from "@electric-sql/pglite";
+import type { PGlite, Transaction } from "@electric-sql/pglite";
 import { dealFromRow, type DealRow, type DisputeRow, type OfferRow } from "@/lib/db/mapping";
 import type { Deal } from "@/lib/engine";
 
-const MIGRATIONS = join(process.cwd(), "supabase", "migrations");
-
-/** Just enough of Supabase for the migrations to run and RLS to be testable. */
-const SUPABASE_STUBS = `
-  create role anon nologin;
-  create role authenticated nologin;
-  create role service_role nologin bypassrls;
-  create role supabase_auth_admin nologin;
-  create schema auth;
-  grant usage on schema public, auth to anon, authenticated, service_role;
-  create table auth.users (
-    id uuid primary key default gen_random_uuid(),
-    phone text,
-    raw_user_meta_data jsonb not null default '{}'
-  );
-  -- Supabase's auth.uid() reads the verified JWT's "sub" claim.
-  create function auth.uid() returns uuid language sql stable as
-    $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  grant execute on function auth.uid() to anon, authenticated, service_role;
-  -- Supabase Storage keeps buckets in storage.buckets.
-  create schema storage;
-  create table storage.buckets (
-    id text primary key,
-    name text not null,
-    public boolean default false,
-    file_size_limit bigint,
-    allowed_mime_types text[]
-  );
-`;
-
-/** Supabase's default grants for the service role, applied after migrations. */
-const SERVICE_ROLE_GRANTS = `
-  grant all on all tables in schema public to service_role;
-  grant usage on all sequences in schema public to service_role;
-`;
-
-export async function createTestDb(): Promise<PGlite> {
-  const db = new PGlite();
-  await db.exec(SUPABASE_STUBS);
-  for (const f of readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort()) {
-    await db.exec(readFileSync(join(MIGRATIONS, f), "utf8"));
-  }
-  await db.exec(SERVICE_ROLE_GRANTS);
-  return db;
-}
+export { createSchemaDb as createTestDb } from "../../../../scripts/lib/schema-db";
 
 type Q = PGlite | Transaction;
 
@@ -90,10 +44,9 @@ export async function rpc(q: Q, fn: string, args: Record<string, unknown>): Prom
 export async function loadDeal(q: Q, id: string): Promise<Deal | null> {
   const d = await q.query<{ j: DealRow }>(`select to_jsonb(d) as j from public.deals d where id = $1`, [id]);
   if (!d.rows[0]) return null;
-  const offers = await q.query<{ j: OfferRow }>(
-    `select to_jsonb(o) as j from public.offers o where deal_id = $1 order by created_at`,
-    [id],
-  );
+  const offers = await q.query<{ j: OfferRow }>(`select to_jsonb(o) as j from public.offers o where deal_id = $1 order by created_at`, [
+    id,
+  ]);
   const dispute = await q.query<{ j: DisputeRow }>(`select to_jsonb(x) as j from public.disputes x where deal_id = $1`, [id]);
   return dealFromRow(
     d.rows[0].j,

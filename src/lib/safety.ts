@@ -1,3 +1,4 @@
+import { toJson } from "@/lib/db/json";
 import "server-only";
 import { DbError } from "@/lib/db/deals";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -82,7 +83,7 @@ export function isPausedError(e: unknown): boolean {
   return e instanceof DbError && e.code === "PT423";
 }
 
-const OPEN_STATUSES = ["open", "awaiting_payment", "matched", "in_progress"];
+const OPEN_STATUSES = ["open", "awaiting_payment", "matched", "in_progress"] as const;
 
 export async function openTaskCount(customerId: string): Promise<number> {
   const { count } = await createAdminClient()
@@ -95,7 +96,9 @@ export async function openTaskCount(customerId: string): Promise<number> {
 
 /** Append-only record of what Ops did. Never throws: a failed log line must not undo the action. */
 export async function audit(actorId: string, action: string, target: string | null, data: Record<string, unknown> = {}): Promise<void> {
-  const { error } = await createAdminClient().from("ops_audit_log").insert({ actor_id: actorId, action, target, data });
+  const { error } = await createAdminClient()
+    .from("ops_audit_log")
+    .insert({ actor_id: actorId, action, target, data: toJson(data) });
   if (error) console.error("audit log failed", action, error.message);
 }
 
@@ -121,7 +124,13 @@ export async function recentAudit(limit = 30): Promise<AuditLine[]> {
     ? await db.from("profiles").select("id, name").in("id", ids).returns<{ id: string; name: string }[]>()
     : { data: [] as { id: string; name: string }[] };
   const nameOf = new Map((names ?? []).map((n) => [n.id, n.name]));
-  return rows.map((r) => ({ id: r.id, actorName: nameOf.get(r.actor_id) ?? "—", action: r.action, target: r.target, at: Date.parse(r.created_at) }));
+  return rows.map((r) => ({
+    id: r.id,
+    actorName: nameOf.get(r.actor_id) ?? "—",
+    action: r.action,
+    target: r.target,
+    at: Date.parse(r.created_at),
+  }));
 }
 
 export async function adminIds(): Promise<string[]> {

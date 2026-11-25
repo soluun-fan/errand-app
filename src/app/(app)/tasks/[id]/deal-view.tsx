@@ -1,97 +1,40 @@
-import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
-import type { ReactNode } from "react";
+import { BadgeChips, ConditionChips } from "@/components/conditions";
 import { Countdown } from "@/components/countdown";
-import { TimelineList } from "@/components/timeline-list";
-import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
-import { OfferCard, type OfferPerson } from "@/components/offer-card";
-import { ConfirmSheet, type FormAction } from "@/components/sheet";
+import { CustomerTaskMap } from "@/components/customer-task-map";
+import { AddressBox, DetailSection, DetailTitle } from "@/components/detail";
+import { DirectPayCustomerCard } from "@/components/direct-pay-card";
+import { Ico } from "@/components/icon";
 import { InlineAction } from "@/components/inline-action";
+import { OfferCard, type OfferPerson } from "@/components/offer-card";
+import { PriceChangeCard } from "@/components/price-change-card";
+import { ProofGallery } from "@/components/proof-gallery";
+import { ConfirmSheet } from "@/components/sheet";
 import { StatusBadge } from "@/components/status-badge";
 import { StepTracker } from "@/components/step-tracker";
-import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
-import type { Locale, T } from "@/i18n";
-import type { PublicProfile, TimelineItem } from "@/lib/deals/queries";
-import { amountDue, arriveBy, autoPickAt, categoryTrust, errandSplit, helperLate, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
-import { fmtClock, fmtDateTime, fmtMoney } from "@/lib/format";
-import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS, describeEvent } from "@/lib/labels";
-import { CustomerTaskMap } from "@/components/customer-task-map";
-import type { JobLocation } from "@/lib/location-rules";
-import { googlePlaceUrl } from "@/lib/maps";
-import { callParty, callsEnabled } from "@/lib/calls";
-import { AddressBox, DetailSection, DetailTitle } from "@/components/detail";
-import { ProofGallery } from "@/components/proof-gallery";
-import type { ProofView } from "@/lib/proofs";
-import type { TaskPhotoView } from "@/lib/task-photos";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { TaskPhotoManager } from "@/components/task-photo-manager";
+import { TimelineList } from "@/components/timeline-list";
+import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
+import type { T } from "@/i18n";
+import type { OnTime } from "@/lib/badges";
+import { callParty, callsEnabled } from "@/lib/calls";
+import type { PublicProfile } from "@/lib/deals/queries";
+import type { HelperBadges } from "@/lib/engine";
+import { arriveBy, autoPickAt, categoryTrust, helperLate, liveOffers, ruleOf } from "@/lib/engine";
+import { fmtClock, fmtDateTime, fmtMoney } from "@/lib/format";
+import { describeEvent } from "@/lib/labels";
+import { googlePlaceUrl } from "@/lib/maps";
+import { Hash, HeartPulse, MessageCircle, Phone } from "lucide-react";
+import Link from "next/link";
 import { MockQr } from "./mock-qr";
 import { PaySheet } from "./pay-sheet";
-import { DirectPayCustomerCard } from "@/components/direct-pay-card";
-import { BadgeChips, ConditionChips } from "@/components/conditions";
-import type { HelperBadges } from "@/lib/engine";
-import type { OnTime } from "@/lib/badges";
-import type { DirectPayState, PayeeAccount } from "@/lib/direct-pay";
-import { PriceChangeCard } from "@/components/price-change-card";
-import { ReviewPhotoPicker } from "@/components/review-photo-picker";
-import { Hash, HeartPulse, MessageCircle, Phone } from "lucide-react";
-import { Ico } from "@/components/icon";
 
-export interface DealViewProps {
-  deal: ErrandDeal;
-  events: TimelineItem[];
-  people: Map<string, PublicProfile>;
-  organizations?: Map<string, { id: string; name: string }>;
-  viewerId: string;
-  serverNow: number;
-  /** "Want to raise the price?" after this many minutes with no application (Ops setting). */
-  nudgeAfterMinutes?: number;
-  t: T;
-  locale: Locale;
-  /** Stars the viewer already gave, or null. */
-  rated: number | null;
-  autoOpenPay: boolean;
-  mockPay: boolean;
-  /** Real payments go through wire.mn's checkout page (else the simulated button). */
-  wirePay?: boolean;
-  /** Fee-only tasks, once the job is done: what the customer owes the helper and where to pay. */
-  directPay?: { state: DirectPayState; account: PayeeAccount | null } | null;
-  action: FormAction;
-  /** Dispatch progress while the task is open (how many helpers were notified). */
-  dispatch?: { notified: number } | null;
-  /** Live applicants, best first (dispatch score); the first is "Recommended". */
-  ranked?: { helperId: string; distanceKm: number | null }[];
-  /** Live helper position during the job (customer only). */
-  helperLocation?: JobLocation | null;
-  /** Photo / video proof with signed URLs. */
-  proofs?: ProofView[];
-  /** The customer's own photos of the task (signed URLs). */
-  photos?: TaskPhotoView[];
-  /** The customer may still change them (their task, still open). */
-  photosEditable?: boolean;
-  /** Chat entry (null when there's no conversation for this viewer). */
-  chat?: { unread: number } | null;
-  /** Unread messages per applicant (while choosing). */
-  applicantUnread?: Map<string, number>;
-  /** Care work: applicants the customer has already had a real call with (needed before choosing). */
-  careCalls?: Set<string>;
-  /** A call before choosing is required (care work, or the customer's "talk first" condition). */
-  needsCall?: boolean;
-  /** Applicants' badges for the task's conditions (driver, car, checked, on time, languages). */
-  applicantBadges?: Map<string, HelperBadges & { record: OnTime }>;
-  /** The handover code to tell the helper at handover (customer only, while the job runs). */
-  handoverCode?: string | null;
-  /** Care: applicants this family already had a finished care job with (no "meet first" needed). */
-  careKnown?: Set<string>;
-  /** Care: the required call length (Ops rule). */
-  careCallSeconds?: number;
-  /** Care: applicants with an Ops-approved first-aid certificate. */
-  firstAid?: Set<string>;
-  /** SOS / report-a-problem row (client component, passed in by the page). */
-  safety?: ReactNode;
-  /** Finished task: the helper's request to show photos + the task's public photos. */
-  workPhotos?: ReactNode;
-}
+import { customerActions } from "./deal-actions";
+import { DealMoney } from "./deal-money";
+import { DealStatusLine } from "./deal-status-line";
+import type { DealViewProps } from "./deal-view-types";
+export type { DealViewProps } from "./deal-view-types";
 
 const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => ({
   name: p?.name ?? fallback,
@@ -108,7 +51,19 @@ const person = (p: PublicProfile | undefined, fallback: string): OfferPerson => 
  */
 /** "💬 Чат" with an unread badge. */
 /** Call | Chat side by side (both open the deal's chat, where the call buttons are). Call only while a call is allowed. */
-export function ContactRow({ dealId, unread, canCall, t, withHelper = null }: { dealId: string; unread: number; canCall: boolean; t: T; withHelper?: string | null }) {
+export function ContactRow({
+  dealId,
+  unread,
+  canCall,
+  t,
+  withHelper = null,
+}: {
+  dealId: string;
+  unread: number;
+  canCall: boolean;
+  t: T;
+  withHelper?: string | null;
+}) {
   // the customer talking to one applicant (before choosing) opens that applicant's conversation
   const href = withHelper ? `/chat/${dealId}?with=${withHelper}` : `/chat/${dealId}`;
   return (
@@ -120,7 +75,9 @@ export function ContactRow({ dealId, unread, canCall, t, withHelper = null }: { 
       )}
       <Link href={href} className={`${btn.small} relative w-full`}>
         <Ico as={MessageCircle} /> {t("chat.open")}
-        {unread > 0 && <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>}
+        {unread > 0 && (
+          <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>
+        )}
       </Link>
     </div>
   );
@@ -130,33 +87,23 @@ export function DealView(p: DealViewProps) {
   const { deal, events, people, t, locale, serverNow } = p;
   const isCustomer = deal.customerId === p.viewerId;
   const care = categoryTrust(deal.category) === "care";
-  const name = (uid: unknown) => (typeof uid === "string" ? (people.get(uid)?.name ?? p.organizations?.get(uid)?.name ?? t("deal.newHelper")) : "—");
+  const name = (uid: unknown) =>
+    typeof uid === "string" ? (people.get(uid)?.name ?? p.organizations?.get(uid)?.name ?? t("deal.newHelper")) : "—";
   const helperName = deal.helperId ? name(deal.helperId) : "";
-  const payeeName = deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId)?.name ?? t("org.title") : helperName;
-  const split = errandSplit({
-    fee: deal.fee,
-    itemBudget: deal.itemBudget,
-    receipt: deal.receiptAmount,
-    serviceFee: deal.serviceFee,
-    commissionBps: deal.commissionBps,
-  });
+  const payeeName = deal.payeeOrgId ? (p.organizations?.get(deal.payeeOrgId)?.name ?? t("org.title")) : helperName;
   const fields = { dealId: deal.id };
   // Live applicants, best first (the page ranks them; unranked ones keep their order).
   const rankOf = (h: string) => p.ranked?.findIndex((r) => r.helperId === h) ?? -1;
-  const applicants = liveOffers(deal, serverNow).filter((o) => !p.ranked || p.ranked.some((r) => r.helperId === o.helperId)).sort((a, b) => {
-    const ra = rankOf(a.helperId);
-    const rb = rankOf(b.helperId);
-    return (ra < 0 ? 1e9 : ra) - (rb < 0 ? 1e9 : rb);
-  });
+  const applicants = liveOffers(deal, serverNow)
+    .filter((o) => !p.ranked || p.ranked.some((r) => r.helperId === o.helperId))
+    .sort((a, b) => {
+      const ra = rankOf(a.helperId);
+      const rb = rankOf(b.helperId);
+      return (ra < 0 ? 1e9 : ra) - (rb < 0 ? 1e9 : rb);
+    });
   const pickAt = autoPickAt(deal, serverNow);
   const topUp = deal.topUp;
   const topUpPending = deal.status === "in_progress" && topUp?.status === "pending" ? topUp : null;
-  const againLink = (cls: string) => (
-    <Link key="again" href={`/post?again=${deal.id}`} className={cls}>
-      {t("deal.postAgain")}
-    </Link>
-  );
-  const cancelFeePaid = events.find((e) => e.code === "cancel_fee_paid");
   /** fee-only task (docs/decisions.md 2026-11-18): only our fee went through the app */
   const direct = deal.payMode === "direct";
   const dt = deal.details;
@@ -169,95 +116,8 @@ export function DealView(p: DealViewProps) {
   ].filter((x): x is string => typeof x === "string" && x.length > 0);
 
   /* ---------- the one status line ---------- */
-  let line: ReactNode;
-  switch (deal.status) {
-    case "awaiting_payment":
-      line = deal.payBy ? (
-        <Countdown
-          until={deal.payBy}
-          serverNow={serverNow}
-          template={
-            direct
-              ? t("direct.line.awaiting", { helper: helperName, fee: fmtMoney(deal.serviceFee), time: "{time}" })
-              : t("deal.line.awaiting_payment", { helper: helperName, time: "{time}" })
-          }
-        />
-      ) : null;
-      break;
-    case "open":
-      line = invitedOnly(deal, serverNow) !== null && deal.invite ? (
-        // a direct request: waiting on the one helper the customer picked
-        <>
-          {t("invite.waiting", { name: name(deal.invite.helperId) })}{" "}
-          {deal.invite.openAfter && <Countdown until={deal.invite.until} serverNow={serverNow} template={t("invite.opensIn")} />}
-        </>
-      ) : (
-        <>
-          {deal.mode === "now"
-            ? deal.offers.length > 0
-              ? t("deal.line.openChoose", { n: deal.offers.length })
-              : p.dispatch?.notified
-                ? t("deal.line.openNow", { n: p.dispatch.notified })
-                : t("deal.line.openNowStart")
-            : t("deal.line.openSchedule", { offers: deal.offers.length, max: deal.maxApplicants })}{" "}
-          {deal.matchBy && t("deal.line.noMatchBy", { when: fmtDateTime(deal.matchBy, locale) })}
-        </>
-      );
-      break;
-    case "matched":
-      line = direct ? t("direct.line.matched", { helper: helperName }) : t("deal.line.matched", { helper: helperName });
-      break;
-    case "in_progress":
-      line = t("deal.line.in_progress", { helper: helperName });
-      break;
-    case "check":
-      line = (
-        <>
-          {t("deal.line.check", { helper: helperName })}{" "}
-          {deal.checkUntil && (
-            <span className="mt-2 block">
-              <Countdown until={deal.checkUntil} serverNow={serverNow} template={t("deal.autoConfirm")} pill />
-            </span>
-          )}
-          <span className="mt-1.5 block text-sm text-ink-2">{t("deal.autoConfirmInfo")}</span>
-        </>
-      );
-      break;
-    case "disputed":
-      line = direct ? t("direct.line.disputed") : t("deal.line.disputed");
-      break;
-    case "released":
-      line = direct
-        ? t("direct.line.released", { helper: payeeName })
-        : split.refund > 0
-          ? t("deal.line.releasedRefund", { amount: fmtMoney(split.refund) })
-          : t("deal.line.released", { helper: payeeName });
-      break;
-    case "refunded":
-      line = direct ? t("direct.line.refunded", { amount: fmtMoney(deal.serviceFee) }) : t("deal.line.refunded", { amount: fmtMoney(amountDue(deal)) });
-      break;
-    case "cancelled":
-      line = events.some((e) => e.code === "fee_kept")
-        ? t("direct.line.cancelledKept", { fee: fmtMoney(deal.serviceFee) })
-        : cancelFeePaid
-        ? deal.payeeOrgId ? t("org.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)), name: payeeName }) : t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
-        : t("deal.line.cancelled");
-      break;
-    case "expired": {
-      // say why it ended: refunded (old paid-at-posting deals), the one invited helper said no,
-      // the match wasn't paid in time, or simply nobody took it
-      const declined = events.find((e) => e.code === "invite_declined");
-      line = deal.paymentRef
-        ? t("deal.line.expiredNoHelper", { amount: fmtMoney(amountDue(deal)) })
-        : declined
-          ? t("deal.line.expiredDeclined", { name: name(declined.data.helperId) })
-          : events.some((e) => e.code === "payment_expired")
-            ? t("deal.line.expiredUnpaid")
-            : t("deal.line.expiredNobody");
-      break;
-    }
-  }
-  const duration = deal.details.minutes >= 60 ? t("price.hours", { n: deal.details.minutes / 60 }) : t("price.min", { n: deal.details.minutes });
+  const duration =
+    deal.details.minutes >= 60 ? t("price.hours", { n: deal.details.minutes / 60 }) : t("price.min", { n: deal.details.minutes });
   const when = deal.scheduledAt
     ? t("job.startsAt", { time: fmtDateTime(deal.scheduledAt, locale), dur: duration })
     : deal.mode === "schedule" && deal.matchBy
@@ -266,304 +126,22 @@ export function DealView(p: DealViewProps) {
   const waiting = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"].includes(deal.status);
   const showMap = waiting && Boolean(deal.location || deal.pickupLocation || p.helperLocation);
 
-  /* ---------- money: where it is now ---------- */
-  let money: ReactNode;
-  if (direct && !["refunded", "cancelled", "expired"].includes(deal.status)) {
-    // fee-only: what goes through the app now, and what the customer pays the helper themselves
-    const done = ["check", "disputed", "released"].includes(deal.status);
-    const rows: MoneyRow[] = [
-      { label: t(done ? "direct.money.toHelperNow" : "direct.money.toHelperLater"), amount: done ? deal.fee + (deal.receiptAmount ?? 0) : deal.fee },
-    ];
-    if (deal.itemBudget > 0 && !done) rows.push({ label: t("direct.money.itemsLater"), amount: deal.itemBudget, muted: true });
-    rows.push({ label: t(deal.heldAmount > 0 || done ? "direct.money.feePaid" : "direct.money.feeNow"), amount: deal.serviceFee });
-    money = <MoneyBreakdown rows={rows} total={{ label: t(deal.status === "awaiting_payment" ? "direct.money.payNow" : "direct.money.feeTotal"), amount: deal.serviceFee }} />;
-  } else if (["check", "disputed", "released"].includes(deal.status)) {
-    const rows: MoneyRow[] = [
-      { label: deal.payeeOrgId ? t("org.payee", { name: payeeName }) : deal.commissionBps > 0 ? t("money.toHelperFee", { pct: deal.commissionBps / 100 }) : t("money.toHelper"), amount: split.helperFeeNet },
-    ];
-    if (deal.itemBudget > 0) {
-      rows.push({ label: deal.payeeOrgId ? t("org.payeeItems", { name: payeeName }) : t("money.toHelperItems"), amount: split.spent });
-      rows.push({ label: t("money.backToYou"), amount: split.refund });
-    }
-    // the platform's fee is never the organisation's money, whoever did the job
-    rows.push({ label: deal.commissionBps > 0 ? t("money.platform") : deal.details.freeFirst ? t("post.firstTaskFree") : t("money.serviceFee"), amount: split.platform, muted: true });
-    money = <MoneyBreakdown rows={rows} total={{ label: t("money.totalHeld"), amount: split.held }} />;
-  } else if (!["refunded", "cancelled", "expired"].includes(deal.status)) {
-    const rows: MoneyRow[] = [{ label: t("money.helperFee"), amount: deal.fee }];
-    if (deal.itemBudget > 0) rows.push({ label: t("money.itemBudget"), amount: deal.itemBudget });
-    rows.push({ label: deal.details.freeFirst ? t("post.firstTaskFree") : t("money.serviceFee"), amount: deal.serviceFee, muted: true });
-    money = (
-      <MoneyBreakdown
-        rows={rows}
-        total={{ label: t("money.totalHeld"), amount: amountDue(deal) }}
-        caption={deal.itemBudget > 0 ? t("money.itemBudgetNote") : undefined}
-      />
-    );
-  }
-
-  /* ---------- primary + secondary actions (customer only) ---------- */
-  // why the customer cancels (optional) — Ops sees it on the timeline (2026-11-22)
-  const cancelReasons = (
-    <label className={fieldLabel}>
-      {t("cancelReason.label")}
-      <select name="reason" defaultValue="" className={field}>
-        <option value="">{t("cancelReason.skip")}</option>
-        {CANCEL_REASONS.map((r) => <option key={r} value={r}>{t(`cancelReason.${r}`)}</option>)}
-      </select>
-    </label>
-  );
-  let primary: ReactNode = null;
-  const secondary: ReactNode[] = [];
-  if (isCustomer) {
-    switch (deal.status) {
-      case "awaiting_payment":
-        primary = (
-          <PaySheet
-            dealId={deal.id}
-            amountLabel={fmtMoney(amountDue(deal))}
-            payBy={deal.payBy}
-            serverNow={serverNow}
-            defaultOpen={p.autoOpenPay}
-            mock={p.mockPay}
-            wire={p.wirePay}
-            doneLabel={direct ? t("pay.feeDone") : undefined}
-            action={p.action}
-            qr={<MockQr seed={deal.id} />}
-          />
-        );
-        secondary.push(
-          <ConfirmSheet
-            key="cancel"
-            action={p.action}
-            fields={{ ...fields, intent: "cancel" }}
-            trigger={t("deal.cancel")}
-            triggerClass={btn.text}
-            title={t("deal.cancelFreeTitle")}
-            body={t("deal.cancelUnpaidBody")}
-            confirmLabel={t("deal.cancel")}
-            confirmClass={btn.danger}
-          >
-            {cancelReasons}
-          </ConfirmSheet>,
-        );
-        break;
-      case "open":
-        if (!care && invitedOnly(deal, serverNow) !== null) {
-          secondary.push(
-            <ConfirmSheet
-              key="open_to_all"
-              action={p.action}
-              fields={{ ...fields, intent: "open_to_all" }}
-              trigger={t("invite.openNow")}
-              triggerClass={btn.text}
-              title={t("invite.openNowTitle")}
-              body={t("invite.openNowBody")}
-              confirmLabel={t("invite.openNow")}
-            />,
-          );
-        }
-        secondary.push(
-          <ConfirmSheet
-            key="cancel"
-            action={p.action}
-            fields={{ ...fields, intent: "cancel" }}
-            trigger={t("deal.cancel")}
-            triggerClass={btn.text}
-            title={t("deal.cancelFreeTitle")}
-            body={deal.heldAmount > 0 ? t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) }) : t("deal.cancelUnpaidBody")}
-            confirmLabel={t("deal.cancel")}
-            confirmClass={btn.danger}
-          >
-            {cancelReasons}
-          </ConfirmSheet>,
-        );
-        break;
-      case "in_progress":
-        if (topUpPending) {
-          primary = (
-            <PaySheet
-              dealId={deal.id}
-              amountLabel={fmtMoney(topUpPending.amount)}
-              payBy={null}
-              serverNow={serverNow}
-              defaultOpen={false}
-              mock={p.mockPay}
-              action={p.action}
-              qr={<MockQr seed={`${deal.id}-topup`} />}
-              intent="simulate_topup"
-              triggerLabel={t("deal.topUp.approve", { amount: fmtMoney(topUpPending.amount) })}
-            />
-          );
-          secondary.push(
-            <ConfirmSheet
-              key="decline"
-              action={p.action}
-              fields={{ ...fields, intent: "decline_topup" }}
-              trigger={t("deal.topUp.decline")}
-              triggerClass={btn.text}
-              title={t("deal.topUp.declineTitle", { amount: fmtMoney(topUpPending.amount) })}
-              body={t("deal.topUp.declineBody", { helper: helperName })}
-              confirmLabel={t("deal.topUp.declineConfirm")}
-              confirmClass={btn.danger}
-            />,
-          );
-        }
-        break;
-      case "matched":
-        // helper standards (2026-11-22): a helper who hasn't come — get another one, or cancel free
-        if (helperLate(deal, Date.now())) {
-          primary = (
-            <ConfirmSheet
-              action={p.action}
-              fields={{ ...fields, intent: "replace_helper" }}
-              trigger={t("standards.replace")}
-              triggerClass={btn.primary}
-              title={t("standards.replaceTitle")}
-              body={t("standards.replaceBody", { helper: helperName, amount: fmtMoney(deal.heldAmount) })}
-              confirmLabel={t("standards.replace")}
-            />
-          );
-          secondary.push(
-            <ConfirmSheet
-              key="cancel"
-              action={p.action}
-              fields={{ ...fields, intent: "cancel" }}
-              trigger={t("standards.cancelFree")}
-              triggerClass={btn.textDanger}
-              title={t("deal.cancelFreeTitle")}
-              body={t("deal.cancelFreeBody", { amount: fmtMoney(deal.heldAmount) })}
-              confirmLabel={t("deal.cancel")}
-              confirmClass={btn.danger}
-            >
-            {cancelReasons}
-          </ConfirmSheet>,
-          );
-          break;
-        }
-        secondary.push(
-          <ConfirmSheet
-            key="cancel"
-            action={p.action}
-            fields={{ ...fields, intent: "cancel" }}
-            trigger={t("deal.cancel")}
-            triggerClass={btn.textDanger}
-            title={t("deal.cancelFeeTitle")}
-            body={t("deal.cancelFeeBody", {
-              fee: fmtMoney(deal.cancelFee),
-              helper: helperName,
-              refund: fmtMoney(deal.heldAmount - deal.cancelFee),
-            })}
-            confirmLabel={t("deal.cancel")}
-            confirmClass={btn.danger}
-          >
-            {cancelReasons}
-          </ConfirmSheet>,
-        );
-        break;
-      case "check":
-        primary = (
-          <ConfirmSheet
-            action={p.action}
-            fields={{ ...fields, intent: "confirm" }}
-            trigger={t("deal.confirmDone")}
-            triggerClass={`${btn.primary} w-full`}
-            title={t("deal.confirmTitle")}
-            body={
-              split.refund > 0
-                ? t("deal.confirmBodyRefund", { helper: payeeName, net: fmtMoney(split.helperNet), refund: fmtMoney(split.refund) })
-                : t("deal.confirmBody", { helper: payeeName, net: fmtMoney(split.helperNet) })
-            }
-            confirmLabel={t("deal.confirmDone")}
-          />
-        );
-        secondary.push(
-          <ConfirmSheet
-            key="dispute"
-            action={p.action}
-            fields={{ ...fields, intent: "dispute" }}
-            trigger={t("deal.problem")}
-            triggerClass={btn.textDanger}
-            title={t("dispute.title")}
-            confirmLabel={t("dispute.submit")}
-            confirmClass={btn.danger}
-          >
-            <fieldset className="flex flex-col">
-              {DISPUTE_REASONS.map((r, i) => (
-                <label key={r} className="flex min-h-11 items-center gap-3 text-[15px]">
-                  <input type="radio" name="reason" value={r} defaultChecked={i === 0} className="h-5 w-5 accent-danger" />
-                  {t(`dispute.reasons.${r}`)}
-                </label>
-              ))}
-            </fieldset>
-            <label className={fieldLabel}>
-              {t("dispute.note")}
-              <textarea name="note" required minLength={20} maxLength={1000} rows={3} className={field} placeholder={t("dispute.notePh")} />
-            </label>
-            <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">{t(direct ? "direct.disputeWhat" : "dispute.what")}</p>
-          </ConfirmSheet>,
-        );
-        break;
-      case "released":
-        if (p.rated === null && deal.helperId) {
-          primary = (
-            <ConfirmSheet
-              action={p.action}
-              fields={{ ...fields, intent: "rate" }}
-              trigger={t("deal.rate", { name: helperName })}
-              triggerClass={`${btn.primary} w-full`}
-              title={t("rating.title", { name: helperName })}
-              confirmLabel={t("rating.submit")}
-            >
-              <fieldset className="flex justify-center gap-1" aria-label={t("rating.title", { name: helperName })}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <label key={n} className="cursor-pointer">
-                    <input type="radio" name="stars" value={n} required defaultChecked={n === 5} className="peer sr-only" />
-                    <span
-                      aria-label={t("rating.stars", { n })}
-                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn peer-focus-visible:outline-2 peer-focus-visible:outline-ink"
-                    >
-                      ★{n}
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-              <div className="flex flex-wrap gap-2">
-                {RATING_TAGS.map((tag) => (
-                  <label key={tag} className="cursor-pointer">
-                    <input type="checkbox" name="tags" value={tag} className="peer sr-only" />
-                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-ink">
-                      {t(`rating.tags.${tag}`)}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <label className={fieldLabel}>
-                {t("rating.note")}
-                <textarea name="note" maxLength={500} rows={2} className={field} />
-              </label>
-              {/* no public photos of care work (children, elders) */}
-              {categoryTrust(deal.category) !== "care" && <ReviewPhotoPicker dealId={deal.id} />}
-              <p className="text-[13px] text-ink-2">{t("helperProfile.reviewPublic")}</p>
-            </ConfirmSheet>
-          );
-          secondary.push(againLink(btn.text));
-        } else {
-          primary = againLink(`${btn.primary} w-full`);
-        }
-        break;
-      case "refunded":
-      case "cancelled":
-      case "expired":
-        primary = againLink(`${btn.primary} w-full`);
-        break;
-    }
-  }
+  const { primary, secondary } = customerActions(p, helperName, payeeName);
 
   return (
     <>
       {!showMap && <FlowHeader href="/" label={t("common.back")} />}
-      {showMap && <CustomerTaskMap destination={deal.location} pickup={deal.pickupLocation} address={deal.address}
-        pickupAddress={deal.pickupAddress} helperName={helperName} tracking={p.helperLocation} serverNow={p.serverNow} />}
+      {showMap && (
+        <CustomerTaskMap
+          destination={deal.location}
+          pickup={deal.pickupLocation}
+          address={deal.address}
+          pickupAddress={deal.pickupAddress}
+          helperName={helperName}
+          tracking={p.helperLocation}
+          serverNow={p.serverNow}
+        />
+      )}
 
       {/* status first */}
       <DetailTitle
@@ -577,8 +155,16 @@ export function DealView(p: DealViewProps) {
         overlap={showMap}
       >
         <StepTracker status={deal.status} events={events} t={t} />
-        <div className="text-[16px] text-ink">{line}</div>
-        {deal.heldAmount > 0 && <HeldBadge>{direct ? t("direct.badge", { amount: fmtMoney(deal.heldAmount) }) : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>}
+        <div className="text-[16px] text-ink">
+          <DealStatusLine p={p} helperName={helperName} payeeName={payeeName} />
+        </div>
+        {deal.heldAmount > 0 && (
+          <HeldBadge>
+            {direct
+              ? t("direct.badge", { amount: fmtMoney(deal.heldAmount) })
+              : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}
+          </HeldBadge>
+        )}
         {p.rated !== null && <p className="text-sm text-ink-2">{t("deal.rated", { stars: p.rated })}</p>}
         {waiting && (
           <Link href="/help" className="self-start text-[15px] font-medium text-ink underline underline-offset-4">
@@ -593,19 +179,23 @@ export function DealView(p: DealViewProps) {
           organization={deal.payeeOrgId ? p.organizations?.get(deal.payeeOrgId) : undefined}
           href={`/helpers/${deal.helperId}`}
           t={t}
-          action={p.chat ? <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callsEnabled() && callParty(deal, p.viewerId) !== null} t={t} /> : undefined}
+          action={
+            p.chat ? (
+              <ContactRow dealId={deal.id} unread={p.chat.unread} canCall={callsEnabled() && callParty(deal, p.viewerId) !== null} t={t} />
+            ) : undefined
+          }
         />
       )}
 
       {deal.status === "matched" && arriveBy(deal) !== null && (
         <div className="flex flex-col gap-2 px-5 pt-2">
-          <Note tone={helperLate(deal, Date.now()) ? "warn" : "info"}>
-            {helperLate(deal, Date.now())
+          <Note tone={helperLate(deal, serverNow) ? "warn" : "info"}>
+            {helperLate(deal, serverNow)
               ? t("standards.customerLate", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })
               : t("standards.customerArriveBy", { helper: helperName, time: fmtClock(arriveBy(deal) as number) })}
-            {deal.enRouteAt && !helperLate(deal, Date.now()) ? ` ${t("noShow.customerEnRoute", { helper: helperName })}` : ""}
+            {deal.enRouteAt && !helperLate(deal, serverNow) ? ` ${t("noShow.customerEnRoute", { helper: helperName })}` : ""}
           </Note>
-          {(deal.arriveExtendMinutes ?? 0) > 0 && !helperLate(deal, Date.now()) && (
+          {(deal.arriveExtendMinutes ?? 0) > 0 && !helperLate(deal, serverNow) && (
             <Note tone="grey">{t("noShow.customerDelay", { helper: helperName, n: deal.arriveExtendMinutes ?? 0 })}</Note>
           )}
         </div>
@@ -613,9 +203,18 @@ export function DealView(p: DealViewProps) {
       {isCustomer && deal.status === "in_progress" && deal.absentAt && (
         <div className="flex flex-col gap-2 px-5 pt-2">
           <Note tone="bad">
-            {t("noShow.customerAsked", { helper: helperName, time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000), fee: fmtMoney(deal.cancelFee) })}
+            {t("noShow.customerAsked", {
+              helper: helperName,
+              time: fmtClock(deal.absentAt + ruleOf(deal, "absentGraceMinutes") * 60_000),
+              fee: fmtMoney(deal.cancelFee),
+            })}
           </Note>
-          <InlineAction action={p.action} fields={{ ...fields, intent: "customer_present" }} label={t("noShow.imHere")} className={`${btn.primary} w-full`} />
+          <InlineAction
+            action={p.action}
+            fields={{ ...fields, intent: "customer_present" }}
+            label={t("noShow.imHere")}
+            className={`${btn.primary} w-full`}
+          />
         </div>
       )}
 
@@ -680,58 +279,78 @@ export function DealView(p: DealViewProps) {
                 t={t}
                 action={
                   <div className="flex flex-col gap-2">
-                  {/* talk before choosing: each applicant has their own chat and call */}
-                  <ContactRow dealId={deal.id} withHelper={o.helperId} unread={p.applicantUnread?.get(o.helperId) ?? 0} canCall={callsEnabled()} t={t} />
-                  {care && p.firstAid?.has(o.helperId) && <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held"><Ico as={HeartPulse} size={14} /> {t("care.firstAidBadge")}</p>}
-                  {p.applicantBadges?.get(o.helperId) && <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />}
-                  {p.needsCall && !p.careCalls?.has(o.helperId) && (
-                    <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
-                      {!callsEnabled()
-                        ? t("call.requiredUnavailable")
-                        : care
-                          ? t("care.callFirst", { seconds: p.careCallSeconds ?? 30 })
-                          : t("conditions.callFirst", { seconds: p.careCallSeconds ?? 30 })}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between gap-2">
-                    {!waiting && (!p.needsCall || p.careCalls?.has(o.helperId)) && (
+                    {/* talk before choosing: each applicant has their own chat and call */}
+                    <ContactRow
+                      dealId={deal.id}
+                      withHelper={o.helperId}
+                      unread={p.applicantUnread?.get(o.helperId) ?? 0}
+                      canCall={callsEnabled()}
+                      t={t}
+                    />
+                    {care && p.firstAid?.has(o.helperId) && (
+                      <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">
+                        <Ico as={HeartPulse} size={14} /> {t("care.firstAidBadge")}
+                      </p>
+                    )}
+                    {p.applicantBadges?.get(o.helperId) && (
+                      <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />
+                    )}
+                    {p.needsCall && !p.careCalls?.has(o.helperId) && (
+                      <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
+                        {!callsEnabled()
+                          ? t("call.requiredUnavailable")
+                          : care
+                            ? t("care.callFirst", { seconds: p.careCallSeconds ?? 30 })
+                            : t("conditions.callFirst", { seconds: p.careCallSeconds ?? 30 })}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      {!waiting && (!p.needsCall || p.careCalls?.has(o.helperId)) && (
+                        <ConfirmSheet
+                          action={p.action}
+                          fields={{ ...fields, intent: "choose", helperId: o.helperId }}
+                          trigger={t("price.chooseAt", { amount: fmtMoney(agreed) })}
+                          triggerClass={btn.small}
+                          title={t("deal.chooseTitle", { name: pp.name })}
+                          body={[
+                            o.price !== null
+                              ? t("price.chooseCounter", { name: pp.name, amount: fmtMoney(o.price), posted: fmtMoney(deal.postedFee) })
+                              : null,
+                            t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) }),
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          confirmLabel={t("deal.choose")}
+                        >
+                          {care && !p.careKnown?.has(o.helperId) && (
+                            <label className="flex items-start gap-3 rounded-input bg-warn-bg p-3 text-[15px]">
+                              <input type="checkbox" name="familyHome" required className="mt-1 h-5 w-5" />
+                              <span>{t("care.meetFirst", { name: pp.name })}</span>
+                            </label>
+                          )}
+                        </ConfirmSheet>
+                      )}
                       <ConfirmSheet
                         action={p.action}
-                        fields={{ ...fields, intent: "choose", helperId: o.helperId }}
-                        trigger={t("price.chooseAt", { amount: fmtMoney(agreed) })}
-                        triggerClass={btn.small}
-                        title={t("deal.chooseTitle", { name: pp.name })}
-                        body={[
-                          o.price !== null ? t("price.chooseCounter", { name: pp.name, amount: fmtMoney(o.price), posted: fmtMoney(deal.postedFee) }) : null,
-                          t("deal.chooseBody", { name: pp.name, fee: fmtMoney(deal.cancelFee) }),
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        confirmLabel={t("deal.choose")}
+                        fields={{ ...fields, intent: "counter", helperId: o.helperId }}
+                        trigger={waiting ? t("price.changeCounter") : t("price.offerPrice")}
+                        triggerClass={`${btn.text} min-h-10 px-1 text-brand-ink`}
+                        title={t("price.offerTitle", { name: pp.name })}
+                        body={t("price.offerBody", { name: pp.name })}
+                        confirmLabel={t("price.counterSend")}
                       >
-                        {care && !p.careKnown?.has(o.helperId) && (
-                          <label className="flex items-start gap-3 rounded-input bg-warn-bg p-3 text-[15px]">
-                            <input type="checkbox" name="familyHome" required className="mt-1 h-5 w-5" />
-                            <span>{t("care.meetFirst", { name: pp.name })}</span>
-                          </label>
-                        )}
+                        <label className={fieldLabel}>
+                          {t("job.quotePrice")}
+                          <input
+                            name="price"
+                            inputMode="numeric"
+                            defaultValue={String(agreed)}
+                            className={`${field} text-[20px] font-bold tabular-nums`}
+                            required
+                          />
+                        </label>
                       </ConfirmSheet>
-                    )}
-                    <ConfirmSheet
-                      action={p.action}
-                      fields={{ ...fields, intent: "counter", helperId: o.helperId }}
-                      trigger={waiting ? t("price.changeCounter") : t("price.offerPrice")}
-                      triggerClass={`${btn.text} min-h-10 px-1 text-brand-ink`}
-                      title={t("price.offerTitle", { name: pp.name })}
-                      body={t("price.offerBody", { name: pp.name })}
-                      confirmLabel={t("price.counterSend")}
-                    >
-                      <label className={fieldLabel}>
-                        {t("job.quotePrice")}
-                        <input name="price" inputMode="numeric" defaultValue={String(agreed)} className={`${field} text-[20px] font-bold tabular-nums`} required />
-                      </label>
-                    </ConfirmSheet>
-                  </div>
+                    </div>
                   </div>
                 }
               />
@@ -749,47 +368,62 @@ export function DealView(p: DealViewProps) {
           >
             <label className={fieldLabel}>
               {t("price.yourPrice")}
-              <input name="price" inputMode="numeric" defaultValue={String(deal.postedFee)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+              <input
+                name="price"
+                inputMode="numeric"
+                defaultValue={String(deal.postedFee)}
+                className={`${field} text-[20px] font-bold tabular-nums`}
+                required
+              />
             </label>
           </ConfirmSheet>
         </section>
       )}
 
-      {isCustomer && deal.status === "open" && p.nudgeAfterMinutes !== undefined && liveOffers(deal, p.serverNow).length === 0 &&
+      {isCustomer &&
+        deal.status === "open" &&
+        p.nudgeAfterMinutes !== undefined &&
+        liveOffers(deal, p.serverNow).length === 0 &&
         p.serverNow - deal.createdAt >= p.nudgeAfterMinutes * 60_000 && (
-        <section className="flex flex-col gap-3 rounded-card bg-warn-bg p-4">
-          <h2 className="font-bold">{t("nudge.title")}</h2>
-          <p className="text-[15px]">{t("nudge.body", { amount: fmtMoney(deal.postedFee) })}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[500, 1000, 1500].map((step) => (
-              <ConfirmSheet
-                key={step}
-                action={p.action}
-                fields={{ ...fields, intent: "set_price", price: String(deal.postedFee + step), raise: "1" }}
-                trigger={`+${fmtMoney(step)}`}
-                triggerClass={btn.secondary}
-                title={t("nudge.confirmTitle", { amount: fmtMoney(deal.postedFee + step) })}
-                body={t("nudge.confirmBody")}
-                confirmLabel={t("nudge.confirmGo")}
-              />
-            ))}
-          </div>
-          <ConfirmSheet
-            action={p.action}
-            fields={{ ...fields, intent: "set_price", raise: "1" }}
-            trigger={t("nudge.other")}
-            triggerClass={btn.text}
-            title={t("price.changePostedTitle")}
-            body={t("nudge.confirmBody")}
-            confirmLabel={t("nudge.confirmGo")}
-          >
-            <label className={fieldLabel}>
-              {t("price.yourPrice")}
-              <input name="price" inputMode="numeric" defaultValue={String(deal.postedFee + 2000)} className={`${field} text-[20px] font-bold tabular-nums`} required />
-            </label>
-          </ConfirmSheet>
-        </section>
-      )}
+          <section className="flex flex-col gap-3 rounded-card bg-warn-bg p-4">
+            <h2 className="font-bold">{t("nudge.title")}</h2>
+            <p className="text-[15px]">{t("nudge.body", { amount: fmtMoney(deal.postedFee) })}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[500, 1000, 1500].map((step) => (
+                <ConfirmSheet
+                  key={step}
+                  action={p.action}
+                  fields={{ ...fields, intent: "set_price", price: String(deal.postedFee + step), raise: "1" }}
+                  trigger={`+${fmtMoney(step)}`}
+                  triggerClass={btn.secondary}
+                  title={t("nudge.confirmTitle", { amount: fmtMoney(deal.postedFee + step) })}
+                  body={t("nudge.confirmBody")}
+                  confirmLabel={t("nudge.confirmGo")}
+                />
+              ))}
+            </div>
+            <ConfirmSheet
+              action={p.action}
+              fields={{ ...fields, intent: "set_price", raise: "1" }}
+              trigger={t("nudge.other")}
+              triggerClass={btn.text}
+              title={t("price.changePostedTitle")}
+              body={t("nudge.confirmBody")}
+              confirmLabel={t("nudge.confirmGo")}
+            >
+              <label className={fieldLabel}>
+                {t("price.yourPrice")}
+                <input
+                  name="price"
+                  inputMode="numeric"
+                  defaultValue={String(deal.postedFee + 2000)}
+                  className={`${field} text-[20px] font-bold tabular-nums`}
+                  required
+                />
+              </label>
+            </ConfirmSheet>
+          </section>
+        )}
 
       {p.workPhotos}
 
@@ -843,15 +477,28 @@ export function DealView(p: DealViewProps) {
       )}
 
       {p.handoverCode && (
-        <section className="flex flex-col items-center gap-1 rounded-card bg-bg p-4 text-center shadow-card" aria-label={t("conditions.codeTitle")}>
-          <h2 className="font-bold"><Ico as={Hash} /> {t("conditions.codeTitle")}</h2>
+        <section
+          className="flex flex-col items-center gap-1 rounded-card bg-bg p-4 text-center shadow-card"
+          aria-label={t("conditions.codeTitle")}
+        >
+          <h2 className="font-bold">
+            <Ico as={Hash} /> {t("conditions.codeTitle")}
+          </h2>
           <p className="text-[40px] font-extrabold tracking-[0.3em] tabular-nums text-brand-ink">{p.handoverCode}</p>
           <p className="text-sm text-ink-2">{t("conditions.codeSub")}</p>
         </section>
       )}
-      {money}
+      <DealMoney deal={deal} payeeName={payeeName} t={t} />
       {isCustomer && p.directPay && (
-        <DirectPayCustomerCard dealId={deal.id} payeeName={payeeName} state={p.directPay.state} account={p.directPay.account} receipt={deal.receiptAmount} action={p.action} t={t} />
+        <DirectPayCustomerCard
+          dealId={deal.id}
+          payeeName={payeeName}
+          state={p.directPay.state}
+          account={p.directPay.account}
+          receipt={deal.receiptAmount}
+          action={p.action}
+          t={t}
+        />
       )}
 
       <DetailSection label={t("job.whenLabel")}>
@@ -861,7 +508,11 @@ export function DealView(p: DealViewProps) {
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
         <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
-        {p.photosEditable ? <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} /> : p.photos && <TaskPhotoGrid photos={p.photos} t={t} />}
+        {p.photosEditable ? (
+          <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} />
+        ) : (
+          p.photos && <TaskPhotoGrid photos={p.photos} t={t} />
+        )}
         <div className="flex flex-col gap-2">
           {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}
           <AddressBox
@@ -877,7 +528,12 @@ export function DealView(p: DealViewProps) {
       </DetailSection>
 
       <DetailSection label={t("deal.timeline")}>
-        <TimelineList events={[...events].reverse()} describe={(e) => describeEvent(e.code, e.data, t, name)} locale={locale} moreLabel={t("web.seeAll")} />
+        <TimelineList
+          events={[...events].reverse()}
+          describe={(e) => describeEvent(e.code, e.data, t, name)}
+          locale={locale}
+          moreLabel={t("web.seeAll")}
+        />
       </DetailSection>
 
       {(primary || secondary.length > 0) && (

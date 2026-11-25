@@ -1,10 +1,24 @@
+import type { Database } from "@/lib/db/database.types";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { MODE_COOKIE, parseMode } from "@/lib/mode-cookie";
 import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /** No session needed: the landing page, login, the cron tick (it checks CRON_SECRET itself), health. */
-const PUBLIC_PATHS = ["/welcome", "/login", "/help", "/safety", "/privacy", "/terms", "/helper-terms", "/verify-recipient", "/api/cron", "/api/health", "/api/payments/wire", "/api/auth/sms"];
+const PUBLIC_PATHS = [
+  "/welcome",
+  "/login",
+  "/help",
+  "/safety",
+  "/privacy",
+  "/terms",
+  "/helper-terms",
+  "/verify-recipient",
+  "/api/cron",
+  "/api/health",
+  "/api/payments/wire",
+  "/api/auth/sms",
+];
 
 /**
  * Refreshes the Supabase session cookie on every request and does an optimistic
@@ -22,7 +36,7 @@ export async function updateSession(request: NextRequest) {
     return redirected;
   };
 
-  const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
+  const supabase = createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll() {
         return request.cookies.getAll();

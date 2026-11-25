@@ -22,6 +22,7 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
   const [hidden, setHidden] = useState(true); // decided after reading the browser's memory
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore the browser-owned dismissal after hydration. */
   useEffect(() => {
     try {
       setHidden(localStorage.getItem(storageKey) === sig);
@@ -29,6 +30,7 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
       setHidden(false);
     }
   }, [sig, storageKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   if (hidden || !missing.length) return null;
 
   const dismiss = () => {
@@ -42,7 +44,12 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
 
   return (
     <section className="relative flex flex-col gap-3 rounded-card bg-brand-bg p-4" aria-label={t("workKinds.newTitle")}>
-      <button type="button" onClick={dismiss} aria-label={t("common.close")} className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2">
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label={t("common.close")}
+        className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2"
+      >
         <X size={18} />
       </button>
       <div className="pr-8">
@@ -80,7 +87,11 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
           {t("workKinds.choose")}
         </Link>
       </div>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

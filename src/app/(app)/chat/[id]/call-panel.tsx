@@ -193,7 +193,10 @@ export function CallPanel({
     if (r.error) return finish(r.error, true);
     // no answer in time → missed
     timers.current.push(
-      setTimeout(() => phaseRef.current === "outgoing" && void hangUp({ kind: "missed", video: isVideo }, t("call.noAnswer"), true), RING_TIMEOUT_MS),
+      setTimeout(
+        () => phaseRef.current === "outgoing" && void hangUp({ kind: "missed", video: isVideo }, t("call.noAnswer"), true),
+        RING_TIMEOUT_MS,
+      ),
     );
     // backup for Realtime: check the call's signals every 2 s until it's live or over
     const poll = async () => {
@@ -277,7 +280,7 @@ export function CallPanel({
         go("incoming");
       }
     });
-  }, [dealId, initialCallId]);
+  }, [dealId, initialCallId, withHelper]);
 
   // an incoming call stops ringing after the timeout
   useEffect(() => {
@@ -342,13 +345,27 @@ export function CallPanel({
       )}
 
       {phase === "incoming" && incoming && (
-        <div role="alertdialog" aria-label={t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })} className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-ink/95 p-6 text-white">
+        <div
+          role="alertdialog"
+          aria-label={t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-ink/95 p-6 text-white"
+        >
           <p className="text-center text-2xl font-bold">{t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })}</p>
           <div className="flex gap-6">
-            <button type="button" onClick={decline} className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-2xl" aria-label={t("call.decline")}>
+            <button
+              type="button"
+              onClick={decline}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-2xl"
+              aria-label={t("call.decline")}
+            >
               ✕
             </button>
-            <button type="button" onClick={accept} className="flex h-16 w-16 items-center justify-center rounded-full bg-held text-2xl" aria-label={t("call.accept")}>
+            <button
+              type="button"
+              onClick={accept}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-held text-2xl"
+              aria-label={t("call.accept")}
+            >
               {incoming.video ? <Ico as={Video} size={24} /> : <Ico as={Phone} size={24} />}
             </button>
           </div>
@@ -359,18 +376,42 @@ export function CallPanel({
       <div className={active ? "fixed inset-0 z-50 flex flex-col bg-ink text-white" : "hidden"} aria-hidden={!active}>
         <audio ref={remoteAudio} autoPlay />
         {video && <video ref={remoteVideo} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover" />}
-        {video && <video ref={localVideo} autoPlay playsInline muted className="absolute right-4 top-4 h-40 w-28 rounded-card object-cover shadow-float" />}
+        {video && (
+          <video
+            ref={localVideo}
+            autoPlay
+            playsInline
+            muted
+            className="absolute right-4 top-4 h-40 w-28 rounded-card object-cover shadow-float"
+          />
+        )}
         <div className="relative z-10 mt-auto flex flex-col items-center gap-5 bg-gradient-to-t from-ink/90 to-transparent p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <p className="text-xl font-semibold">{name}</p>
           <p className="text-sm text-white/80" role="status">
-            {phase === "outgoing" ? t("call.calling", { name }) : phase === "connecting" ? t("call.connecting") : t("call.inCall", { time: fmt(seconds) })}
+            {phase === "outgoing"
+              ? t("call.calling", { name })
+              : phase === "connecting"
+                ? t("call.connecting")
+                : t("call.inCall", { time: fmt(seconds) })}
           </p>
           <div className="flex gap-4">
-            <button type="button" onClick={toggleMute} className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl" aria-label={muted ? t("call.unmute") : t("call.mute")} aria-pressed={muted}>
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl"
+              aria-label={muted ? t("call.unmute") : t("call.mute")}
+              aria-pressed={muted}
+            >
               {muted ? <Ico as={MicOff} size={24} /> : <Ico as={Mic} size={24} />}
             </button>
             {video && (
-              <button type="button" onClick={toggleCam} className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl" aria-label={camOff ? t("call.cameraOn") : t("call.cameraOff")} aria-pressed={camOff}>
+              <button
+                type="button"
+                onClick={toggleCam}
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl"
+                aria-label={camOff ? t("call.cameraOn") : t("call.cameraOff")}
+                aria-pressed={camOff}
+              >
                 {camOff ? <Ico as={VideoOff} size={24} /> : <Ico as={Video} size={24} />}
               </button>
             )}
@@ -378,7 +419,11 @@ export function CallPanel({
               type="button"
               onClick={() =>
                 hangUp(
-                  phase === "live" ? { kind: "ended", video, seconds: Math.round((Date.now() - startedAt.current) / 1000) } : phase === "outgoing" ? { kind: "missed", video } : null,
+                  phase === "live"
+                    ? { kind: "ended", video, seconds: Math.round((Date.now() - startedAt.current) / 1000) }
+                    : phase === "outgoing"
+                      ? { kind: "missed", video }
+                      : null,
                   t("call.ended"),
                 )
               }

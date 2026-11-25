@@ -1,4 +1,5 @@
 import "server-only";
+import type { Database } from "@/lib/db/database.types";
 import type { ErrandDeal } from "@/lib/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -28,7 +29,8 @@ export interface PayeeAccount {
 export const owedToHelper = (d: ErrandDeal) => d.fee + (d.receiptAmount ?? 0);
 
 /** When the customer is asked to pay the helper: once the helper has finished. */
-export const directPayOpen = (d: ErrandDeal) => d.payMode === "direct" && d.helperId !== null && (d.status === "check" || d.status === "released" || d.status === "disputed");
+export const directPayOpen = (d: ErrandDeal) =>
+  d.payMode === "direct" && d.helperId !== null && (d.status === "check" || d.status === "released" || d.status === "disputed");
 
 const ms = (v: string | null) => (v ? Date.parse(v) : null);
 
@@ -37,7 +39,13 @@ export async function directPayState(d: ErrandDeal): Promise<DirectPayState> {
     .from("direct_payments")
     .select("amount, customer_paid_at, helper_received_at, unpaid_reported_at, resolved_at")
     .eq("deal_id", d.id)
-    .maybeSingle<{ amount: number; customer_paid_at: string | null; helper_received_at: string | null; unpaid_reported_at: string | null; resolved_at: string | null }>();
+    .maybeSingle<{
+      amount: number;
+      customer_paid_at: string | null;
+      helper_received_at: string | null;
+      unpaid_reported_at: string | null;
+      resolved_at: string | null;
+    }>();
   return {
     amount: owedToHelper(d),
     customerPaidAt: ms(data?.customer_paid_at ?? null),
@@ -54,11 +62,19 @@ export async function directPayState(d: ErrandDeal): Promise<DirectPayState> {
 export async function payeeAccount(d: ErrandDeal): Promise<PayeeAccount | null> {
   const db = createAdminClient();
   if (d.payeeOrgId) {
-    const { data } = await db.from("organization_payout_accounts").select("bank, account_number, holder_name").eq("org_id", d.payeeOrgId).maybeSingle<{ bank: string; account_number: string; holder_name: string }>();
+    const { data } = await db
+      .from("organization_payout_accounts")
+      .select("bank, account_number, holder_name")
+      .eq("org_id", d.payeeOrgId)
+      .maybeSingle<{ bank: string; account_number: string; holder_name: string }>();
     return data ? { bank: data.bank, accountNumber: data.account_number, holderName: data.holder_name, org: true } : null;
   }
   if (!d.helperId) return null;
-  const { data } = await db.from("payout_accounts").select("bank, account_number, holder_name").eq("user_id", d.helperId).maybeSingle<{ bank: string; account_number: string; holder_name: string }>();
+  const { data } = await db
+    .from("payout_accounts")
+    .select("bank, account_number, holder_name")
+    .eq("user_id", d.helperId)
+    .maybeSingle<{ bank: string; account_number: string; holder_name: string }>();
   return data ? { bank: data.bank, accountNumber: data.account_number, holderName: data.holder_name, org: false } : null;
 }
 
@@ -70,7 +86,12 @@ export async function markDirectPay(d: ErrandDeal, mark: Mark): Promise<boolean>
   const now = new Date().toISOString();
   const db = createAdminClient();
   const col = mark === "customer_paid" ? "customer_paid_at" : mark === "helper_received" ? "helper_received_at" : "unpaid_reported_at";
-  const patch: Record<string, unknown> = { deal_id: d.id, amount: owedToHelper(d), [col]: now, updated_at: now };
+  const patch: Database["public"]["Tables"]["direct_payments"]["Insert"] = {
+    deal_id: d.id,
+    amount: owedToHelper(d),
+    [col]: now,
+    updated_at: now,
+  };
   // "received" settles an earlier "not paid" report by itself
   if (mark === "helper_received") Object.assign(patch, { unpaid_reported_at: null });
   await db.from("direct_payments").upsert(patch, { onConflict: "deal_id" }).throwOnError();
@@ -92,7 +113,13 @@ export async function resolveUnpaid(dealId: string, opsId: string, note: string)
 /** A customer with an open "not paid" report can't post new tasks until Ops settles it. */
 export async function hasOpenUnpaid(customerId: string): Promise<boolean> {
   const db = createAdminClient();
-  const { data } = await db.from("direct_payments").select("deal_id").not("unpaid_reported_at", "is", null).is("resolved_at", null).limit(50).returns<{ deal_id: string }[]>();
+  const { data } = await db
+    .from("direct_payments")
+    .select("deal_id")
+    .not("unpaid_reported_at", "is", null)
+    .is("resolved_at", null)
+    .limit(50)
+    .returns<{ deal_id: string }[]>();
   const ids = (data ?? []).map((r) => r.deal_id);
   if (!ids.length) return false;
   const { count } = await db.from("deals").select("id", { count: "exact", head: true }).in("id", ids).eq("customer_id", customerId);

@@ -7,7 +7,8 @@ export const en = {
   org: {
     title: "Organisation",
     newTitle: "Register an organisation",
-    newIntro: "Add your organisation, registration document and bank account. Ops checks them before its helpers can accept specialised jobs.",
+    newIntro:
+      "Add your organisation, registration document and bank account. Ops checks them before its helpers can accept specialised jobs.",
     name: "Organisation name",
     namePh: "Registered legal name",
     regNumber: "Registration number",
@@ -15,14 +16,15 @@ export const en = {
     kinds: {
       company: "Company",
       agency: "Care agency",
-      ngo: "NGO"
+      ngo: "NGO",
     },
     categories: "Services to offer",
     description: "About your organisation",
     descriptionPh: "Experience and services",
     area: "Service area",
     areaPh: "Districts or neighbourhoods",
-    careNote: "Care services are paused during launch. Do not start new care clearances; any future launch needs a separate legal and safety review.",
+    careNote:
+      "Care services are paused during launch. Do not start new care clearances; any future launch needs a separate legal and safety review.",
     doc: "Registration certificate",
     docHelp: "Photo or PDF, up to 10 MB. Only Ops can view it.",
     payout: "Organisation bank account",
@@ -38,23 +40,23 @@ export const en = {
       pending: "In review",
       approved: "Approved",
       rejected: "Rejected",
-      suspended: "Suspended"
+      suspended: "Suspended",
     },
     status: {
       pending: "Your organisation is being reviewed.",
       approved: "Your organisation is approved.",
       rejected: "The application was rejected.",
-      suspended: "This organisation is suspended."
+      suspended: "This organisation is suspended.",
     },
     roles: {
       owner: "Owner",
       manager: "Manager",
-      worker: "Helper"
+      worker: "Helper",
     },
     errors: {
       invalid: "Check the details, service types and consent.",
       file: "Upload your document first.",
-      duplicate: "This registration number is already registered."
+      duplicate: "This registration number is already registered.",
     },
     manage: {
       title: "Manage workers",
@@ -66,14 +68,14 @@ export const en = {
       sent: "Invitation sent.",
       waiting: "Awaiting acceptance",
       needsRecord: "Criminal-record check needed",
-      remove: "Remove"
+      remove: "Remove",
     },
     invite: {
       notFound: "No account found for that number.",
       notHelper: "This person must become an approved helper first.",
       notApproved: "The organisation must be approved first.",
       noKinds: "Choose at least one approved service.",
-      self: "The owner’s membership cannot be changed here."
+      self: "The owner’s membership cannot be changed here.",
     },
     my: "My organisations",
     join: "{name} invited you as {role}.",
@@ -86,7 +88,7 @@ export const en = {
     payeeItems: "{name} · materials (by receipt)",
     balance: "Released to organisation",
     cancelledFee: "Cancelled · {fee} paid to {name}, the rest was refunded",
-    workerPay: "This job is paid to your organisation. Agree your service fee with it."
+    workerPay: "This job is paid to your organisation. Agree your service fee with it.",
   },
   cert: {
     title: "Trade certificates",
@@ -111,12 +113,12 @@ export const en = {
       pending: "In review",
       approved: "Approved",
       rejected: "Rejected",
-      expired: "Expired"
+      expired: "Expired",
     },
     errors: {
       invalid: "Check the service, issuer, document and expiry date. Expired certificates cannot be submitted.",
-      duplicate: "A certificate for this service is already approved or in review."
-    }
+      duplicate: "A certificate for this service is already approved or in review.",
+    },
   },
   opsOrgs: {
     title: "Organisation reviews",
@@ -130,14 +132,15 @@ export const en = {
     owner: "Owner",
     openDoc: "Open document",
     noDoc: "Document unavailable. Do not approve until checked.",
-    checkHint: "Check registration, authority to represent the organisation, services and the organisation’s bank account. Care approval is for agencies only.",
-    pickKinds: "Choose requested services and check the document and payout account. Care requires an agency."
+    checkHint:
+      "Check registration, authority to represent the organisation, services and the organisation’s bank account. Care approval is for agencies only.",
+    pickKinds: "Choose requested services and check the document and payout account. Care requires an agency.",
   },
   opsCerts: {
     firstAidClaimed: "Says they have a first-aid certificate: check it's in the files before approving.",
     careCheck: "Care is paused. Do not approve new care clearances until a separate legal and safety review is complete.",
     title: "Certificate reviews",
-    empty: "No certificates waiting for review."
+    empty: "No certificates waiting for review.",
   },
   specialized: {
     title: "Specialised services",
@@ -147,7 +150,7 @@ export const en = {
     legal: "Legal review completed for this care service",
     legalNeeded: "Confirm the legal review before enabling care services.",
     materials: "Materials budget",
-    check: "You have {hours} hours to check the completed work."
+    check: "You have {hours} hours to check the completed work.",
   },
 
   common: {
@@ -346,7 +349,8 @@ export const en = {
   },
   opsContent: {
     coversTitle: "Pictures for each kind of work",
-    coversHelp: "One example picture per kind. Cards and Home show it when a task has no photo of its own (marked “Example”). Use pictures you have the rights to — your own, or free stock like Unsplash or Pexels. No faces of real customers.",
+    coversHelp:
+      "One example picture per kind. Cards and Home show it when a task has no photo of its own (marked “Example”). Use pictures you have the rights to — your own, or free stock like Unsplash or Pexels. No faces of real customers.",
     coverAdd: "Add picture",
     coverChange: "Change",
     coverRemove: "Remove",
@@ -371,7 +375,8 @@ export const en = {
     saved: "Saved.",
     invalid: "Titles must be 2–40 characters, with at least one month ticked.",
     keywords: "Search words",
-    keywordsHelp: "One per line. Matches the start of a word (“зөө” → “зөөх”); 2-letter words match whole words; with a space, as a phrase.",
+    keywordsHelp:
+      "One per line. Matches the start of a word (“зөө” → “зөөх”); 2-letter words match whole words; with a space, as a phrase.",
     wordsInvalid: "Each word 2–40 characters, at most {n}.",
     kindsTitle: "Available services",
     kindsHelp: "Switch services on or off for new requests. Care services are outside the launch offering.",
@@ -380,8 +385,8 @@ export const en = {
     trust: {
       open: "Approved helpers",
       pro: "Organisation or checked certificate",
-      care: "Paused care work"
-    }
+      care: "Paused care work",
+    },
   },
   workKinds: {
     newTitle: "Kinds of work you don't get yet",
@@ -399,9 +404,11 @@ export const en = {
     posterChoice: "Several helpers can apply. You can view their profiles and portfolios or chat privately, then choose who to book.",
     viewApplicant: "View profile & portfolio",
     pilotHours: "Care work is daytime only ({from}:00–{to}:00) and up to {hours} hours.",
-    scopeChild: "Babysitting: looking after, playing, meals and getting to bed. The helper doesn't give medicine unless you've written exactly what and when.",
+    scopeChild:
+      "Babysitting: looking after, playing, meals and getting to bed. The helper doesn't give medicine unless you've written exactly what and when.",
     scopeElder: "Elder care: company, walks, meals and errands. No medical tasks: no injections, dressings or deciding medicine doses.",
-    meetFirst: "{name} hasn't looked after your family before. I'll stay at home (or another adult from the family will) for this first session.",
+    meetFirst:
+      "{name} hasn't looked after your family before. I'll stay at home (or another adult from the family will) for this first session.",
     meetFirstNeeded: "With a new helper, someone from the family stays at home for the first session. Tick the box to choose them.",
     meetFirstHelper: "First session with this family: a parent or family member will be at home.",
     firstAidBadge: "First aid",
@@ -414,7 +421,8 @@ export const en = {
     callFirstHelper: "Care work: the customer chooses you only after talking with you on a call.",
     helperNote: "Care work: the customer must call you before choosing you. The first time, the customer is at home.",
     needsRecord: "Care services are paused during launch. We are not reviewing criminal-record certificates.",
-    clearanceIntro: "Care services are paused during launch. Do not request a new clearance; care requires a separate legal and safety review before it can return.",
+    clearanceIntro:
+      "Care services are paused during launch. Do not request a new clearance; care requires a separate legal and safety review before it can return.",
   },
   web: {
     findWork: "Find work",
@@ -444,6 +452,8 @@ export const en = {
     closed: "Your account was closed. Thank you for using {app}.",
     nav: { how: "How it works", helper: "Become a helper", login: "Log in", post: "Post a task" },
     areaLive: "Ulaanbaatar · {n} helpers online now",
+    stats: { title: "In numbers", done: "jobs done", helpers: "approved helpers", rating: "average rating", reviews: "customer reviews" },
+    regNo: "Reg. no. {n}",
     areaIdle: "Ulaanbaatar · verified helpers, fair prices",
     title1: "Need a hand?",
     title2: "A helper nearby will do it.",
@@ -497,7 +507,23 @@ export const en = {
     twoPeople: "2 helpers",
     onePlace: "One place",
     buys: "buys items",
-    ask: { shop: "Bring something from the store", carry: "Help me carry", queue: "Stand in a queue for me", deliver: "Pick up and deliver", repair: "Fix something small", other: "Help me with a task", dayjob: "I need someone for a few hours", trash: "Take out my rubbish", escort: "Come with me", assembly: "Assemble something for me", plumbing: "I need a plumber", electrical: "I need an electrician", cleaning: "Clean my home", childcare: "Look after my child", eldercare: "I need a carer" },
+    ask: {
+      shop: "Bring something from the store",
+      carry: "Help me carry",
+      queue: "Stand in a queue for me",
+      deliver: "Pick up and deliver",
+      repair: "Fix something small",
+      other: "Help me with a task",
+      dayjob: "I need someone for a few hours",
+      trash: "Take out my rubbish",
+      escort: "Come with me",
+      assembly: "Assemble something for me",
+      plumbing: "I need a plumber",
+      electrical: "I need an electrician",
+      cleaning: "Clean my home",
+      childcare: "Look after my child",
+      eldercare: "I need a carer",
+    },
     gateTitle: "Log in to continue",
     gateBody: "Log in with your phone number to post a task.",
     gateGo: "Log in with phone number",
@@ -579,7 +605,21 @@ export const en = {
     help: "Write it like a message. A sentence or a short list is enough. We'll ask for the address and time next.",
     titlePreview: "Post title · edit if needed",
     questions: {
-      shop: "What would you like brought over?", carry: "What needs moving?", queue: "What do you need someone to queue for?", deliver: "What needs picking up and delivering?", repair: "What needs fixing?", other: "What would you like help with?", dayjob: "What work do you need help with?", trash: "What needs taking away?", escort: "What do you need a companion for?", assembly: "What needs assembling?", plumbing: "What's wrong with the plumbing?", electrical: "What electrical work is needed?", cleaning: "What needs cleaning?", childcare: "What help does your family need?", eldercare: "What support is needed?",
+      shop: "What would you like brought over?",
+      carry: "What needs moving?",
+      queue: "What do you need someone to queue for?",
+      deliver: "What needs picking up and delivering?",
+      repair: "What needs fixing?",
+      other: "What would you like help with?",
+      dayjob: "What work do you need help with?",
+      trash: "What needs taking away?",
+      escort: "What do you need a companion for?",
+      assembly: "What needs assembling?",
+      plumbing: "What's wrong with the plumbing?",
+      electrical: "What electrical work is needed?",
+      cleaning: "What needs cleaning?",
+      childcare: "What help does your family need?",
+      eldercare: "What support is needed?",
     },
     examples: {
       shop: "Please bring:\n• 2 litres of milk\n• 1 loaf of bread\nAny brand is fine.",
@@ -599,23 +639,51 @@ export const en = {
       eldercare: "Keep my mother company and help prepare a meal. A family member will be at home.",
     },
     guidance: {
-      shop: "Helpful details: items, quantities, and whether substitutes are OK.", carry: "Helpful details: number of items, approximate size, and weight.", queue: "Helpful details: the service, documents needed, and when to call you.", deliver: "Helpful details: the item, package size, and whether it's paid for.", repair: "Helpful details: what's broken, what happens, and any parts you have.", other: "Helpful details: what to do and what a finished job should look like.", dayjob: "Helpful details: the tasks, how much work there is, and any lifting.", trash: "Helpful details: number of bags or items, their size, and where to take them.", escort: "For adults who can travel independently. Describe the route and where you need directions. Personal care and child supervision are outside this service.", assembly: "Helpful details: furniture type, number of pieces, and available instructions.", plumbing: "Helpful details: where the problem is, when it happens, and how urgent it is.", electrical: "Describe what you noticed. Don't touch exposed wires to check.", cleaning: "Helpful details: room count, areas to focus on, and supplies available.", childcare: "Helpful details: the child's age, activities, and which family member will stay.", eldercare: "Helpful details: everyday assistance needed and who will be home.",
+      shop: "Helpful details: items, quantities, and whether substitutes are OK.",
+      carry: "Helpful details: number of items, approximate size, and weight.",
+      queue: "Helpful details: the service, documents needed, and when to call you.",
+      deliver: "Helpful details: the item, package size, and whether it's paid for.",
+      repair: "Helpful details: what's broken, what happens, and any parts you have.",
+      other: "Helpful details: what to do and what a finished job should look like.",
+      dayjob: "Helpful details: the tasks, how much work there is, and any lifting.",
+      trash: "Helpful details: number of bags or items, their size, and where to take them.",
+      escort:
+        "For adults who can travel independently. Describe the route and where you need directions. Personal care and child supervision are outside this service.",
+      assembly: "Helpful details: furniture type, number of pieces, and available instructions.",
+      plumbing: "Helpful details: where the problem is, when it happens, and how urgent it is.",
+      electrical: "Describe what you noticed. Don't touch exposed wires to check.",
+      cleaning: "Helpful details: room count, areas to focus on, and supplies available.",
+      childcare: "Helpful details: the child's age, activities, and which family member will stay.",
+      eldercare: "Helpful details: everyday assistance needed and who will be home.",
     },
   },
   addressEntry: {
     pinConfirmed: "Pin confirmed",
     savedShort: "Saved places",
-    optional: "Optional", saved: "Saved & recent places", addPin: "Add map pin", pinAdded: "Pin added · adjust", clearPin: "Remove pin",
+    optional: "Optional",
+    saved: "Saved & recent places",
+    addPin: "Add map pin",
+    pinAdded: "Pin added · adjust",
+    clearPin: "Remove pin",
     pinHelp: "Move the map or use your location, then confirm the pin. Typing an address doesn't move the map.",
-    usePin: "Use this pin", keepAddress: "Keep address without changes",
+    usePin: "Use this pin",
+    keepAddress: "Keep address without changes",
     intro: "Start with a place name or address. A map pin helps the helper find the exact spot.",
     pickupHelp: "A shop, office or meeting point. Leave blank if you haven't chosen one.",
     destinationHelp: "Building, street or a familiar landmark. Entrance and apartment details go below.",
-    pickupExample: "e.g. Nomin supermarket, Zaisan", destinationExample: "e.g. Building 45, 8th khoroo, near CU",
-    details: "Entrance, floor & directions", detailsHelp: "Optional details to help the helper find your door.", hideDetails: "Hide details",
-    extraOptions: "More task options", extraHelp: "Heavy items and tools the helper should bring.",
-    reviewRequest: "Your request", reviewPlaces: "Places", editRequest: "Edit request", editPlaces: "Edit places & time",
-    rules: "Task guidelines", locationFailed: "Couldn't get your location. Move the map to your place, or keep the written address.",
+    pickupExample: "e.g. Nomin supermarket, Zaisan",
+    destinationExample: "e.g. Building 45, 8th khoroo, near CU",
+    details: "Entrance, floor & directions",
+    detailsHelp: "Optional details to help the helper find your door.",
+    hideDetails: "Hide details",
+    extraOptions: "More task options",
+    extraHelp: "Heavy items and tools the helper should bring.",
+    reviewRequest: "Your request",
+    reviewPlaces: "Places",
+    editRequest: "Edit request",
+    editPlaces: "Edit places & time",
+    rules: "Task guidelines",
+    locationFailed: "Couldn't get your location. Move the map to your place, or keep the written address.",
   },
   post: {
     firstTaskFree: "Service fee — free on your first task",
@@ -654,7 +722,8 @@ export const en = {
     itemsToggle: "The helper buys something for me",
     itemsBudget: "Spend up to",
     itemsHelp: "The helper spends up to this and is reimbursed by receipt. The unused amount comes back to you automatically.",
-    rules: "Not allowed: alcohol or cigarettes for others, medicines, rides, childcare, personal or medical care, entering homes alone. Never pay helpers outside the app.",
+    rules:
+      "Not allowed: alcohol or cigarettes for others, medicines, rides, childcare, personal or medical care, entering homes alone. Never pay helpers outside the app.",
     agree: "I agree to the {app} rules",
     pay: "Pay {amount}",
     draftRestored: "We restored your unfinished task.",
@@ -865,7 +934,8 @@ export const en = {
   },
   verifyRecipient: {
     title: "Verify a delivery recipient's phone (optional)",
-    ownerHelp: "The recipient must open a private link on their own phone and send the SMS themselves. Their phone number is never shown to the helper.",
+    ownerHelp:
+      "The recipient must open a private link on their own phone and send the SMS themselves. Their phone number is never shown to the helper.",
     phone: "Recipient's Mongolian phone number",
     ownerPrice: "The recipient pays 150₮ to their mobile operator for each SMS sent to 144773, whether verification succeeds or not.",
     createLink: "Create private link",
@@ -888,7 +958,8 @@ export const en = {
     inviteExpired: "This verification link has expired. Ask the person arranging the delivery for a new link.",
     openSms: "Open SMS to 144773",
     waiting: "Waiting for Verify.MN to confirm your number…",
-    replyNote: "Reply SMS depends on your carrier: Unitel may send only the default reply and Lime sends no reply. Check the result here; a reply SMS is never confirmation.",
+    replyNote:
+      "Reply SMS depends on your carrier: Unitel may send only the default reply and Lime sends no reply. Check the result here; a reply SMS is never confirmation.",
     verified: "Phone number verified",
     publicDone: "You can close this page. The delivery requester will see the result in the app.",
     invalidLink: "This link is invalid or has been replaced. Ask for a new link.",
@@ -960,7 +1031,8 @@ export const en = {
     roundTripLine: "Return leg",
     bufferLine: "+10% budget allowance",
     raised: "You added",
-    heldLine: "Nothing is charged now. When you choose a helper you pay the price + our service fee in the app; we pay the helper after you confirm.",
+    heldLine:
+      "Nothing is charged now. When you choose a helper you pay the price + our service fee in the app; we pay the helper after you confirm.",
     confirm: "Post task · {amount}",
     terms: "By confirming you accept the",
     termsLink: "terms of service",
@@ -978,7 +1050,8 @@ export const en = {
     bufferSubEmpty: "A little extra is prepaid. Whatever isn't spent comes back.",
     overBudgetRule: "If the receipt is higher, you'll be asked to approve and pay the difference first.",
     autoPick: "Choose for me",
-    autoPickSub: "Helpers apply and you pick. If you haven't picked {minutes} min after the first one, we choose the best (closest, best rated).",
+    autoPickSub:
+      "Helpers apply and you pick. If you haven't picked {minutes} min after the first one, we choose the best (closest, best rated).",
     repeatNote: "Filled in from your earlier task. The price is calculated for now.",
   },
   history: {
@@ -1018,7 +1091,8 @@ export const en = {
     available: "Approved earnings",
     queued: "Payout requested",
     pendingJobs: "Recent jobs awaiting approval",
-    pendingExplain: "These are agreed service fees, excluding purchases. They are not yet available for payout. Open a job to see its progress or report a problem.",
+    pendingExplain:
+      "These are agreed service fees, excluding purchases. They are not yet available for payout. Open a job to see its progress or report a problem.",
     stage: {
       work: "Work not yet submitted",
       review: "Completion under review",
@@ -1038,10 +1112,12 @@ export const en = {
     withdrawTitle: "Withdraw {amount}?",
     withdrawBody: "The whole available amount goes to your {bank} account {account}.",
     withdrawConfirm: "Request payout",
-    withdrawWhen: "Our target is to send payments within 15 minutes during opening hours (09:00–22:00, Ulaanbaatar). Later requests are handled the next morning. Check the request status below; bank arrival times can vary.",
+    withdrawWhen:
+      "Our target is to send payments within 15 minutes during opening hours (09:00–22:00, Ulaanbaatar). Later requests are handled the next morning. Check the request status below; bank arrival times can vary.",
     minimum: "You can withdraw from {amount}.",
     testNoPayout: "Bank details are not collected during this private test. Earnings cannot be withdrawn.",
-    rules: "Approved payments include service fees and any purchase reimbursements. Request payment to your own checked bank account up to {n} times a day. After {days} days, unclaimed earnings are queued automatically if your account is checked; sending the payment is a separate step.",
+    rules:
+      "Approved payments include service fees and any purchase reimbursements. Request payment to your own checked bank account up to {n} times a day. After {days} days, unclaimed earnings are queued automatically if your account is checked; sending the payment is a separate step.",
     history: "Payout requests",
     status: {
       requested: "Requested · awaiting transfer",
@@ -1050,7 +1126,8 @@ export const en = {
     },
     auto: "automatic",
     err: {
-      unchecked: "Your account ownership needs to be checked with the bank and matched to your verified identity before you can request a payout.",
+      unchecked:
+        "Your account ownership needs to be checked with the bank and matched to your verified identity before you can request a payout.",
       minimum: "You can withdraw from {amount}.",
       tooMany: "At most {n} withdrawals a day. Try again tomorrow.",
     },
@@ -1101,7 +1178,8 @@ export const en = {
   job: {
     locationShare: "Share my location with this customer",
     locationStop: "Stop sharing my location",
-    locationHint: "Your customer sees your location while you keep the app open, including in chat. Updates pause when the app is in the background or the screen is locked. Stop at any time; sharing ends automatically when work ends.",
+    locationHint:
+      "Your customer sees your location while you keep the app open, including in chat. Updates pause when the app is in the background or the screen is locked. Stop at any time; sharing ends automatically when work ends.",
     locationActive: "Sharing your live location with your customer.",
     locationLocating: "Finding your location…",
     locationManage: "Open job · manage location sharing",
@@ -1160,7 +1238,8 @@ export const en = {
     youEarn: "You earn {amount}",
     feeLabel: "Your fee",
     paymentTimingTitle: "When your fee becomes available",
-    paymentTiming: "After you submit completion, the customer has {hours} hours to review. Your fee becomes available when they confirm or the review closes without a dispute. Bank payout is requested separately from Earnings.",
+    paymentTiming:
+      "After you submit completion, the customer has {hours} hours to review. Your fee becomes available when they confirm or the review closes without a dispute. Bank payout is requested separately from Earnings.",
     whenLabel: "When",
     placeLabel: "Place and request",
     customerLabel: "Customer",
@@ -1174,7 +1253,8 @@ export const en = {
     plusItems: "+ items up to {amount} (reimbursed)",
     apply: "I can do it · {amount}",
     applyNote: "Message to the customer (optional)",
-    applied: "Request sent. You can now chat or call the customer with questions; we'll tell you when they choose. Withdrawing is free until they pay.",
+    applied:
+      "Request sent. You can now chat or call the customer with questions; we'll tell you when they choose. Withdrawing is free until they pay.",
     applyNotePh: "E.g. I'm 5 minutes away. Is it heavy?",
     unapply: "Take back my request",
     tooMany: "You can have up to {n} open requests at once. Take one back first.",
@@ -1195,8 +1275,10 @@ export const en = {
     addressAfterMatch: "Exact entrance, floor and door are shown once you're matched.",
     cancelLate: "Back out",
     cancelLateTitle: "Back out of this job?",
-    cancelLateBody: "The customer gets a full refund and the task goes to other helpers. You're more than {minutes} minutes past being chosen, so your account will be paused: {days}.",
-    cancelFreeBody: "The customer gets a full refund and the task goes to other helpers. No penalty: you're within {minutes} minutes of being chosen.",
+    cancelLateBody:
+      "The customer gets a full refund and the task goes to other helpers. You're more than {minutes} minutes past being chosen, so your account will be paused: {days}.",
+    cancelFreeBody:
+      "The customer gets a full refund and the task goes to other helpers. No penalty: you're within {minutes} minutes of being chosen.",
     pauseDays: "{n} days",
     pauseDay: "1 day",
   },
@@ -1225,7 +1307,11 @@ export const en = {
     tooBig: "That file is too big (max 25 MB).",
     failed: "Upload failed. Check your connection and try again.",
     noneYet: "No proof yet.",
-    flag: { reused_photo: "This exact photo was used on another task", similar_photo: "Looks like a photo used on another task", old_file: "File is older than 6 hours" },
+    flag: {
+      reused_photo: "This exact photo was used on another task",
+      similar_photo: "Looks like a photo used on another task",
+      old_file: "File is older than 6 hours",
+    },
     receiptAmount: "Receipt · {amount}",
     handover: "Handover",
     startTitle: "Start photo",
@@ -1300,8 +1386,10 @@ export const en = {
     busy: "{name} is on another call.",
     ended: "Call ended.",
     failed: "The call couldn't connect on this network.",
-    temporarilyUnavailable: "Voice and video calls are temporarily unavailable while the private relay is being set up. You can still chat and send voice messages.",
-    requiredUnavailable: "A call is required before choosing this helper, but calls are temporarily unavailable. Try again after the private relay is ready.",
+    temporarilyUnavailable:
+      "Voice and video calls are temporarily unavailable while the private relay is being set up. You can still chat and send voice messages.",
+    requiredUnavailable:
+      "A call is required before choosing this helper, but calls are temporarily unavailable. Try again after the private relay is ready.",
     tryVoice: "Send a voice message instead",
     permission: "Allow the microphone (and camera for video) in your browser to call.",
     unsupported: "This browser can't make calls. Try Chrome or Safari, or send a voice message.",
@@ -1317,7 +1405,8 @@ export const en = {
     agreement: "I accept the",
     agreementLink: "Helper service agreement",
     title: "Become a verified helper",
-    intro: "Customers let helpers into their homes, so every helper is checked by a person on our team. It takes about 5 minutes; review usually takes up to 24 h.",
+    intro:
+      "Customers let helpers into their homes, so every helper is checked by a person on our team. It takes about 5 minutes; review usually takes up to 24 h.",
     start: "Start verification",
     stepPerson: "1. About you",
     legalName: "Full name exactly as on your ID",
@@ -1339,7 +1428,8 @@ export const en = {
     account: "Account number (or IBAN)",
     holder: "Account holder name",
     holderHelp: "Must be your own account, in the same name as your ID. We never pay to someone else's account.",
-    consent: "I agree that {app} reviews my ID and selfie. The images and my date of birth are deleted 30 days after the decision; we keep my verified name and the last 4 digits of my ID number.",
+    consent:
+      "I agree that {app} reviews my ID and selfie. The images and my date of birth are deleted 30 days after the decision; we keep my verified name and the last 4 digits of my ID number.",
     submit: "Send for review",
     privacy: "Only our review team can open these files, through links that expire in 5 minutes. Other users never see them.",
     errors: {
@@ -1367,12 +1457,15 @@ export const en = {
     badgeVerified: "✓ ID reviewed",
     badgeUnverified: "Identity not checked",
     testTitle: "Join the helper test",
-    testWarning: "Private test only: any adult with a verified Mongolian phone number can work without identity-document review or entering bank details. Test access is not a safety check or identity verification. Use only with people you know; do not treat test helpers as publicly vetted.",
-    testJoinHint: "Choose the types of errands you want to test and accept the Helper service agreement. Only your name, verified phone number and 18+ confirmation are collected for registration.",
+    testWarning:
+      "Private test only: any adult with a verified Mongolian phone number can work without identity-document review or entering bank details. Test access is not a safety check or identity verification. Use only with people you know; do not treat test helpers as publicly vetted.",
+    testJoinHint:
+      "Choose the types of errands you want to test and accept the Helper service agreement. Only your name, verified phone number and 18+ confirmation are collected for registration.",
     testInviteOnly: "Unverified helper access is disabled. Ask the app owner to enable it only for a private test.",
     testActivate: "Enable test helper access",
     testDisabled: "Identity-document review is unavailable in this test deployment.",
-    testGlobalWarning: "Private test: any adult with a verified Mongolian phone number may work without ID review. Test access is not a safety check; do not treat helpers as publicly vetted.",
+    testGlobalWarning:
+      "Private test: any adult with a verified Mongolian phone number may work without ID review. Test access is not a safety check; do not treat helpers as publicly vetted.",
   },
   ops: {
     title: "Helper applications",
@@ -1478,7 +1571,7 @@ export const en = {
       org_approved: "approved an organisation",
       org_rejected: "rejected an organisation",
       org_suspended: "suspended an organisation",
-      payments_unpaidResolved: "settled a \"not paid\" report",
+      payments_unpaidResolved: 'settled a "not paid" report',
       payout_added: "added a bank account",
       payout_changed: "changed their bank account",
       payout_checked: "recorded a bank ownership check",
@@ -1501,7 +1594,8 @@ export const en = {
     pausePosting: "Pause new tasks",
     pausePostingHelp: "Nobody can post. Tasks already posted continue.",
     freeze: "Freeze money movements",
-    freezeHelp: "No new payments, no release, refund or payout. Tasks keep their state; due releases run after you lift it. Use it if you suspect a bug or fraud.",
+    freezeHelp:
+      "No new payments, no release, refund or payout. Tasks keep their state; due releases run after you lift it. Use it if you suspect a bug or fraud.",
     note: "Reason (required while a switch is on)",
     caps: "Limits",
     capDeal: "Most paid in for one task (₮)",
@@ -1651,7 +1745,8 @@ export const en = {
     card: {
       title: "Pay {name} directly",
       sub: "The agreed price. Transfer to the account below, pay by QPay, or in cash, then tap the button.",
-      withItems: "The agreed price + {items} for items (the receipt). Transfer to the account below, pay by QPay, or in cash, then tap the button.",
+      withItems:
+        "The agreed price + {items} for items (the receipt). Transfer to the account below, pay by QPay, or in cash, then tap the button.",
       bank: "Bank",
       account: "Account",
       holder: "Name",
@@ -1671,7 +1766,8 @@ export const en = {
       receivedDone: "Received ✓",
       notPaid: "Not paid",
       notPaidTitle: "Report that you weren't paid?",
-      notPaidBody: "Ops will contact the customer, and they can't post new tasks until it's settled. Report only after waiting a reasonable time.",
+      notPaidBody:
+        "Ops will contact the customer, and they can't post new tasks until it's settled. Report only after waiting a reasonable time.",
       reported: "Reported. Ops will follow up.",
     },
   },
@@ -1714,7 +1810,17 @@ export const en = {
       fragranceFree: "Fragrance-free products",
       references: "References available",
       followRoutine: "Follow the family routine",
-      priorExperience: "Similar work experience", elderCareExperience: "Elder care experience", childCareExperience: "Childcare experience", driver: "Driver's licence", car: "Own car", call: "Talk first",       onTime: "On time", checked: "Legacy criminal-record requirement", handoverCode: "Handover code", language: "Language" },
+      priorExperience: "Similar work experience",
+      elderCareExperience: "Elder care experience",
+      childCareExperience: "Childcare experience",
+      driver: "Driver's licence",
+      car: "Own car",
+      call: "Talk first",
+      onTime: "On time",
+      checked: "Legacy criminal-record requirement",
+      handoverCode: "Handover code",
+      language: "Language",
+    },
     sub: {
       insulatedBag: "Use an insulated bag during the trip.",
       askSubstitutions: "Check with the customer before buying an alternative.",
@@ -1723,7 +1829,9 @@ export const en = {
       fragranceFree: "Use unscented cleaning products.",
       references: "Discuss references with the helper before booking.",
       followRoutine: "Agree on the routine with the family before starting.",
-      priorExperience: "Ask about similar jobs.", elderCareExperience: "Ask about caring for older adults.", childCareExperience: "Ask about caring for children.",
+      priorExperience: "Ask about similar jobs.",
+      elderCareExperience: "Ask about caring for older adults.",
+      childCareExperience: "Ask about caring for children.",
       driver: "A licence checked by our team.",
       car: "Their own car, its registration checked by our team.",
       call: "You talk on an in-app call before choosing them.",
@@ -1745,7 +1853,8 @@ export const en = {
   },
   badges: {
     title: "Badges and licences",
-    intro: "Some customers ask for a driver's licence, an own car, an on-time record or a language. Our team reviews licence and vehicle documents; languages are self-declared.",
+    intro:
+      "Some customers ask for a driver's licence, an own car, an on-time record or a language. Our team reviews licence and vehicle documents; languages are self-declared.",
     yes: "Yes",
     no: "Not yet",
     onTime: "On time: {pct}% of your last {n} booked jobs",
@@ -1790,7 +1899,16 @@ export const en = {
     payHelp: "Managed service is the V1 model: the customer buys the service from us; helpers withdraw their earnings.",
     title: "Rules and timings",
     help: "Timings and limits for new tasks. Tasks already posted keep the rules they started with. Every change is in the Ops log.",
-    g: { payouts: "Helper earnings", pay: "Payments", money: "Payment and checking", search: "Finding a helper", backOut: "Backing out", standards: "Helper standards (lateness, location, record)", care: "Babysitting and elder care", waves: "How far helper notifications spread" },
+    g: {
+      payouts: "Helper earnings",
+      pay: "Payments",
+      money: "Payment and checking",
+      search: "Finding a helper",
+      backOut: "Backing out",
+      standards: "Helper standards (lateness, location, record)",
+      care: "Babysitting and elder care",
+      waves: "How far helper notifications spread",
+    },
     f: {
       paymentWindowMinutes: "Time to pay after choosing",
       paymentWindowBookedMinutes: "…booked / not urgent",
@@ -1802,7 +1920,7 @@ export const en = {
       nowMatchWindowMinutes: "Search time (right now)",
       scheduleMatchWindowHours: "Search time (booked for later)",
       applicationMinutes: "An application stays fresh",
-      autoPickMinutes: "\"Choose for me\" after",
+      autoPickMinutes: '"Choose for me" after',
       inviteMinutes: "Direct request: time to answer",
       inviteMinutesScheduled: "…for a later booking",
       maxApplicants: "Most applicants per task",
@@ -1832,12 +1950,13 @@ export const en = {
       sosRepingMinutes: "Remind Ops about an SOS every",
       sosRepingForMinutes: "Keep reminding about an SOS for",
       chatRetentionDays: "Keep chats after the task",
-      maxDelayMinutes: "\"Need more time\" at most",
-      absentGraceMinutes: "Customer must answer \"not here\" within",
+      maxDelayMinutes: '"Need more time" at most',
+      absentGraceMinutes: 'Customer must answer "not here" within',
       settleHours: "Unanswered refund offer goes to Ops after",
     },
-    u: { "mnt": "₮", times: "times", min: "min", h: "h", days: "days", sec: "sec", people: "people", hour: ":00", m: "m" },
-    wavesHelp: "Each wave reaches helpers within that distance (at most that many people), then waits before the next. Keep the distances growing; the last wave is city-wide.",
+    u: { mnt: "₮", times: "times", min: "min", h: "h", days: "days", sec: "sec", people: "people", hour: ":00", m: "m" },
+    wavesHelp:
+      "Each wave reaches helpers within that distance (at most that many people), then waits before the next. Keep the distances growing; the last wave is city-wide.",
     waveKm: "Within km",
     waveMax: "Max people",
     waveSec: "Then wait (s)",
@@ -1853,7 +1972,8 @@ export const en = {
     saved: "Saved. New tasks use these rules.",
   },
   opsPricing: {
-    serviceFeeShareHelp: "The customer's fee is this share of the helper's price (nothing on shopping money), rounded to 100₮, between the minimum and maximum. Helpers keep 100%. Set the share to 0 to use the flat steps below instead.",
+    serviceFeeShareHelp:
+      "The customer's fee is this share of the helper's price (nothing on shopping money), rounded to 100₮, between the minimum and maximum. Helpers keep 100%. Set the share to 0 to use the flat steps below instead.",
     serviceFeePct: "Share of price",
     serviceFeeMin: "Minimum fee",
     serviceFeeMax: "Maximum fee",
@@ -1867,8 +1987,12 @@ export const en = {
     maxJobTotal: "Largest job (price + shopping)",
     cancelFee: "Cancellation fee",
     kindsTitle: "Minimum price by kind of work",
-    kindsHelp: "The customer names the price; this is only the floor. Easy work can be lower, hard work higher; day jobs and care by the hour (× hours). Longer trips and night add on top. Tasks keep the minimum they were posted with.",
+    kindsHelp:
+      "The customer names the price; this is only the floor. Easy work can be lower, hard work higher; day jobs and care by the hour (× hours). Longer trips and night add on top. Tasks keep the minimum they were posted with.",
     kindMode: "Kind of minimum",
+    defaultMinutes: "Default duration (minutes)",
+    checkHours: "Review window (hours)",
+    useGeneral: "General rule",
     kindGeneral: "General ({amount}₮)",
     kindFixed: "Own minimum ₮",
     kindHourly: "Per hour ₮",
@@ -1915,7 +2039,8 @@ export const en = {
     presentTitle: "The customer answered",
     presentBody: "{title}: the customer says they're here.",
     absentCancelledTitle: "Task cancelled — no answer",
-    absentCancelledCustomer: "{title}: we couldn't reach you, so the task was cancelled. The trip fee went to the helper; the rest is refunded.",
+    absentCancelledCustomer:
+      "{title}: we couldn't reach you, so the task was cancelled. The trip fee went to the helper; the rest is refunded.",
     absentCancelledHelper: "{title}: the customer didn't answer, so the task was cancelled. You're paid the trip fee.",
     offerEscalatedTitle: "Our team will decide",
     offerEscalatedBody: "{title}: the partial-refund offer wasn't answered in time, so our team will look at it.",
@@ -1923,13 +2048,15 @@ export const en = {
     supportTitle: "New message for the team",
     supportBody: "Someone wrote about: {topic}. Open Help & contact in Ops.",
     lateHelperTitle: "You're late",
-    lateHelperBody: "{title}: you should have arrived by {time}. The customer can now cancel or get another helper, and this goes on your record.",
+    lateHelperBody:
+      "{title}: you should have arrived by {time}. The customer can now cancel or get another helper, and this goes on your record.",
     lateCustomerTitle: "Your helper is late",
     lateCustomerBody: "{title}: they should have arrived by {time}. You can wait, get another helper, or cancel for free.",
     locationStoppedTitle: "Your location stopped",
     locationStoppedBody: "{title}: open the app so the customer can see you. Location is required during a job.",
     lateDroppedTitle: "You were taken off a job",
-    lateReplacedBody: "{title}: you didn't arrive in time, so the customer chose another helper. It's on your record; you can explain it there.",
+    lateReplacedBody:
+      "{title}: you didn't arrive in time, so the customer chose another helper. It's on your record; you can explain it there.",
     lateCancelledBody: "{title}: you didn't arrive in time, so the customer cancelled. It's on your record; you can explain it there.",
     marksReviewTitle: "Helper record needs review",
     marksReviewBody: "A helper has {n} late jobs and is paused until you review them.",
@@ -1954,7 +2081,8 @@ export const en = {
     doneDirectBody: "{title}: check it and confirm within {hours} h, then pay the helper directly. A problem? Report it.",
     lateRefundTitle: "Payment returned",
     lateRefundBody: "{title}: your payment came after the time ran out, so it was refunded in full.",
-    helperBusyRefundBody: "{title}: the helper took another job just before your payment, so it was refunded in full. Your request is open to other helpers again.",
+    helperBusyRefundBody:
+      "{title}: the helper took another job just before your payment, so it was refunded in full. Your request is open to other helpers again.",
     paidDirectBody: "{title}: the customer paid the service fee. You can set off. They pay you directly after the job.",
     directPaidTitle: "The customer says they paid you",
     directPaidBody: "{title}: {amount}. Tap 'I've received it' once you have.",
@@ -2041,7 +2169,8 @@ export const en = {
   helper: {
     stepGo: "Fill in",
     becomeTitle: "Become a helper",
-    becomeBody: "Earn by doing errands nearby. Customers pay in the app; your earnings for each finished job go to your own bank account when you withdraw.",
+    becomeBody:
+      "Earn by doing errands nearby. Customers pay in the app; your earnings for each finished job go to your own bank account when you withdraw.",
     checklist: "Verification",
     stepPhone: "Phone",
     stepDan: "ID details",
@@ -2064,30 +2193,40 @@ export const en = {
     safetyTitle: "How we keep you safe",
     safetyIntro: "What {app} does today to protect your money, your home and your information.",
     sMoneyT: "Pay in the app; the helper is paid after you confirm",
-    sMoneyB: "You pay only after you choose a helper: the price, any shopping budget and our service & safety fee, through wire.mn (QPay, bank apps, cards). You're buying the service from {app}: we pay the helper only after you confirm the job, and refund you if the helper doesn't come. A payment counts only when the payment service confirms it; screenshots never do.",
+    sMoneyB:
+      "You pay only after you choose a helper: the price, any shopping budget and our service & safety fee, through wire.mn (QPay, bank apps, cards). You're buying the service from {app}: we pay the helper only after you confirm the job, and refund you if the helper doesn't come. A payment counts only when the payment service confirms it; screenshots never do.",
     sPeopleT: "Helper identity review",
-    sPeopleB: "Our team manually reviews the helper's ID (both sides) and selfie, and checks that the payout account is in the same name. We do not collect or check criminal-record certificates. ID images and date of birth are deleted 30 days after the decision.",
-    sTestModeWarning: "This private test allows adults with verified phone numbers to work without ID review. Their profiles are not identity-verified; do not use test access as a safety check.",
+    sPeopleB:
+      "Our team manually reviews the helper's ID (both sides) and selfie, and checks that the payout account is in the same name. We do not collect or check criminal-record certificates. ID images and date of birth are deleted 30 days after the decision.",
+    sTestModeWarning:
+      "This private test allows adults with verified phone numbers to work without ID review. Their profiles are not identity-verified; do not use test access as a safety check.",
     sPlaceT: "Your address stays private",
-    sPlaceB: "Before a helper is chosen they see only an area of about 300 m — no street, entrance or door. The exact place appears only for the chosen helper. Once work starts, the helper can choose to share their live location with you and stop at any time.",
+    sPlaceB:
+      "Before a helper is chosen they see only an area of about 300 m — no street, entrance or door. The exact place appears only for the chosen helper. Once work starts, the helper can choose to share their live location with you and stop at any time.",
     sTalkT: "Talk without sharing your number",
     sTalkB: "Chat and calls happen inside the task. Phone numbers are never shown, and numbers or links typed in chat are hidden.",
     sHelpT: "Help in an emergency",
-    sHelpB: "The SOS button on an active task alerts our team with your position (the other person isn't told) and shows the police (102) and ambulance (103) numbers. You can report a problem at any time.",
+    sHelpB:
+      "The SOS button on an active task alerts our team with your position (the other person isn't told) and shows the police (102) and ambulance (103) numbers. You can report a problem at any time.",
     sPayT: "Never pay outside the app",
     sPayB: "Only payments through {app} are protected. If someone asks you to pay or meet outside the app, report it.",
     privacyTitle: "Privacy policy",
     privacyDraft: "Draft — to be reviewed by a lawyer before launch. Company and contact details will be added.",
     pWhatT: "What we collect",
-    pWhatB: "Your phone number (to sign in); your name, an 18+ age confirmation (we do not store your date of birth for registration) and area; the tasks you post or take (description, price, addresses and map pins, photos); chat messages and call records inside a task; reviews and photos you choose to make public. We use Vercel Web Analytics to understand overall page visits and site usage; Vercel processes page-view and browser/device information on our behalf. For optional delivery-recipient verification, we store the recipient's phone number, a private-link hash, the Verify.MN session ID and status. Verify.MN receives the recipient's number and SMS verification text; its privacy policy says it retains verification phone numbers, session IDs, SMS content and response logs for up to 12 months. Outside the private helper test, helpers may submit ID documents and a selfie for manual review and provide a bank account for payouts. The private helper test collects neither ID documents nor bank details. Helpers may share their location while working and register devices for notifications. We do not collect criminal-record certificates. When something breaks, a short error report (no codes or card numbers).",
+    pWhatB:
+      "Your phone number (to sign in); your name, an 18+ age confirmation (we do not store your date of birth for registration) and area; the tasks you post or take (description, price, addresses and map pins, photos); chat messages and call records inside a task; reviews and photos you choose to make public. We use Vercel Web Analytics to understand overall page visits and site usage; Vercel processes page-view and browser/device information on our behalf. For optional delivery-recipient verification, we store the recipient's phone number, a private-link hash, the Verify.MN session ID and status. Verify.MN receives the recipient's number and SMS verification text; its privacy policy says it retains verification phone numbers, session IDs, SMS content and response logs for up to 12 months. Outside the private helper test, helpers may submit ID documents and a selfie for manual review and provide a bank account for payouts. The private helper test collects neither ID documents nor bank details. Helpers may share their location while working and register devices for notifications. We do not collect criminal-record certificates. When something breaks, a short error report (no codes or card numbers).",
     pWhyT: "Why",
-    pWhyB: "To match tasks with nearby helpers, take our service fee and refund it when a job doesn't happen, keep everyone safe and resolve problems. We don't sell your data and we don't use it for advertising.",
+    pWhyB:
+      "To match tasks with nearby helpers, take our service fee and refund it when a job doesn't happen, keep everyone safe and resolve problems. We don't sell your data and we don't use it for advertising.",
     pWhoT: "Who sees what",
-    pWhoB: "The other person on a task sees what they need for that task (exact address only after matching; never your phone number). Our operations team sees data only to handle payments, safety reports and disputes; their actions are logged. Public on purpose: helpers' profiles and reviews (reviewer's name hidden), photos you add to a review, and a helper's job photos you agree to show — with the kind of job only, never your address or name. You can remove them any time from the task. Map place search sends only the words you type to Photon (komoot), an OpenStreetMap search service; never your position.",
+    pWhoB:
+      "The other person on a task sees what they need for that task (exact address only after matching; never your phone number). Our operations team sees data only to handle payments, safety reports and disputes; their actions are logged. Public on purpose: helpers' profiles and reviews (reviewer's name hidden), photos you add to a review, and a helper's job photos you agree to show — with the kind of job only, never your address or name. You can remove them any time from the task. Map place search sends only the words you type to Photon (komoot), an OpenStreetMap search service; never your position.",
     pKeepT: "How long we keep it",
-    pKeepB: "When identity review is used, helper ID images and date of birth supplied for that review are deleted 30 days after the verification decision. Registration stores only that you confirmed you are 18 or older, not your date of birth. Positions in safety reports: deleted 30 days after the report is resolved. A helper's location during a job: shown live to that task's customer, and the route is kept {routeDays} days for disputes, then deleted. Chats: deleted after the task's retention period. Payment and task records: kept as the law requires. When you close your account, your name, bank account, saved places, devices and public photos are removed; the records the law requires stay without your name.",
+    pKeepB:
+      "When identity review is used, helper ID images and date of birth supplied for that review are deleted 30 days after the verification decision. Registration stores only that you confirmed you are 18 or older, not your date of birth. Positions in safety reports: deleted 30 days after the report is resolved. A helper's location during a job: shown live to that task's customer, and the route is kept {routeDays} days for disputes, then deleted. Chats: deleted after the task's retention period. Payment and task records: kept as the law requires. When you close your account, your name, bank account, saved places, devices and public photos are removed; the records the law requires stay without your name.",
     pRightsT: "Your choices",
-    pRightsB: "You can edit your name, area and saved addresses in your profile, remove photos you made public, turn notifications and location off (helpers need them on to work), and close your account in Profile when nothing is running. To get a copy of your data, contact us.",
+    pRightsB:
+      "You can edit your name, area and saved addresses in your profile, remove photos you made public, turn notifications and location off (helpers need them on to work), and close your account in Profile when nothing is running. To get a copy of your data, contact us.",
   },
   help: {
     title: "How {app} works",
@@ -2104,14 +2243,18 @@ export const en = {
     tierLast: "{fee} from {from}",
     feeShare: "{pct}% of the helper's price (at least {min}, at most {max}; nothing on shopping money)",
     termsTitle: "The formal words",
-    terms: "Payments: you buy the errand service from {app} and pay through wire.mn, a licensed payment service. Helpers are independent service providers; we pay them per task after you confirm.",
+    terms:
+      "Payments: you buy the errand service from {app} and pay through wire.mn, a licensed payment service. Helpers are independent service providers; we pay them per task after you confirm.",
   },
   login: {
-    verifyIntro: "Send an SMS from your own number to 144773 to sign in. Your operator charges 150₮ for each message, even if verification fails.",
+    verifyIntro:
+      "Send an SMS from your own number to 144773 to sign in. Your operator charges 150₮ for each message, even if verification fails.",
     verifySetup: "Verify.MN sign-in is waiting for the service to be configured.",
     verifyStartFailed: "Could not start SMS verification. Wait a minute and try again.",
-    verifyLoginFailed: "Your SMS was confirmed, but sign-in could not finish. Tap “Check verification” to retry. Do not send another SMS yet.",
-    smsReturn: "Send the prefilled SMS once, then switch back to this page. We check automatically; sending another SMS costs another 150₮.",
+    verifyLoginFailed:
+      "Your SMS was confirmed, but sign-in could not finish. Tap “Check verification” to retry. Do not send another SMS yet.",
+    smsReturn:
+      "Send the prefilled SMS once, then switch back to this page. We check automatically; sending another SMS costs another 150₮.",
     checkStatus: "Check verification",
     title: "Sign in to {app}",
     sub: "We'll text you a code. No password needed.",
@@ -2124,7 +2267,8 @@ export const en = {
     checking: "Checking…",
     otherNumber: "Use a different number",
     devCode: "Development mode — no SMS was sent. Your code is {code}",
-    devHint: "Development mode: any number works and the code is shown on the next screen. Demo accounts: 8800 0001 customer, 8800 0011 helper, 8800 0099 Ops.",
+    devHint:
+      "Development mode: any number works and the code is shown on the next screen. Demo accounts: 8800 0001 customer, 8800 0011 helper, 8800 0099 Ops.",
     notOpen: "{app} is in private testing. Sign-up opens soon.",
     badPhone: "Enter an 8-digit Mongolian mobile number.",
     badCode: "The code has 6 digits.",
@@ -2137,7 +2281,8 @@ export const en = {
     pickOne: "Pick at least one photo.",
     pickReason: "Pick a reason.",
     reviewAdd: "Add photos (optional)",
-    reviewSub: "Up to 3. They are shown with your review on the helper's profile and Home; your name stays hidden. No faces, door numbers or documents, please.",
+    reviewSub:
+      "Up to 3. They are shown with your review on the helper's profile and Home, with the kind of job and its final price; your name stays hidden. No faces, door numbers or documents, please.",
     reviewPhoto: "Photo from the review",
     alt: "Photo of finished work",
     altKind: "Finished work: {kind}",
@@ -2169,14 +2314,15 @@ export const en = {
       hidden: "Taken down",
     },
     consentTitle: "{name} would like to show these photos",
-    consentSub: "In their public portfolio (profile and Home). Only the kind of job is shown — never your address, name or what you wrote. You can remove them later.",
+    consentSub:
+      "In their public portfolio (profile and Home), with the kind of job and its final price — never your address, name or what you wrote. You can remove them later.",
     consentNo: "No",
     consentYes: "Allow",
     publicOfTask: "Public photos of this task",
     fromYourReview: "With your review",
     inPortfolio: "In the helper's portfolio",
     portfolioTitle: "Work photos · {n}",
-    portfolioEmptyMine: "No photos yet. After a finished job, open it and tap \"Choose photos\"; the customer is asked first.",
+    portfolioEmptyMine: 'No photos yet. After a finished job, open it and tap "Choose photos"; the customer is asked first.',
     homeTitle: "Helpers' work",
     homeSub: "Real photos from finished jobs, shown with the customer's OK.",
   },
@@ -2206,7 +2352,8 @@ export const en = {
     holderMismatch: "The account must be in your own name, as on your ID. If your name has changed, contact us.",
     save: "Save",
     gateTitle: "Add your bank account to start working",
-    gateBody: "Your earnings for each job are paid into your own bank account, so you need one before you can go online or apply. It takes a minute.",
+    gateBody:
+      "Your earnings for each job are paid into your own bank account, so you need one before you can go online or apply. It takes a minute.",
   },
   opsWithdraw: {
     title: "Withdrawals",
@@ -2218,21 +2365,24 @@ export const en = {
     reference: "Reference",
     sent: "Record completed bank transfer",
     recordSent: "Record transfer",
-    sentBody: "Record {amount} sent to {bank} account {account} only after the bank confirms completion. This action updates our records; it does not initiate a transfer.",
+    sentBody:
+      "Record {amount} sent to {bank} account {account} only after the bank confirms completion. This action updates our records; it does not initiate a transfer.",
     bankReference: "Bank transaction reference",
     referenceNeeded: "Enter the completed transfer's bank transaction reference (3–120 characters).",
     failed: "Failed",
     notePh: "Why it failed",
     noteNeeded: "Write why it failed.",
     checkTitle: "Bank accounts to check",
-    checkHelp: "Look up this exact account in the bank or obtain bank-issued ownership evidence. Record the name returned by the bank and its reference, then compare with the verified identity. A name entered by the helper is not proof of ownership. This is a manual review, not an API check.",
+    checkHelp:
+      "Look up this exact account in the bank or obtain bank-issued ownership evidence. Record the name returned by the bank and its reference, then compare with the verified identity. A name entered by the helper is not proof of ownership. This is a manual review, not an API check.",
     checkOk: "Record bank ownership check",
     bankHolder: "Account-holder name returned by the bank",
     checkReference: "Bank lookup or ownership evidence reference",
     identityConfirm: "No ID-checked name on file. I checked this person's ID myself and it matches the bank's name.",
     checkError: {
       identity: "This helper has no ID-checked name. Check their ID and tick the box, or ask them to verify again.",
-      holder: "The bank-returned name does not match the verified identity and saved account-holder name. Review the details; do not approve.",
+      holder:
+        "The bank-returned name does not match the verified identity and saved account-holder name. Review the details; do not approve.",
       evidence: "Enter the bank-returned name and a reference for the independent ownership check.",
     },
   },
@@ -2313,7 +2463,8 @@ export const en = {
     phoneBody: "Open {app} on your phone to work (the same account). A computer can only browse jobs.",
     install: "Add {app} to your Home Screen",
     installOk: "Opened from the Home Screen ✓",
-    installBody: "iPhone shows notifications only for apps on the Home Screen: in Safari tap Share (□↑) → \"Add to Home Screen\", then open {app} from that icon.",
+    installBody:
+      'iPhone shows notifications only for apps on the Home Screen: in Safari tap Share (□↑) → "Add to Home Screen", then open {app} from that icon.',
     notifications: "Turn on notifications",
     notifBody: "New jobs nearby and messages from customers arrive at once.",
     notifGo: "Turn on notifications",
@@ -2324,8 +2475,10 @@ export const en = {
     location: "Turn on location",
     geoBody: "Needed to get nearby jobs and to show the customer you are on the way. Shared only while you work.",
     geoGo: "Turn on location",
-    geoDenied: "Location is blocked. Tap the lock icon next to the address → Permissions → Location → Allow, then reload. Also check the phone's Location is on.",
-    geoDeniedIos: "Location is blocked. Open Settings → Privacy & Security → Location Services (on) → {app} (or Safari) → While Using, then reopen.",
+    geoDenied:
+      "Location is blocked. Tap the lock icon next to the address → Permissions → Location → Allow, then reload. Also check the phone's Location is on.",
+    geoDeniedIos:
+      "Location is blocked. Open Settings → Privacy & Security → Location Services (on) → {app} (or Safari) → While Using, then reopen.",
     geoUnsupported: "This browser can't share location. Use Chrome (Android) or Safari (iPhone).",
     blocked: "To work, turn on: {steps}. Open the Jobs tab to do it.",
     short: {
@@ -2344,12 +2497,19 @@ export const en = {
     title: "How was working with {name}?",
     note: "Anything other helpers should know? (optional)",
     done: "You rated this customer {stars}★.",
-    tags: { clear: "Clear instructions", ready: "Ready on time", respectful: "Respectful", unreachable: "Hard to reach", wrongAddress: "Wrong address", rude: "Rude" },
+    tags: {
+      clear: "Clear instructions",
+      ready: "Ready on time",
+      respectful: "Respectful",
+      unreachable: "Hard to reach",
+      wrongAddress: "Wrong address",
+      rude: "Rude",
+    },
   },
   install: {
     title: "Add {app} to your home screen",
     body: "It opens like an app, and you won't miss a helper's message or a payment window.",
-    ios: "Tap Share (the square with an arrow) in Safari, then \"Add to Home Screen\". On iPhone, notifications only work this way.",
+    ios: 'Tap Share (the square with an arrow) in Safari, then "Add to Home Screen". On iPhone, notifications only work this way.',
     go: "Add to home screen",
     dismiss: "Not now",
   },
@@ -2365,7 +2525,7 @@ export const en = {
   },
   support: {
     title: "Help & contact",
-    taskHint: "A problem on a task? Open the task and use \"Report a problem\" — or SOS in an emergency. That reaches us fastest.",
+    taskHint: 'A problem on a task? Open the task and use "Report a problem" — or SOS in an emergency. That reaches us fastest.',
     reach: "Reach us",
     phone: "Phone",
     email: "Email",
@@ -2373,7 +2533,13 @@ export const en = {
     write: "Message our team",
     writeHint: "We'll call you back on the number you signed in with.",
     topic: "About",
-    topics: { payment: "A payment or refund", task: "A task", helper: "Working as a helper", account: "My account", other: "Something else" },
+    topics: {
+      payment: "A payment or refund",
+      task: "A task",
+      helper: "Working as a helper",
+      account: "My account",
+      other: "Something else",
+    },
     message: "What happened?",
     placeholder: "Tell us what happened and which task it was, if any.",
     send: "Send",
@@ -2386,7 +2552,13 @@ export const en = {
     title: "Help & contact",
     channels: "How people reach us",
     channelsHelp: "Shown on Help & contact. Leave any field empty to hide it.",
-    f: { phone: "Phone", email: "Email", facebook: "Facebook page or m.me link (https)", hours: "Hours (e.g. Every day 09:00–21:00)" },
+    f: { phone: "Phone", email: "Email", facebook: "Facebook page or m.me link (https)", hours: "Hours (e.g. Every day 09:00–21:00)",
+      company_name: "Company name (as registered)",
+      company_reg_no: "Registration number",
+      company_address: "Address",
+    },
+    company: "Company details",
+    companyHelp: "Shown to everyone at the bottom of the website. Leave empty to hide.",
     save: "Save",
     saved: "Saved.",
     invalid: "Check the phone, email or Facebook link (it must start with https://).",
@@ -2401,8 +2573,10 @@ export const en = {
     title: "Settle it between you",
     offer: "Not quite right? Offer a partial refund",
     offerHelper: "Offer a discount",
-    bodyCustomer: "If something wasn't done as agreed, offer {name} a lower price than {amount}. Once they agree, the difference comes straight back to you. If you can't agree, our team decides.",
-    bodyHelper: "If something didn't go as planned, you can offer {name} a lower price than {amount}. The difference goes back to them once they agree.",
+    bodyCustomer:
+      "If something wasn't done as agreed, offer {name} a lower price than {amount}. Once they agree, the difference comes straight back to you. If you can't agree, our team decides.",
+    bodyHelper:
+      "If something didn't go as planned, you can offer {name} a lower price than {amount}. The difference goes back to them once they agree.",
     deadline: "If there's no answer within 24 hours, our team looks at it and decides.",
   },
   noShow: {
@@ -2410,17 +2584,20 @@ export const en = {
     enRouteNote: "You're on your way — the customer can see you on the map.",
     needTime: "+{n} min",
     needTimeTitle: "Need {n} more minutes?",
-    needTimeBody: "Traffic happens. We'll tell the customer you'll arrive by {time}. It won't count as late, and they may cancel for free if they can't wait.",
+    needTimeBody:
+      "Traffic happens. We'll tell the customer you'll arrive by {time}. It won't count as late, and they may cancel for free if they can't wait.",
     needTimeGo: "Tell the customer",
     report: "The customer isn't here",
     reportTitle: "Can't reach the customer?",
-    reportBody: "Call or message them first. If you're at their place and they still don't answer, we'll ask them now. If there's no answer within {minutes} minutes, the task is cancelled and you're paid the {fee} trip fee plus anything you already bought.",
+    reportBody:
+      "Call or message them first. If you're at their place and they still don't answer, we'll ask them now. If there's no answer within {minutes} minutes, the task is cancelled and you're paid the {fee} trip fee plus anything you already bought.",
     reportGo: "Ask the customer",
     notThere: "You're {meters} m from the customer's place. Report this only when you're there.",
     waiting: "We asked the customer to answer. If they don't by {time}, the task is cancelled and you're paid the trip fee.",
     customerEnRoute: "{helper} is on the way — you can see them on the map.",
     customerDelay: "{helper} is in traffic and asked for {n} more minutes. If you can't wait, you can cancel for free.",
-    customerAsked: "{helper} is at your place and can't reach you. Answer by {time}, or the task is cancelled and the {fee} trip fee is paid to them.",
+    customerAsked:
+      "{helper} is at your place and can't reach you. Answer by {time}, or the task is cancelled and the {fee} trip fee is paid to them.",
     imHere: "I'm here",
   },
   nudge: {
@@ -2444,12 +2621,14 @@ export const en = {
     customerLate: "{helper} should have arrived by {time}. You can keep waiting, get another helper, or cancel for free.",
     replace: "Get another helper",
     replaceTitle: "Find another helper?",
-    replaceBody: "{helper} is taken off this task and everything you paid ({amount}) is refunded. We send your task to other helpers right away; you pay again when you choose someone.",
+    replaceBody:
+      "{helper} is taken off this task and everything you paid ({amount}) is refunded. We send your task to other helpers right away; you pay again when you choose someone.",
     cancelFree: "Cancel for free",
     recordTitle: "My record",
     recordCount: "{n} late jobs in the last {days} days",
     recordNone: "No late jobs. Keep it up!",
-    recordRules: "Each job you don't start on time leaves a mark. From {lower} marks you're shown to customers less; from {pause} you're paused for {days} days; from {review} you're paused until our team reviews your record. Marks expire after the period above. If a delay wasn't your fault, explain it — our team can remove the mark.",
+    recordRules:
+      "Each job you don't start on time leaves a mark. From {lower} marks you're shown to customers less; from {pause} you're paused for {days} days; from {review} you're paused until our team reviews your record. Marks expire after the period above. If a delay wasn't your fault, explain it — our team can remove the mark.",
     pausedUntil: "Paused until {until}",
     markRemoved: "removed",
     appeal: "Explain this",
@@ -2482,7 +2661,7 @@ export const en = {
   },
   opsErrors: {
     title: "Errors",
-    help: "Things that broke on the server or in someone's browser, grouped. You get a notification the first time each one happens (and at most hourly after). Fix it, then tap \"Fixed\" — it reopens if it happens again.",
+    help: 'Things that broke on the server or in someone\'s browser, grouped. You get a notification the first time each one happens (and at most hourly after). Fix it, then tap "Fixed" — it reopens if it happens again.',
     none: "Nothing broken right now.",
     seen: "{n}× · first {first} · last {last}",
     details: "Technical details",
@@ -2622,11 +2801,11 @@ export const en = {
     body: "Your name, bank account, saved places, devices and public photos are removed and you can no longer sign in. Past tasks and payment records stay, as the law requires (your name on them is removed). This can't be undone.",
     confirm: "Close my account",
     word: "close",
-    typeWord: "Type \"{word}\" to confirm",
+    typeWord: 'Type "{word}" to confirm',
     block: {
       activeTasks: "Finish or cancel your active tasks first.",
       earnings: "Withdraw your earnings first (or wait until a withdrawal on its way is sent).",
-      unpaid: "A \"not paid\" report must be settled first.",
+      unpaid: 'A "not paid" report must be settled first.',
       admin: "Ops accounts are closed by another admin.",
     },
   },

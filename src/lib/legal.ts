@@ -1,3 +1,4 @@
+import type { Database } from "@/lib/db/database.types";
 import "server-only";
 import { LEGAL_VERSIONS, type LegalDoc } from "@/lib/legal-rules";
 import { audit } from "@/lib/safety";
@@ -8,15 +9,23 @@ import { WORK_BUCKET } from "@/lib/work-photos";
  * Registration, documents and leaving (docs/decisions.md 2026-11-18 "Registration and terms").
  */
 
-const COLUMN: Record<LegalDoc, string> = { terms: "terms_version", privacy: "privacy_version", helper: "helper_terms_version" };
+const COLUMN = { terms: "terms_version", privacy: "privacy_version", helper: "helper_terms_version" } as const satisfies Record<
+  LegalDoc,
+  string
+>;
 
 /** The person accepted the current version of a document: kept on the profile and in the history. */
 export async function recordAcceptance(userId: string, doc: LegalDoc): Promise<void> {
   const db = createAdminClient();
-  await db.from("profiles").update({ [COLUMN[doc]]: LEGAL_VERSIONS[doc] }).eq("id", userId).throwOnError();
+  const patch: Database["public"]["Tables"]["profiles"]["Update"] = {};
+  patch[COLUMN[doc]] = LEGAL_VERSIONS[doc];
+  await db.from("profiles").update(patch).eq("id", userId).throwOnError();
   await db
     .from("legal_acceptances")
-    .upsert({ user_id: userId, document: doc, version: LEGAL_VERSIONS[doc] }, { onConflict: "user_id,document,version", ignoreDuplicates: true })
+    .upsert(
+      { user_id: userId, document: doc, version: LEGAL_VERSIONS[doc] },
+      { onConflict: "user_id,document,version", ignoreDuplicates: true },
+    )
     .throwOnError();
 }
 
@@ -27,7 +36,7 @@ export async function closeBlocks(userId: string, role: string): Promise<CloseBl
   const db = createAdminClient();
   const out: CloseBlock[] = [];
   if (role === "admin") out.push("admin");
-  const active = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed", "held"];
+  const active = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed", "held"] as const;
   const [asCustomer, asHelper, payable, payout] = await Promise.all([
     db.from("deals").select("id", { count: "exact", head: true }).eq("customer_id", userId).in("status", active),
     db.from("deals").select("id", { count: "exact", head: true }).eq("helper_id", userId).in("status", active),
@@ -37,12 +46,21 @@ export async function closeBlocks(userId: string, role: string): Promise<CloseBl
   if ((asCustomer.count ?? 0) + (asHelper.count ?? 0) > 0) out.push("activeTasks");
   if (Number(payable.data ?? 0) > 0 || Number(payout.data ?? 0) > 0) out.push("earnings");
   // an open "not paid" report on an older fee-only task (either side) must be settled first
-  const { data: reports } = await db.from("direct_payments").select("deal_id").not("unpaid_reported_at", "is", null).is("resolved_at", null).limit(200).returns<{ deal_id: string }[]>();
+  const { data: reports } = await db
+    .from("direct_payments")
+    .select("deal_id")
+    .not("unpaid_reported_at", "is", null)
+    .is("resolved_at", null)
+    .limit(200)
+    .returns<{ deal_id: string }[]>();
   if (reports?.length) {
     const { count } = await db
       .from("deals")
       .select("id", { count: "exact", head: true })
-      .in("id", reports.map((r) => r.deal_id))
+      .in(
+        "id",
+        reports.map((r) => r.deal_id),
+      )
       .or(`customer_id.eq.${userId},helper_id.eq.${userId}`);
     if ((count ?? 0) > 0) out.push("unpaid");
   }
@@ -66,7 +84,14 @@ export async function closeAccount(userId: string): Promise<boolean> {
     .returns<{ id: string; file_path: string | null }[]>();
   const files = (photos ?? []).map((p) => p.file_path).filter((f): f is string => Boolean(f));
   if (files.length) await db.storage.from(WORK_BUCKET).remove(files);
-  if (photos?.length) await db.from("work_photos").update({ status: "removed", removed_by: userId, decided_at: now }).in("id", photos.map((p) => p.id));
+  if (photos?.length)
+    await db
+      .from("work_photos")
+      .update({ status: "removed", removed_by: userId, decided_at: now })
+      .in(
+        "id",
+        photos.map((p) => p.id),
+      );
 
   await Promise.all([
     db.from("payout_accounts").delete().eq("user_id", userId),

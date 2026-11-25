@@ -1,3 +1,4 @@
+import { toJson } from "@/lib/db/json";
 import "server-only";
 import { DbError } from "@/lib/db/deals";
 import { WAVES, type Wave } from "@/lib/dispatch/plan";
@@ -116,10 +117,17 @@ export function cleanWaves(raw: unknown): Wave[] {
   if (!Array.isArray(raw) || raw.length < 1 || raw.length > 8) return [...WAVES];
   const ok = raw.every(
     (w) =>
-      w && typeof w === "object" &&
-      Number.isFinite(w.radiusKm) && w.radiusKm > 0 && w.radiusKm <= 1000 &&
-      Number.isInteger(w.max) && w.max >= 1 && w.max <= 200 &&
-      Number.isInteger(w.seconds) && w.seconds >= 0 && w.seconds <= 3600,
+      w &&
+      typeof w === "object" &&
+      Number.isFinite(w.radiusKm) &&
+      w.radiusKm > 0 &&
+      w.radiusKm <= 1000 &&
+      Number.isInteger(w.max) &&
+      w.max >= 1 &&
+      w.max <= 200 &&
+      Number.isInteger(w.seconds) &&
+      w.seconds >= 0 &&
+      w.seconds <= 3600,
   );
   return ok ? raw.map((w) => ({ radiusKm: Number(w.radiusKm), max: Number(w.max), seconds: Number(w.seconds) })) : [...WAVES];
 }
@@ -200,7 +208,7 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       care_day_end_hour: next.careDayEndHour,
       care_max_minutes: next.careMaxMinutes,
       care_call_min_seconds: next.careCallMinSeconds,
-      dispatch_waves: next.dispatchWaves,
+      dispatch_waves: toJson(next.dispatchWaves),
       pay_mode: next.payMode,
       payment_window_booked_minutes: next.paymentWindowBookedMinutes,
       withdraw_min: next.withdrawMin,

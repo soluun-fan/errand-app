@@ -11,6 +11,7 @@ import { titleFromBrief } from "@/lib/task-brief";
 export function DraftChip({ userId }: { userId: string }) {
   const t = useT();
   const [title, setTitle] = useState<string | null>(null);
+  /* eslint-disable react-hooks/set-state-in-effect -- Read the saved draft after hydration; localStorage is unavailable on the server. */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(draftKeyFor(userId));
@@ -21,6 +22,7 @@ export function DraftChip({ userId }: { userId: string }) {
       /* no storage */
     }
   }, [userId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   if (!title) return null;
   return (
     <Link href="/post?resume=1" className={chipClass(true)}>

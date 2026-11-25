@@ -1,10 +1,6 @@
-/**
- * Payment provider boundary (CLAUDE.md §6). We never hold money: a licensed bank holds it,
- * QPay is the pay-in rail. Our system records the deal and sends instructions.
- *
- * Today only MockProvider exists. It behaves like the prototype's "Simulate bank
- * confirmation": the customer presses a button and we act as if the bank's webhook arrived.
- */
+import { paymentConfiguration } from "./config";
+
+/** Simulated invoices for development and explicitly isolated staging. Real payments use service.ts. */
 export interface AccountRef {
   userId: string;
 }
@@ -29,6 +25,7 @@ export interface PaymentProvider {
 export const mockProvider: PaymentProvider = {
   name: "mock",
   async createInvoice(dealId, amount, purpose) {
+    if (!mockPaymentsEnabled()) throw new Error("Simulated payments are disabled");
     // One invoice per deal + purpose: pressing "pay" twice reuses it, so the payment is booked once.
     const invoiceId = purpose ? `mock-inv-${dealId}-${purpose}` : `mock-inv-${dealId}`;
     return { invoiceId, dealId, amount, qrText: `MOCK-QPAY|${invoiceId}|${amount}` };
@@ -41,12 +38,12 @@ export const mockProvider: PaymentProvider = {
   },
 };
 
-/** The simulate-payment button exists only while no real provider is configured. */
+/** Runtime enforcement, also used by every simulate-payment server action. */
 export function mockPaymentsEnabled(): boolean {
-  return (process.env.PAYMENT_PROVIDER ?? "mock") === "mock";
+  return paymentConfiguration(process.env).provider === "mock";
 }
 
 export function paymentProvider(): PaymentProvider {
   if (mockPaymentsEnabled()) return mockProvider;
-  throw new Error(`PAYMENT_PROVIDER=${process.env.PAYMENT_PROVIDER} is not implemented yet (CLAUDE.md §10 step 10)`);
+  throw new Error("Simulated payments are disabled; Wire payments use the checkout service");
 }

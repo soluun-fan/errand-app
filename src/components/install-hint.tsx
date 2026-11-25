@@ -18,18 +18,28 @@ export function InstallHint() {
   const [kind, setKind] = useState<"hidden" | "prompt" | "ios">("hidden");
   const [evt, setEvt] = useState<InstallEvent | null>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Read device installation state after hydration, then subscribe to browser install events. */
   useEffect(() => {
-    const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
     if (standalone || localStorage.getItem(DISMISSED)) return;
     const ua = navigator.userAgent;
     const ios = /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
     if (ios) setKind("ios");
-    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as InstallEvent); setKind("prompt"); };
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setEvt(e as InstallEvent);
+      setKind("prompt");
+    };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const dismiss = () => { localStorage.setItem(DISMISSED, "1"); setKind("hidden"); };
+  const dismiss = () => {
+    localStorage.setItem(DISMISSED, "1");
+    setKind("hidden");
+  };
   async function install() {
     if (!evt) return;
     await evt.prompt();
@@ -46,9 +56,18 @@ export function InstallHint() {
       <div className="flex flex-1 flex-col gap-1">
         <p className="font-semibold">{t("install.title")}</p>
         <p className="text-sm text-ink-2">{t(kind === "ios" ? "install.ios" : "install.body")}</p>
-        {kind === "prompt" && <button type="button" className={btn.secondary} onClick={() => void install()}>{t("install.go")}</button>}
+        {kind === "prompt" && (
+          <button type="button" className={btn.secondary} onClick={() => void install()}>
+            {t("install.go")}
+          </button>
+        )}
       </div>
-      <button type="button" aria-label={t("install.dismiss")} className="flex h-11 w-11 items-center justify-center text-ink-3" onClick={dismiss}>
+      <button
+        type="button"
+        aria-label={t("install.dismiss")}
+        className="flex h-11 w-11 items-center justify-center text-ink-3"
+        onClick={dismiss}
+      >
         <X size={18} />
       </button>
     </section>

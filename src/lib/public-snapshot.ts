@@ -109,3 +109,32 @@ export async function onlineHelperCount(): Promise<number> {
     .gt("updated_at", new Date(Date.now() - 10 * 60_000).toISOString());
   return error ? 0 : (count ?? 0);
 }
+
+/**
+ * The landing page's numbers band (PleaseHelp-style, 2026-11-25). Real totals only, and each number
+ * only once it's big enough to mean something — a young app shows nothing rather than "3 jobs done".
+ */
+export const STATS_FLOOR = { done: 100, helpers: 20, reviews: 30 } as const;
+
+export interface PublicStats {
+  done: number | null;
+  helpers: number | null;
+  /** Reviews and their average come together (an average of a handful says little). */
+  reviews: { count: number; avg: number } | null;
+}
+
+export async function publicStats(): Promise<PublicStats | null> {
+  const { data, error } = await createAdminClient().rpc("public_stats");
+  const r = data?.[0];
+  if (error || !r) return null;
+  const done = Number(r.done ?? 0);
+  const helpers = Number(r.helpers ?? 0);
+  const reviews = Number(r.reviews ?? 0);
+  const out: PublicStats = {
+    done: done >= STATS_FLOOR.done ? done : null,
+    helpers: helpers >= STATS_FLOOR.helpers ? helpers : null,
+    reviews: reviews >= STATS_FLOOR.reviews && r.avg_stars !== null ? { count: reviews, avg: Number(r.avg_stars) } : null,
+  };
+  // one lonely number looks thin: the band needs at least two
+  return [out.done, out.helpers, out.reviews].filter((x) => x !== null).length >= 2 ? out : null;
+}

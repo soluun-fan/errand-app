@@ -31,9 +31,21 @@ export async function latestApplication(userId: string): Promise<MyApplication |
     .eq("user_id", userId)
     .order("submitted_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ id: string; status: ApplicationStatus; decision_note: string | null; submitted_at: string; decided_at: string | null }>();
+    .maybeSingle<{
+      id: string;
+      status: ApplicationStatus;
+      decision_note: string | null;
+      submitted_at: string;
+      decided_at: string | null;
+    }>();
   return data
-    ? { id: data.id, status: data.status, decisionNote: data.decision_note, submittedAt: Date.parse(data.submitted_at), decidedAt: data.decided_at ? Date.parse(data.decided_at) : null }
+    ? {
+        id: data.id,
+        status: data.status,
+        decisionNote: data.decision_note,
+        submittedAt: Date.parse(data.submitted_at),
+        decidedAt: data.decided_at ? Date.parse(data.decided_at) : null,
+      }
     : null;
 }
 
@@ -85,7 +97,14 @@ export async function submitApplication(userId: string, a: ApplicationInput): Pr
   if (error) return error.code === "23505" ? { ok: false, reason: "open" } : Promise.reject(new Error(error.message));
   await db
     .from("payout_accounts")
-    .upsert({ user_id: userId, bank: a.bank, account_number: a.accountNumber, holder_name: a.holderName, verified_at: null, updated_at: new Date().toISOString() })
+    .upsert({
+      user_id: userId,
+      bank: a.bank,
+      account_number: a.accountNumber,
+      holder_name: a.holderName,
+      verified_at: null,
+      updated_at: new Date().toISOString(),
+    })
     .throwOnError();
   await db.from("profiles").update({ helper_status: "pending" }).eq("id", userId).throwOnError();
   return { ok: true };
@@ -131,6 +150,8 @@ export async function applicationForOps(id: string): Promise<ApplicationForOps |
   const db = createAdminClient();
   const { data: a } = await db.from("helper_applications").select("*").eq("id", id).maybeSingle();
   if (!a) return null;
+  if (a.status !== "submitted" && a.status !== "approved" && a.status !== "rejected" && a.status !== "changes_requested")
+    throw new Error("Unexpected application status");
   const docs: [KycDoc, string | null][] = [
     ["id_front", a.id_front_path],
     ["id_back", a.id_back_path],
@@ -167,7 +188,13 @@ export type Decision = "approve" | "reject" | "changes_requested";
  * account (last 4 only on the profile), and standard identity verification. The application
  * row is updated last, so a failure part-way leaves it in the queue to retry.
  */
-export async function decide(appId: string, opsId: string, decision: Decision, note: string | null, categories: CategoryId[]): Promise<boolean> {
+export async function decide(
+  appId: string,
+  opsId: string,
+  decision: Decision,
+  note: string | null,
+  categories: CategoryId[],
+): Promise<boolean> {
   const db = createAdminClient();
   const { data: a } = await db.from("helper_applications").select("*").eq("id", appId).eq("status", "submitted").maybeSingle();
   if (!a) return false;
@@ -195,7 +222,14 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
     // or the helper's first withdrawal fails with nobody knowing why
     if (pay) {
       await adminIds()
-        .then((ids) => notify(ids, { title: "push.payoutCheckTitle", body: "push.payoutCheckBody", url: "/ops/withdrawals", tag: `payout-${a.user_id}` }))
+        .then((ids) =>
+          notify(ids, {
+            title: "push.payoutCheckTitle",
+            body: "push.payoutCheckBody",
+            url: "/ops/withdrawals",
+            tag: `payout-${a.user_id}`,
+          }),
+        )
         .catch(() => undefined); // best effort: the approval itself is saved
     }
   } else {
@@ -207,7 +241,12 @@ export async function decide(appId: string, opsId: string, decision: Decision, n
   }
   await db
     .from("helper_applications")
-    .update({ status: decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "changes_requested", decided_at: now, decided_by: opsId, decision_note: note })
+    .update({
+      status: decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "changes_requested",
+      decided_at: now,
+      decided_by: opsId,
+      decision_note: note,
+    })
     .eq("id", appId)
     .eq("status", "submitted")
     .throwOnError();
@@ -230,7 +269,14 @@ export async function purgeKycFiles(now = Date.now()): Promise<number> {
     if (paths.length) await db.storage.from(KYC_BUCKET).remove(paths);
     await db
       .from("helper_applications")
-      .update({ id_front_path: null, id_back_path: null, selfie_path: null, record_path: null, birth_date: null, files_purged_at: new Date(now).toISOString() })
+      .update({
+        id_front_path: null,
+        id_back_path: null,
+        selfie_path: null,
+        record_path: null,
+        birth_date: null,
+        files_purged_at: new Date(now).toISOString(),
+      })
       .eq("id", r.id);
     n++;
   }

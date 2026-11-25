@@ -17,8 +17,13 @@ export type CodeCheck = "ok" | "wrong" | "locked" | "missing";
 
 /** The helper's attempt. On success the database lets the job be marked done. */
 export async function checkHandoverCode(dealId: string, helperId: string, attempt: string): Promise<CodeCheck> {
-  const { data } = await createAdminClient().rpc("check_handover_code", {
-    p_deal: dealId, p_helper: helperId, p_attempt: attempt,
-  }).throwOnError();
-  return data;
+  const { data } = await createAdminClient()
+    .rpc("check_handover_code", {
+      p_deal: dealId,
+      p_helper: helperId,
+      p_attempt: attempt,
+    })
+    .throwOnError();
+  if (data === "ok" || data === "wrong" || data === "locked" || data === "missing") return data;
+  throw new Error("Unexpected handover code result");
 }

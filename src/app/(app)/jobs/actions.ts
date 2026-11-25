@@ -1,4 +1,5 @@
 "use server";
+import type { Database } from "@/lib/db/database.types";
 
 import { refresh } from "next/cache";
 import { isOnboarded } from "@/lib/legal-rules";
@@ -24,12 +25,32 @@ import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { OPS_ALERT_AT, pauseDaysFor, recentBackOuts } from "@/lib/penalties";
 import { getRules } from "@/lib/rules";
 import { adminIds } from "@/lib/safety";
-import { EngineError, OPEN_CATEGORIES, categoryTrust, minFeeAt, ruleOf, type CategoryId, type Command, type Deal, type ErrandDeal } from "@/lib/engine";
+import {
+  EngineError,
+  OPEN_CATEGORIES,
+  categoryTrust,
+  minFeeAt,
+  ruleOf,
+  type CategoryId,
+  type Command,
+  type Deal,
+  type ErrandDeal,
+} from "@/lib/engine";
 import { hadCareCall } from "@/lib/chat";
 import { maskContacts } from "@/lib/chat-rules";
 import { pricingConfig } from "@/lib/pricing";
 import { fmtMoney } from "@/lib/format";
-import { MAX_PROGRESS_PROOFS, MAX_PROOF_BYTES, PROOF_MIME, createUploadSlot, proofCount, recordProof, removeProof, type ProofKind, type UploadSlot } from "@/lib/proofs";
+import {
+  MAX_PROGRESS_PROOFS,
+  MAX_PROOF_BYTES,
+  PROOF_MIME,
+  createUploadSlot,
+  proofCount,
+  recordProof,
+  removeProof,
+  type ProofKind,
+  type UploadSlot,
+} from "@/lib/proofs";
 import { notify, removeSubscription, saveSubscription, type BrowserSubscription } from "@/lib/push";
 import { LatLng, ProofKindInput, ProofSubmitInput, PushSubscriptionInput, Uuid, parseOr } from "@/lib/input";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -62,10 +83,10 @@ export async function setPresence(form: FormData): Promise<ActionResult> {
   if (form.get("online") === "on") {
     const hasPos = coord(form.get("lat"), 90) !== null && coord(form.get("lng"), 180) !== null;
     const missing = (await workReadyMissing(viewer.profile)).filter((s) => !(s === "location" && hasPos));
-    if (missing.length) return { error: t("workReady.blocked", { steps: missing.map(s => t(`workReady.short.${s}`)).join(", ") }) };
+    if (missing.length) return { error: t("workReady.blocked", { steps: missing.map((s) => t(`workReady.short.${s}`)).join(", ") }) };
   }
   const radius = Number(form.get("radius"));
-  const row: Record<string, unknown> = {
+  const row: Database["public"]["Tables"]["helper_presence"]["Insert"] = {
     user_id: viewer.profile.id,
     online: form.get("online") === "on",
   };
@@ -82,7 +103,11 @@ export async function setPresence(form: FormData): Promise<ActionResult> {
  * Helper standards (2026-11-22): a job starts only at its place — near the pickup pin, or the task
  * pin for one-place tasks. Returns the message to show, or null when the helper may start.
  */
-async function notAtStart(profile: { id: string; test_helper?: boolean }, deal: ErrandDeal, t: Awaited<ReturnType<typeof getT>>): Promise<string | null> {
+async function notAtStart(
+  profile: { id: string; test_helper?: boolean },
+  deal: ErrandDeal,
+  t: Awaited<ReturnType<typeof getT>>,
+): Promise<string | null> {
   if (await deviceCheckBypassed(profile)) return null;
   const check = await startPositionCheck(profile.id, deal);
   if (check.ok) return null;
@@ -97,7 +122,8 @@ export async function reportPosition(rawLat: number, rawLng: number): Promise<bo
   if (!viewer.actor.helperApproved || !pos) return false;
   await createAdminClient()
     .from("helper_presence")
-    .upsert({ user_id: viewer.profile.id, lat: pos.lat, lng: pos.lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" }).throwOnError();
+    .upsert({ user_id: viewer.profile.id, lat: pos.lat, lng: pos.lng, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+    .throwOnError();
   return true;
 }
 
@@ -117,9 +143,13 @@ export async function updateWorkerLocation(rawLat: number, rawLng: number): Prom
 export async function setJobLocationSharing(dealId: string, enabled: boolean): Promise<boolean> {
   const viewer = await helperViewer();
   if (!parseOr(Uuid, dealId) || typeof enabled !== "boolean" || (enabled && !viewer.actor.helperApproved)) return false;
-  const { data } = await createAdminClient().rpc("set_job_location_sharing", {
-    p_deal: dealId, p_helper: viewer.profile.id, p_enabled: enabled,
-  }).throwOnError();
+  const { data } = await createAdminClient()
+    .rpc("set_job_location_sharing", {
+      p_deal: dealId,
+      p_helper: viewer.profile.id,
+      p_enabled: enabled,
+    })
+    .throwOnError();
   return data === true;
 }
 
@@ -140,7 +170,12 @@ async function assignedFor(dealId: string, helperId: string, kind: ProofKind) {
 const needsStartPhoto = (category: CategoryId) => categoryTrust(category) !== "care";
 
 /** Step 1: a signed upload URL for one file — only for the assigned helper, at the right moment. */
-export async function prepareProof(dealId: string, rawKind: ProofKind, mime: string, bytes: number): Promise<UploadSlot | { error: string }> {
+export async function prepareProof(
+  dealId: string,
+  rawKind: ProofKind,
+  mime: string,
+  bytes: number,
+): Promise<UploadSlot | { error: string }> {
   const viewer = await helperViewer();
   const t = await getT();
   // `kind` becomes part of the storage path: only the two known kinds, never free text
@@ -151,7 +186,8 @@ export async function prepareProof(dealId: string, rawKind: ProofKind, mime: str
   const photoOnly = kind === "receipt" || kind === "start";
   if (!(PROOF_MIME as readonly string[]).includes(mime) || (photoOnly && !mime.startsWith("image/"))) return { error: t("proof.badType") };
   if (!(bytes > 0 && bytes <= MAX_PROOF_BYTES)) return { error: t("proof.tooBig") };
-  if (kind === "progress" && (await proofCount(dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
+  if (kind === "progress" && (await proofCount(dealId, "progress")) >= MAX_PROGRESS_PROOFS)
+    return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
   return createUploadSlot(dealId, kind, mime);
 }
 
@@ -190,7 +226,8 @@ export async function submitProof(raw: ProofSubmit): Promise<{ error?: string; f
     const away = await notAtStart(viewer.profile, deal, t);
     if (away) return { error: away };
   }
-  if (p.kind === "progress" && (await proofCount(p.dealId, "progress")) >= MAX_PROGRESS_PROOFS) return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
+  if (p.kind === "progress" && (await proofCount(p.dealId, "progress")) >= MAX_PROGRESS_PROOFS)
+    return { error: t("proof.progressFull", { n: MAX_PROGRESS_PROOFS }) };
   const note = p.kind === "progress" ? (p.note ?? "").replace(/\s+/g, " ").trim().slice(0, 140) || null : null;
   const amount = p.kind === "receipt" ? Number(p.amount) : null;
   if (p.kind === "receipt" && !(Number.isSafeInteger(amount) && (amount as number) > 0)) return { error: t("proof.amountNeeded") };
@@ -274,9 +311,23 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (intent === "rate_customer") {
       const stars = Number(form.get("stars"));
       if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: t("error.generic") };
-      const tags = form.getAll("tags").map(String).filter((x) => (CUSTOMER_TAGS as readonly string[]).includes(x));
-      const note = maskContacts(String(form.get("note") ?? "").replace(/\s+/g, " ").trim().slice(0, 500)).text;
-      const { error } = await db.rpc("rate_customer", { p_deal_id: dealId, p_helper: viewer.profile.id, p_stars: stars, p_tags: tags, p_note: note });
+      const tags = form
+        .getAll("tags")
+        .map(String)
+        .filter((x) => (CUSTOMER_TAGS as readonly string[]).includes(x));
+      const note = maskContacts(
+        String(form.get("note") ?? "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 500),
+      ).text;
+      const { error } = await db.rpc("rate_customer", {
+        p_deal_id: dealId,
+        p_helper: viewer.profile.id,
+        p_stars: stars,
+        p_tags: tags,
+        p_note: note,
+      });
       if (error) return { error: error.code === "23505" || error.code === "PT409" ? t("error.changed") : t("error.generic") };
       refresh();
       return { done: true };
@@ -296,10 +347,23 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       // fee-only task: the helper confirms they were paid — or reports they weren't (Ops follows up)
       const d = await loadDeal(db, dealId);
       if (d?.type !== "errand" || d.helperId !== viewer.profile.id) return { error: t("error.forbidden") };
-      if (!(await markDirectPay(d, intent === "direct_received" ? "helper_received" : "unpaid_reported"))) return { error: t("error.changed") };
+      if (!(await markDirectPay(d, intent === "direct_received" ? "helper_received" : "unpaid_reported")))
+        return { error: t("error.changed") };
       if (intent === "direct_unpaid") {
-        await notify(await adminIds(), { title: "push.unpaidOpsTitle", body: "push.unpaidOpsBody", params: { title: d.title, amount: fmtMoney(owedToHelper(d)) }, url: `/ops/payments`, tag: `unpaid-${d.id}` }).catch(() => undefined);
-        await notify([d.customerId], { title: "push.unpaidCustomerTitle", body: "push.unpaidCustomerBody", params: { title: d.title, amount: fmtMoney(owedToHelper(d)) }, url: `/tasks/${d.id}`, tag: `task-${d.id}` }).catch(() => undefined);
+        await notify(await adminIds(), {
+          title: "push.unpaidOpsTitle",
+          body: "push.unpaidOpsBody",
+          params: { title: d.title, amount: fmtMoney(owedToHelper(d)) },
+          url: `/ops/payments`,
+          tag: `unpaid-${d.id}`,
+        }).catch(() => undefined);
+        await notify([d.customerId], {
+          title: "push.unpaidCustomerTitle",
+          body: "push.unpaidCustomerBody",
+          params: { title: d.title, amount: fmtMoney(owedToHelper(d)) },
+          url: `/tasks/${d.id}`,
+          tag: `task-${d.id}`,
+        }).catch(() => undefined);
       }
       refresh();
       return { done: true };
@@ -334,7 +398,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     if (intent === "add_kind_apply") {
       // an everyday kind the helper hadn't picked: add it to their work kinds, then apply
       const target = await loadDeal(db, dealId);
-      if (target?.type !== "errand" || !OPEN_CATEGORIES.includes(target.category) || !viewer.actor.helperApproved) return { error: t("error.forbidden") };
+      if (target?.type !== "errand" || !OPEN_CATEGORIES.includes(target.category) || !viewer.actor.helperApproved)
+        return { error: t("error.forbidden") };
       const kinds = [...new Set([...(viewer.actor.categories ?? []), target.category])];
       await db.from("profiles").update({ categories: kinds }).eq("id", viewer.profile.id).eq("role", "helper").throwOnError();
       actor = { ...viewer.actor, categories: kinds };
@@ -357,30 +422,32 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
     else if (intent === "start") {
       // the start photo starts the job (submitProof); the plain button is only for care work
       const before = await loadDeal(db, dealId);
-      if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start", viewer.profile.id)) === 0) return { error: t("proof.startNeeded") };
+      if (before?.type === "errand" && needsStartPhoto(before.category) && (await proofCount(dealId, "start", viewer.profile.id)) === 0)
+        return { error: t("proof.startNeeded") };
       if (before?.type === "errand") {
         const away = await notAtStart(viewer.profile, before, t);
         if (away) return { error: away };
       }
       cmd = { type: "start" };
-    }
-    else if (intent === "on_my_way") cmd = { type: "on_my_way" };
+    } else if (intent === "on_my_way") cmd = { type: "on_my_way" };
     else if (intent === "need_time") {
       const minutes = Number(form.get("minutes"));
       if (![15, 30].includes(minutes)) return { error: t("error.generic") };
       cmd = { type: "need_time", minutes };
-    }
-    else if (intent === "customer_absent") {
+    } else if (intent === "customer_absent") {
       // evidence first: the helper must really be at the customer's place (same check as Start)
       const before = await loadDeal(db, dealId);
       if (before?.type !== "errand" || !before.location) return { error: t("error.changed") };
       if (!(await deviceCheckBypassed(viewer.profile))) {
         const at = await startPositionCheck(viewer.profile.id, { ...before, pickupLocation: null, category: "queue" });
-        if (!at.ok) return { error: at.reason === "far" ? t("noShow.notThere", { meters: at.meters.toLocaleString("en-US") }) : t("standards.positionNeeded") };
+        if (!at.ok)
+          return {
+            error:
+              at.reason === "far" ? t("noShow.notThere", { meters: at.meters.toLocaleString("en-US") }) : t("standards.positionNeeded"),
+          };
       }
       cmd = { type: "customer_absent" };
-    }
-    else if (intent === "finish") {
+    } else if (intent === "finish") {
       // a handover photo (or care check-out) that is still there — one taken back doesn't count
       if ((await proofCount(dealId, "handover", viewer.profile.id)) === 0) return { error: t("proof.missing") };
       // handover code condition: the customer's 4 digits (the database refuses "done" without it too)
@@ -392,8 +459,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         if (r === "missing") return { error: t("error.generic") };
       }
       cmd = { type: "finish" };
-    }
-    else return { error: t("error.generic") };
+    } else return { error: t("error.generic") };
 
     // care work: the customer must have talked to this helper before they're matched (also for accepting the customer's price)
     if (cmd.type === "accept_counter") {
@@ -418,7 +484,14 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       await notify([deal.customerId], {
         title: "push.quoteTitle",
         body: "push.quoteBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(cmd.type === "apply" || cmd.type === "reprice" ? (cmd.price ?? deal.fee) : (deal.offers.find((o) => o.helperId === viewer.profile.id)?.price ?? deal.fee)) },
+        params: {
+          name: viewer.profile.name || "—",
+          fee: fmtMoney(
+            cmd.type === "apply" || cmd.type === "reprice"
+              ? (cmd.price ?? deal.fee)
+              : (deal.offers.find((o) => o.helperId === viewer.profile.id)?.price ?? deal.fee),
+          ),
+        },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
@@ -430,7 +503,11 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       await notify([deal.customerId], {
         title: `push.${key}Title` as const,
         body: `push.${key}Body` as const,
-        params: { name: viewer.profile.name || "—", title: deal.title, minutes: cmd.type === "need_time" ? cmd.minutes : ruleOf(deal, "absentGraceMinutes") },
+        params: {
+          name: viewer.profile.name || "—",
+          title: deal.title,
+          minutes: cmd.type === "need_time" ? cmd.minutes : ruleOf(deal, "absentGraceMinutes"),
+        },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       }).catch(() => undefined);
@@ -438,7 +515,12 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       await notify([deal.customerId], {
         title: "push.counterAcceptedTitle",
         body: deal.payMode === "direct" ? "push.acceptedDirectBody" : "push.acceptedBody",
-        params: { name: viewer.profile.name || "—", fee: fmtMoney(deal.fee), minutes: ruleOf(deal, "paymentWindowMinutes"), serviceFee: fmtMoney(deal.serviceFee) },
+        params: {
+          name: viewer.profile.name || "—",
+          fee: fmtMoney(deal.fee),
+          minutes: ruleOf(deal, "paymentWindowMinutes"),
+          serviceFee: fmtMoney(deal.serviceFee),
+        },
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });

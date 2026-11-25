@@ -14,7 +14,9 @@ const envFile = process.env.E2E_ENV_FILE ?? ".env.local";
 process.loadEnvFile(envFile);
 const ref = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://x").hostname.split(".")[0];
 if (process.env.E2E_CONFIRM_PROJECT !== ref) {
-  throw new Error(`e2e: refusing to run. ${envFile} points at project "${ref}"; set E2E_CONFIRM_PROJECT=${ref} if that is really the one to test.`);
+  throw new Error(
+    `e2e: refusing to run. ${envFile} points at project "${ref}"; set E2E_CONFIRM_PROJECT=${ref} if that is really the one to test.`,
+  );
 }
 
 const PORT = Number(process.env.E2E_PORT ?? 3123);
@@ -41,7 +43,7 @@ export default defineConfig({
   webServer: {
     // the app reads the same env file the tests do
     // E2E_DEVICE_BYPASS: test browsers can't hold a push subscription (see src/lib/work-ready.ts); never set it in production
-    command: `E2E_DEVICE_BYPASS=1 node --env-file=${envFile} node_modules/next/dist/bin/next start -p ${PORT}`,
+    command: `APP_ENV=staging PAYMENT_PROVIDER=mock E2E_DEVICE_BYPASS=1 node --env-file=${envFile} node_modules/next/dist/bin/next start -p ${PORT}`,
     url: `http://localhost:${PORT}/welcome`,
     reuseExistingServer: true,
     timeout: 120_000,

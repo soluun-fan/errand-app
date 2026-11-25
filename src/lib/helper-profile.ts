@@ -85,7 +85,11 @@ async function approvedHelper(id: string): Promise<{ profile: HelperProfile; sus
   if (!data || data.role !== "helper" || data.helper_status !== "approved") return null;
   const profile = toProfile(data);
   await enrichCategories([profile]);
-  return { profile, pilot: isActiveTestHelper(data), suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()) };
+  return {
+    profile,
+    pilot: isActiveTestHelper(data),
+    suspended: Boolean(data.suspended_until && Date.parse(data.suspended_until) > Date.now()),
+  };
 }
 
 /** An approved helper's public profile, or null. */
@@ -146,8 +150,16 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
   const rows = data ?? [];
   if (rows.length === 0) return [];
   const [deals, people, pics] = await Promise.all([
-    db.from("deals").select("id, category").in("id", [...new Set(rows.map((r) => r.deal_id))]).returns<{ id: string; category: CategoryId | null }[]>(),
-    db.from("profiles").select("id, name").in("id", [...new Set(rows.map((r) => r.from_user_id))]).returns<{ id: string; name: string | null }[]>(),
+    db
+      .from("deals")
+      .select("id, category")
+      .in("id", [...new Set(rows.map((r) => r.deal_id))])
+      .returns<{ id: string; category: CategoryId | null }[]>(),
+    db
+      .from("profiles")
+      .select("id, name")
+      .in("id", [...new Set(rows.map((r) => r.from_user_id))])
+      .returns<{ id: string; name: string | null }[]>(),
     reviewPhotoUrls(rows.map((r) => r.deal_id)),
   ]);
   const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
@@ -165,8 +177,18 @@ export async function helperReviews(helperId: string, limit = 20): Promise<Publi
 
 /** Highlights: positive tags given at least twice, most frequent first. */
 export async function helperHighlights(helperId: string): Promise<{ tag: string; n: number }[]> {
-  const { data } = await createAdminClient().from("ratings").select("tags").eq("to_user_id", helperId).eq("about", "helper").limit(500).returns<{ tags: string[] | null }[]>();
-  return tagCounts((data ?? []).map((r) => r.tags ?? []), POSITIVE_TAGS, 2);
+  const { data } = await createAdminClient()
+    .from("ratings")
+    .select("tags")
+    .eq("to_user_id", helperId)
+    .eq("about", "helper")
+    .limit(500)
+    .returns<{ tags: string[] | null }[]>();
+  return tagCounts(
+    (data ?? []).map((r) => r.tags ?? []),
+    POSITIVE_TAGS,
+    2,
+  );
 }
 
 /* ---------- directory (browse helpers, Unegui-style) ---------- */
@@ -174,7 +196,9 @@ export async function helperHighlights(helperId: string): Promise<{ tag: string;
 export type HelperSort = "rating" | "jobs" | "new";
 
 /** Approved, not-suspended helpers for browsing; optionally one category or a given id list (saved). */
-export async function helperDirectory(opts: { category?: CategoryId; sort?: HelperSort; ids?: string[]; limit?: number } = {}): Promise<HelperProfile[]> {
+export async function helperDirectory(
+  opts: { category?: CategoryId; sort?: HelperSort; ids?: string[]; limit?: number } = {},
+): Promise<HelperProfile[]> {
   let q = createAdminClient()
     .from("profiles")
     .select(`${PUBLIC_COLS}, suspended_until`)
@@ -185,14 +209,17 @@ export async function helperDirectory(opts: { category?: CategoryId; sort?: Help
     else {
       const { data, error } = await createAdminClient().rpc("qualified_helper_ids", { p_category: opts.category });
       if (error) throw new Error(error.message);
-      const ids = (data ?? []).map((r: { helper_id: string }) => r.helper_id);
+      const ids = (data ?? []).flatMap((r) => (r.helper_id ? [r.helper_id] : []));
       if (!ids.length) return [];
       q = q.in("id", ids);
     }
   }
   if (opts.ids) q = q.in("id", opts.ids.length ? opts.ids : ["00000000-0000-0000-0000-000000000000"]);
   const order = opts.sort === "jobs" ? "completed_count" : opts.sort === "new" ? "created_at" : "rating_count";
-  const { data } = await q.order(order, { ascending: false }).limit(opts.limit ?? 48).returns<(PublicRow & { suspended_until: string | null })[]>();
+  const { data } = await q
+    .order(order, { ascending: false })
+    .limit(opts.limit ?? 48)
+    .returns<(PublicRow & { suspended_until: string | null })[]>();
   const now = Date.now();
   const rows = (data ?? []).filter((r) => !r.suspended_until || Date.parse(r.suspended_until) < now).map(toProfile);
   await enrichCategories(rows);
@@ -206,7 +233,10 @@ export async function helperDirectory(opts: { category?: CategoryId; sort?: Help
 
 async function enrichCategories(helpers: HelperProfile[]): Promise<void> {
   const qualifications = await qualificationsForMany(helpers);
-  for (const h of helpers) h.categories = [...new Set([...h.categories, ...(qualifications.get(h.id) ?? []).map((q) => q.category).filter((c) => categoryTrust(c) !== "care")])];
+  for (const h of helpers)
+    h.categories = [
+      ...new Set([...h.categories, ...(qualifications.get(h.id) ?? []).map((q) => q.category).filter((c) => categoryTrust(c) !== "care")]),
+    ];
 }
 
 export interface RecentReview extends PublicReview {
@@ -225,12 +255,33 @@ export async function recentReviews(limit = 4): Promise<RecentReview[]> {
     .gte("stars", 4)
     .order("created_at", { ascending: false })
     .limit(limit * 3) // then reviews with photos first (PleaseHelp-style), newest first within each
-    .returns<{ deal_id: string; from_user_id: string; to_user_id: string; stars: number; tags: string[] | null; note: string | null; created_at: string }[]>();
+    .returns<
+      {
+        deal_id: string;
+        from_user_id: string;
+        to_user_id: string;
+        stars: number;
+        tags: string[] | null;
+        note: string | null;
+        created_at: string;
+      }[]
+    >();
   const rows = (data ?? []).filter((r) => publicNote(r.note));
   if (!rows.length) return [];
   const [deals, people, pics] = await Promise.all([
-    db.from("deals").select("id, category").in("id", rows.map((r) => r.deal_id)).returns<{ id: string; category: CategoryId | null }[]>(),
-    db.from("profiles").select("id, name").in("id", [...new Set(rows.flatMap((r) => [r.from_user_id, r.to_user_id]))]).returns<{ id: string; name: string | null }[]>(),
+    db
+      .from("deals")
+      .select("id, category")
+      .in(
+        "id",
+        rows.map((r) => r.deal_id),
+      )
+      .returns<{ id: string; category: CategoryId | null }[]>(),
+    db
+      .from("profiles")
+      .select("id, name")
+      .in("id", [...new Set(rows.flatMap((r) => [r.from_user_id, r.to_user_id]))])
+      .returns<{ id: string; name: string | null }[]>(),
     reviewPhotoUrls(rows.map((r) => r.deal_id)),
   ]);
   const cat = new Map((deals.data ?? []).map((d) => [d.id, d.category]));
@@ -280,6 +331,9 @@ export async function setSaved(customerId: string, helperId: string, on: boolean
   }
   if (customerId === helperId || !(await helperProfile(helperId))) return "notHelper";
   if ((await savedHelperIds(customerId)).length >= MAX_SAVED_HELPERS) return "full";
-  await db.from("saved_helpers").upsert({ customer_id: customerId, helper_id: helperId }, { onConflict: "customer_id,helper_id", ignoreDuplicates: true }).throwOnError();
+  await db
+    .from("saved_helpers")
+    .upsert({ customer_id: customerId, helper_id: helperId }, { onConflict: "customer_id,helper_id", ignoreDuplicates: true })
+    .throwOnError();
   return "ok";
 }

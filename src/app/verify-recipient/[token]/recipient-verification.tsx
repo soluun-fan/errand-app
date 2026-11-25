@@ -20,21 +20,29 @@ export function RecipientVerification({
   inviteValid: boolean;
 }) {
   const t = useT();
-  const [state, action] = useActionState(beginRecipientVerification, initial);
+  const [state, action] = useActionState(async (previous: RecipientVerificationActionState, form: FormData) => {
+    const next = await beginRecipientVerification(previous, form);
+    if (next.view) {
+      setView(next.view);
+      if (next.inviteValid !== undefined) setLinkValid(next.inviteValid);
+    }
+    if (next.error) {
+      setError(
+        t(
+          next.error === "invalid"
+            ? "verifyRecipient.invalidLink"
+            : next.error === "limit"
+              ? "verifyRecipient.tooManySessions"
+              : "verifyRecipient.statusFailed",
+        ),
+      );
+    }
+    return next;
+  }, initial);
   const [view, setView] = useState(verification);
   const [linkValid, setLinkValid] = useState(inviteValid);
   const [error, setError] = useState("");
   const checking = useRef(false);
-
-  useEffect(() => {
-    if (state.view) {
-      setView(state.view);
-      if (state.inviteValid !== undefined) setLinkValid(state.inviteValid);
-    }
-    if (state.error) {
-      setError(t(state.error === "invalid" ? "verifyRecipient.invalidLink" : state.error === "limit" ? "verifyRecipient.tooManySessions" : "verifyRecipient.statusFailed"));
-    }
-  }, [state, t]);
 
   useEffect(() => {
     if (!linkValid || (view.status !== "PENDING" && view.status !== "CREATING")) return;
@@ -83,7 +91,9 @@ export function RecipientVerification({
             {view.status === "PENDING" && (
               <>
                 <Note tone="info">{t("verifyRecipient.waiting")}</Note>
-                {view.displayInstruction && <p className="whitespace-pre-wrap rounded-input bg-fill p-3 text-[15px]">{view.displayInstruction}</p>}
+                {view.displayInstruction && (
+                  <p className="whitespace-pre-wrap rounded-input bg-fill p-3 text-[15px]">{view.displayInstruction}</p>
+                )}
                 {view.smsUri && (
                   <a
                     href={view.smsUri}
@@ -96,7 +106,11 @@ export function RecipientVerification({
                   </a>
                 )}
                 <p className="text-sm text-ink-2">{t("verifyRecipient.replyNote")}</p>
-                {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+                {error && (
+                  <p role="alert" className="text-sm text-danger">
+                    {error}
+                  </p>
+                )}
               </>
             )}
             {view.status === "CREATING" && <Note tone="info">{t("verifyRecipient.preparing")}</Note>}
@@ -104,7 +118,11 @@ export function RecipientVerification({
               <>
                 <p className="text-[15px] text-ink-2">{t("verifyRecipient.senderRule")}</p>
                 <Note tone="warn">{t("verifyRecipient.publicPrice")}</Note>
-                {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+                {error && (
+                  <p role="alert" className="text-sm text-danger">
+                    {error}
+                  </p>
+                )}
                 <form action={action}>
                   <input type="hidden" name="token" value={token} />
                   <SubmitButton className={`${btn.primary} w-full`} pendingLabel={t("common.working")}>

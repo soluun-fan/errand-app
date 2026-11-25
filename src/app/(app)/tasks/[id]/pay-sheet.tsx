@@ -55,6 +55,13 @@ export function PaySheet({
     return () => clearTimeout(id);
   }, [state.done, router]);
 
+  if (!wire && !mock)
+    return (
+      <p role="status" className="rounded-input bg-warn-bg p-3 text-sm text-warn">
+        {t("pay.unavailable")}
+      </p>
+    );
+
   if (state.done) {
     return (
       <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-held p-6 text-white">
@@ -82,7 +89,11 @@ export function PaySheet({
           <form action={formAction} className="relative flex flex-col gap-3">
             <input type="hidden" name="dealId" value={dealId} />
             <input type="hidden" name="intent" value="pay" />
-            <input type="hidden" name="what" value={intent === "simulate_topup" ? "topup" : intent === "simulate_price_payment" ? "price" : "first"} />
+            <input
+              type="hidden"
+              name="what"
+              value={intent === "simulate_topup" ? "topup" : intent === "simulate_price_payment" ? "price" : "first"}
+            />
             <WireButton label={t("pay.wireButton", { amount: amountLabel })} />
             <p className="text-sm text-ink-2">{t("pay.wireSub")}</p>
             {state.error && (
@@ -92,23 +103,23 @@ export function PaySheet({
             )}
           </form>
         ) : (
-        <form action={formAction} className="relative flex flex-col gap-3">
-          <input type="hidden" name="dealId" value={dealId} />
-          <input type="hidden" name="intent" value={intent} />
-          <p className="text-sm font-semibold">{t("pay.chooseBank")}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {BANKS.map((b) => (
-              <BankButton key={b} name={b} disabled={!mock} />
-            ))}
-          </div>
-          {mock && <p className="text-xs text-ink-2">{t("pay.demo")}</p>}
-          <Checking />
-          {state.error && (
-            <p role="alert" className="text-sm text-danger">
-              {state.error}
-            </p>
-          )}
-        </form>
+          <form action={formAction} className="relative flex flex-col gap-3">
+            <input type="hidden" name="dealId" value={dealId} />
+            <input type="hidden" name="intent" value={intent} />
+            <p className="text-sm font-semibold">{t("pay.chooseBank")}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {BANKS.map((b) => (
+                <BankButton key={b} name={b} disabled={!mock} />
+              ))}
+            </div>
+            {mock && <p className="text-xs text-ink-2">{t("pay.demo")}</p>}
+            <Checking />
+            {state.error && (
+              <p role="alert" className="text-sm text-danger">
+                {state.error}
+              </p>
+            )}
+          </form>
         )}
         {!wire && (
           <div className="flex flex-col items-center gap-2 border-t border-line pt-3">

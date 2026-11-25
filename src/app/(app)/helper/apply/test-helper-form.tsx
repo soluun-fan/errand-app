@@ -12,7 +12,7 @@ const initial: TestHelperState = {};
 
 export function TestHelperForm({ allowed }: { allowed: boolean }) {
   const t = useT();
-  const [state, action, pending] = useActionState(activateTestHelper, initial);
+  const [state, action] = useActionState(activateTestHelper, initial);
   if (!allowed) return <Note tone="warn">{t("kyc.testInviteOnly")}</Note>;
 
   return (
@@ -38,7 +38,11 @@ export function TestHelperForm({ allowed }: { allowed: boolean }) {
           </a>
         </span>
       </label>
-      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="text-sm text-danger">
+          {state.error}
+        </p>
+      )}
       <SubmitButton className={`${btn.primary} w-full`} pendingLabel={t("common.working")}>
         {t("kyc.testActivate")}
       </SubmitButton>

@@ -8,14 +8,43 @@
  *
  * Illegal transitions throw `EngineError`; they never partially apply.
  */
-import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, TWO_POINT_CATEGORIES, customerChoosesHelper, categoryConfig, categoryTrust, type CategoryId, type EngineConfig } from "./config";
+import {
+  DEFAULT_CONFIG,
+  HOUR_MS,
+  MINUTE_MS,
+  TWO_POINT_CATEGORIES,
+  customerChoosesHelper,
+  categoryTrust,
+  type CategoryId,
+  type EngineConfig,
+} from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
-import { amountDue, buyerFeeFor, careTimeOk, errandSplit, extraTaskFeeFor, heldItemBudget, minFeeAt, quoteFee, serviceFeeFor, taskMinFee } from "./money";
+import {
+  amountDue,
+  buyerFeeFor,
+  careTimeOk,
+  errandSplit,
+  extraTaskFeeFor,
+  heldItemBudget,
+  minFeeAt,
+  quoteFee,
+  serviceFeeFor,
+  taskMinFee,
+} from "./money";
 import { varietyFor } from "./job-varieties";
 import { cleanConditions } from "./conditions";
-import { DEFAULT_DETAILS, type ErrandDetails, type GeoPoint, type HelperBadges, type Invite, type PriceChange, type TaskConditions, type TaskRules } from "./types";
+import {
+  DEFAULT_DETAILS,
+  type ErrandDetails,
+  type GeoPoint,
+  type HelperBadges,
+  type Invite,
+  type PriceChange,
+  type TaskConditions,
+  type TaskRules,
+} from "./types";
 import type {
   Account,
   Command,
@@ -41,7 +70,10 @@ class Tx<D extends Deal> {
   readonly ledger: LedgerEntry[] = [];
   readonly effects: Effect[] = [];
 
-  constructor(deal: D, readonly ctx: Ctx) {
+  constructor(
+    deal: D,
+    readonly ctx: Ctx,
+  ) {
     this.d = structuredClone(deal);
   }
 
@@ -116,7 +148,12 @@ function requireEligibleHelper(ctx: Ctx, d: ErrandDeal): UserActor {
     // specialized work: a certificate or an organisation (docs/decisions.md 2026-11-16); care: an agency
     // or an individual care clearance, both only with the background check (2026-11-17) — the server
     // works out `qualified` with those rules, the database checks them again
-    fail("FORBIDDEN", trust === "care" ? "Only background-checked helpers cleared for care work can take this task" : "This kind of task needs a checked certificate or an approved organisation");
+    fail(
+      "FORBIDDEN",
+      trust === "care"
+        ? "Only background-checked helpers cleared for care work can take this task"
+        : "This kind of task needs a checked certificate or an approved organisation",
+    );
   }
   if (u.id === d.customerId) fail("FORBIDDEN", "You cannot take your own task");
   const missing = missingConditions(d.details.require, u.badges);
@@ -297,7 +334,10 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   );
   const startsAt = scheduledAt ?? ctx.now;
   if (categoryTrust(input.category) === "care" && !careTimeOk(startsAt, details.minutes, cfg)) {
-    fail("INVALID_INPUT", `Care work is daytime only (${cfg.careDayStartHour}:00–${cfg.careDayEndHour}:00) and up to ${cfg.careMaxMinutes / 60} hours`);
+    fail(
+      "INVALID_INPUT",
+      `Care work is daytime only (${cfg.careDayStartHour}:00–${cfg.careDayEndHour}:00) and up to ${cfg.careMaxMinutes / 60} hours`,
+    );
   }
   const quote = quoteFee(input.category, details, cfg, startsAt);
   if (details.people < quote.peopleRequired) fail("INVALID_INPUT", "This task needs 2 people");
@@ -388,7 +428,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     heldAmount: 0,
     paymentRef: null,
     providerRefs: [],
-    checkHours: categoryConfig(input.category).checkHours ?? cfg.errandCheckHours,
+    checkHours: cfg.kindCheckHours[input.category] ?? cfg.errandCheckHours,
     checkUntil: null,
     dispute: null,
     createdAt: ctx.now,
@@ -687,7 +727,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
         checkPrice(e, price, ctx.now);
         if (price === e.postedFee) price = null;
       }
-      e.offers.push({ helperId: u.id, orgId: orgFor(u, e.category), note: cmd.note.trim().slice(0, 300), price, proposedBy: "helper", at: ctx.now });
+      e.offers.push({
+        helperId: u.id,
+        orgId: orgFor(u, e.category),
+        note: cmd.note.trim().slice(0, 300),
+        price,
+        proposedBy: "helper",
+        at: ctx.now,
+      });
       tx.ev("applied", price === null ? { helperId: u.id } : { helperId: u.id, price });
       break;
     }
@@ -710,7 +757,9 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requirePayer(ctx, e);
       requireStatus(e, "answer an offer on", "open");
       e.offers = liveOffers(e, ctx.now);
-      const offer = e.offers.find((o) => o.helperId === cmd.helperId) ?? fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
+      const offer =
+        e.offers.find((o) => o.helperId === cmd.helperId) ??
+        fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
       checkPrice(e, cmd.price, ctx.now);
       offer.price = cmd.price;
       offer.proposedBy = "customer";
@@ -724,7 +773,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const u = requireEligibleHelper(ctx, e);
       requireStatus(e, "accept a price on", "open");
       const offer = e.offers.find((o) => o.helperId === u.id) ?? fail("INVALID_INPUT", "No application to accept on");
-      if (offer.proposedBy !== "customer" || offer.price === null) fail("ILLEGAL_TRANSITION", "The customer hasn't named a price to accept");
+      if (offer.proposedBy !== "customer" || offer.price === null)
+        fail("ILLEGAL_TRANSITION", "The customer hasn't named a price to accept");
       // Keep the organisation named in the offer, even if another membership was added later.
       if (categoryTrust(e.category) !== "open" && !u.qualified?.some((q) => q.category === e.category && q.orgId === offer.orgId)) {
         fail("FORBIDDEN", "The qualification used for this offer is no longer available");
@@ -761,7 +811,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const e = asErrand(d, "decline a request on");
       const u = requireUser(ctx);
       requireStatus(e, "decline a request on", "open");
-      if (!e.invite || e.invite.helperId !== u.id || invitedOnly(e, ctx.now) === null) fail("FORBIDDEN", "There is no request to you waiting on this task");
+      if (!e.invite || e.invite.helperId !== u.id || invitedOnly(e, ctx.now) === null)
+        fail("FORBIDDEN", "There is no request to you waiting on this task");
       const inv = e.invite as Invite;
       e.offers = e.offers.filter((o) => o.helperId !== u.id);
       if (inv.openAfter) {
@@ -799,7 +850,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const offer = e.offers.find((o) => o.helperId === cmd.helperId);
       if (!offer) fail("INVALID_INPUT", "That helper did not apply, or their application lapsed");
       // The customer's own counter needs the helper's yes first (accept_counter), not a self-accept.
-      if ((offer as NonNullable<typeof offer>).proposedBy === "customer") fail("ILLEGAL_TRANSITION", "Waiting for the helper to answer your price");
+      if ((offer as NonNullable<typeof offer>).proposedBy === "customer")
+        fail("ILLEGAL_TRANSITION", "Waiting for the helper to answer your price");
       const fee = (offer as NonNullable<typeof offer>).price ?? e.postedFee;
       // the organisation they applied through is paid (the database re-checks they still belong to it)
       assignHelper(tx, e, cmd.helperId, fee, (offer as NonNullable<typeof offer>).orgId);
@@ -961,7 +1013,12 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
     case "propose_price": {
       const e = asErrand(d, "propose a new price for");
       const u = requireUser(ctx);
-      const by = u.id === e.customerId ? "customer" : u.id === e.helperId ? "helper" : fail("FORBIDDEN", "Only the customer or the assigned helper can propose a price");
+      const by =
+        u.id === e.customerId
+          ? "customer"
+          : u.id === e.helperId
+            ? "helper"
+            : fail("FORBIDDEN", "Only the customer or the assigned helper can propose a price");
       requireStatus(e, "propose a new price for", "matched", "in_progress", "check");
       if (e.priceChange?.status === "awaiting_payment") fail("ILLEGAL_TRANSITION", "The agreed new price is waiting for payment");
       if (e.status === "check") {
@@ -1200,7 +1257,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       const e = asErrand(d, "cancel");
       requireKind(ctx, "system", "No-show cancel");
       requireStatus(e, "cancel", "in_progress");
-      if (!e.absentAt || ctx.now < e.absentAt + ruleOf(e, "absentGraceMinutes") * MINUTE_MS) fail("ILLEGAL_TRANSITION", "The customer still has time to answer");
+      if (!e.absentAt || ctx.now < e.absentAt + ruleOf(e, "absentGraceMinutes") * MINUTE_MS)
+        fail("ILLEGAL_TRANSITION", "The customer still has time to answer");
       const helperId = e.helperId as string;
       const payee = payable(e.payeeOrgId ?? helperId);
       const spent = Math.min(e.receiptAmount ?? 0, e.itemBudget, e.heldAmount);
@@ -1227,7 +1285,15 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       if (ctx.now < offer.at + ruleOf(e, "settleHours") * HOUR_MS) fail("ILLEGAL_TRANSITION", "The other side still has time to answer");
       e.priceChange = null;
       e.status = "disputed";
-      e.dispute = { openedBy: e.customerId, reason: "no_agreement", note: `offer ${offer.fee} (from ${offer.from}) by ${offer.by}`, at: ctx.now, outcome: null, decidedBy: null, decidedAt: null };
+      e.dispute = {
+        openedBy: e.customerId,
+        reason: "no_agreement",
+        note: `offer ${offer.fee} (from ${offer.from}) by ${offer.by}`,
+        at: ctx.now,
+        outcome: null,
+        decidedBy: null,
+        decidedAt: null,
+      };
       tx.ev("offer_escalated", { price: offer.fee, by: offer.by });
       tx.ev("disputed", { reason: "no_agreement" });
       break;
@@ -1237,7 +1303,8 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       requireKind(ctx, "system", "Auto-release");
       requireStatus(d, "auto-release", "check");
       if (d.checkUntil === null || ctx.now < d.checkUntil) fail("ILLEGAL_TRANSITION", "Check window has not ended yet");
-      if (d.type === "errand" && d.priceChange?.status === "proposed") fail("ILLEGAL_TRANSITION", "A partial-refund offer is waiting for an answer");
+      if (d.type === "errand" && d.priceChange?.status === "proposed")
+        fail("ILLEGAL_TRANSITION", "A partial-refund offer is waiting for an answer");
       release(tx, "auto");
       break;
     }

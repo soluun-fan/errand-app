@@ -1,121 +1,49 @@
 "use client";
 
-import { ArrowLeft, Briefcase, CalendarDays, ChevronDown, DoorOpen, Hand, House, Info, Lock, MapPin, PencilLine, Receipt, Ruler, ShoppingBag, Sparkles, User, Users, Weight, Wrench, X } from "lucide-react";
-import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
-import { AddressInput, type AddressChoice } from "@/components/address-input";
-import { JOB_VARIETIES, type JobVariety } from "@/lib/engine/job-varieties";
+import { OptionCard, ToggleRow } from "@/components/choice";
 import { ConditionPicker } from "@/components/condition-picker";
 import { ConditionChips } from "@/components/conditions";
-import { TaskBrief } from "@/components/task-brief";
-import { Fragment, useActionState, useEffect, useRef, useState } from "react";
-import { DashedAdd, OptionCard, PriceDeltaCard, ToggleRow } from "@/components/choice";
 import { MoneyBreakdown, type MoneyRow } from "@/components/money-breakdown";
-import type { Pin } from "@/components/pin-map";
 import { SubmitButton } from "@/components/sheet";
+import { TaskBrief } from "@/components/task-brief";
 import { TaskPhotoPicker, type PickedPhoto } from "@/components/task-photo-picker";
-import { Avatar, Note, btn, chipClass, field, fieldLabel } from "@/components/ui";
+import { Avatar, Note, btn, chipClass, field } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { CATEGORIES, categoryConfig, customerChoosesHelper, categoryTrust, TWO_POINT_CATEGORIES, heldItemBudget, roadKm, extraTaskFeeFor, isNight, kindFromLabel, quoteFee, serviceFeeFor, suggestedMinutes, suggestedPrice, taskMinFee, type TaskConditions, type CategoryId, type EngineConfig, type ErrandDetails, type Lift } from "@/lib/engine";
+import type { SavedAddress } from "@/lib/addresses";
 import { draftKeyFor } from "@/lib/draft";
+import {
+  CATEGORIES,
+  TWO_POINT_CATEGORIES,
+  categoryConfig,
+  categoryTrust,
+  customerChoosesHelper,
+  extraTaskFeeFor,
+  heldItemBudget,
+  kindFromLabel,
+  quoteFee,
+  roadKm,
+  serviceFeeFor,
+  suggestedMinutes,
+  suggestedPrice,
+  taskMinFee,
+  type CategoryId,
+  type EngineConfig,
+  type ErrandDetails,
+} from "@/lib/engine";
+import { JOB_VARIETIES } from "@/lib/engine/job-varieties";
+import { fmtMoney, parseUbLocal } from "@/lib/format";
 import { titleFromBrief } from "@/lib/task-brief";
-import { fmtMoney, parseUbLocal, toUbLocal } from "@/lib/format";
+import { ArrowLeft, ChevronDown, Info, Lock, MapPin, PencilLine, Sparkles, User, Users, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import { postTask, type PostState } from "./actions";
-import { Ico } from "@/components/icon";
-import type { LucideIcon } from "lucide-react";
 
-/** One decision per screen (redesign): kind of task → what exactly → where & when → review. */
-const STEPS = ["type", "what", "where", "review"] as const;
-const KM = [1, 3, 5, 10];
-/** "About how long?" choices, in minutes. */
-const DURATIONS = [30, 60, 90, 120, 180, 240, 360, 480];
-
-/** "flexible": not urgent — the post stays open for the Ops search window (24 h), offers don't lapse. */
-type When = "now" | "today" | "tomorrow" | "pick" | "flexible";
-const KIND_ICON: Record<AddressKind, LucideIcon> = { home: House, work: Briefcase, other: MapPin };
-
-export interface Draft {
-  variety?: JobVariety;
-  category: CategoryId;
-  title: string;
-  /** An explicitly chosen title is preserved; otherwise it follows the request message. */
-  customTitle?: boolean;
-  description: string;
-  pickup: string;
-  address: string;
-  showDetails: boolean;
-  entrance: string;
-  floor: string;
-  unit: string;
-  lift: Lift | null;
-  note: string;
-  km: number;
-  when: When;
-  time: string;
-  date: string;
-  carryByHelper: boolean;
-  heavy: boolean;
-  roundTrip: boolean;
-  buyForMe: boolean;
-  itemBudget: string;
-  budgetBuffer: boolean;
-  people: 1 | 2;
-  /** The customer's own price as typed ("" = not set yet → the minimum). We only set the floor. */
-  price: string;
-  /** About how long (minutes); null = the category's usual. */
-  minutes: number | null;
-  /** The helper must bring tools. */
-  tools: boolean;
-  /** What the customer requires of the helper (docs/decisions.md 2026-11-18 "Task conditions"). */
-  require: TaskConditions;
-  /** Save the drop-off address as Home / Work / Other when posting ("" = don't). */
-  saveAs: AddressKind | "";
-  /** Map pin for the drop-off / task place (drives nearby dispatch). */
-  pin: Pin | null;
-  /** Two-point tasks: map pin for the pickup. With both pins the distance is measured, not guessed. */
-  pickupPin: Pin | null;
-  /** "Choose for me": pick the best applicant if I haven't chosen in a few minutes. */
-  autoPick: boolean;
-}
-
-/** The address fields a saved address fills in. */
-function fromSaved(a: SavedAddress): Partial<Draft> {
-  return {
-    address: a.address,
-    entrance: a.entrance ?? "",
-    floor: a.floor === null ? "" : String(a.floor),
-    unit: a.unit ?? "",
-    lift: a.lift,
-    note: a.note ?? "",
-    showDetails: false,
-    saveAs: "",
-    pin: a.lat !== null && a.lng !== null ? { lat: a.lat, lng: a.lng } : null,
-  };
-}
-
-const digits = (s: string) => s.replace(/[^\d]/g, "");
-
-/** The scheduled start as a UB wall-time string, or "" for "now". */
-function startString(d: Draft, now: number): string {
-  if (d.when === "now" || d.when === "flexible") return "";
-  if (d.when === "pick") return d.date;
-  const day = toUbLocal(now + (d.when === "tomorrow" ? 86_400_000 : 0)).slice(0, 10);
-  return d.time ? `${day}T${d.time}` : "";
-}
-
-/**
- * Post a task in 3 steps (DESIGN §5.2–5.5): what → where & details → review & confirm.
- * Prices on screen come from the engine's quoteFee — the server re-runs the same function.
- */
-/** A direct request: the helper it goes to first (from their profile). */
-export interface InviteTarget {
-  id: string;
-  name: string;
-  categories: CategoryId[];
-}
-
+import { STEPS, digits, fromSaved, startString, type Draft, type InviteTarget } from "./post-draft";
+import { PostEffortStep } from "./post-effort-step";
+import { PostLocationStep } from "./post-location-step";
+export type { Draft, InviteTarget } from "./post-draft";
 export function PostFlow({
   userId,
   initial,
@@ -197,10 +125,13 @@ export function PostFlow({
   const [now, setNow] = useState(() => Date.now());
   const [state, action] = useActionState<PostState, FormData>(async (previous, form) => {
     const result = await postTask(previous, form);
+    if (result.step !== undefined) setStep(result.step);
     if (result.dealId) {
       try {
         localStorage.removeItem(draftKey);
-      } catch { /* storage unavailable */ }
+      } catch {
+        /* storage unavailable */
+      }
       router.replace(`/tasks/${result.dealId}`);
     }
     return result;
@@ -213,6 +144,7 @@ export function PostFlow({
   };
 
   // Draft: restore unless arriving with a prefilled title; save on every change (DESIGN §7).
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore browser draft data before enabling persistence; do not overwrite it during hydration. */
   useEffect(() => {
     try {
       if (initial.title) return;
@@ -223,7 +155,12 @@ export function PostFlow({
         if (initial.category && draft.category && draft.category !== initial.category) return;
         // An unavailable draft must never be restored under another category.
         if (draft.category && (!live.includes(draft.category) || (invite && !invite.categories.includes(draft.category)))) return;
-        setD((x) => ({ ...x, ...draft, description: draft.description || (draft.customTitle === undefined ? draft.title ?? "" : ""), customTitle: draft.customTitle ?? Boolean(draft.title) }));
+        setD((x) => ({
+          ...x,
+          ...draft,
+          description: draft.description || (draft.customTitle === undefined ? (draft.title ?? "") : ""),
+          customTitle: draft.customTitle ?? Boolean(draft.title),
+        }));
       }
     } catch {
       /* storage unavailable */
@@ -231,6 +168,7 @@ export function PostFlow({
       setDraftReady(true);
     }
   }, [initial.title, initial.category, invite, live, draftKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     // Do not replace a stored request with the blank initial render before restoration finishes.
     if (!draftReady) return;
@@ -240,9 +178,6 @@ export function PostFlow({
       /* ignore */
     }
   }, [d, draftReady, draftKey]);
-  useEffect(() => {
-    if (state.step !== undefined) setStep(state.step);
-  }, [state]);
   useEffect(() => {
     heading.current?.scrollIntoView({ block: "start" });
   }, [step]);
@@ -261,11 +196,11 @@ export function PostFlow({
   // both pins → distance from the map (same function as the server); otherwise the rough chip
   const measuredKm = twoPoint && d.pin && d.pickupPin ? roadKm(d.pickupPin, d.pin) : null;
   const tripKm = twoPoint ? (measuredKm ?? d.km) : 0;
-  const usualMinutes = CATEGORIES.find((c) => c.id === d.category)?.minutes ?? 30;
+  const usualMinutes = cfg.kindMinutes[d.category] ?? cfg.includedMinutes;
   // "About how long?" follows the trip: the usual time plus travel there (and back), unless picked
   const autoMinutes = Math.min(care ? cfg.careMaxMinutes : 480, suggestedMinutes(usualMinutes, tripKm, twoPoint && d.roundTrip, cfg));
   const travelMinutes = Math.round(tripKm * cfg.travelMinPerKm * (twoPoint && d.roundTrip ? 2 : 1));
-  const details: ErrandDetails = {
+  const requestedDetails: ErrandDetails = {
     variety: d.variety,
     km: tripKm,
     entrance: d.entrance || null,
@@ -286,11 +221,10 @@ export function PostFlow({
     counterMax: 0,
     require: d.require ?? {},
   };
-  const quote = quoteFee(d.category, details, cfg, startsAt);
-  const needTwo = quote.peopleRequired === 2;
-  useEffect(() => {
-    if (needTwo && d.people === 1) set("people", 2);
-  }, [needTwo, d.people]);
+  const requestedQuote = quoteFee(d.category, requestedDetails, cfg, startsAt);
+  const needTwo = requestedQuote.peopleRequired === 2;
+  const details: ErrandDetails = { ...requestedDetails, people: needTwo ? 2 : d.people };
+  const quote = details.people === requestedDetails.people ? requestedQuote : quoteFee(d.category, details, cfg, startsAt);
 
   // Freedom, but limited (docs/decisions.md "Pricing"): recommended −20%…+30%, same function as the server.
   // The customer names the price; we only set the floor (docs/decisions.md 2026-11-16 "Bargaining").
@@ -311,25 +245,16 @@ export function PostFlow({
   // What is held for items: the typed budget plus the optional +10% (engine rule, same function).
   const heldItems = heldItemBudget(itemBudget, details.budgetBuffer, cfg);
   const total = fee + heldItems + serviceFee;
-  const stairs = quote.lines.find((l) => l.key === "stairs");
-  const backLeg = quoteFee(d.category, { ...details, roundTrip: true }, cfg, startsAt).lines.find((l) => l.key === "roundTrip");
   const savedMatch = saved.find((a) => a.address === d.address.trim());
-  const savedName = (a: SavedAddress) => (a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`));
   const brief = d.description;
   const title = d.customTitle && d.title.trim() ? d.title : titleFromBrief(brief, cfg.titleMax);
-  const addressChoices: AddressChoice[] = [
-    ...saved.map((a) => ({ id: a.id, label: savedName(a), address: a.address, kind: a.kind })),
-    ...recent.map((address, i) => ({ id: `recent-${i}`, label: address, address, kind: "recent" as const })),
-  ];
-  const chooseAddress = (choice: AddressChoice, pickup = false) => {
-    const a = saved.find((s) => s.id === choice.id);
-    if (pickup) {
-      setD((x) => ({ ...x, pickup: choice.address, pickupPin: a?.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null }));
-    } else {
-      setD((x) => ({ ...x, ...(a ? fromSaved(a) : { address: choice.address, pin: null, entrance: "", floor: "", unit: "", lift: null, note: "", saveAs: "" as const, showDetails: false }) }));
-    }
-  };
-  const arrivalSummary = [d.entrance && t("details.entrance", { v: d.entrance }), d.floor && t("details.floor", { v: d.floor }), d.unit && t("details.unit", { v: d.unit })].filter(Boolean).join(" · ");
+  const arrivalSummary = [
+    d.entrance && t("details.entrance", { v: d.entrance }),
+    d.floor && t("details.floor", { v: d.floor }),
+    d.unit && t("details.unit", { v: d.unit }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   let reason: string | null = null;
   if (STEPS[step] === "what" && !brief.trim()) reason = t("task.reasonWhat");
@@ -358,7 +283,9 @@ export function PostFlow({
         firstTask
           ? { label: t("post.firstTaskFree"), amount: 0, muted: true }
           : { label: t("money.serviceFee"), amount: serviceFee - extraFee, muted: true },
-        ...(extraFee > 0 && !firstTask ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee, muted: true }] : []),
+        ...(extraFee > 0 && !firstTask
+          ? [{ label: t("post.extraTaskFee", { n: (openTasks ?? 0) + 1 }), amount: extraFee, muted: true }]
+          : []),
       ];
 
   return (
@@ -377,11 +304,23 @@ export function PostFlow({
       <header className="flex flex-col gap-3 pt-1">
         <div className="flex items-center justify-between">
           {step === 0 ? (
-            <Link href="/" aria-label={t("task.close")} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+            <Link
+              href="/"
+              aria-label={t("task.close")}
+              className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card"
+            >
               <X aria-hidden size={20} />
             </Link>
           ) : (
-            <button type="button" aria-label={t("common.back")} onClick={() => { setPendingCondition(""); setStep(step - 1); }} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card">
+            <button
+              type="button"
+              aria-label={t("common.back")}
+              onClick={() => {
+                setPendingCondition("");
+                setStep(step - 1);
+              }}
+              className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg shadow-card"
+            >
               <ArrowLeft aria-hidden size={20} />
             </button>
           )}
@@ -390,9 +329,14 @@ export function PostFlow({
           </span>
         </div>
         <span aria-hidden className="h-1 overflow-hidden rounded-full bg-line">
-          <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+          <span
+            className="block h-full rounded-full bg-brand transition-[width] duration-300"
+            style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+          />
         </span>
-        <h1 ref={heading} className="scroll-mt-24 text-[22px] font-bold leading-tight tracking-tight">{t(`task.steps.${STEPS[step]}`)}</h1>
+        <h1 ref={heading} className="scroll-mt-24 text-[22px] font-bold leading-tight tracking-tight">
+          {t(`task.steps.${STEPS[step]}`)}
+        </h1>
         {invite && (
           <p className="flex items-center gap-2.5 rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">
             <Avatar name={invite.name} size={32} />
@@ -428,25 +372,25 @@ export function PostFlow({
             const groupStart = c.trust !== "open" && (i === 0 || kinds[i - 1].trust === "open");
             return (
               <Fragment key={c.id}>
-              {groupStart && <h2 className="pt-2 text-[13px] font-semibold text-ink-2">{t("home.kinds.specialized")}</h2>}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={on}
-                // one tap answers this screen's question and moves on
-                onClick={() => {
-                  setD((x) => ({ ...x, category: c.id, variety: x.category === c.id ? x.variety : undefined }));
-                  setStep(1);
-                }}
-                className={`press flex items-center gap-3 rounded-card border-2 bg-bg p-3.5 text-left shadow-card ${on ? "border-brand" : "border-transparent"}`}
-              >
-                <CategoryIcon id={c.id} tile size={22} />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
-                  <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
-                </span>
-                <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{kindFrom(c.id)}</span>
-              </button>
+                {groupStart && <h2 className="pt-2 text-[13px] font-semibold text-ink-2">{t("home.kinds.specialized")}</h2>}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  // one tap answers this screen's question and moves on
+                  onClick={() => {
+                    setD((x) => ({ ...x, category: c.id, variety: x.category === c.id ? x.variety : undefined }));
+                    setStep(1);
+                  }}
+                  className={`press flex items-center gap-3 rounded-card border-2 bg-bg p-3.5 text-left shadow-card ${on ? "border-brand" : "border-transparent"}`}
+                >
+                  <CategoryIcon id={c.id} tile size={22} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
+                    <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
+                  </span>
+                  <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{kindFrom(c.id)}</span>
+                </button>
               </Fragment>
             );
           })}
@@ -459,28 +403,62 @@ export function PostFlow({
 
       {STEPS[step] === "what" && (
         <>
-          <button type="button" onClick={() => { setPendingCondition(""); setStep(0); }} className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
+          <button
+            type="button"
+            onClick={() => {
+              setPendingCondition("");
+              setStep(0);
+            }}
+            className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink"
+          >
             <CategoryIcon id={d.category} size={16} />
             {t(`categoryShort.${d.category}`)} · {t("task.change")}
           </button>
-          <TaskBrief category={d.category} value={brief} title={title} titleValue={d.customTitle ? d.title : title} maxLength={cfg.descriptionMax} titleMax={cfg.titleMax}
+          <TaskBrief
+            category={d.category}
+            value={brief}
+            title={title}
+            titleValue={d.customTitle ? d.title : title}
+            maxLength={cfg.descriptionMax}
+            titleMax={cfg.titleMax}
             onChange={(description) => setD((x) => ({ ...x, description, ...(!x.customTitle ? { title: "" } : {}) }))}
-            onTitleChange={(title) => setD((x) => ({ ...x, title, customTitle: true }))} />
+            onTitleChange={(title) => setD((x) => ({ ...x, title, customTitle: true }))}
+          />
           <fieldset>
             <legend className="mb-2 text-sm font-semibold">{t("varietyLabel")}</legend>
             <div className="flex flex-wrap gap-2">
-              {JOB_VARIETIES[d.category].map(id => (
-                <button key={id} type="button" aria-pressed={d.variety === id} className={chipClass(d.variety === id)}
-                  onClick={() => set("variety", d.variety === id ? undefined : id)}>{t(`varieties.${id}`)}</button>
+              {JOB_VARIETIES[d.category].map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={d.variety === id}
+                  className={chipClass(d.variety === id)}
+                  onClick={() => set("variety", d.variety === id ? undefined : id)}
+                >
+                  {t(`varieties.${id}`)}
+                </button>
               ))}
             </div>
           </fieldset>
-          <ConditionPicker variety={d.variety} category={d.category} value={d.require ?? {}} onChange={value => set("require", value)} pending={pendingCondition} setPending={setPendingCondition} />
+          <ConditionPicker
+            variety={d.variety}
+            category={d.category}
+            value={d.require ?? {}}
+            onChange={(value) => set("require", value)}
+            pending={pendingCondition}
+            setPending={setPendingCondition}
+          />
           {/* no pictures on care tasks (children, elders) */}
           {categoryTrust(d.category) !== "care" && <TaskPhotoPicker value={photos} onChange={setPhotos} />}
-          {categoryTrust(d.category) === "care" && <Note tone="warn">{t(d.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
+          {categoryTrust(d.category) === "care" && (
+            <Note tone="warn">{t(d.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>
+          )}
           <details className="group text-[13px] text-ink-2">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2"><Info aria-hidden size={15} />{t("addressEntry.rules")}<ChevronDown aria-hidden size={14} className="ml-auto group-open:rotate-180" /></summary>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2">
+              <Info aria-hidden size={15} />
+              {t("addressEntry.rules")}
+              <ChevronDown aria-hidden size={14} className="ml-auto group-open:rotate-180" />
+            </summary>
             <p className="pb-2 leading-relaxed">{t("post.rules")}</p>
           </details>
         </>
@@ -488,209 +466,19 @@ export function PostFlow({
 
       {STEPS[step] === "where" && (
         <>
-          <p className="-mt-2 text-[14px] leading-relaxed text-ink-2">{t("addressEntry.intro")}</p>
-          <div className="flex flex-col gap-3">
-            {twoPoint && <AddressInput
-              label={t("task.pickup")} hint={t("addressEntry.pickupHelp")} placeholder={t("addressEntry.pickupExample")}
-              value={d.pickup} pin={d.pickupPin} kind="pickup" optional choices={addressChoices}
-              other={d.pin ? { ...d.pin, kind: "drop" } : null}
-              onChange={(pickup) => setD((x) => ({ ...x, pickup, pickupPin: pickup.trim() === x.pickup.trim() ? x.pickupPin : null }))}
-              onChoose={(choice) => chooseAddress(choice, true)} onPinChange={(pin) => set("pickupPin", pin)}
-            />}
-            <AddressInput
-              label={twoPoint ? t("task.drop") : t("task.where")} hint={t("addressEntry.destinationHelp")} placeholder={t("addressEntry.destinationExample")}
-              value={d.address} pin={d.pin} choices={addressChoices}
-              other={twoPoint && d.pickupPin ? { ...d.pickupPin, kind: "pickup" } : null}
-              onChange={(address) => setD((x) => ({ ...x, address, ...(address.trim() !== x.address.trim() ? { pin: null, entrance: "", floor: "", unit: "", lift: null, note: "", saveAs: "" } : {}) }))}
-              onChoose={(choice) => chooseAddress(choice)} onPinChange={(pin) => set("pin", pin)}
-            />
-          </div>
-
-          {d.showDetails || isCarry ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <div><h2 className="font-semibold">{t("addressEntry.details")}</h2><p className="text-sm text-ink-2">{t("addressEntry.detailsHelp")}</p></div>
-                {!isCarry && <button type="button" onClick={() => set("showDetails", false)} className="min-h-11 text-[13px] font-medium text-brand-ink">{t("addressEntry.hideDetails")}</button>}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {(["entrance", "floor", "unit"] as const).map((k) => (
-                  <label key={k} className={fieldLabel}>
-                    {t(`task.${k}`)}
-                    <input className={field} inputMode="numeric" value={d[k]} maxLength={k === "floor" ? 2 : 10} onChange={(e) => set(k, k === "floor" ? digits(e.target.value) : e.target.value)} placeholder={k === "entrance" ? "1" : k === "floor" ? "5" : "54"} />
-                  </label>
-                ))}
-              </div>
-              <fieldset className="flex flex-col gap-1.5">
-                <legend className="mb-1.5 text-[15px] font-medium text-ink-2">{t("task.lift")}</legend>
-                <div className="grid grid-cols-3 gap-1 rounded-full bg-fill p-1" role="radiogroup">
-                  {(["yes", "no", "unknown"] as const).map((v) => (
-                    <button key={v} type="button" role="radio" aria-checked={d.lift === v} onClick={() => set("lift", v)} className={`min-h-11 rounded-full text-[15px] font-semibold ${d.lift === v ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}>
-                      {t(v === "yes" ? "task.liftYes" : v === "no" ? "task.liftNo" : "task.liftUnknown")}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-              {isCarry && d.lift === "unknown" && <p className="text-sm text-ink-2">{t("task.liftUnknownNote")}</p>}
-              <label className={fieldLabel}>
-                {t("task.note")}
-                <textarea className={`${field} min-h-20`} value={d.note} maxLength={300} onChange={(e) => set("note", e.target.value)} placeholder={t("task.notePh")} />
-              </label>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <DashedAdd label={t("addressEntry.details")} onClick={() => set("showDetails", true)} />
-              {arrivalSummary && <p className="px-1 text-[13px] text-ink-2">{arrivalSummary}</p>}
-            </div>
-          )}
-
-          {d.address.trim() && !savedMatch && (
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.saveAs")}</legend>
-              <div className="flex gap-2" role="radiogroup">
-                {(["home", "work", "other"] as const).map((k) => (
-                  <button key={k} type="button" role="radio" aria-checked={d.saveAs === k} onClick={() => set("saveAs", d.saveAs === k ? "" : k)} className={chipClass(d.saveAs === k)}>
-                    <Ico as={KIND_ICON[k]} size={16} /> {t(`task.saved.${k}`)}
-                  </button>
-                ))}
-              </div>
-              {d.saveAs !== "" && d.saveAs !== "other" && saved.some((a) => a.kind === d.saveAs) && (
-                <p className="text-sm text-ink-2">{t("task.saveReplaces", { name: t(`task.saved.${d.saveAs}`) })}</p>
-              )}
-            </fieldset>
-          )}
-
-          {twoPoint && (
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.distance")}</legend>
-              {measuredKm !== null ? (
-                <p className="rounded-input bg-fill px-4 py-3 text-[16px] font-medium"><Ico as={Ruler} /> {t("map.measured", { km: measuredKm.toFixed(1) })}</p>
-              ) : (
-                <>
-                  <div className="flex gap-2" role="radiogroup">
-                    {KM.map((k) => (
-                      <button key={k} type="button" role="radio" aria-checked={d.km === k} onClick={() => set("km", k)} className={chipClass(d.km === k)}>
-                        ~{k} км
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-sm text-ink-2">{t("map.noPickupPin")}</p>
-                </>
-              )}
-              <ToggleRow
-                icon="↩"
-                title={t("task.roundTrip")}
-                sub={backLeg ? `${t("task.roundTripSub")} · +${fmtMoney(backLeg.amount)}` : t("task.roundTripSub")}
-                checked={d.roundTrip}
-                onChange={(v) => set("roundTrip", v)}
-              />
-            </fieldset>
-          )}
-
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.when")}</legend>
-            <div className="flex flex-wrap gap-2" role="radiogroup">
-              {(["now", "flexible", "today", "tomorrow", "pick"] as const).map((w) => (
-                <button key={w} type="button" role="radio" aria-checked={d.when === w} onClick={() => set("when", w)} className={chipClass(d.when === w)}>
-                  {w === "pick" ? <><Ico as={CalendarDays} size={16} />{" "}</> : ""}
-                  {w === "flexible"
-                    ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })
-                    : t(w === "now" ? "task.whenNow" : w === "today" ? "task.whenToday" : w === "tomorrow" ? "task.whenTomorrow" : "task.whenPick")}
-                </button>
-              ))}
-            </div>
-            {d.when === "flexible" && <Note tone="info">{t("task.whenFlexibleNote", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })}</Note>}
-            {(d.when === "today" || d.when === "tomorrow") && (
-              <label className={fieldLabel}>
-                {t("task.time")}
-                <input type="time" className={field} value={d.time} onChange={(e) => set("time", e.target.value)} />
-              </label>
-            )}
-            {d.when === "pick" && (
-              <label className={fieldLabel}>
-                {t("post.dateTime")}
-                <input type="datetime-local" className={field} value={d.date} min={toUbLocal(now + 30 * 60_000)} onChange={(e) => set("date", e.target.value)} />
-              </label>
-            )}
-            {isNight(startsAt) && <Note tone="warn">{t("price.nightNote", { amount: fmtMoney(cfg.nightFee) })}</Note>}
-          </fieldset>
-
-          {/* Effort: what the price is built from — works for any job, even an unusual one */}
-          <fieldset className="flex flex-col gap-3">
-            <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("price.howLong")}</legend>
-            <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
-              {DURATIONS.filter((m) => !care || m <= cfg.careMaxMinutes).map((m) => (
-                <button key={m} type="button" role="radio" aria-checked={details.minutes === m} onClick={() => set("minutes", m)} className={chipClass(details.minutes === m)}>
-                  {m < 60 ? t("price.min", { n: m }) : t("price.hours", { n: m / 60 })}
-                </button>
-              ))}
-            </div>
-            <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour), min: cfg.includedMinutes })}</p>
-            {travelMinutes > 0 && (
-              <p className="text-sm text-ink-2">
-                {t(d.roundTrip ? "price.travelBoth" : "price.travelOne", { min: travelMinutes })}
-                {d.minutes !== null && d.minutes < autoMinutes ? ` ${t("price.travelShort", { min: autoMinutes })}` : ""}
-              </p>
-            )}
-            {care && <Note tone="info">{t("care.pilotHours", { from: cfg.careDayStartHour, to: cfg.careDayEndHour, hours: cfg.careMaxMinutes / 60 })}</Note>}
-          </fieldset>
-
-          <details className="group rounded-card bg-bg shadow-card px-4" open={d.heavy || d.tools || undefined}>
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium text-ink-2">
-              {t("addressEntry.extraOptions")}
-              <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
-            </summary>
-            <p className="pb-3 text-sm text-ink-2">{t("addressEntry.extraHelp")}</p>
-            <div className="mb-4 flex flex-col gap-3">
-              <ToggleRow icon={<Weight aria-hidden size={24} />} title={t("task.heavy")} sub={t("price.heavySub", { amount: fmtMoney(cfg.heavyFee) })} checked={d.heavy} onChange={(v) => set("heavy", v)} />
-              <ToggleRow icon={<Wrench aria-hidden size={24} />} title={t("price.tools")} sub={t("price.toolsSub", { amount: fmtMoney(cfg.toolsFee) })} checked={d.tools} onChange={(v) => set("tools", v)} />
-            </div>
-          </details>
-
-          {isCarry && (
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.carryHow")}</legend>
-              <div className="grid grid-cols-2 gap-2" role="radiogroup">
-                <PriceDeltaCard
-                  selected={d.carryByHelper}
-                  onSelect={() => set("carryByHelper", true)}
-                  icon={<Hand aria-hidden size={24} />}
-                  title={t("task.carryHelper")}
-                  sub={t("task.carryHelperSub")}
-                  delta={stairs ? `+${fmtMoney(stairs.amount)}` : t("task.perFloor", { amount: fmtMoney(cfg.carryPerFloor) })}
-                />
-                <PriceDeltaCard selected={!d.carryByHelper} onSelect={() => set("carryByHelper", false)} icon={<DoorOpen aria-hidden size={24} />} title={t("task.carrySelf")} sub={t("task.carrySelfSub")} delta={`+${fmtMoney(0)}`} free />
-              </div>
-              {needTwo && <Note tone="warn">{t("task.needTwo")}</Note>}
-            </fieldset>
-          )}
-
-          {buys && (
-            <fieldset className="flex flex-col gap-3">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.buyTitle")}</legend>
-              <div className="grid grid-cols-2 gap-2" role="radiogroup">
-                <PriceDeltaCard selected={d.buyForMe} onSelect={() => set("buyForMe", true)} icon={<Receipt aria-hidden size={24} />} title={t("task.buyForMe")} sub={t("task.buyForMeSub")} />
-                <PriceDeltaCard selected={!d.buyForMe} onSelect={() => set("buyForMe", false)} icon={<ShoppingBag aria-hidden size={24} />} title={t("task.buySelf")} sub={t("task.buySelfSub")} delta={`+${fmtMoney(0)}`} free />
-              </div>
-              {d.buyForMe && (
-                <label className={fieldLabel}>
-                  {t("task.budget")}
-                  <input className={`${field} text-[20px] font-bold tabular-nums`} inputMode="numeric" value={d.itemBudget} placeholder="20,000" onChange={(e) => set("itemBudget", digits(e.target.value))} />
-                  <span className="text-sm font-normal">{t("post.itemsHelp")}</span>
-                </label>
-              )}
-              {/* the +10% buffer is only meaningful when the money is held */}
-              {d.buyForMe && !direct && (
-                <ToggleRow
-                  icon={<Receipt aria-hidden size={24} />}
-                  title={t("task.buffer")}
-                  sub={itemBudget > 0 ? t("task.bufferSub", { amount: fmtMoney(heldItemBudget(itemBudget, true, cfg) - itemBudget) }) : t("task.bufferSubEmpty")}
-                  checked={d.budgetBuffer}
-                  onChange={(v) => set("budgetBuffer", v)}
-                />
-              )}
-              {d.buyForMe && <p className="text-sm text-ink-2">{t(direct ? "direct.itemsRule" : "task.overBudgetRule")}</p>}
-            </fieldset>
-          )}
+          <PostLocationStep d={d} setD={setD} saved={saved} recent={recent} arrivalSummary={arrivalSummary} />
+          <PostEffortStep
+            d={d}
+            setD={setD}
+            cfg={cfg}
+            details={details}
+            measuredKm={measuredKm}
+            startsAt={startsAt}
+            now={now}
+            travelMinutes={travelMinutes}
+            autoMinutes={autoMinutes}
+            quote={quote}
+          />
         </>
       )}
 
@@ -700,10 +488,23 @@ export function PostFlow({
           <div className="flex flex-col gap-2 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewRequest")}</h2>
-              <button type="button" onClick={() => setStep(1)} aria-label={t("addressEntry.editRequest")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                aria-label={t("addressEntry.editRequest")}
+                className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"
+              >
+                <PencilLine aria-hidden size={14} />
+                {t("task.change")}
+              </button>
             </div>
             <p className="text-sm text-ink-2">
-              <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} · {d.when === "now" ? t("task.whenNow") : d.when === "flexible" ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) }) : start.replace("T", " ")}
+              <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} ·{" "}
+              {d.when === "now"
+                ? t("task.whenNow")
+                : d.when === "flexible"
+                  ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })
+                  : start.replace("T", " ")}
             </p>
             <p className="text-[18px] font-semibold">{title}</p>
             <ConditionChips variety={d.variety} require={d.require} t={t} />
@@ -712,31 +513,55 @@ export function PostFlow({
           <div className="flex flex-col gap-3 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewPlaces")}</h2>
-              <button type="button" onClick={() => setStep(2)} aria-label={t("addressEntry.editPlaces")} className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"><PencilLine aria-hidden size={14} />{t("task.change")}</button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                aria-label={t("addressEntry.editPlaces")}
+                className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"
+              >
+                <PencilLine aria-hidden size={14} />
+                {t("task.change")}
+              </button>
             </div>
-            {twoPoint && d.pickup && <div className="flex items-start gap-2"><MapPin aria-hidden size={17} className="mt-1 flex-none" /><div><p className="text-xs text-ink-2">{t("task.pickup")}</p><p className="text-[15px]">{d.pickup}</p></div></div>}
-            <div className="flex items-start gap-2"><MapPin aria-hidden size={17} className="mt-1 flex-none text-brand-ink" /><div><p className="text-xs text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</p><p className="text-[15px]">{d.address}</p>{arrivalSummary && <p className="text-sm text-ink-2">{arrivalSummary}</p>}{d.note && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{d.note}</p>}</div></div>
+            {twoPoint && d.pickup && (
+              <div className="flex items-start gap-2">
+                <MapPin aria-hidden size={17} className="mt-1 flex-none" />
+                <div>
+                  <p className="text-xs text-ink-2">{t("task.pickup")}</p>
+                  <p className="text-[15px]">{d.pickup}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-start gap-2">
+              <MapPin aria-hidden size={17} className="mt-1 flex-none text-brand-ink" />
+              <div>
+                <p className="text-xs text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</p>
+                <p className="text-[15px]">{d.address}</p>
+                {arrivalSummary && <p className="text-sm text-ink-2">{arrivalSummary}</p>}
+                {d.note && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{d.note}</p>}
+              </div>
+            </div>
           </div>
 
           {isCarry && (
             <fieldset className="flex flex-col gap-1">
               <legend className="mb-1 text-[15px] font-medium text-ink-2">{t("task.team")}</legend>
               <OptionCard
-                selected={d.people === 1}
+                selected={details.people === 1}
                 disabled={needTwo}
                 onSelect={() => set("people", 1)}
                 icon={<User aria-hidden size={24} />}
                 title={t("task.oneHelper")}
                 sub={needTwo ? t("task.tooHeavy") : undefined}
-                price="" 
+                price=""
               />
               <OptionCard
-                selected={d.people === 2}
+                selected={details.people === 2}
                 onSelect={() => set("people", 2)}
                 icon={<Users aria-hidden size={24} />}
                 title={t("task.twoHelpers")}
                 sub={t("task.twoHelpersSub")}
-                price="" 
+                price=""
               />
             </fieldset>
           )}
@@ -765,17 +590,27 @@ export function PostFlow({
                   onChange={(e) => set("price", digits(e.target.value).slice(0, 8))}
                   className={`${field} pr-9 text-center text-[24px] font-bold tabular-nums text-brand-ink`}
                 />
-                <span aria-hidden className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[20px] font-bold text-brand-ink">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[20px] font-bold text-brand-ink"
+                >
                   ₮
                 </span>
               </span>
-              <button type="button" aria-label={t("task.raise")} onClick={() => set("price", String(fee + cfg.feeStep))} className={btn.square}>
+              <button
+                type="button"
+                aria-label={t("task.raise")}
+                onClick={() => set("price", String(fee + cfg.feeStep))}
+                className={btn.square}
+              >
                 +
               </button>
             </div>
             {belowMin || overMax ? (
               <p role="alert" className="text-[13px] font-medium text-danger">
-                {belowMin ? t("post.reason.fee", { amount: fmtMoney(minFee) }) : t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) })}
+                {belowMin
+                  ? t("post.reason.fee", { amount: fmtMoney(minFee) })
+                  : t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) })}
               </p>
             ) : (
               <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee), suggested: fmtMoney(suggested) })}</p>
@@ -789,7 +624,9 @@ export function PostFlow({
             <p className="text-[13px] text-ink-2">{t("price.bargainHint")}</p>
           </div>
 
-          {extraFee > 0 && <Note tone="info">{t("post.extraTaskNote", { n: openTasks, free: cfg.freeOpenTasks, amount: fmtMoney(extraFee) })}</Note>}
+          {extraFee > 0 && (
+            <Note tone="info">{t("post.extraTaskNote", { n: openTasks, free: cfg.freeOpenTasks, amount: fmtMoney(extraFee) })}</Note>
+          )}
           <details className="group">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium">
               {t("task.breakdown")}
@@ -799,7 +636,9 @@ export function PostFlow({
             </summary>
             <MoneyBreakdown
               rows={breakdown}
-              total={direct ? { label: t("direct.money.payWhenChosen"), amount: serviceFee } : { label: t("money.totalHeld"), amount: total }}
+              total={
+                direct ? { label: t("direct.money.payWhenChosen"), amount: serviceFee } : { label: t("money.totalHeld"), amount: total }
+              }
               caption={itemBudget > 0 && !direct ? t("money.itemBudgetNote") : undefined}
             />
           </details>
@@ -812,12 +651,22 @@ export function PostFlow({
               checked={openAfter}
               onChange={setOpenAfter}
             />
-          ) : posterChooses ? <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p> : d.when === "flexible" ? null : (
-            <ToggleRow icon={<Sparkles aria-hidden size={24} />} title={t("task.autoPick")} sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })} checked={d.autoPick} onChange={(v) => set("autoPick", v)} />
+          ) : posterChooses ? (
+            <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>
+          ) : d.when === "flexible" ? null : (
+            <ToggleRow
+              icon={<Sparkles aria-hidden size={24} />}
+              title={t("task.autoPick")}
+              sub={t("task.autoPickSub", { minutes: cfg.autoPickMinutes })}
+              checked={d.autoPick}
+              onChange={(v) => set("autoPick", v)}
+            />
           )}
 
           {posterChooses && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>}
-          {categoryConfig(d.category).checkHours && <p className="text-sm text-ink-2">{t("specialized.check", { hours: categoryConfig(d.category).checkHours! })}</p>}
+          {cfg.kindCheckHours[d.category] && (
+            <p className="text-sm text-ink-2">{t("specialized.check", { hours: cfg.kindCheckHours[d.category]! })}</p>
+          )}
           <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
             <Lock aria-hidden size={14} className="shrink-0" />
             {t("task.heldLine")}
@@ -834,7 +683,15 @@ export function PostFlow({
         {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
-            <button type="button" aria-label={t("common.back")} onClick={() => { setPendingCondition(""); setStep(step - 1); }} className={`${btn.square} bg-bg shadow-card`}>
+            <button
+              type="button"
+              aria-label={t("common.back")}
+              onClick={() => {
+                setPendingCondition("");
+                setStep(step - 1);
+              }}
+              className={`${btn.square} bg-bg shadow-card`}
+            >
               <ArrowLeft aria-hidden size={20} />
             </button>
           )}

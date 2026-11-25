@@ -37,9 +37,10 @@ interface Row {
   status: Status;
   in_portfolio: boolean;
   reports: number;
+  show_price: boolean;
   created_at: string;
 }
-const COLS = "id, deal_id, helper_id, source, uploaded_by, proof_id, staging_path, file_path, status, in_portfolio, reports, created_at";
+const COLS = "id, deal_id, helper_id, source, uploaded_by, proof_id, staging_path, file_path, status, in_portfolio, reports, show_price, created_at";
 
 const publicUrl = (path: string) => createAdminClient().storage.from(WORK_BUCKET).getPublicUrl(path).data.publicUrl;
 
@@ -123,7 +124,8 @@ export async function attachReviewPhotos(dealId: string, customerId: string, ids
       // 4★ and up also count as the helper's work; a low review keeps its photos on the review only
       await db
         .from("work_photos")
-        .update({ status: "shown", file_path: file, staging_path: null, in_portfolio: stars >= 4, decided_at: new Date().toISOString() })
+        // show_price: the review screen says the price is shown (workPhotos.reviewSub)
+        .update({ status: "shown", file_path: file, staging_path: null, in_portfolio: stars >= 4, show_price: true, decided_at: new Date().toISOString() })
         .eq("id", r.id)
         .eq("status", "uploading")
         .throwOnError();
@@ -224,7 +226,8 @@ export async function answerAsks(dealId: string, customerId: string, allow: bool
     }
     try {
       const file = await publish(PROOF_BUCKET, proof.file_path);
-      await db.from("work_photos").update({ status: "shown", file_path: file, in_portfolio: true, decided_at: now }).eq("id", r.id).eq("status", "asked").throwOnError();
+      // agreed under workPhotos.consentSub, which says the price is shown
+      await db.from("work_photos").update({ status: "shown", file_path: file, in_portfolio: true, show_price: true, decided_at: now }).eq("id", r.id).eq("status", "asked").throwOnError();
       n++;
     } catch (e) {
       console.error("portfolio photo publish failed", r.id, e);
@@ -325,6 +328,11 @@ export interface WorkPhoto {
   at: number;
   source: "review" | "helper";
   helperId: string;
+  /**
+   * What the job finally cost for the work (after any agreed change; never the shopping) — only when
+   * the customer agreed under wording that says the price is shown (`show_price`), else null.
+   */
+  fee: number | null;
 }
 
 export interface WorkPhotoCard extends WorkPhoto {
@@ -334,11 +342,15 @@ export interface WorkPhotoCard extends WorkPhoto {
 
 async function toPhotos(rows: Row[]): Promise<WorkPhoto[]> {
   if (!rows.length) return [];
-  const { data } = await createAdminClient().from("deals").select("id, category").in("id", [...new Set(rows.map((r) => r.deal_id))]).returns<{ id: string; category: CategoryId }[]>();
-  const cat = new Map((data ?? []).map((d) => [d.id, d.category]));
+  const { data } = await createAdminClient()
+    .from("deals")
+    .select("id, category, fee")
+    .in("id", [...new Set(rows.map((r) => r.deal_id))])
+    .returns<{ id: string; category: CategoryId; fee: number | null }[]>();
+  const deal = new Map((data ?? []).map((d) => [d.id, d]));
   return rows
     .filter((r) => r.file_path)
-    .map((r) => ({ id: r.id, url: publicUrl(r.file_path as string), category: cat.get(r.deal_id) ?? null, at: Date.parse(r.created_at), source: r.source, helperId: r.helper_id }));
+    .map((r) => ({ id: r.id, url: publicUrl(r.file_path as string), category: deal.get(r.deal_id)?.category ?? null, at: Date.parse(r.created_at), source: r.source, helperId: r.helper_id, fee: r.show_price ? (deal.get(r.deal_id)?.fee ?? null) : null }));
 }
 
 /** A helper's portfolio, newest first. */

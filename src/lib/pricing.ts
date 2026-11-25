@@ -1,3 +1,4 @@
+import { toJson } from "@/lib/db/json";
 import "server-only";
 import { DbError } from "@/lib/db/deals";
 import { DEFAULT_CONFIG, type CategoryId, type EngineConfig, type FeeTier } from "@/lib/engine";
@@ -116,12 +117,25 @@ export interface KindMinimum {
   category: CategoryId;
   minFee: number | null;
   minHourly: number | null;
+  defaultMinutes: number;
+  checkHours: number | null;
 }
 
 export async function kindMinimums(): Promise<KindMinimum[]> {
-  const { data, error } = await createAdminClient().from("category_settings").select("category, min_fee, min_hourly").returns<{ category: CategoryId; min_fee: number | null; min_hourly: number | null }[]>();
+  const { data, error } = await createAdminClient()
+    .from("category_settings")
+    .select("category, min_fee, min_hourly, default_minutes, check_hours")
+    .returns<
+      { category: CategoryId; min_fee: number | null; min_hourly: number | null; default_minutes: number; check_hours: number | null }[]
+    >();
   if (error) throw new DbError(error);
-  return (data ?? []).map((r) => ({ category: r.category, minFee: r.min_fee, minHourly: r.min_hourly }));
+  return (data ?? []).map((r) => ({
+    category: r.category,
+    minFee: r.min_fee,
+    minHourly: r.min_hourly,
+    defaultMinutes: r.default_minutes,
+    checkHours: r.check_hours,
+  }));
 }
 
 /**
@@ -133,6 +147,8 @@ export async function pricingConfig(): Promise<EngineConfig> {
   const cfg = withPricing(p);
   return {
     ...cfg,
+    kindMinutes: Object.fromEntries(kinds.map((k) => [k.category, k.defaultMinutes])),
+    kindCheckHours: Object.fromEntries(kinds.filter((k) => k.checkHours !== null).map((k) => [k.category, k.checkHours!])),
     paymentWindowMinutes: r.paymentWindowMinutes,
     paymentWindowBookedMinutes: r.paymentWindowBookedMinutes,
     backOutGraceMinutes: r.backOutGraceMinutes,
@@ -162,9 +178,15 @@ export async function pricingConfig(): Promise<EngineConfig> {
 /** Ops only (the caller checks): set one kind's floor — a fixed minimum or an hourly one (or neither). Logged. */
 export async function updateKindMinimum(opsId: string, next: KindMinimum): Promise<void> {
   const db = createAdminClient();
-  const { data: before } = await db.from("category_settings").select("min_fee, min_hourly").eq("category", next.category).single();
-  await db.from("category_settings").update({ min_fee: next.minFee, min_hourly: next.minHourly }).eq("category", next.category).throwOnError();
-  await audit(opsId, "pricing.kindMin", next.category, { before, after: { min_fee: next.minFee, min_hourly: next.minHourly } });
+  const { data: before } = await db
+    .from("category_settings")
+    .select("min_fee, min_hourly, default_minutes, check_hours")
+    .eq("category", next.category)
+    .single()
+    .throwOnError();
+  const after = { min_fee: next.minFee, min_hourly: next.minHourly, default_minutes: next.defaultMinutes, check_hours: next.checkHours };
+  await db.from("category_settings").update(after).eq("category", next.category).select("category").single().throwOnError();
+  await audit(opsId, "pricing.kindMin", next.category, { before, after });
 }
 
 /** Ops only (caller checks and validates). Logged with before/after. */
@@ -190,7 +212,7 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       price_down_bps: next.priceDownBps,
       price_up_bps: next.priceUpBps,
       counter_up_bps: next.counterUpBps,
-      service_fee_tiers: next.serviceFeeTiers,
+      service_fee_tiers: toJson(next.serviceFeeTiers),
       service_fee_bps: next.serviceFeeBps,
       service_fee_min: next.serviceFeeMin,
       service_fee_max: next.serviceFeeMax,

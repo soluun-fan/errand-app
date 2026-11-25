@@ -18,7 +18,7 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
    ```bash
    npm run check:deploy
    ```
-   It must end with `✓ Ready to deploy`.    Warnings about mock payments and the missing call relay are expected unless you are configuring an isolated Wire test.
+   It must end with `✓ Ready to deploy`. Public production requires `PAYMENT_PROVIDER=wire` and both Wire credentials. Isolated Preview testing may explicitly set `APP_ENV=staging` and `PAYMENT_PROVIDER=mock`, with a separate staging database. Vercel Production always rejects mock payments. Missing or invalid runtime payment settings disable checkout.
 4. Commit and push to GitHub as usual.
 
 ## On vercel.com (about 10 minutes)
@@ -39,7 +39,8 @@ The app runs in Vercel's **Seoul region (`icn1`)**, next to the Supabase databas
    | `TEST_PHONES` | the only numbers that can sign in |
    | `UNVERIFIED_HELPERS_TEST_MODE` | `true` only for private testing; any phone-verified adult may self-activate without ID or bank details |
    | `DEV_SHOW_SMS_CODES` | `true`: codes appear on screen, **only for `TEST_PHONES`** |
-   | `PAYMENT_PROVIDER` | `mock` for the default safe test; use `wire` only in isolated staging with Wire credentials and webhook configured |
+   | `APP_ENV` | `staging` only for isolated Preview testing; `production` for public launch |
+   | `PAYMENT_PROVIDER` | Explicitly `mock` for isolated staging, or `wire` with both credentials; production never defaults to mock |
    | 🔒 `WIRE_SECRET_KEY` | Required only when `PAYMENT_PROVIDER=wire`; treat as a live payment credential |
    | 🔒 `WIRE_WEBHOOK_SECRET` | Required only when `PAYMENT_PROVIDER=wire`; webhook signing secret |
 

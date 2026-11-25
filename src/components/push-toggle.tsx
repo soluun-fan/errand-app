@@ -22,6 +22,7 @@ export function PushToggle() {
   const [state, setState] = useState<State>("loading");
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Read browser notification capability after hydration and synchronize its subscription. */
   useEffect(() => {
     if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       setState("unsupported");
@@ -37,6 +38,7 @@ export function PushToggle() {
       .then((sub) => setState(sub ? "on" : "off"))
       .catch(() => setState("unsupported"));
   }, [publicKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function turnOn() {
     setState("loading");

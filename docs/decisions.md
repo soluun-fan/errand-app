@@ -391,3 +391,9 @@ customer mode explicitly. No preference is written during link prefetching.
 All active customer tasks and worker jobs are read separately from recent closed history, including multiple
 pages of unresolved tasks. A failed read propagates instead of showing an incomplete held total.
 Worker category prompts are scoped per account and failed saves remain retryable.
+
+## 2026-11-25 — Landing trust: prices on work photos, numbers band, company details
+After studying PleaseHelp (site-study skill), owner: "then do those". Their "requests right now" board we already had (no place shown at all — stricter than their district).
+- **Work photos show the job's final price** (the agreed fee after any change or partial refund; never the shopping). Only for photos agreed under the new wording that says so (`work_photos.show_price`); photos agreed earlier were promised "only the kind of job is shown" and keep that promise.
+- **Numbers band** on the landing page: finished jobs, approved helpers, average rating + number of customer reviews (`public_stats()`). Real totals only; each number appears once it passes a floor (100 jobs, 20 helpers, 30 reviews — `STATS_FLOOR`), and the band needs at least two. "[verify]" tasks never count.
+- **Company details in the footer** (name, registration number, address, plus support phone/email), filled in by Ops at /ops/support; empty = hidden. Migration 20261125010000.

@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { T } from "@/i18n";
+import { fmtMoney } from "@/lib/format";
 import type { WorkPhoto, WorkPhotoCard } from "@/lib/work-photos";
 
 /** "2026.11" in Ulaanbaatar time. */
@@ -12,7 +13,7 @@ const month = (ms: number) => {
 
 /**
  * Home / landing "helpers' work" (PleaseHelp-style portfolio row): the photo, the kind of job, the
- * helper and their rating. Never the task's words, place or the customer.
+ * price it finally cost, the helper and their rating. Never the task's words, place or the customer.
  */
 export function WorkCard({ p, t, href }: { p: WorkPhotoCard; t: T; href: string }) {
   return (
@@ -21,6 +22,7 @@ export function WorkCard({ p, t, href }: { p: WorkPhotoCard; t: T; href: string 
       <img src={p.url} alt={p.category ? t("workPhotos.altKind", { kind: t(`categoryShort.${p.category}`) }) : t("workPhotos.alt")} loading="lazy" className="aspect-square w-full bg-fill object-cover" />
       <span className="flex flex-col gap-0.5 p-3">
         <span className="line-clamp-2 break-words text-[14px] font-semibold leading-snug">{p.category ? t(`categoryShort.${p.category}`) : t("workPhotos.alt")}</span>
+        {p.fee !== null && p.fee > 0 && <span className="text-[16px] font-bold tabular-nums">{fmtMoney(p.fee)}</span>}
         <span className="flex flex-wrap items-center gap-1 text-[13px] text-ink-2">
           <span className="min-w-0 break-words">{p.helperName}</span>
           {p.rating !== null && (

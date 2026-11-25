@@ -70,21 +70,29 @@ export interface TaskListItem {
 type TaskRow = DealRow & { offers: { count: number }[] };
 
 /** Read active work independently from capped history, for either party. */
-async function ownErrandRows(viewerId: string, ownerColumn: "customer_id" | "helper_id", opts: { activeOnly?: boolean } = {}): Promise<TaskRow[]> {
+async function ownErrandRows(
+  viewerId: string,
+  ownerColumn: "customer_id" | "helper_id",
+  opts: { activeOnly?: boolean } = {},
+): Promise<TaskRow[]> {
   const db = createAdminClient();
-  const activeStatuses = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"];
-  const closedStatuses = ["released", "refunded", "cancelled", "expired"];
-  const query = () => db
-    .from("deals")
-    .select("*, offers(count)")
-    .eq("type", "errand")
-    .eq(ownerColumn, viewerId)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false });
+  const activeStatuses = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed"] as const;
+  const closedStatuses = ["released", "refunded", "cancelled", "expired"] as const;
+  const query = () =>
+    db
+      .from("deals")
+      .select("*, offers(count)")
+      .eq("type", "errand")
+      .eq(ownerColumn, viewerId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
   const activeRows = async () => {
     const rows: TaskRow[] = [];
     for (let from = 0; ; from += 100) {
-      const { data, error } = await query().in("status", activeStatuses).range(from, from + 99).returns<TaskRow[]>();
+      const { data, error } = await query()
+        .in("status", activeStatuses)
+        .range(from, from + 99)
+        .returns<TaskRow[]>();
       if (error) throw new Error(error.message);
       rows.push(...(data ?? []));
       if (!data || data.length < 100) return rows;
@@ -92,12 +100,15 @@ async function ownErrandRows(viewerId: string, ownerColumn: "customer_id" | "hel
   };
   const [active, past] = await Promise.all([
     activeRows(),
-    opts.activeOnly ? Promise.resolve({ data: [] as TaskRow[], error: null }) : query().in("status", closedStatuses).limit(50).returns<TaskRow[]>(),
+    opts.activeOnly
+      ? Promise.resolve({ data: [] as TaskRow[], error: null })
+      : query().in("status", closedStatuses).limit(50).returns<TaskRow[]>(),
   ]);
   if (past.error) throw new Error(past.error.message);
   // A long-running task must not disappear behind 50 newer completed tasks (including held money).
-  return [...new Map([...active, ...(past.data ?? [])].map((row) => [row.id, row])).values()]
-    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+  return [...new Map([...active, ...(past.data ?? [])].map((row) => [row.id, row])).values()].sort(
+    (a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
+  );
 }
 
 /** All active errands plus the newest 50 closed errands, newest first. */
@@ -269,7 +280,9 @@ export async function nearbyFeed(helperId: string): Promise<JobListItem[]> {
   const deals = await dealsByIds(rows.map((r) => r.deal_id));
   return rows.flatMap((r) => {
     const deal = deals.get(r.deal_id);
-    return deal && categoryTrust(deal.category) !== "care" ? [{ deal, distanceKm: r.distance_km === null ? null : Number(r.distance_km) }] : [];
+    return deal && categoryTrust(deal.category) !== "care"
+      ? [{ deal, distanceKm: r.distance_km === null ? null : Number(r.distance_km) }]
+      : [];
   });
 }
 
@@ -286,7 +299,12 @@ export async function getJobForHelper(id: string, viewer: Viewer): Promise<Erran
   // Open tasks are on the public board ("Бүх ажил"); accepting still needs an approved helper in that category.
   // A task sent to one helper first is only theirs to see while that stands.
   const only = invitedOnly(settled, Date.now());
-  return settled.status === "open" && categoryTrust(settled.category) !== "care" && settled.customerId !== viewer.profile.id && (only === null || only === viewer.profile.id) ? settled : null;
+  return settled.status === "open" &&
+    categoryTrust(settled.category) !== "care" &&
+    settled.customerId !== viewer.profile.id &&
+    (only === null || only === viewer.profile.id)
+    ? settled
+    : null;
 }
 
 export type BoardSort = "near" | "new" | "pay";
@@ -304,7 +322,10 @@ export async function browseOpenDeals(
     .select("*")
     .eq("type", "errand")
     .eq("status", "open")
-    .in("category", LAUNCH_CATEGORIES.map(c => c.id))
+    .in(
+      "category",
+      LAUNCH_CATEGORIES.map((c) => c.id),
+    )
     .neq("customer_id", viewerId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -312,14 +333,16 @@ export async function browseOpenDeals(
   const { data, error } = await q.returns<DealRow[]>();
   if (error) throw new Error(error.message);
   const now = Date.now();
-  const items = (data ?? []).flatMap((r) => {
-    const deal = dealFromRow(r) as ErrandDeal;
-    const only = invitedOnly(deal, now);
-    return only === null || only === viewerId ? [deal] : []; // sent to another helper first
-  }).map((deal) => {
-    const start = helperStart(deal);
-    return { deal, distanceKm: opts.from && start ? distanceKm(opts.from, start) : null };
-  });
+  const items = (data ?? [])
+    .flatMap((r) => {
+      const deal = dealFromRow(r) as ErrandDeal;
+      const only = invitedOnly(deal, now);
+      return only === null || only === viewerId ? [deal] : []; // sent to another helper first
+    })
+    .map((deal) => {
+      const start = helperStart(deal);
+      return { deal, distanceKm: opts.from && start ? distanceKm(opts.from, start) : null };
+    });
   if (opts.sort === "near") items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   if (opts.sort === "pay") items.sort((a, b) => b.deal.fee - a.deal.fee);
   return items;
@@ -342,11 +365,35 @@ async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
   if (d.type !== "errand" || !d.helperId) return;
   const { notify } = await import("@/lib/push");
   if (type === "absent_cancel") {
-    await notify([d.customerId], { title: "push.absentCancelledTitle", body: "push.absentCancelledCustomer", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` });
-    await notify([d.helperId], { title: "push.absentCancelledTitle", body: "push.absentCancelledHelper", params: { title: d.title }, url: `/jobs/${d.id}`, tag: `job-${d.id}` });
+    await notify([d.customerId], {
+      title: "push.absentCancelledTitle",
+      body: "push.absentCancelledCustomer",
+      params: { title: d.title },
+      url: `/tasks/${d.id}`,
+      tag: `task-${d.id}`,
+    });
+    await notify([d.helperId], {
+      title: "push.absentCancelledTitle",
+      body: "push.absentCancelledHelper",
+      params: { title: d.title },
+      url: `/jobs/${d.id}`,
+      tag: `job-${d.id}`,
+    });
   } else if (type === "escalate_offer") {
     const { adminIds } = await import("@/lib/safety");
-    await notify([d.customerId, d.helperId], { title: "push.offerEscalatedTitle", body: "push.offerEscalatedBody", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` });
-    await notify(await adminIds(), { title: "push.offerEscalatedTitle", body: "push.offerEscalatedOps", params: { title: d.title }, url: "/ops", tag: `dispute-${d.id}` });
+    await notify([d.customerId, d.helperId], {
+      title: "push.offerEscalatedTitle",
+      body: "push.offerEscalatedBody",
+      params: { title: d.title },
+      url: `/tasks/${d.id}`,
+      tag: `task-${d.id}`,
+    });
+    await notify(await adminIds(), {
+      title: "push.offerEscalatedTitle",
+      body: "push.offerEscalatedOps",
+      params: { title: d.title },
+      url: "/ops",
+      tag: `dispute-${d.id}`,
+    });
   }
 }

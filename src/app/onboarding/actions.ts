@@ -1,4 +1,5 @@
 "use server";
+import type { Database } from "@/lib/db/database.types";
 
 import { redirect } from "next/navigation";
 import { getT } from "@/i18n/server";
@@ -19,8 +20,13 @@ export async function completeOnboarding(_prev: OnboardingResult, form: FormData
   if (!viewer) redirect("/login");
   const t = await getT();
   const p = viewer.profile;
-  const missing = onboardingMissing({ name: p.name, age_confirmed_at: p.age_confirmed_at ?? null, terms_version: p.terms_version ?? null, privacy_version: p.privacy_version ?? null });
-  const patch: Record<string, unknown> = {};
+  const missing = onboardingMissing({
+    name: p.name,
+    age_confirmed_at: p.age_confirmed_at ?? null,
+    terms_version: p.terms_version ?? null,
+    privacy_version: p.privacy_version ?? null,
+  });
+  const patch: Database["public"]["Tables"]["profiles"]["Update"] = {};
 
   if (missing.includes("name")) {
     const name = cleanDisplayName(String(form.get("name") ?? ""));
@@ -51,7 +57,10 @@ export async function completeOnboarding(_prev: OnboardingResult, form: FormData
   if (accepted.length) {
     await db
       .from("legal_acceptances")
-      .upsert(accepted.map((d) => ({ user_id: p.id, document: d, version: LEGAL_VERSIONS[d] })), { onConflict: "user_id,document,version", ignoreDuplicates: true })
+      .upsert(
+        accepted.map((d) => ({ user_id: p.id, document: d, version: LEGAL_VERSIONS[d] })),
+        { onConflict: "user_id,document,version", ignoreDuplicates: true },
+      )
       .throwOnError();
   }
   redirect(safeNext(form.get("next")));

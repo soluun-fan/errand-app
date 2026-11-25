@@ -26,7 +26,13 @@
     "staging:check": "node --env-file=.env.staging.local --import tsx scripts/check-live.ts",
     "check:turn": "node --env-file=.env.local --import tsx scripts/check-turn.ts",
     "staging:build": "node scripts/with-env.mjs .env.staging.local next build",
-    "staging:e2e": "E2E_ENV_FILE=.env.staging.local E2E_CONFIRM_PROJECT=ivaoltwgzxntytqnwkih NODE_OPTIONS=--conditions=react-server playwright test"
+    "staging:e2e": "E2E_ENV_FILE=.env.staging.local E2E_CONFIRM_PROJECT=ivaoltwgzxntytqnwkih NODE_OPTIONS=--conditions=react-server playwright test",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "node scripts/format-changed.mjs --write",
+    "format:check": "node scripts/format-changed.mjs",
+    "db:types": "node --import tsx scripts/generate-db-types.ts",
+    "db:types:check": "node --import tsx scripts/generate-db-types.ts --check"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -50,6 +56,9 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^10.15.0",
+    "eslint-config-next": "^16.4.6",
+    "prettier": "^3.10.1",
     "supabase": "^3.1.0",
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",

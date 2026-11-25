@@ -50,9 +50,20 @@ export async function saveControls(_prev: ActionResult, form: FormData): Promise
   }
   const postingPaused = form.get("postingPaused") === "on";
   const paymentsPaused = form.get("paymentsPaused") === "on";
-  const pauseNote = String(form.get("pauseNote") ?? "").trim().slice(0, 300) || null;
+  const pauseNote =
+    String(form.get("pauseNote") ?? "")
+      .trim()
+      .slice(0, 300) || null;
   if ((postingPaused || paymentsPaused) && !pauseNote) return { error: t("opsSafety.noteNeeded") };
-  await updateControls(viewer.profile.id, { postingPaused, paymentsPaused, pauseNote, maxDealAmount, maxCustomerDaily, maxTotalHeld, maxOpenTasks });
+  await updateControls(viewer.profile.id, {
+    postingPaused,
+    paymentsPaused,
+    pauseNote,
+    maxDealAmount,
+    maxCustomerDaily,
+    maxTotalHeld,
+    maxOpenTasks,
+  });
   refresh();
   return { done: true };
 }
@@ -70,7 +81,9 @@ export async function resolve(_prev: ActionResult, form: FormData): Promise<Acti
   const t = await getT();
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
-  const note = String(form.get("note") ?? "").trim().slice(0, 1000);
+  const note = String(form.get("note") ?? "")
+    .trim()
+    .slice(0, 1000);
   if (note.length < 5) return { error: t("opsIncidents.noteNeeded") };
   if (!(await resolveIncident(String(form.get("id") ?? ""), viewer.profile.id, note))) return { error: t("error.changed") };
   refresh();
@@ -84,12 +97,13 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
   if (!viewer) return { error: t("ops.notAdmin") };
   const amt = (k: string, min = 0, max = 100_000) => wholeAmount(form.get(k), min, max);
   const n = Number(form.get("tierCount"));
-  const rawTiers = Number.isInteger(n) && n >= 1 && n <= 8
-    ? Array.from({ length: n }, (_, i) => ({
-        below: i === n - 1 ? null : amt(`tierBelow${i}`, 1, 100_000_000),
-        fee: amt(`tierFee${i}`),
-      }))
-    : null;
+  const rawTiers =
+    Number.isInteger(n) && n >= 1 && n <= 8
+      ? Array.from({ length: n }, (_, i) => ({
+          below: i === n - 1 ? null : amt(`tierBelow${i}`, 1, 100_000_000),
+          fee: amt(`tierFee${i}`),
+        }))
+      : null;
   const next = {
     baseFee: amt("baseFee", 1000),
     includedMinutes: amt("includedMinutes", 0, 240),
@@ -119,7 +133,8 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     maxJobTotal: amt("maxJobTotal", 5000, 10_000_000),
   };
   if (next.suggestBps !== null && next.suggestBps < 10_000) return { error: t("opsPricing.invalid") }; // never below the minimum
-  if (next.serviceFeeMin !== null && next.serviceFeeMax !== null && next.serviceFeeMin > next.serviceFeeMax) return { error: t("opsPricing.invalid") };
+  if (next.serviceFeeMin !== null && next.serviceFeeMax !== null && next.serviceFeeMin > next.serviceFeeMax)
+    return { error: t("opsPricing.invalid") };
   if (Object.values(next).some((v) => v === null) || (next.includedMinutes as number) % 30 !== 0) {
     return { error: t("opsPricing.invalid") };
   }
@@ -185,7 +200,10 @@ export async function decideOrgAction(_prev: ActionResult, form: FormData): Prom
   const id = parseOr(Uuid, form.get("id"));
   const status = String(form.get("status") ?? "");
   if (!id || !["approved", "rejected", "suspended"].includes(status)) return { error: t("error.generic") };
-  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  const note =
+    String(form.get("note") ?? "")
+      .trim()
+      .slice(0, 500) || null;
   if (status !== "approved" && !note) return { error: t("opsOrgs.noteNeeded") };
   const kinds = form.getAll("categories").map(String) as CategoryId[];
   const ok = await decideOrganization(viewer.profile.id, id, status as "approved" | "rejected" | "suspended", kinds, note);
@@ -200,7 +218,10 @@ export async function decideCertAction(_prev: ActionResult, form: FormData): Pro
   if (!viewer) return { error: t("ops.notAdmin") };
   const id = parseOr(Uuid, form.get("id"));
   const approve = form.get("approve") === "1";
-  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  const note =
+    String(form.get("note") ?? "")
+      .trim()
+      .slice(0, 500) || null;
   if (!id) return { error: t("error.generic") };
   if (!approve && !note) return { error: t("opsOrgs.noteNeeded") };
   if (!(await decideCertificate(viewer.profile.id, id, approve, note))) return { error: t("error.changed") };
@@ -256,12 +277,20 @@ export async function saveKindMinimum(_prev: ActionResult, form: FormData): Prom
   const category = String(form.get("category") ?? "") as CategoryId;
   if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic") };
   const mode = String(form.get("mode") ?? "");
+  if (!["general", "fixed", "hourly"].includes(mode)) return { error: t("opsPricing.invalid") };
+  const defaultMinutes = wholeAmount(form.get("defaultMinutes"), 30, 480);
+  const checkInput = String(form.get("checkHours") ?? "").trim();
+  const checkHours = checkInput ? wholeAmount(checkInput, 2, 168) : null;
+  if (defaultMinutes === null || defaultMinutes % 30 !== 0 || (checkInput && checkHours === null))
+    return { error: t("opsPricing.invalid") };
   const amount = wholeAmount(form.get("amount"), 1000, mode === "hourly" ? 200_000 : 1_000_000);
   if (mode !== "general" && (amount === null || amount % 500 !== 0)) return { error: t("opsPricing.invalid") };
   await updateKindMinimum(viewer.profile.id, {
     category,
     minFee: mode === "fixed" ? amount : null,
     minHourly: mode === "hourly" ? amount : null,
+    defaultMinutes,
+    checkHours,
   });
   refresh();
   return { done: true };
@@ -371,7 +400,10 @@ export async function decideBadgeAction(_prev: ActionResult, form: FormData): Pr
   const id = parseOr(Uuid, String(form.get("id") ?? ""));
   if (!id) return { error: t("error.generic") };
   const approve = form.get("approve") === "1";
-  const note = String(form.get("note") ?? "").trim().slice(0, 500) || null;
+  const note =
+    String(form.get("note") ?? "")
+      .trim()
+      .slice(0, 500) || null;
   if (!(await decideBadge(viewer.profile.id, id, approve, note))) return { error: t("error.changed") };
   await audit(viewer.profile.id, approve ? "badge.approve" : "badge.reject", id, { note });
   refresh();
@@ -388,7 +420,10 @@ export async function decideWithdrawalAction(_prev: ActionResult, form: FormData
   const id = parseOr(Uuid, String(form.get("id") ?? ""));
   const sent = form.get("sent") === "1";
   if (!["0", "1"].includes(String(form.get("sent")))) return { error: t("error.generic") };
-  const note = String(form.get("note") ?? "").trim().slice(0, 300) || null;
+  const note =
+    String(form.get("note") ?? "")
+      .trim()
+      .slice(0, 300) || null;
   const bankReference = String(form.get("bankReference") ?? "").trim();
   if (!id) return { error: t("error.generic") };
   if (!sent && !note) return { error: t("opsWithdraw.noteNeeded") };
@@ -458,7 +493,10 @@ export async function saveSupportSettingsAction(_prev: ActionResult, form: FormD
   const t = await getT();
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
-  const text = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max) || null;
+  const text = (k: string, max: number) =>
+    String(form.get(k) ?? "")
+      .trim()
+      .slice(0, max) || null;
   const phone = text("phone", 40);
   const email = text("email", 120);
   const fbRaw = text("facebook", 200);
@@ -466,7 +504,15 @@ export async function saveSupportSettingsAction(_prev: ActionResult, form: FormD
   if ((phone && !/^[+\d][\d\s-]{5,}$/.test(phone)) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || (fbRaw && !facebook)) {
     return { error: t("opsSupport.invalid") };
   }
-  await saveSupportSettings(viewer.profile.id, { phone, email, facebook, hours: text("hours", 120) });
+  await saveSupportSettings(viewer.profile.id, {
+    phone,
+    email,
+    facebook,
+    hours: text("hours", 120),
+    company_name: text("company_name", 120),
+    company_reg_no: text("company_reg_no", 40),
+    company_address: text("company_address", 200),
+  });
   refresh();
   return { done: true };
 }
@@ -476,7 +522,10 @@ export async function closeSupportAction(_prev: ActionResult, form: FormData): P
   const viewer = await requireAdmin();
   if (!viewer) return { error: t("ops.notAdmin") };
   const id = String(form.get("id") ?? "");
-  const note = String(form.get("note") ?? "").trim().slice(0, 1000) || null;
+  const note =
+    String(form.get("note") ?? "")
+      .trim()
+      .slice(0, 1000) || null;
   if (!/^[0-9a-f-]{36}$/i.test(id) || !(await closeSupportRequest(id, viewer.profile.id, note))) return { error: t("error.changed") };
   refresh();
   return { done: true };

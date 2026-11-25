@@ -89,7 +89,7 @@ test("a customer sends Bat a request; only Bat sees it; Bat declines and it open
   await expect(o.getByText("could not be found")).toBeVisible();
   await expect(o.getByText("[verify] Шууд хүсэлт")).toHaveCount(0);
   const { data: feed } = await db.rpc("nearby_open_deals", { p_helper_id: nomin.id });
-  expect((feed ?? []).map((r: { deal_id: string }) => r.deal_id)).not.toContain(id);
+  expect((feed ?? []).map((r) => r.deal_id)).not.toContain(id);
   await expect(runCommand(db, id, { type: "apply", note: "" }, actorFromProfile(nomin, Date.now()))).rejects.toThrow(/sent to one helper/);
 
   // Bat: sees it was sent to them, declines (no penalty) → it opens
@@ -116,7 +116,18 @@ test("an 'only this helper' request: the customer can open it to everyone", asyn
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] Зөвхөн Bat", description: "x", category: "queue", mode: "now", address: "Test", itemBudget: 0, fee: cfg.minFee + 2000, customerId: sol.id, invite: { helperId: bat.id, openAfter: false } },
+    {
+      id: crypto.randomUUID(),
+      title: "[verify] Зөвхөн Bat",
+      description: "x",
+      category: "queue",
+      mode: "now",
+      address: "Test",
+      itemBudget: 0,
+      fee: cfg.minFee + 2000,
+      customerId: sol.id,
+      invite: { helperId: bat.id, openAfter: false },
+    },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );

@@ -18,6 +18,16 @@ export function SupportSettingsForm({ s }: { s: SupportSettings }) {
           <input id={`support-${k}`} name={k} defaultValue={s[k] ?? ""} className={field} inputMode={k === "phone" ? "tel" : k === "email" ? "email" : "text"} />
         </label>
       ))}
+      <fieldset className="mt-2 flex flex-col gap-3">
+        <legend className="text-[15px] font-bold">{t("opsSupport.company")}</legend>
+        <p className="text-[13px] text-ink-2">{t("opsSupport.companyHelp")}</p>
+        {(["company_name", "company_reg_no", "company_address"] as const).map((k) => (
+          <label key={k} className={fieldLabel} htmlFor={`support-${k}`}>
+            {t(`opsSupport.f.${k}`)}
+            <input id={`support-${k}`} name={k} defaultValue={s[k] ?? ""} maxLength={k === "company_address" ? 200 : k === "company_name" ? 120 : 40} className={field} />
+          </label>
+        ))}
+      </fieldset>
       {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
       {state.done && <p role="status" className="text-sm text-held">{t("opsSupport.saved")}</p>}
       <SubmitButton className={btn.secondary}>{t("opsSupport.save")}</SubmitButton>

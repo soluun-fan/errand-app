@@ -6,6 +6,8 @@ const UB_OFFSET = "+08:00";
 
 /** 46,000₮ — number then ₮, comma grouping, no decimals; the format UB apps use (docs/ui.md). */
 export const fmtMoney = (n: number) => `${Math.round(n).toLocaleString("en-US")}₮`;
+/** A count with thousands separators, like money: 9,697. */
+export const fmtCount = (n: number) => Math.round(n).toLocaleString("en-US");
 
 export function fmtDateTime(ms: number, locale: Locale = "en"): string {
   return new Intl.DateTimeFormat(intlLocale(locale), {

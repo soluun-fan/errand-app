@@ -65,7 +65,17 @@ test("a plumbing job: only the company's worker can take it, and the company is 
   const cfg = await pricingConfig();
   const now = Date.now();
   const t = createErrand(
-    { id: crypto.randomUUID(), title: "[verify] Угаалтуурын хоолой", description: "Хоолой гоожиж байна", category: "plumbing", mode: "now", address: "Test", itemBudget: 0, fee: taskMinFee("plumbing", DEFAULT_DETAILS, now, cfg) + 5000, customerId: sol.id },
+    {
+      id: crypto.randomUUID(),
+      title: "[verify] Угаалтуурын хоолой",
+      description: "Хоолой гоожиж байна",
+      category: "plumbing",
+      mode: "now",
+      address: "Test",
+      itemBudget: 0,
+      fee: taskMinFee("plumbing", DEFAULT_DETAILS, now, cfg) + 5000,
+      customerId: sol.id,
+    },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );
@@ -76,8 +86,10 @@ test("a plumbing job: only the company's worker can take it, and the company is 
 
   // Nomin isn't qualified: not in her feed, and the engine refuses her
   const { data: feed } = await db.rpc("nearby_open_deals", { p_helper_id: nomin.id });
-  expect((feed ?? []).map((r: { deal_id: string }) => r.deal_id)).not.toContain(id);
-  await expect(runCommand(db, id, { type: "apply", note: "" }, actorFromProfile(nomin, Date.now()))).rejects.toThrow(/certificate or an approved organisation/);
+  expect((feed ?? []).map((r) => r.deal_id)).not.toContain(id);
+  await expect(runCommand(db, id, { type: "apply", note: "" }, actorFromProfile(nomin, Date.now()))).rejects.toThrow(
+    /certificate or an approved organisation/,
+  );
 
   // Bat applies through the job page; the offer carries the company
   const helper = await browser.newContext();
@@ -119,7 +131,18 @@ test("care work is off: not offered to customers, and the database refuses it", 
   const now = Date.now();
   const t = createErrand(
     // tomorrow 10:00 Ulaanbaatar (care is daytime only) at a price above any floor: only "switched off" can refuse it
-    { id: crypto.randomUUID(), title: "[verify] care", description: "x", category: "childcare", mode: "now", scheduledAt: (Math.floor((now + 8 * 3_600_000) / 86_400_000) + 1) * 86_400_000 + 2 * 3_600_000, address: "Test", itemBudget: 0, fee: 200_000, customerId: sol.id },
+    {
+      id: crypto.randomUUID(),
+      title: "[verify] care",
+      description: "x",
+      category: "childcare",
+      mode: "now",
+      scheduledAt: (Math.floor((now + 8 * 3_600_000) / 86_400_000) + 1) * 86_400_000 + 2 * 3_600_000,
+      address: "Test",
+      itemBudget: 0,
+      fee: 200_000,
+      customerId: sol.id,
+    },
     { now, actor: actorFromProfile(sol, now) },
     cfg,
   );
