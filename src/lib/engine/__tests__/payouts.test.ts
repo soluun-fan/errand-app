@@ -9,6 +9,23 @@ describe("payout name matching", () => {
     expect(namesMatch("Номин А", "Нямаа А")).toBe(false);
     expect(namesMatch("", "")).toBe(false);
   });
+
+  it("the same person however the bank writes it (owner 2026-11-26)", () => {
+    const id = "Энхтайван Солуун"; // овог, нэр — as on the ID card
+    expect(namesMatch(id, "СОЛУУН ЭНХТАЙВАН")).toBe(true); // Golomt: given name first, capitals
+    expect(namesMatch(id, "Э.Солуун")).toBe(true);
+    expect(namesMatch(id, "Солуун Э.")).toBe(true);
+    expect(namesMatch(id, "SOLUUN ENKHTAIVAN")).toBe(true); // Latin, MNS 5217
+    expect(namesMatch(id, "Soluun Enhtaivan")).toBe(true); // kh written as h
+    expect(namesMatch("Өлзийбат Гантулга", "GANTULGA ULZIIBAT")).toBe(true); // ө written as u
+    expect(namesMatch("Бат-Эрдэнэ Ганбаатар", "БАТЭРДЭНЭ Г.")).toBe(true);
+    // different people
+    expect(namesMatch(id, "Энхтайван Сарнай")).toBe(false); // another given name
+    expect(namesMatch(id, "Б. Солуун")).toBe(false); // another parent's initial
+    expect(namesMatch(id, "Э. С.")).toBe(false); // initials only
+    expect(namesMatch(id, "Солуун")).toBe(false); // a part missing
+    expect(namesMatch("Номин А", "Нямаа А")).toBe(false);
+  });
 });
 
 describe("withdraw", () => {
