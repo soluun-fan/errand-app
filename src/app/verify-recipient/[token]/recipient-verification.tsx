@@ -73,15 +73,15 @@ export function RecipientVerification({
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <header className="flex flex-col gap-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">{APP_MARK}</span>
-        <h1 className="text-2xl font-bold">{t("verifyRecipient.publicTitle")}</h1>
-        <p className="text-[15px] text-ink-2">{t("verifyRecipient.publicIntro")}</p>
+        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-title font-bold text-white">{APP_MARK}</span>
+        <h1 className="text-headline font-bold">{t("verifyRecipient.publicTitle")}</h1>
+        <p className="text-body text-ink-2">{t("verifyRecipient.publicIntro")}</p>
       </header>
       <Card>
         {view.status === "VERIFIED" ? (
           <>
             <Note tone="held">{t("verifyRecipient.verified")}</Note>
-            <p className="text-sm text-ink-2">{t("verifyRecipient.publicDone")}</p>
+            <p className="text-small text-ink-2">{t("verifyRecipient.publicDone")}</p>
           </>
         ) : !linkValid ? (
           <Note tone="warn">{t("verifyRecipient.inviteExpired")}</Note>
@@ -92,7 +92,7 @@ export function RecipientVerification({
               <>
                 <Note tone="info">{t("verifyRecipient.waiting")}</Note>
                 {view.displayInstruction && (
-                  <p className="whitespace-pre-wrap rounded-input bg-fill p-3 text-[15px]">{view.displayInstruction}</p>
+                  <p className="whitespace-pre-wrap rounded-input bg-fill p-3 text-body">{view.displayInstruction}</p>
                 )}
                 {view.smsUri && (
                   <a
@@ -105,9 +105,9 @@ export function RecipientVerification({
                     {t("verifyRecipient.openSms")}
                   </a>
                 )}
-                <p className="text-sm text-ink-2">{t("verifyRecipient.replyNote")}</p>
+                <p className="text-small text-ink-2">{t("verifyRecipient.replyNote")}</p>
                 {error && (
-                  <p role="alert" className="text-sm text-danger">
+                  <p role="alert" className="text-small text-danger">
                     {error}
                   </p>
                 )}
@@ -116,10 +116,10 @@ export function RecipientVerification({
             {view.status === "CREATING" && <Note tone="info">{t("verifyRecipient.preparing")}</Note>}
             {showStart && (
               <>
-                <p className="text-[15px] text-ink-2">{t("verifyRecipient.senderRule")}</p>
+                <p className="text-body text-ink-2">{t("verifyRecipient.senderRule")}</p>
                 <Note tone="warn">{t("verifyRecipient.publicPrice")}</Note>
                 {error && (
-                  <p role="alert" className="text-sm text-danger">
+                  <p role="alert" className="text-small text-danger">
                     {error}
                   </p>
                 )}

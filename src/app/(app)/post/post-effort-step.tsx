@@ -57,9 +57,9 @@ export function PostEffortStep({
     <>
       {twoPoint && (
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.distance")}</legend>
+          <legend className="mb-2 text-body font-medium text-ink-2">{t("task.distance")}</legend>
           {measuredKm !== null ? (
-            <p className="rounded-input bg-fill px-4 py-3 text-[16px] font-medium">
+            <p className="rounded-input bg-fill px-4 py-3 text-lead font-medium">
               <Ico as={Ruler} /> {t("map.measured", { km: measuredKm.toFixed(1) })}
             </p>
           ) : (
@@ -78,7 +78,7 @@ export function PostEffortStep({
                   </button>
                 ))}
               </div>
-              <p className="text-sm text-ink-2">{t("map.noPickupPin")}</p>
+              <p className="text-small text-ink-2">{t("map.noPickupPin")}</p>
             </>
           )}
           <ToggleRow
@@ -91,7 +91,7 @@ export function PostEffortStep({
         </fieldset>
       )}
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.when")}</legend>
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("task.when")}</legend>
         <div className="flex flex-wrap gap-2" role="radiogroup">
           {(["now", "flexible", "today", "tomorrow", "pick"] as const).map((w) => (
             <button
@@ -148,7 +148,7 @@ export function PostEffortStep({
       </fieldset>
       {/* Effort: what the price is built from — works for any job, even an unusual one */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("price.howLong")}</legend>
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("price.howLong")}</legend>
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup">
           {DURATIONS.filter((m) => !care || m <= cfg.careMaxMinutes).map((m) => (
             <button
@@ -163,9 +163,9 @@ export function PostEffortStep({
             </button>
           ))}
         </div>
-        <p className="text-sm text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour), min: cfg.includedMinutes })}</p>
+        <p className="text-small text-ink-2">{t("price.howLongHelp", { amount: fmtMoney(cfg.perHalfHour), min: cfg.includedMinutes })}</p>
         {travelMinutes > 0 && (
-          <p className="text-sm text-ink-2">
+          <p className="text-small text-ink-2">
             {t(d.roundTrip ? "price.travelBoth" : "price.travelOne", { min: travelMinutes })}
             {d.minutes !== null && d.minutes < autoMinutes ? ` ${t("price.travelShort", { min: autoMinutes })}` : ""}
           </p>
@@ -177,13 +177,13 @@ export function PostEffortStep({
         )}
       </fieldset>
       <details className="group rounded-card bg-bg shadow-card px-4" open={d.heavy || d.tools || undefined}>
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium text-ink-2">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-body font-medium text-ink-2">
           {t("addressEntry.extraOptions")}
           <span aria-hidden className="transition-transform group-open:rotate-180">
             ▾
           </span>
         </summary>
-        <p className="pb-3 text-sm text-ink-2">{t("addressEntry.extraHelp")}</p>
+        <p className="pb-3 text-small text-ink-2">{t("addressEntry.extraHelp")}</p>
         <div className="mb-4 flex flex-col gap-3">
           <ToggleRow
             icon={<Weight aria-hidden size={24} />}
@@ -203,7 +203,7 @@ export function PostEffortStep({
       </details>
       {isCarry && (
         <fieldset className="flex flex-col gap-3">
-          <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.carryHow")}</legend>
+          <legend className="mb-2 text-body font-medium text-ink-2">{t("task.carryHow")}</legend>
           <div className="grid grid-cols-2 gap-2" role="radiogroup">
             <PriceDeltaCard
               selected={d.carryByHelper}
@@ -228,7 +228,7 @@ export function PostEffortStep({
       )}
       {buys && (
         <fieldset className="flex flex-col gap-3">
-          <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.buyTitle")}</legend>
+          <legend className="mb-2 text-body font-medium text-ink-2">{t("task.buyTitle")}</legend>
           <div className="grid grid-cols-2 gap-2" role="radiogroup">
             <PriceDeltaCard
               selected={d.buyForMe}
@@ -251,13 +251,13 @@ export function PostEffortStep({
             <label className={fieldLabel}>
               {t("task.budget")}
               <input
-                className={`${field} text-[20px] font-bold tabular-nums`}
+                className={`${field} text-title-lg font-bold tabular-nums`}
                 inputMode="numeric"
                 value={d.itemBudget}
                 placeholder="20,000"
                 onChange={(e) => set("itemBudget", digits(e.target.value))}
               />
-              <span className="text-sm font-normal">{t("post.itemsHelp")}</span>
+              <span className="text-small font-normal">{t("post.itemsHelp")}</span>
             </label>
           )}
           {/* the +10% buffer is only meaningful when the money is held */}
@@ -274,7 +274,7 @@ export function PostEffortStep({
               onChange={(v) => set("budgetBuffer", v)}
             />
           )}
-          {d.buyForMe && <p className="text-sm text-ink-2">{t(direct ? "direct.itemsRule" : "task.overBudgetRule")}</p>}
+          {d.buyForMe && <p className="text-small text-ink-2">{t(direct ? "direct.itemsRule" : "task.overBudgetRule")}</p>}
         </fieldset>
       )}{" "}
     </>

@@ -54,7 +54,7 @@ export function SlideSubmit({ label }: { label: string }) {
     <div ref={track} className="relative flex h-16 select-none items-center overflow-hidden rounded-cta bg-brand-bg p-1">
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center justify-center pl-12 text-[16px] font-bold text-brand-ink"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center pl-12 text-lead font-bold text-brand-ink"
       >
         {label}
       </span>

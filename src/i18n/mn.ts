@@ -167,6 +167,9 @@ export const mn: Messages = {
     errorBody: "Холболт тасарсан эсвэл серверт алдаа гарлаа. Таны мөнгө аюулгүй — юу ч өөрчлөгдөөгүй.",
     comingSoonTitle: "Удахгүй",
     notFound: "Олдсонгүй.",
+    notFoundTitle: "Энэ хуудас олдсонгүй",
+    notFoundBody: "Холбоос хуучирсан эсвэл буруу бичигдсэн байж магадгүй.",
+    goHome: "Нүүр хуудас руу",
     working: "Түр хүлээнэ үү…",
     copy: "Хуулах",
     copied: "Хуулсан",
@@ -179,6 +182,12 @@ export const mn: Messages = {
     active: "Одоо явагдаж буй",
     empty: "Даалгавар алга байна",
     emptyBody: "Анхны даалгавраа өгөөрэй — ойролцоох туслагчид шууд харна.",
+  },
+  // browser-tab titles for pages whose heading is private (a task title stays out of history)
+  meta: {
+    chat: "Чат",
+    task: "Даалгавар",
+    job: "Ажил",
   },
   tabs: {
     navigation: "Үндсэн цэс",

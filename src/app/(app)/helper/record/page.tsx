@@ -8,6 +8,9 @@ import { getRules } from "@/lib/rules";
 import { helperRecord } from "@/lib/standards";
 import { recordLevel } from "@/lib/standards-rules";
 import { appealMarkAction } from "./actions";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("standards.recordTitle");
 
 /**
  * /helper/record — the helper's own record (helper standards, 2026-11-22): late jobs in the window,
@@ -22,20 +25,20 @@ export default async function HelperRecordPage() {
     <>
       <FlowHeader href="/profile" label={t("common.back")} title={t("standards.recordTitle")} />
       <Card>
-        <p className="text-[17px] font-bold">{t(`standards.level.${level}`)}</p>
-        <p className="text-[15px] text-ink-2">{t("standards.recordCount", { n: record.active, days: record.windowDays })}</p>
+        <p className="text-title font-bold">{t(`standards.level.${level}`)}</p>
+        <p className="text-body text-ink-2">{t("standards.recordCount", { n: record.active, days: record.windowDays })}</p>
         {record.pausedUntil && <Note tone="bad">{t("standards.pausedUntil", { until: fmtDateTime(record.pausedUntil, locale) })}</Note>}
       </Card>
       <Note tone="info">{t("standards.recordRules", { lower: rules.marksRankLower, pause: rules.marksPause, days: rules.marksPauseDays, review: rules.marksReview })}</Note>
-      {record.marks.length === 0 && <p className="text-[15px] text-ink-2">{t("standards.recordNone")}</p>}
+      {record.marks.length === 0 && <p className="text-body text-ink-2">{t("standards.recordNone")}</p>}
       {record.marks.map((m) => (
         <Card key={m.id}>
-          <p className="text-[12px] font-semibold uppercase text-ink-2">
+          <p className="text-caption font-semibold uppercase text-ink-2">
             {t(`opsMarks.kind.${m.kind}`)} · {fmtDateTime(m.at, locale)}{m.voided ? ` · ${t("standards.markRemoved")}` : ""}
           </p>
-          <p className="text-[15px] font-semibold">{m.title}</p>
+          <p className="text-body font-semibold">{m.title}</p>
           {m.appealNote ? (
-            <p className="text-[14px] text-ink-2">{t("standards.appealSent")}: {m.appealNote}</p>
+            <p className="text-small text-ink-2">{t("standards.appealSent")}: {m.appealNote}</p>
           ) : !m.voided ? (
             <ConfirmSheet
               action={appealMarkAction}

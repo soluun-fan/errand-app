@@ -94,7 +94,7 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; w
       return (
         <div className="flex flex-1 items-center gap-2" role="status">
           <span aria-hidden className="h-3 w-3 animate-pulse rounded-full bg-danger" />
-          <span className="flex-1 text-[15px] tabular-nums">{t("call.recording", { time: fmt(secs) })}</span>
+          <span className="flex-1 text-body tabular-nums">{t("call.recording", { time: fmt(secs) })}</span>
           <button
             type="button"
             className={btn.text}
@@ -117,7 +117,7 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; w
         aria-label={t("call.record")}
         disabled={disabled || busy}
         onClick={start}
-        className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl disabled:opacity-50"
+        className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-title-lg disabled:opacity-50"
       >
         {busy ? "…" : <Ico as={Mic} size={22} />}
       </button>

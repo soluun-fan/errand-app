@@ -14,11 +14,11 @@ function Result({ state }: { state: ActionResult }) {
   const t = useT();
   if (state.error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <p role="alert" className="text-small text-danger">
         {state.error}
       </p>
     );
-  return state.done ? <p className="text-sm text-held">{t("opsContent.saved")}</p> : null;
+  return state.done ? <p className="text-small text-held">{t("opsContent.saved")}</p> : null;
 }
 
 /** One quick start (or a new one when `q` is null): titles in both languages, kind, months, order, on/off. */
@@ -59,17 +59,17 @@ export function QuickStartForm({ q, kind }: { q: QuickStart | null; kind: QuickS
           </label>
         </div>
         <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-[14px] font-semibold">{t("opsContent.months")}</legend>
+          <legend className="mb-1.5 text-small font-semibold">{t("opsContent.months")}</legend>
           <div className="grid grid-cols-6 gap-1.5">
             {MONTHS.map((m) => (
-              <label key={m} className="flex min-h-10 items-center justify-center gap-1 rounded-input border border-line text-[14px] has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
+              <label key={m} className="flex min-h-10 items-center justify-center gap-1 rounded-input border border-line text-small has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
                 <input type="checkbox" name={`m${m}`} defaultChecked={months.includes(m)} className="accent-brand" />
                 {m}
               </label>
             ))}
           </div>
         </fieldset>
-        <label className="flex min-h-11 items-center gap-2 text-[15px]">
+        <label className="flex min-h-11 items-center gap-2 text-body">
           <input type="checkbox" name="active" defaultChecked={q?.active ?? true} className="h-5 w-5 accent-brand" />
           {t("opsContent.active")}
         </label>
@@ -91,7 +91,7 @@ export function QuickStartForm({ q, kind }: { q: QuickStart | null; kind: QuickS
     <details className="group rounded-card bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4">
         <span className={`min-w-0 flex-1 truncate font-semibold ${q.active ? "" : "text-ink-3 line-through"}`}>{q.titleMn}</span>
-        <span className="flex-none text-[12px] text-ink-2 tabular-nums">
+        <span className="flex-none text-caption text-ink-2 tabular-nums">
           {q.months.length === 12 ? t("opsContent.allYear") : q.months.join(", ")} · {q.sort}
         </span>
         <span aria-hidden className="text-ink-2 transition-transform group-open:rotate-180">
@@ -112,7 +112,7 @@ export function KeywordsForm({ category, words }: { category: Exclude<CategoryId
       <input type="hidden" name="category" value={category} />
       <label className={fieldLabel}>
         {t(`categoryShort.${category}`)} · {words.length}
-        <textarea name="words" rows={6} defaultValue={words.join("\n")} className={`${field} min-h-36 py-2 font-mono text-[14px] leading-relaxed`} />
+        <textarea name="words" rows={6} defaultValue={words.join("\n")} className={`${field} min-h-36 py-2 font-mono text-small leading-relaxed`} />
       </label>
       <Result state={state} />
       <SubmitButton className={`${btn.secondary} w-full`}>{t("opsContent.save")}</SubmitButton>
@@ -130,11 +130,11 @@ export function LiveSwitch({ category, trust, live }: { category: CategoryId; tr
       <input type="hidden" name="live" value={live ? "0" : "1"} />
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{t(`category.${category}`)}</span>
-        <span className="block text-[12px] text-ink-2">{t(`opsContent.trust.${trust}`)}</span>
-        {state.error && <span className="block text-[12px] text-danger">{state.error}</span>}
+        <span className="block text-caption text-ink-2">{t(`opsContent.trust.${trust}`)}</span>
+        {state.error && <span className="block text-caption text-danger">{state.error}</span>}
       </span>
-      {trust === "care" && !live && <label className="flex max-w-48 items-start gap-2 text-xs text-ink-2"><input type="checkbox" name="legalReviewed" required className="mt-1 accent-brand" />{t("specialized.legal")}</label>}
-      <SubmitButton className={`min-h-10 rounded-full px-4 text-[14px] font-bold ${live ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}>
+      {trust === "care" && !live && <label className="flex max-w-48 items-start gap-2 text-caption text-ink-2"><input type="checkbox" name="legalReviewed" required className="mt-1 accent-brand" />{t("specialized.legal")}</label>}
+      <SubmitButton className={`min-h-10 rounded-full px-4 text-small font-bold ${live ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}>
         {live ? t("opsContent.on") : t("opsContent.off")}
       </SubmitButton>
     </form>

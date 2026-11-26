@@ -24,7 +24,7 @@ export interface MapMarker {
 
 /** Approximate places (before a helper is matched): a soft circle, no exact point. */
 const AREA: Partial<Record<MarkerKind, string>> = {
-  area: "h-24 w-24 rounded-full border-2 border-[#ea4335]/60 bg-[#ea4335]/15",
+  area: "h-24 w-24 rounded-full border-2 border-map-pin/60 bg-map-pin/15",
   pickupArea: "h-24 w-24 rounded-full border-2 border-ink/50 bg-ink/10",
 };
 
@@ -41,7 +41,7 @@ function markerFor(mk: MapMarker): { el: HTMLElement; anchor: "bottom" | "center
     const size = Math.min(72, 34 + n * 6);
     const el = document.createElement("div");
     el.className =
-      "flex items-center justify-center rounded-full border-2 border-[#f29900]/70 bg-[#f29900]/25 text-[13px] font-bold text-[#b06000]";
+      "flex items-center justify-center rounded-full border-2 border-map-busy/70 bg-map-busy/25 text-meta font-bold text-map-busy-ink";
     el.style.width = el.style.height = `${size}px`;
     el.textContent = String(n);
     return { el, anchor: "center" };
@@ -241,7 +241,7 @@ export function TaskMap({
         aria-label={t("map.label")}
       />
       {failed && (
-        <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-sm text-ink-2">
+        <div role="status" className="pointer-events-none absolute inset-x-0 bottom-0 bg-fill p-4 text-center text-small text-ink-2">
           {t("map.failed")}
         </div>
       )}
@@ -271,7 +271,7 @@ export function TaskMap({
           href={openUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="press absolute right-3 top-3 z-10 flex min-h-10 items-center gap-1 rounded-full bg-bg/95 px-3 text-[13px] font-semibold text-ink shadow-card"
+          className="press absolute right-3 top-3 z-10 flex min-h-10 items-center gap-1 rounded-full bg-bg/95 px-3 text-meta font-semibold text-ink shadow-card"
         >
           {t("map.openGoogle")} ↗
         </a>

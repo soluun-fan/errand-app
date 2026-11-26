@@ -24,7 +24,7 @@ export function SaveButton({ helperId, saved, t, className = "", quiet = false, 
         </SubmitButton>
       ) : (
         <SubmitButton
-          className={`press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-cta px-5 text-[16px] font-bold ${
+          className={`press inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-cta px-5 text-lead font-bold ${
             saved || quiet ? "border border-line bg-bg text-brand-ink" : "bg-brand text-white"
           }`}
         >

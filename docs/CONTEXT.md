@@ -122,7 +122,7 @@ Never break these. They are also enforced by tests and database checks.
 **Env variables** (names only; values are in `.env.local`):
 - **Server-only secrets:** `SUPABASE_SECRET_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
 - **Public by design** (end up in the browser): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
-- **Other:** `VAPID_SUBJECT`, `DEV_SHOW_SMS_CODES`, `PAYMENT_PROVIDER` (default `mock`), `TEST_PHONES` (on a deployment without real SMS, only these numbers can sign in; `lib/login-policy.ts`), `SMS_PROVIDER` (empty until real SMS).
+- **Other:** `VAPID_SUBJECT`, `DEV_SHOW_SMS_CODES`, `APP_ENV` (`development`, `staging`, or `production`), `PAYMENT_PROVIDER` (defaults to `mock` only in development; production requires `wire` and both credentials, while isolated staging must explicitly opt into mocks), `TEST_PHONES` (on a deployment without real SMS, only these numbers can sign in; `lib/login-policy.ts`), `SMS_PROVIDER` (empty until real SMS).
 - **Relay (before launch):** `TURN_URLS`, `TURN_SECRET` (server-only), for our own coturn server.
 - **Optional later:** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Google tiles and search) and a vision-model API key (AI proof checks). The owner prefers **no new third-party keys**, so choose key-free or open-source designs first.
 
@@ -385,7 +385,7 @@ Migrations, in order:
 
 ## 13. How code is written here (conventions)
 
-Run `npm run lint`, `npm run format:check`, and `npm run typecheck`. Prettier formats changed source/configuration files (`npm run format`) with 2-space indent, double quotes, semicolons, trailing commas, and a 140-character print width; CI compares against the PR base or previous push. Use named exports (default exports only where Next requires them). TypeScript is `strict`. Import from `@/…` (= `src/…`). The React Compiler is on, so don't add `useMemo` or `useCallback` for performance.
+Run `npm run lint`, `npm run format:check`, and `npm run typecheck`. Prettier formats changed source/configuration files (`npm run format`) with 2-space indent, double quotes, semicolons, trailing commas, and a 140-character print width; CI compares against the PR base or previous push (the latest commit for a newly created branch). Use named exports (default exports only where Next requires them). TypeScript is `strict`. Import from `@/…` (= `src/…`). The React Compiler is on, so don't add `useMemo` or `useCallback` for performance.
 
 Supabase clients use `src/lib/db/database.types.ts`, generated from all migrations in disposable Postgres. After a schema change, run `npm run db:types`; CI rejects stale types. Category default durations and review windows are in `category_settings` (`20261125000000_category_timing.sql`) and editable at `/ops/pricing`. Apply this migration before deploying the updated app; existing deals keep their saved terms. Hosted migrations remain a separate approved rollout.
 

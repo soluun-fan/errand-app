@@ -169,7 +169,7 @@ export function PinMap({
     );
   };
 
-  if (failed) return <p className="rounded-card bg-fill p-4 text-sm text-ink-2">{t("map.failed")}</p>;
+  if (failed) return <p className="rounded-card bg-fill p-4 text-small text-ink-2">{t("map.failed")}</p>;
   return (
     <div>
       <div className="relative overflow-hidden rounded-card border border-line" style={{ height }}>
@@ -196,13 +196,13 @@ export function PinMap({
           }}
         />
         {!value && (
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-bg/95 px-3 py-1.5 text-sm font-medium shadow-float">
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-bg/95 px-3 py-1.5 text-small font-medium shadow-float">
             {t(kind === "pickup" ? "map.moveHintPickup" : "map.moveHint")}
           </span>
         )}
       </div>
       {locationError && (
-        <p role="status" className="mt-2 text-sm text-ink-2">
+        <p role="status" className="mt-2 text-small text-ink-2">
           {t("addressEntry.locationFailed")}
         </p>
       )}

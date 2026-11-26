@@ -1,11 +1,10 @@
 import { BadgeCheck, Ban, Landmark, MapPinOff, MessageCircle, Siren } from "lucide-react";
-import { APP_NAME } from "@/lib/brand";
-import type { Metadata } from "next";
 import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
 
-export const metadata: Metadata = { title: `${APP_NAME} — Аюулгүй байдал` };
+export const generateMetadata = titled("info.safetyTitle");
 
 /** /safety — what the app actually does today to protect people (no promises it doesn't keep). */
 export default async function SafetyPage() {
@@ -21,8 +20,8 @@ export default async function SafetyPage() {
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />
-      <h1 className="text-[24px] font-bold tracking-tight">{t("info.safetyTitle")}</h1>
-      <p className="text-[15px] text-ink-2">{t("info.safetyIntro")}</p>
+      <h1 className="text-headline font-bold tracking-tight">{t("info.safetyTitle")}</h1>
+      <p className="text-body text-ink-2">{t("info.safetyIntro")}</p>
       {unverifiedHelpersTestMode && <Note tone="warn">{t("info.sTestModeWarning")}</Note>}
       <ul className="flex flex-col gap-2.5">
         {items.map((x) => (
@@ -31,8 +30,8 @@ export default async function SafetyPage() {
               <x.icon size={20} />
             </span>
             <span className="flex flex-col gap-1">
-              <b className="text-[16px]">{x.title}</b>
-              <span className="text-[14px] leading-relaxed text-ink-2">{x.body}</span>
+              <b className="text-lead">{x.title}</b>
+              <span className="text-small leading-relaxed text-ink-2">{x.body}</span>
             </span>
           </li>
         ))}

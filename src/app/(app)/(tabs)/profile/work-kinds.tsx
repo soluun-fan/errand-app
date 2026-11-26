@@ -16,19 +16,19 @@ export function WorkKinds({ all, mine }: { all: readonly CategoryId[]; mine: rea
     <form action={action} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
       <div className="flex flex-wrap gap-2">
         {all.map((c) => (
-          <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[14px] has-[:checked]:border-brand has-[:checked]:bg-brand-bg has-[:checked]:text-brand-ink">
+          <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-small has-[:checked]:border-brand has-[:checked]:bg-brand-bg has-[:checked]:text-brand-ink">
             <input type="checkbox" name="kinds" value={c} defaultChecked={mine.includes(c)} className="sr-only" />
             <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
           </label>
         ))}
       </div>
-      <p className="text-[13px] text-ink-2">{t("workKinds.help")}</p>
+      <p className="text-meta text-ink-2">{t("workKinds.help")}</p>
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}
-      {state.done && <p className="text-sm text-held">{t("workKinds.saved")}</p>}
+      {state.done && <p className="text-small text-held">{t("workKinds.saved")}</p>}
       <SubmitButton className={`${btn.secondary} w-full`}>{t("workKinds.save")}</SubmitButton>
     </form>
   );

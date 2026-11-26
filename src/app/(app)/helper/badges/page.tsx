@@ -10,6 +10,9 @@ import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 import { notFound } from "next/navigation";
 import { AlarmClock, Car, IdCard } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("badges.title");
 
 /**
  * /helper/badges — what lets a helper take tasks with conditions (docs/decisions.md 2026-11-18): a
@@ -54,9 +57,9 @@ export default async function BadgesPage() {
         <section className="flex flex-col gap-2">
           <h2 className="font-bold">{t("badges.requests")}</h2>
           {mine.map((x) => (
-            <p key={x.id} className="rounded-input bg-fill p-3 text-[15px]">
+            <p key={x.id} className="rounded-input bg-fill p-3 text-body">
               {x.kind === "driver" ? <Ico as={IdCard} /> : <Ico as={Car} />} {Object.values(x.info).join(" · ")} — <b>{t(`badges.status.${x.status}`)}</b>
-              {x.reviewNote && <span className="block text-sm text-ink-2">{x.reviewNote}</span>}
+              {x.reviewNote && <span className="block text-small text-ink-2">{x.reviewNote}</span>}
             </p>
           ))}
         </section>

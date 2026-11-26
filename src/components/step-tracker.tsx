@@ -66,7 +66,7 @@ export function StepTracker({
               />
             )}
             <span
-              className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
+              className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-tiny font-bold ${
                 done
                   ? "bg-brand text-white"
                   : here
@@ -78,10 +78,10 @@ export function StepTracker({
             </span>
             {!compact && (
               <>
-                <span className={`text-xs leading-tight ${here ? "font-bold text-ink" : done ? "text-ink" : "text-ink-2"}`}>
+                <span className={`text-caption leading-tight ${here ? "font-bold text-ink" : done ? "text-ink" : "text-ink-2"}`}>
                   {t(`tracker.${s.key}`)}
                 </span>
-                <span className="h-4 text-[11px] text-ink-2 tabular-nums">{at ? fmtClock(at) : ""}</span>
+                <span className="h-4 text-tiny text-ink-2 tabular-nums">{at ? fmtClock(at) : ""}</span>
               </>
             )}
           </li>

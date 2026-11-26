@@ -33,12 +33,45 @@
   --color-eta-bg: #e8f7ee;
   --color-route: #2f6fed;
 
+  /* maps follow Google Maps conventions on purpose (2026-11-23): only map elements use these */
+  --color-map-pin: #ea4335; /* the task's place / area */
+  --color-map-busy: #f29900; /* where tasks are waiting */
+  --color-map-busy-ink: #b06000;
+  --color-map-control: #1a73e8; /* "my location" button */
+  --color-map-ground: #eef0ec; /* placeholder before tiles load */
+
   /* redesign 2026-11-16: rounder, borderless cards on the grey page */
   --radius-input: 14px;
   --radius-cta: 16px;
   --radius-card: 20px;
   --radius-tile: 20px;
   --radius-sheet: 28px;
+
+  /*
+   * Type scale (2026-11-26, docs/ui.md "Type scale"): every font size comes from here — no one-off
+   * text-[Npx]. Only the size is set; line height still comes from leading-* or the parent.
+   */
+  --text-tiny: 11px; /* numbers inside small badges and step dots */
+  --text-caption: 12px; /* fine print, timestamps under items */
+  --text-meta: 13px; /* group labels, secondary lines, hints */
+  --text-small: 14px; /* supporting text, chips */
+  --text-body: 15px; /* the default for reading */
+  --text-lead: 16px; /* inputs (no iOS zoom), emphasised body */
+  --text-title: 18px; /* card and section titles (phone) */
+  --text-title-lg: 20px; /* logo word, larger card titles */
+  --text-title-lg--line-height: 1.25;
+  --text-heading: 22px; /* inner-page titles: a task, a helper, a company, a post step */
+  --text-heading--line-height: 1.25;
+  --text-headline: 24px; /* tab-screen titles; section titles on desktop */
+  --text-headline--line-height: 1.25;
+  --text-display-sm: 28px; /* headline money amounts */
+  --text-display-sm--line-height: 1.25;
+  --text-display: 32px; /* big numbers, large desktop titles */
+  --text-display--line-height: 1.25;
+  --text-display-lg: 40px; /* desktop hero titles */
+  --text-display-lg--line-height: 1.25;
+  --text-hero: 52px; /* the landing page headline */
+  --text-hero--line-height: 1.25;
 
   --shadow-float: 0 6px 24px rgba(28, 25, 23, 0.08);
   --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04);

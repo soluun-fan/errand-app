@@ -36,7 +36,7 @@ export function ListingEditor({ bio, fromPrice, minPrice }: { bio: string | null
               placeholder={t("listing.bioPh")}
               className={`${field} min-h-32 py-3 leading-relaxed`}
             />
-            <span className="flex justify-between gap-3 text-[12px] font-normal text-ink-2">
+            <span className="flex justify-between gap-3 text-caption font-normal text-ink-2">
               <span>{t("listing.noContacts")}</span>
               <span className="tabular-nums">
                 {text.length}/{BIO_MAX}
@@ -46,10 +46,10 @@ export function ListingEditor({ bio, fromPrice, minPrice }: { bio: string | null
           <label className={fieldLabel}>
             {t("listing.fromPrice")}
             <input name="fromPrice" inputMode="numeric" defaultValue={fromPrice ? String(fromPrice) : ""} placeholder={String(minPrice)} className={`${field} tabular-nums`} />
-            <span className="text-[12px] font-normal text-ink-2">{t("listing.fromPriceHelp")}</span>
+            <span className="text-caption font-normal text-ink-2">{t("listing.fromPriceHelp")}</span>
           </label>
           {state.error && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="text-small text-danger">
               {state.error}
             </p>
           )}

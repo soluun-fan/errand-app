@@ -124,8 +124,8 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         {done ? "✓" : icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{title}</span>
-        <span className="block text-[13px] leading-snug text-ink-2">{body}</span>
+        <span className="block text-body font-semibold">{title}</span>
+        <span className="block text-meta leading-snug text-ink-2">{body}</span>
         {!done && action && <span className="mt-2 block">{action}</span>}
       </span>
     </li>
@@ -136,10 +136,10 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
       aria-labelledby="ready-title"
       className="flex max-h-[70vh] flex-col overflow-y-auto rounded-card border-2 border-brand bg-bg p-4 text-left shadow-card"
     >
-      <h2 id="ready-title" className="text-[17px] font-bold">
+      <h2 id="ready-title" className="text-title font-bold">
         {t("workReady.title")}
       </h2>
-      <p className="text-[14px] text-ink-2">{t("workReady.sub")}</p>
+      <p className="text-small text-ink-2">{t("workReady.sub")}</p>
       <ol className="flex flex-col divide-y divide-line">
         {step(<Smartphone size={18} />, t("workReady.phone"), phone ? t("workReady.phoneOk") : t("workReady.phoneBody"), phone, null)}
         {phone &&

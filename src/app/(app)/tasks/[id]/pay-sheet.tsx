@@ -57,7 +57,7 @@ export function PaySheet({
 
   if (!wire && !mock)
     return (
-      <p role="status" className="rounded-input bg-warn-bg p-3 text-sm text-warn">
+      <p role="status" className="rounded-input bg-warn-bg p-3 text-small text-warn">
         {t("pay.unavailable")}
       </p>
     );
@@ -65,10 +65,10 @@ export function PaySheet({
   if (state.done) {
     return (
       <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-held p-6 text-white">
-        <span aria-hidden className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-4xl text-held">
+        <span aria-hidden className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-display-lg text-held">
           ✓
         </span>
-        <p className="text-center text-2xl font-bold">{doneLabel ?? t("pay.held", { amount: amountLabel })}</p>
+        <p className="text-center text-headline font-bold">{doneLabel ?? t("pay.held", { amount: amountLabel })}</p>
       </div>
     );
   }
@@ -79,9 +79,9 @@ export function PaySheet({
         {triggerLabel ?? t("pay.payNow", { amount: amountLabel })}
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title={t("pay.title", { amount: amountLabel })}>
-        <p className="text-sm text-ink-2">{t("pay.sub")}</p>
+        <p className="text-small text-ink-2">{t("pay.sub")}</p>
         {payBy && (
-          <p className="self-start rounded-full bg-warn-bg px-3 py-1 text-sm font-medium text-warn">
+          <p className="self-start rounded-full bg-warn-bg px-3 py-1 text-small font-medium text-warn">
             <Countdown until={payBy} serverNow={serverNow} template={t("pay.validFor")} />
           </p>
         )}
@@ -95,9 +95,9 @@ export function PaySheet({
               value={intent === "simulate_topup" ? "topup" : intent === "simulate_price_payment" ? "price" : "first"}
             />
             <WireButton label={t("pay.wireButton", { amount: amountLabel })} />
-            <p className="text-sm text-ink-2">{t("pay.wireSub")}</p>
+            <p className="text-small text-ink-2">{t("pay.wireSub")}</p>
             {state.error && (
-              <p role="alert" className="text-sm text-danger">
+              <p role="alert" className="text-small text-danger">
                 {state.error}
               </p>
             )}
@@ -106,16 +106,16 @@ export function PaySheet({
           <form action={formAction} className="relative flex flex-col gap-3">
             <input type="hidden" name="dealId" value={dealId} />
             <input type="hidden" name="intent" value={intent} />
-            <p className="text-sm font-semibold">{t("pay.chooseBank")}</p>
+            <p className="text-small font-semibold">{t("pay.chooseBank")}</p>
             <div className="grid grid-cols-3 gap-2">
               {BANKS.map((b) => (
                 <BankButton key={b} name={b} disabled={!mock} />
               ))}
             </div>
-            {mock && <p className="text-xs text-ink-2">{t("pay.demo")}</p>}
+            {mock && <p className="text-caption text-ink-2">{t("pay.demo")}</p>}
             <Checking />
             {state.error && (
-              <p role="alert" className="text-sm text-danger">
+              <p role="alert" className="text-small text-danger">
                 {state.error}
               </p>
             )}
@@ -123,11 +123,11 @@ export function PaySheet({
         )}
         {!wire && (
           <div className="flex flex-col items-center gap-2 border-t border-line pt-3">
-            <p className="text-sm text-ink-2">{t("pay.orScan")}</p>
+            <p className="text-small text-ink-2">{t("pay.orScan")}</p>
             {qr}
           </div>
         )}
-        <p className="rounded-input border border-warn/20 bg-warn-bg p-3 text-xs text-warn">{t("pay.screenshot")}</p>
+        <p className="rounded-input border border-warn/20 bg-warn-bg p-3 text-caption text-warn">{t("pay.screenshot")}</p>
       </BottomSheet>
     </>
   );
@@ -140,7 +140,7 @@ function BankButton({ name, disabled }: { name: string; disabled: boolean }) {
       name="bank"
       value={name}
       disabled={disabled || pending}
-      className="press flex min-h-16 items-center justify-center rounded-input bg-fill px-2 text-center text-sm font-semibold hover:ring-2 hover:ring-ink disabled:opacity-50"
+      className="press flex min-h-16 items-center justify-center rounded-input bg-fill px-2 text-center text-small font-semibold hover:ring-2 hover:ring-ink disabled:opacity-50"
     >
       {name}
     </button>
@@ -152,7 +152,7 @@ function Checking() {
   const t = useT();
   if (!pending) return null;
   return (
-    <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 rounded-input bg-white/90 text-sm font-semibold">
+    <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 rounded-input bg-white/90 text-small font-semibold">
       <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />
       {t("pay.checking")}
     </div>

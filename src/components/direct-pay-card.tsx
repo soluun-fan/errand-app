@@ -31,11 +31,11 @@ export function DirectPayCustomerCard({
     <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card" aria-label={t("direct.card.title", { name: payeeName })}>
       <div>
         <h2 className="font-bold">{t("direct.card.title", { name: payeeName })}</h2>
-        <p className="text-[28px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(state.amount)}</p>
-        <p className="text-sm text-ink-2">{receipt ? t("direct.card.withItems", { items: fmtMoney(receipt) }) : t("direct.card.sub")}</p>
+        <p className="text-display-sm font-extrabold tabular-nums text-brand-ink">{fmtMoney(state.amount)}</p>
+        <p className="text-small text-ink-2">{receipt ? t("direct.card.withItems", { items: fmtMoney(receipt) }) : t("direct.card.sub")}</p>
       </div>
       {account ? (
-        <dl className="flex flex-col gap-1.5 rounded-input bg-fill p-3 text-[15px]">
+        <dl className="flex flex-col gap-1.5 rounded-input bg-fill p-3 text-body">
           <div className="flex justify-between gap-3">
             <dt className="text-ink-2">{t("direct.card.bank")}</dt>
             <dd className="font-semibold">{account.bank}</dd>
@@ -58,7 +58,7 @@ export function DirectPayCustomerCard({
       {state.helperReceivedAt ? (
         <p className="font-semibold text-held">{t("direct.card.received", { name: payeeName })}</p>
       ) : state.customerPaidAt ? (
-        <p className="text-sm text-ink-2">{t("direct.card.paidDone")}</p>
+        <p className="text-small text-ink-2">{t("direct.card.paidDone")}</p>
       ) : (
         <InlineAction action={action} fields={{ dealId, intent: "direct_paid" }} label={t("direct.card.paid")} className={`${btn.primary} w-full`} />
       )}
@@ -71,7 +71,7 @@ export function DirectPayHelperCard({ dealId, state, action, t }: { dealId: stri
     <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card" aria-label={t("direct.helper.title", { amount: fmtMoney(state.amount) })}>
       <div>
         <h2 className="font-bold">{t("direct.helper.title", { amount: fmtMoney(state.amount) })}</h2>
-        <p className="text-sm text-ink-2">{t("direct.helper.sub")}</p>
+        <p className="text-small text-ink-2">{t("direct.helper.sub")}</p>
       </div>
       {state.customerPaidAt && !state.helperReceivedAt && <Note tone="info">{t("direct.helper.customerMarked")}</Note>}
       {state.helperReceivedAt ? (
@@ -80,7 +80,7 @@ export function DirectPayHelperCard({ dealId, state, action, t }: { dealId: stri
         <div className="flex flex-col gap-2">
           <InlineAction action={action} fields={{ dealId, intent: "direct_received" }} label={t("direct.helper.received")} className={`${btn.primary} w-full`} />
           {state.unpaidReportedAt && !state.resolvedAt ? (
-            <p className="text-center text-sm text-warn">{t("direct.helper.reported")}</p>
+            <p className="text-center text-small text-warn">{t("direct.helper.reported")}</p>
           ) : (
             <ConfirmSheet
               action={action}

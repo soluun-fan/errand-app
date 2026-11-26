@@ -25,7 +25,7 @@ export function ConditionChips({ require = {}, variety, t, missing = [] }: { var
   const keys = CONDITION_FLAGS.filter((k) => require[k]);
   if (!variety && !keys.length && !require.language && !require.custom?.length) return null;
   const chip = (k: keyof TaskConditions, label: string, icon?: LucideIcon) => (
-    <span key={k} className={`inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold ${missing.includes(k) ? "bg-warn-bg text-warn" : "bg-fill text-ink-2"}`}>
+    <span key={k} className={`inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-caption font-semibold ${missing.includes(k) ? "bg-warn-bg text-warn" : "bg-fill text-ink-2"}`}>
       {icon && <Ico as={icon} size={13} />}
       {label}
       {missing.includes(k) && " ✕"}
@@ -33,9 +33,9 @@ export function ConditionChips({ require = {}, variety, t, missing = [] }: { var
   );
   return (
     <span className="flex flex-wrap gap-1.5" aria-label={t("conditions.title")}>
-      {variety && <span className="rounded-[8px] bg-brand-bg px-2 py-1 text-xs font-semibold text-brand-ink">{t(`varieties.${variety}`)}</span>}
+      {variety && <span className="rounded-lg bg-brand-bg px-2 py-1 text-caption font-semibold text-brand-ink">{t(`varieties.${variety}`)}</span>}
       {keys.map((k) => chip(k, t(`conditions.k.${k}`), ICON[k]))}
-      {require.custom?.map((label) => <span key={`custom:${label}`} className="max-w-full rounded-[8px] bg-fill px-2 py-1 text-xs font-semibold text-ink-2 [overflow-wrap:anywhere]">{label}</span>)}
+      {require.custom?.map((label) => <span key={`custom:${label}`} className="max-w-full rounded-lg bg-fill px-2 py-1 text-caption font-semibold text-ink-2 [overflow-wrap:anywhere]">{label}</span>)}
       {require.language && chip("language", t(`conditions.lang.${require.language}`), Globe)}
     </span>
   );
@@ -52,7 +52,7 @@ export function BadgeChips({ badges, t }: { badges: HelperBadges & { record: { j
   return (
     <span className="flex flex-wrap gap-1">
       {items.map(([icon, x]) => (
-        <span key={x} className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2 py-0.5 text-[12px] font-medium text-held">
+        <span key={x} className="inline-flex items-center gap-1 rounded-full bg-held-bg px-2 py-0.5 text-caption font-medium text-held">
           <Ico as={icon} size={13} />
           {x}
         </span>

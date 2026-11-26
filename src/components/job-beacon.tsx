@@ -33,8 +33,8 @@ export function JobBeacon({ dealId }: { dealId: string }) {
 
   return <section className="rounded-card bg-bg p-4 shadow-card">
     <p className="font-semibold">{t("standards.trackingRequired")}</p>
-    <p className="text-sm text-ink-2">{t("standards.trackingHint")}</p>
-    {broken && <p role="status" className="mt-2 text-sm font-semibold text-danger">{t("job.locationError")}</p>}
+    <p className="text-small text-ink-2">{t("standards.trackingHint")}</p>
+    {broken && <p role="status" className="mt-2 text-small font-semibold text-danger">{t("job.locationError")}</p>}
     {(broken || !sharing) && location &&
       <button type="button" className={btn.text} disabled={busy} onClick={() => void turnOn()}>{t("standards.trackingRetry")}</button>}
   </section>;

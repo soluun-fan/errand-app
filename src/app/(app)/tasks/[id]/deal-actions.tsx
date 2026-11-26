@@ -222,7 +222,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
           >
             <fieldset className="flex flex-col">
               {DISPUTE_REASONS.map((r, i) => (
-                <label key={r} className="flex min-h-11 items-center gap-3 text-[15px]">
+                <label key={r} className="flex min-h-11 items-center gap-3 text-body">
                   <input type="radio" name="reason" value={r} defaultChecked={i === 0} className="h-5 w-5 accent-danger" />
                   {t(`dispute.reasons.${r}`)}
                 </label>
@@ -232,7 +232,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
               {t("dispute.note")}
               <textarea name="note" required minLength={20} maxLength={1000} rows={3} className={field} placeholder={t("dispute.notePh")} />
             </label>
-            <p className="rounded-input bg-warn-bg p-3 text-sm text-warn">{t(direct ? "direct.disputeWhat" : "dispute.what")}</p>
+            <p className="rounded-input bg-warn-bg p-3 text-small text-warn">{t(direct ? "direct.disputeWhat" : "dispute.what")}</p>
           </ConfirmSheet>,
         );
         break;
@@ -253,7 +253,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
                     <input type="radio" name="stars" value={n} required defaultChecked={n === 5} className="peer sr-only" />
                     <span
                       aria-label={t("rating.stars", { n })}
-                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn peer-focus-visible:outline-2 peer-focus-visible:outline-ink"
+                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-title-lg text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn peer-focus-visible:outline-2 peer-focus-visible:outline-ink"
                     >
                       ★{n}
                     </span>
@@ -264,7 +264,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
                 {RATING_TAGS.map((tag) => (
                   <label key={tag} className="cursor-pointer">
                     <input type="checkbox" name="tags" value={tag} className="peer sr-only" />
-                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-ink">
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-body peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-ink">
                       {t(`rating.tags.${tag}`)}
                     </span>
                   </label>
@@ -276,7 +276,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
               </label>
               {/* no public photos of care work (children, elders) */}
               {categoryTrust(deal.category) !== "care" && <ReviewPhotoPicker dealId={deal.id} />}
-              <p className="text-[13px] text-ink-2">{t("helperProfile.reviewPublic")}</p>
+              <p className="text-meta text-ink-2">{t("helperProfile.reviewPublic")}</p>
             </ConfirmSheet>
           );
           secondary.push(againLink(btn.text));

@@ -55,7 +55,7 @@ export function InstallHint() {
       </span>
       <div className="flex flex-1 flex-col gap-1">
         <p className="font-semibold">{t("install.title")}</p>
-        <p className="text-sm text-ink-2">{t(kind === "ios" ? "install.ios" : "install.body")}</p>
+        <p className="text-small text-ink-2">{t(kind === "ios" ? "install.ios" : "install.body")}</p>
         {kind === "prompt" && (
           <button type="button" className={btn.secondary} onClick={() => void install()}>
             {t("install.go")}

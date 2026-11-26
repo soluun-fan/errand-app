@@ -78,7 +78,7 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
       </div>
 
       <BottomSheet open={sosOpen} onClose={() => setSosOpen(false)} title={t("safety.sosTitle")}>
-        <p className="text-[16px]">{t("safety.sosLead")}</p>
+        <p className="text-lead">{t("safety.sosLead")}</p>
         <div className="grid grid-cols-2 gap-2">
           <a href={`tel:${EMERGENCY_NUMBERS.police}`} className={`${btn.danger} w-full`}>
             <Ico as={Phone} /> {t("safety.police", { n: EMERGENCY_NUMBERS.police })}
@@ -92,9 +92,9 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
           <Note tone="held">{t("safety.sosSent")}</Note>
         ) : (
           <>
-            <p className="text-[15px] text-ink-2">{t("safety.alertLead")}</p>
+            <p className="text-body text-ink-2">{t("safety.alertLead")}</p>
             {sosError && (
-              <p role="alert" className="text-sm text-danger">
+              <p role="alert" className="text-small text-danger">
                 {sosError}
               </p>
             )}
@@ -103,7 +103,7 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
             </button>
           </>
         )}
-        <p className="text-sm text-ink-2">{t("safety.notTold")}</p>
+        <p className="text-small text-ink-2">{t("safety.notTold")}</p>
         <button type="button" className={`${btn.text} w-full`} onClick={() => setSosOpen(false)}>
           {t("common.close")}
         </button>
@@ -122,7 +122,7 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
             <input type="hidden" name="dealId" value={dealId} />
             <input type="hidden" name="kind" value={kind} />
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("safety.whatHappened")}</legend>
+              <legend className="mb-2 text-body font-medium text-ink-2">{t("safety.whatHappened")}</legend>
               <div className="flex flex-wrap gap-2">
                 {REPORT_KINDS.map((k) => (
                   <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={chipClass(kind === k)}>
@@ -135,9 +135,9 @@ export function SafetyBar({ dealId, showSos, live }: { dealId: string; showSos: 
               {t("safety.describe")}
               <textarea name="note" rows={4} minLength={REPORT_NOTE_MIN} maxLength={INCIDENT_NOTE_MAX} className={field} />
             </label>
-            <p className="text-sm text-ink-2">{t("safety.reportHelp")}</p>
+            <p className="text-small text-ink-2">{t("safety.reportHelp")}</p>
             {report.error && (
-              <p role="alert" className="text-sm text-danger">
+              <p role="alert" className="text-small text-danger">
                 {report.error}
               </p>
             )}

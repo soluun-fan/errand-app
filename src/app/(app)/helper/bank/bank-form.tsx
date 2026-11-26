@@ -46,10 +46,10 @@ export function BankForm({ next, holder }: { next: "jobs" | "profile"; holder: s
       <label className={fieldLabel}>
         {t("payout.holder")}
         <input name="holderName" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={field} />
-        <span className="text-[12px] font-normal text-ink-2">{t("payout.holderHelp")}</span>
+        <span className="text-caption font-normal text-ink-2">{t("payout.holderHelp")}</span>
       </label>
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

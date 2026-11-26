@@ -41,7 +41,7 @@ export function OpenBoard({
   /** The kind's example picture (public, generic) — never the customer's own photos on this board. */
   covers?: Map<string, string>;
 }) {
-  const tag = "inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold";
+  const tag = "inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-caption font-semibold";
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((r) => (
@@ -59,9 +59,9 @@ export function OpenBoard({
               {r.people === 2 && <span className={`${tag} bg-route/10 text-route`}>{t("landing.twoPeople")}</span>}
               <span className={`${tag} bg-brand-bg text-brand-ink`}>{t("job.available")}</span>
             </span>
-            <span className="line-clamp-3 min-h-12 break-words text-[17px] font-bold leading-snug">{r.title ?? t(`landing.ask.${r.category}`)}</span>
+            <span className="line-clamp-3 min-h-12 break-words text-title font-bold leading-snug">{r.title ?? t(`landing.ask.${r.category}`)}</span>
             <ConditionChips variety={r.variety} require={r.require} t={t} />
-            <span className="flex flex-col gap-1 text-[13px] text-ink-2">
+            <span className="flex flex-col gap-1 text-meta text-ink-2">
               <span className="flex items-start gap-1.5">
                 <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
                 <span className="min-w-0">{r.km > 0 ? t("job.trip", { km: r.km.toFixed(1) }) : t("landing.onePlace")}
@@ -81,8 +81,8 @@ export function OpenBoard({
               </span>
             </span>
             <span className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-line pt-3">
-              <span className="text-[13px] font-medium text-ink-2">{t("landing.helperGets")}</span>
-              <span className="text-[20px] font-extrabold tabular-nums text-brand-ink">{fmtMoney(r.pay)}</span>
+              <span className="text-meta font-medium text-ink-2">{t("landing.helperGets")}</span>
+              <span className="text-title-lg font-extrabold tabular-nums text-brand-ink">{fmtMoney(r.pay)}</span>
             </span>
           </Opener>
         </li>

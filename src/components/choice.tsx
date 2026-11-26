@@ -34,7 +34,7 @@ export function PriceDeltaCard({
       }`}
     >
       <span className="flex w-full items-start justify-between">
-        <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
+        <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-input bg-fill text-headline text-brand-ink">
           {icon}
         </span>
         <span
@@ -44,11 +44,11 @@ export function PriceDeltaCard({
           {selected && <span className="h-3 w-3 rounded-full bg-brand" />}
         </span>
       </span>
-      <span className="text-[17px] font-semibold leading-tight">{title}</span>
-      {sub && <span className="pb-6 text-sm text-ink-2">{sub}</span>}
+      <span className="text-title font-semibold leading-tight">{title}</span>
+      {sub && <span className="pb-6 text-small text-ink-2">{sub}</span>}
       {delta && (
         <span
-          className={`absolute bottom-2 right-2 rounded-lg px-2 py-0.5 text-sm font-semibold tabular-nums ${
+          className={`absolute bottom-2 right-2 rounded-lg px-2 py-0.5 text-small font-semibold tabular-nums ${
             free ? "bg-eta-bg text-eta" : "bg-fill text-ink"
           }`}
         >
@@ -91,16 +91,16 @@ export function OptionCard({
         selected ? "border-2 border-brand" : "border-2 border-transparent"
       }`}
     >
-      <span aria-hidden className="flex h-14 w-14 flex-none items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
+      <span aria-hidden className="flex h-14 w-14 flex-none items-center justify-center rounded-input bg-fill text-headline text-brand-ink">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[18px] font-medium">
-          {title} {meta && <span className="text-sm font-normal text-ink-2">{meta}</span>}
+        <span className="block text-title font-medium">
+          {title} {meta && <span className="text-small font-normal text-ink-2">{meta}</span>}
         </span>
-        {sub && <span className="block text-sm text-ink-2">{sub}</span>}
+        {sub && <span className="block text-small text-ink-2">{sub}</span>}
       </span>
-      <span className="text-[20px] font-bold tabular-nums text-brand-ink">{price}</span>
+      <span className="text-title-lg font-bold tabular-nums text-brand-ink">{price}</span>
     </button>
   );
 }
@@ -111,9 +111,9 @@ export function DashedAdd({ label, onClick }: { label: string; onClick: () => vo
     <button
       type="button"
       onClick={onClick}
-      className="press flex min-h-12 w-full items-center gap-2 rounded-input border-[1.5px] border-dashed border-line bg-fill/60 px-4 text-left text-[15px] text-ink-2"
+      className="press flex min-h-12 w-full items-center gap-2 rounded-input border-[1.5px] border-dashed border-line bg-fill/60 px-4 text-left text-body text-ink-2"
     >
-      <span aria-hidden className="text-xl">
+      <span aria-hidden className="text-title-lg">
         +
       </span>
       {label}
@@ -125,12 +125,12 @@ export function DashedAdd({ label, onClick }: { label: string; onClick: () => vo
 export function ToggleRow({ icon, title, sub, checked, onChange }: { icon: ReactNode; title: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex min-h-16 cursor-pointer items-center gap-3 rounded-card bg-bg p-3 shadow-card">
-      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-input bg-fill text-2xl text-brand-ink">
+      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-input bg-fill text-headline text-brand-ink">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[17px] font-semibold">{title}</span>
-        {sub && <span className="block text-sm text-ink-2">{sub}</span>}
+        <span className="block text-title font-semibold">{title}</span>
+        {sub && <span className="block text-small text-ink-2">{sub}</span>}
       </span>
       <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
       <span

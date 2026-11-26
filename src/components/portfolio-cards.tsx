@@ -17,7 +17,7 @@ export function WorkPhotoRemove({ photoId, t }: { photoId: string; t: T }) {
       action={removeWorkPhotoAction}
       fields={{ photoId }}
       trigger={t("workPhotos.remove")}
-      triggerClass={`${btn.text} min-h-9 px-1 text-[12px] text-danger`}
+      triggerClass={`${btn.text} min-h-9 px-1 text-caption text-danger`}
       title={t("workPhotos.removeTitle")}
       body={t("workPhotos.removeBody")}
       confirmLabel={t("workPhotos.remove")}
@@ -67,8 +67,8 @@ export function PortfolioAskSection({ dealId, candidates, t }: { dealId: string;
   return (
     <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
       <div>
-        <h2 className="text-[16px] font-bold">{t("workPhotos.askTitle")}</h2>
-        <p className="text-[14px] text-ink-2">{t("workPhotos.askSub")}</p>
+        <h2 className="text-lead font-bold">{t("workPhotos.askTitle")}</h2>
+        <p className="text-small text-ink-2">{t("workPhotos.askSub")}</p>
       </div>
       {used.length > 0 && (
         <ul className="grid grid-cols-3 gap-2">
@@ -76,7 +76,7 @@ export function PortfolioAskSection({ dealId, candidates, t }: { dealId: string;
             <li key={c.proofId} className="flex flex-col gap-1">
               {/* eslint-disable-next-line @next/next/no-img-element -- signed, short-lived storage URL */}
               {c.url ? <img src={c.url} alt="" className={thumb} /> : <span className={thumb} />}
-              <span className="text-[12px] text-ink-2">{t(`workPhotos.state.${c.status as "asked"}`)}</span>
+              <span className="text-caption text-ink-2">{t(`workPhotos.state.${c.status as "asked"}`)}</span>
               {(c.status === "asked" || c.status === "shown") && c.photoId && <WorkPhotoRemove photoId={c.photoId} t={t} />}
             </li>
           ))}
@@ -91,8 +91,8 @@ export function PortfolioAskSection({ dealId, candidates, t }: { dealId: string;
           title={t("workPhotos.askTitle")}
           confirmLabel={t("workPhotos.askSend")}
         >
-          <p className="rounded-input bg-warn-bg p-3 text-[13px] text-warn">{t("workPhotos.askRules")}</p>
-          <p className="text-[13px] text-ink-2">{t("workPhotos.askUpTo", { n: room })}</p>
+          <p className="rounded-input bg-warn-bg p-3 text-meta text-warn">{t("workPhotos.askRules")}</p>
+          <p className="text-meta text-ink-2">{t("workPhotos.askUpTo", { n: room })}</p>
           <div className="grid grid-cols-3 gap-2">
             {free.map((c, i) => (
               <label key={c.proofId} className="relative cursor-pointer">
@@ -121,8 +121,8 @@ export function PortfolioConsentCard({ dealId, photos, helperName, t }: { dealId
       {asked.length > 0 && (
         <>
           <div>
-            <h2 className="text-[16px] font-bold">{t("workPhotos.consentTitle", { name: helperName })}</h2>
-            <p className="text-[14px] text-ink-2">{t("workPhotos.consentSub")}</p>
+            <h2 className="text-lead font-bold">{t("workPhotos.consentTitle", { name: helperName })}</h2>
+            <p className="text-small text-ink-2">{t("workPhotos.consentSub")}</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {asked.map((p, i) =>
@@ -144,13 +144,13 @@ export function PortfolioConsentCard({ dealId, photos, helperName, t }: { dealId
       )}
       {shown.length > 0 && (
         <>
-          <h2 className="text-[14px] font-semibold text-ink-2">{t("workPhotos.publicOfTask")}</h2>
+          <h2 className="text-small font-semibold text-ink-2">{t("workPhotos.publicOfTask")}</h2>
           <ul className="grid grid-cols-3 gap-2">
             {shown.map((p, i) => (
               <li key={p.id} className="flex flex-col gap-1">
                 {/* eslint-disable-next-line @next/next/no-img-element -- public work photo */}
                 {p.url ? <img src={p.url} alt={t("taskPhotos.alt", { n: i + 1 })} className={thumb} /> : <span className={thumb} />}
-                <span className="text-[12px] text-ink-2">{t(p.source === "review" ? "workPhotos.fromYourReview" : "workPhotos.inPortfolio")}</span>
+                <span className="text-caption text-ink-2">{t(p.source === "review" ? "workPhotos.fromYourReview" : "workPhotos.inPortfolio")}</span>
                 <WorkPhotoRemove photoId={p.id} t={t} />
               </li>
             ))}

@@ -19,11 +19,11 @@ export function WebNav({ name, mode }: { name: string; mode: AppMode }) {
   return (
     <header className="sticky top-0 z-30 hidden border-b border-line bg-bg/95 backdrop-blur md:block">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-2">
-        <Link href={helper ? "/jobs" : "/"} className="flex shrink-0 items-center gap-2 text-[19px] font-extrabold tracking-tight">
-          <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
+        <Link href={helper ? "/jobs" : "/"} className="flex shrink-0 items-center gap-2 text-title-lg font-extrabold tracking-tight">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">{APP_MARK}</span>
           {APP_NAME}
         </Link>
-        <nav aria-label={t("tabs.navigation")} className="order-last -ml-3.5 flex w-full flex-wrap items-center gap-1 text-[15px] xl:order-none xl:ml-0 xl:w-auto">
+        <nav aria-label={t("tabs.navigation")} className="order-last -ml-3.5 flex w-full flex-wrap items-center gap-1 text-body xl:order-none xl:ml-0 xl:w-auto">
           {!helper && <NavLink href="/tasks">{t("tabs.tasks")}</NavLink>}
           <NavLink href="/requests">{t("web.requests")}</NavLink>
           <NavLink href="/helpers">{t("web.helpers")}</NavLink>
@@ -32,7 +32,7 @@ export function WebNav({ name, mode }: { name: string; mode: AppMode }) {
           <NavLink href="/help">{t("info.navHelp")}</NavLink>
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-3">
-          <Link href="/post" className="press flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-[14px] bg-brand px-4 text-[15px] font-bold text-white">
+          <Link href="/post" className="press flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-input bg-brand px-4 text-body font-bold text-white">
             <Plus aria-hidden size={18} strokeWidth={2.5} />
             {t("landing.nav.post")}
           </Link>

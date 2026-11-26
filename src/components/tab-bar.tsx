@@ -25,11 +25,11 @@ export function TabBar({ tabs }: { tabs: Tab[] }) {
 
   return (
     <nav aria-label={t("tabs.navigation")} className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center md:hidden px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-      <ul className="pointer-events-auto grid min-h-16 w-full max-w-sm auto-cols-fr grid-flow-col gap-1 rounded-[28px] border border-line bg-bg/90 p-1.5 shadow-float backdrop-blur">
+      <ul className="pointer-events-auto grid min-h-16 w-full max-w-sm auto-cols-fr grid-flow-col gap-1 rounded-sheet border border-line bg-bg/90 p-1.5 shadow-float backdrop-blur">
         {tabs.map((tab) => {
           const on = !tab.accent && active(tab.href);
           const tone = tab.accent ? "bg-brand text-white" : on ? "bg-fill text-ink" : "text-ink-2";
-          const className = `relative flex h-full min-h-13 w-full flex-col items-center justify-center gap-0.5 rounded-[22px] px-1 py-1 text-center text-xs font-semibold ${tone}`;
+          const className = `relative flex h-full min-h-13 w-full flex-col items-center justify-center gap-0.5 rounded-card px-1 py-1 text-center text-caption font-semibold ${tone}`;
           const content = <>
             <span aria-hidden className="leading-none">{tab.icon}</span>
             <span className="w-full min-w-0 leading-tight [overflow-wrap:anywhere]">{tab.label}</span>

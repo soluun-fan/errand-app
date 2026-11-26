@@ -13,7 +13,7 @@ export function OnboardingForm({ next, missing, name }: { next: string; missing:
   const [nameV, setNameV] = useState(name);
   const [ticks, setTicks] = useState({ age: false, terms: false, privacy: false });
   const check = (n: "age" | "terms" | "privacy", label: string, href?: string, linkText?: string) => (
-    <label className="flex items-start gap-3 rounded-input bg-bg p-3 text-[15px] shadow-card">
+    <label className="flex items-start gap-3 rounded-input bg-bg p-3 text-body shadow-card">
       <input type="checkbox" name={n} required checked={ticks[n]} onChange={(e) => setTicks({ ...ticks, [n]: e.target.checked })} className="mt-1 h-5 w-5 flex-none accent-ink" />
       <span>
         {label}{" "}
@@ -40,14 +40,14 @@ export function OnboardingForm({ next, missing, name }: { next: string; missing:
         <label className={fieldLabel}>
           {t("onboarding.name")}
           <input name="name" required minLength={2} maxLength={40} value={nameV} onChange={(e) => setNameV(e.target.value)} autoComplete="name" placeholder={t("onboarding.namePh")} className={field} />
-          <span className="text-[12px] font-normal text-ink-2">{t("onboarding.nameHelp")}</span>
+          <span className="text-caption font-normal text-ink-2">{t("onboarding.nameHelp")}</span>
         </label>
       )}
       {missing.includes("age") && check("age", t("onboarding.ageLabel"))}
       {missing.includes("terms") && check("terms", t("onboarding.termsLabel"), "/terms", t("onboarding.termsLink"))}
       {missing.includes("privacy") && check("privacy", t("onboarding.privacyLabel"), "/privacy", t("onboarding.privacyLink"))}
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

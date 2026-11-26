@@ -13,7 +13,8 @@ const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic", "
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: APP_NAME, description: t("common.description") };
+  // each page sets its own title (src/lib/page-title.ts); the tab reads "Profile · Guigere"
+  return { title: { default: APP_NAME, template: `%s · ${APP_NAME}` }, description: t("common.description") };
 }
 
 export const viewport: Viewport = {

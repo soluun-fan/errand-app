@@ -73,6 +73,6 @@ test("a new search word guesses the kind of task right away", async ({ browser }
 test("customers can't open the Ops page", async ({ page, context }) => {
   await loginAs(context, PHONES.solongo);
   await page.goto("/ops/content");
-  await expect(page.getByText("could not be found")).toBeVisible();
+  await expect(page.getByText("Энэ хуудас олдсонгүй")).toBeVisible();
   await expect(page.getByText("Хайлтын үгс")).toHaveCount(0);
 });

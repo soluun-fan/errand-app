@@ -74,8 +74,8 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
       <div className="flex items-center gap-3">
         <span aria-hidden className={`h-3 w-3 flex-none rounded-full ${online ? "bg-held" : "bg-ink-3"}`} />
         <span className="min-w-0 flex-1">
-          <span className="block text-lg font-bold">{online ? t("job.online") : t("job.offline")}</span>
-          <span className="block text-sm text-ink-2">{online ? t("job.onlineSub") : t("job.offlineSub")}</span>
+          <span className="block text-title font-bold">{online ? t("job.online") : t("job.offline")}</span>
+          <span className="block text-small text-ink-2">{online ? t("job.onlineSub") : t("job.offlineSub")}</span>
         </span>
         <button
           type="button"
@@ -91,7 +91,7 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("job.radius")}</legend>
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("job.radius")}</legend>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="radiogroup">
           {RADII.map((r) => (
             <button
@@ -110,19 +110,19 @@ export function OnlineCard({ online, radiusKm }: { online: boolean; radiusKm: nu
       </fieldset>
 
       <div className="flex items-center gap-3">
-        <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-xl">
+        <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-title-lg">
           <MapPin size={20} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold">{t("job.location")}</span>
-          <span className="block text-sm text-ink-2">
+          <span className="block text-body font-semibold">{t("job.location")}</span>
+          <span className="block text-small text-ink-2">
             {geo === "denied" || location?.status === "denied" ? t("job.locationDenied")
               : online && location?.status === "live" ? t("job.locationOn") : t("job.locationOff")}
           </span>
         </span>
       </div>
-      {failed && <p role="status" className="text-sm text-danger">{t("job.locationError")}</p>}
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {failed && <p role="status" className="text-small text-danger">{t("job.locationError")}</p>}
+      {error && <p role="alert" className="text-small text-danger">{error}</p>}
       <PushToggle />
     </section>
   );

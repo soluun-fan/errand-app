@@ -116,7 +116,7 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
           {busy ? t("proof.uploading") : label()}
         </button>
         {error && (
-          <p role="alert" className="text-center text-sm text-danger">
+          <p role="alert" className="text-center text-small text-danger">
             {error}
           </p>
         )}
@@ -130,13 +130,13 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
         <p className="font-semibold">
           {t(TEXT[kind].title)} {done && <span className="text-held">· {t("proof.done")}</span>}
         </p>
-        <p className="text-sm text-ink-2">{t(TEXT[kind].sub)}</p>
+        <p className="text-small text-ink-2">{t(TEXT[kind].sub)}</p>
       </div>
       {kind === "receipt" && (
         <label className={fieldLabel}>
           {t("proof.amount")}
           <input
-            className={`${field} text-[20px] font-bold tabular-nums`}
+            className={`${field} text-title-lg font-bold tabular-nums`}
             inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
@@ -152,7 +152,7 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
         {busy ? t("proof.uploading") : label()}
       </button>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

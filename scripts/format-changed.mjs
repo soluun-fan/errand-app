@@ -5,14 +5,16 @@ import { check, format, getFileInfo, resolveConfig } from "prettier";
 import { readFile, writeFile } from "node:fs/promises";
 
 const write = process.argv.includes("--write");
-const base = process.env.FORMAT_BASE?.replace(/^0+$/, "") || "HEAD";
+const base = process.env.FORMAT_BASE || "HEAD";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).split("\0").filter(Boolean);
-const files = [
-  ...new Set([
-    ...git("diff", "--name-only", "--diff-filter=ACMR", "-z", base, "--"),
-    ...git("ls-files", "--others", "--exclude-standard", "-z"),
-  ]),
-].filter((file) => existsSync(file) && /\.(?:[cm]?[jt]sx?|json|ya?ml|css)$/.test(file));
+// GitHub sends an all-zero "before" SHA when a branch is created. Check its latest
+// commit (including a repository's first commit) instead of silently diffing HEAD against itself.
+const changed = /^0+$/.test(base)
+  ? git("diff-tree", "--root", "--no-commit-id", "--name-only", "--diff-filter=ACMR", "-r", "-m", "-z", "HEAD", "--")
+  : git("diff", "--name-only", "--diff-filter=ACMR", "-z", base, "--");
+const files = [...new Set([...changed, ...git("ls-files", "--others", "--exclude-standard", "-z")])].filter(
+  (file) => existsSync(file) && /\.(?:[cm]?[jt]sx?|json|ya?ml|css)$/.test(file),
+);
 let checked = 0;
 const failures = [];
 for (const file of files) {

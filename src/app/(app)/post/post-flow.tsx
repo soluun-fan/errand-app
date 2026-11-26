@@ -324,7 +324,7 @@ export function PostFlow({
               <ArrowLeft aria-hidden size={20} />
             </button>
           )}
-          <span className="text-[13px] font-semibold text-ink-2 tabular-nums">
+          <span className="text-meta font-semibold text-ink-2 tabular-nums">
             {step + 1} / {STEPS.length}
           </span>
         </div>
@@ -334,11 +334,11 @@ export function PostFlow({
             style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
           />
         </span>
-        <h1 ref={heading} className="scroll-mt-24 text-[22px] font-bold leading-tight tracking-tight">
+        <h1 ref={heading} className="scroll-mt-24 text-heading font-bold leading-tight tracking-tight">
           {t(`task.steps.${STEPS[step]}`)}
         </h1>
         {invite && (
-          <p className="flex items-center gap-2.5 rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">
+          <p className="flex items-center gap-2.5 rounded-card bg-brand-bg p-3 text-small text-brand-ink">
             <Avatar name={invite.name} size={32} />
             <span className="min-w-0 flex-1">{t("invite.banner", { name: invite.name })}</span>
           </p>
@@ -372,7 +372,7 @@ export function PostFlow({
             const groupStart = c.trust !== "open" && (i === 0 || kinds[i - 1].trust === "open");
             return (
               <Fragment key={c.id}>
-                {groupStart && <h2 className="pt-2 text-[13px] font-semibold text-ink-2">{t("home.kinds.specialized")}</h2>}
+                {groupStart && <h2 className="pt-2 text-meta font-semibold text-ink-2">{t("home.kinds.specialized")}</h2>}
                 <button
                   type="button"
                   role="radio"
@@ -386,15 +386,15 @@ export function PostFlow({
                 >
                   <CategoryIcon id={c.id} tile size={22} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[16px] font-semibold">{t(`category.${c.id}`)}</span>
-                    <span className="block truncate text-[13px] text-ink-2">{t(`categoryExample.${c.id}`)}</span>
+                    <span className="block text-lead font-semibold">{t(`category.${c.id}`)}</span>
+                    <span className="block truncate text-meta text-ink-2">{t(`categoryExample.${c.id}`)}</span>
                   </span>
-                  <span className="flex-none text-[13px] font-semibold text-brand-ink tabular-nums">{kindFrom(c.id)}</span>
+                  <span className="flex-none text-meta font-semibold text-brand-ink tabular-nums">{kindFrom(c.id)}</span>
                 </button>
               </Fragment>
             );
           })}
-          <p className="flex items-start gap-2 rounded-card bg-bg p-3.5 text-[13px] text-ink-2 shadow-card">
+          <p className="flex items-start gap-2 rounded-card bg-bg p-3.5 text-meta text-ink-2 shadow-card">
             <Info aria-hidden size={16} className="mt-0.5 flex-none" />
             {t("task.typeHint", { amount: fmtMoney(minFee) })}
           </p>
@@ -409,7 +409,7 @@ export function PostFlow({
               setPendingCondition("");
               setStep(0);
             }}
-            className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink"
+            className="press flex items-center gap-2 self-start rounded-full bg-brand-bg px-3 py-1.5 text-meta font-semibold text-brand-ink"
           >
             <CategoryIcon id={d.category} size={16} />
             {t(`categoryShort.${d.category}`)} · {t("task.change")}
@@ -425,7 +425,7 @@ export function PostFlow({
             onTitleChange={(title) => setD((x) => ({ ...x, title, customTitle: true }))}
           />
           <fieldset>
-            <legend className="mb-2 text-sm font-semibold">{t("varietyLabel")}</legend>
+            <legend className="mb-2 text-small font-semibold">{t("varietyLabel")}</legend>
             <div className="flex flex-wrap gap-2">
               {JOB_VARIETIES[d.category].map((id) => (
                 <button
@@ -453,7 +453,7 @@ export function PostFlow({
           {categoryTrust(d.category) === "care" && (
             <Note tone="warn">{t(d.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>
           )}
-          <details className="group text-[13px] text-ink-2">
+          <details className="group text-meta text-ink-2">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2">
               <Info aria-hidden size={15} />
               {t("addressEntry.rules")}
@@ -487,18 +487,18 @@ export function PostFlow({
           {startStep === STEPS.indexOf("review") && <Note tone="info">{t("task.repeatNote")}</Note>}
           <div className="flex flex-col gap-2 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewRequest")}</h2>
+              <h2 className="text-meta font-semibold text-ink-2">{t("addressEntry.reviewRequest")}</h2>
               <button
                 type="button"
                 onClick={() => setStep(1)}
                 aria-label={t("addressEntry.editRequest")}
-                className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"
+                className="flex min-h-11 items-center gap-1.5 text-meta font-semibold text-brand-ink"
               >
                 <PencilLine aria-hidden size={14} />
                 {t("task.change")}
               </button>
             </div>
-            <p className="text-sm text-ink-2">
+            <p className="text-small text-ink-2">
               <CategoryIcon id={d.category} size={16} /> {t(`categoryShort.${d.category}`)} ·{" "}
               {d.when === "now"
                 ? t("task.whenNow")
@@ -506,18 +506,18 @@ export function PostFlow({
                   ? t("task.whenFlexible", { hours: Math.round(cfg.scheduleMatchWindowMinutes / 60) })
                   : start.replace("T", " ")}
             </p>
-            <p className="text-[18px] font-semibold">{title}</p>
+            <p className="text-title font-semibold">{title}</p>
             <ConditionChips variety={d.variety} require={d.require} t={t} />
-            {brief.trim() !== title.trim() && <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-2">{brief}</p>}
+            {brief.trim() !== title.trim() && <p className="whitespace-pre-wrap text-body leading-relaxed text-ink-2">{brief}</p>}
           </div>
           <div className="flex flex-col gap-3 rounded-card bg-bg shadow-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[13px] font-semibold text-ink-2">{t("addressEntry.reviewPlaces")}</h2>
+              <h2 className="text-meta font-semibold text-ink-2">{t("addressEntry.reviewPlaces")}</h2>
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 aria-label={t("addressEntry.editPlaces")}
-                className="flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-brand-ink"
+                className="flex min-h-11 items-center gap-1.5 text-meta font-semibold text-brand-ink"
               >
                 <PencilLine aria-hidden size={14} />
                 {t("task.change")}
@@ -527,25 +527,25 @@ export function PostFlow({
               <div className="flex items-start gap-2">
                 <MapPin aria-hidden size={17} className="mt-1 flex-none" />
                 <div>
-                  <p className="text-xs text-ink-2">{t("task.pickup")}</p>
-                  <p className="text-[15px]">{d.pickup}</p>
+                  <p className="text-caption text-ink-2">{t("task.pickup")}</p>
+                  <p className="text-body">{d.pickup}</p>
                 </div>
               </div>
             )}
             <div className="flex items-start gap-2">
               <MapPin aria-hidden size={17} className="mt-1 flex-none text-brand-ink" />
               <div>
-                <p className="text-xs text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</p>
-                <p className="text-[15px]">{d.address}</p>
-                {arrivalSummary && <p className="text-sm text-ink-2">{arrivalSummary}</p>}
-                {d.note && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{d.note}</p>}
+                <p className="text-caption text-ink-2">{twoPoint ? t("task.drop") : t("task.where")}</p>
+                <p className="text-body">{d.address}</p>
+                {arrivalSummary && <p className="text-small text-ink-2">{arrivalSummary}</p>}
+                {d.note && <p className="mt-1 whitespace-pre-wrap text-small text-ink-2">{d.note}</p>}
               </div>
             </div>
           </div>
 
           {isCarry && (
             <fieldset className="flex flex-col gap-1">
-              <legend className="mb-1 text-[15px] font-medium text-ink-2">{t("task.team")}</legend>
+              <legend className="mb-1 text-body font-medium text-ink-2">{t("task.team")}</legend>
               <OptionCard
                 selected={details.people === 1}
                 disabled={needTwo}
@@ -568,7 +568,7 @@ export function PostFlow({
 
           {/* the customer's own price — only the minimum is ours; helpers may answer with theirs */}
           <div className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
-            <label htmlFor="price" className="text-[13px] font-semibold text-ink-2">
+            <label htmlFor="price" className="text-meta font-semibold text-ink-2">
               {t("price.yourPrice")}
             </label>
             <div className="flex items-center gap-2">
@@ -588,11 +588,11 @@ export function PostFlow({
                   value={d.price ? Number(digits(d.price)).toLocaleString("en-US") : ""}
                   placeholder={fmtMoney(suggested).replace("₮", "")}
                   onChange={(e) => set("price", digits(e.target.value).slice(0, 8))}
-                  className={`${field} pr-9 text-center text-[24px] font-bold tabular-nums text-brand-ink`}
+                  className={`${field} pr-9 text-center text-headline font-bold tabular-nums text-brand-ink`}
                 />
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[20px] font-bold text-brand-ink"
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-title-lg font-bold text-brand-ink"
                 >
                   ₮
                 </span>
@@ -607,28 +607,28 @@ export function PostFlow({
               </button>
             </div>
             {belowMin || overMax ? (
-              <p role="alert" className="text-[13px] font-medium text-danger">
+              <p role="alert" className="text-meta font-medium text-danger">
                 {belowMin
                   ? t("post.reason.fee", { amount: fmtMoney(minFee) })
                   : t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) })}
               </p>
             ) : (
-              <p className="text-[13px] text-ink-2">{t("price.minHint", { min: fmtMoney(minFee), suggested: fmtMoney(suggested) })}</p>
+              <p className="text-meta text-ink-2">{t("price.minHint", { min: fmtMoney(minFee), suggested: fmtMoney(suggested) })}</p>
             )}
             {/* care: what the price means per hour. Day jobs are priced per job, never per hour (contractor work, V1 spec A3) */}
             {hourly && d.category !== "dayjob" && details.minutes > 0 && (
-              <p className="text-[13px] font-medium text-ink-2">
+              <p className="text-meta font-medium text-ink-2">
                 {t("price.perHour", { amount: fmtMoney(Math.floor(fee / (details.minutes / 60))), floor: fmtMoney(hourly) })}
               </p>
             )}
-            <p className="text-[13px] text-ink-2">{t("price.bargainHint")}</p>
+            <p className="text-meta text-ink-2">{t("price.bargainHint")}</p>
           </div>
 
           {extraFee > 0 && (
             <Note tone="info">{t("post.extraTaskNote", { n: openTasks, free: cfg.freeOpenTasks, amount: fmtMoney(extraFee) })}</Note>
           )}
           <details className="group">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-medium">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-body font-medium">
               {t("task.breakdown")}
               <span aria-hidden className="transition-transform group-open:rotate-180">
                 ▾
@@ -652,7 +652,7 @@ export function PostFlow({
               onChange={setOpenAfter}
             />
           ) : posterChooses ? (
-            <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>
+            <p className="rounded-input bg-fill p-3 text-small">{t("care.posterChoice")}</p>
           ) : d.when === "flexible" ? null : (
             <ToggleRow
               icon={<Sparkles aria-hidden size={24} />}
@@ -663,11 +663,11 @@ export function PostFlow({
             />
           )}
 
-          {posterChooses && invite && <p className="rounded-input bg-fill p-3 text-sm">{t("care.posterChoice")}</p>}
+          {posterChooses && invite && <p className="rounded-input bg-fill p-3 text-small">{t("care.posterChoice")}</p>}
           {cfg.kindCheckHours[d.category] && (
-            <p className="text-sm text-ink-2">{t("specialized.check", { hours: cfg.kindCheckHours[d.category]! })}</p>
+            <p className="text-small text-ink-2">{t("specialized.check", { hours: cfg.kindCheckHours[d.category]! })}</p>
           )}
-          <p className="flex gap-2 rounded-input bg-held-bg p-3 text-[15px] text-held">
+          <p className="flex gap-2 rounded-input bg-held-bg p-3 text-body text-held">
             <Lock aria-hidden size={14} className="shrink-0" />
             {t("task.heldLine")}
           </p>
@@ -676,11 +676,11 @@ export function PostFlow({
 
       <div className="sticky bottom-0 -mx-5 mt-auto flex flex-col gap-1.5 bg-canvas/95 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         {state.error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-small text-danger">
             {state.error}
           </p>
         )}
-        {reason && <p className="text-center text-sm text-ink-2">{reason}</p>}
+        {reason && <p className="text-center text-small text-ink-2">{reason}</p>}
         <div className="flex gap-2">
           {step > 0 && (
             <button
@@ -706,7 +706,7 @@ export function PostFlow({
           )}
         </div>
         {STEPS[step] === "review" && (
-          <p className="text-center text-xs text-ink-2">
+          <p className="text-center text-caption text-ink-2">
             {t("task.terms")}{" "}
             <Link href="/help" className="underline underline-offset-2">
               {t("task.termsLink")}

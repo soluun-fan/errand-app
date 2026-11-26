@@ -40,10 +40,10 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
         {expired ? <Note tone="warn">{t("verifyRecipient.expired")}</Note> : <>
           <p>{state.view.displayInstruction}</p>
           <a href={state.view.smsUri} className={btn.primary}>{t("verifyRecipient.openSms")}</a>
-          <p className="text-sm text-ink-2">{t("login.smsReturn")}</p>
-          <p role="status" className="text-sm text-ink-2">{t("verifyRecipient.waiting")}</p>
+          <p className="text-small text-ink-2">{t("login.smsReturn")}</p>
+          <p role="status" className="text-small text-ink-2">{t("verifyRecipient.waiting")}</p>
         </>}
-        {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+        {state.error && <p role="alert" className="text-small text-danger">{state.error}</p>}
         <button type="submit" disabled={busy} className={btn.secondary}>{t("login.checkStatus")}</button>
         <button name="intent" value="change-number" className={btn.text}>{t("login.otherNumber")}</button>
       </form>
@@ -54,28 +54,29 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
     return (
       <form action={action} className="flex flex-col gap-4">
         <input type="hidden" name="next" value={next} />
-        <p className="text-[15px] text-ink-2">{t("login.sentTo", { phone: formatMnPhone(state.phone) })}</p>
+        <p className="text-body text-ink-2">{t("login.sentTo", { phone: formatMnPhone(state.phone) })}</p>
         {state.devCode && (
           <Note tone="warn">
             {t("login.devCode", { code: "" })}
-            <b className="font-mono text-base tracking-widest">{state.devCode}</b>
+            <b className="font-mono text-lead tracking-widest">{state.devCode}</b>
           </Note>
         )}
         <label className={fieldLabel}>
           {t("login.code")}
           <input
             name="code"
-            className={`${field} text-center text-2xl tracking-[0.4em]`}
+            className={`${field} text-center text-headline tracking-[0.4em]`}
             inputMode="numeric"
             autoComplete="one-time-code"
             pattern="\d{6}"
             maxLength={6}
             required
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the only field on this step; focusing it is what people expect
             autoFocus
           />
         </label>
         {state.error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-small text-danger">
             {state.error}
           </p>
         )}
@@ -95,7 +96,7 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
       <label className={fieldLabel}>
         {t("login.phone")}
         <div className="flex items-center gap-2">
-          <span className="text-base font-normal text-ink-2">+976</span>
+          <span className="text-lead font-normal text-ink-2">+976</span>
           <input
             name="phone"
             className={field}
@@ -104,12 +105,13 @@ export function LoginForm({ showDemoHint, verifyMn, pending, next = "/" }: { sho
             placeholder="8800 0001"
             defaultValue={state.phoneInput}
             required
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the only field on this step; focusing it is what people expect
             autoFocus
           />
         </div>
       </label>
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

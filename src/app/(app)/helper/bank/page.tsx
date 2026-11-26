@@ -5,6 +5,9 @@ import { getViewer } from "@/lib/auth";
 import { myPayout } from "@/lib/payout";
 import { BankForm } from "./bank-form";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("payout.title");
 
 /** /helper/bank — the helper's bank account: shown masked, and changed here (approved helpers only). */
 export default async function BankPage() {
@@ -17,19 +20,19 @@ export default async function BankPage() {
       <FlowHeader href="/profile" label={t("common.back")} title={t("payout.title")} />
       {current ? (
         <section className="flex flex-col gap-1 rounded-card bg-bg p-4 shadow-card">
-          <p className="text-[13px] text-ink-2">{t("payout.current")}</p>
-          <p className="text-[17px] font-bold">
+          <p className="text-meta text-ink-2">{t("payout.current")}</p>
+          <p className="text-title font-bold">
             {current.bank} · <span className="tabular-nums">{current.masked}</span>
           </p>
-          <p className="text-[14px]">{current.holderName}</p>
-          {!current.verified && <p className="text-[13px] text-warn">{t("payout.unchecked")}</p>}
+          <p className="text-small">{current.holderName}</p>
+          {!current.verified && <p className="text-meta text-warn">{t("payout.unchecked")}</p>}
         </section>
       ) : (
         <Note tone="warn">{t("payout.needed")}</Note>
       )}
       <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
-        <h2 className="text-[16px] font-bold">{current ? t("payout.change") : t("payout.add")}</h2>
-        <p className="text-[14px] text-ink-2">{t("payout.why")}</p>
+        <h2 className="text-lead font-bold">{current ? t("payout.change") : t("payout.add")}</h2>
+        <p className="text-small text-ink-2">{t("payout.why")}</p>
         <BankForm next={current ? "profile" : "jobs"} holder={viewer.profile.verified_name ?? ""} />
       </section>
     </>

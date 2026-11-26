@@ -1,10 +1,9 @@
-import type { Metadata } from "next";
-import { APP_NAME } from "@/lib/brand";
 import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getRules } from "@/lib/rules";
+import { titled } from "@/lib/page-title";
 
-export const metadata: Metadata = { title: `${APP_NAME} — Нууцлалын бодлого` };
+export const generateMetadata = titled("info.privacyTitle");
 
 /**
  * /privacy — plain-words privacy policy describing what the code actually does (docs/rules.md,
@@ -18,12 +17,12 @@ export default async function PrivacyPage() {
   return (
     <>
       <FlowHeader href="/" label={t("common.back")} />
-      <h1 className="text-[24px] font-bold tracking-tight">{t("info.privacyTitle")}</h1>
+      <h1 className="text-headline font-bold tracking-tight">{t("info.privacyTitle")}</h1>
       <Note tone="warn">{t("info.privacyDraft")}</Note>
       {sections.map((s) => (
         <section key={s.title} className="flex flex-col gap-1.5 rounded-card bg-bg p-4 shadow-card">
-          <h2 className="text-[16px] font-bold">{s.title}</h2>
-          <p className="text-[14px] leading-relaxed text-ink-2">{s.body}</p>
+          <h2 className="text-lead font-bold">{s.title}</h2>
+          <p className="text-small leading-relaxed text-ink-2">{s.body}</p>
         </section>
       ))}
     </>

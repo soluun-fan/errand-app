@@ -8,6 +8,9 @@ import { certificateQueue } from "@/lib/orgs";
 import { DecideCert } from "./decide-cert";
 import { HeartPulse } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsCerts.title");
 
 /** /ops/certificates — trade certificates waiting for a check (oldest first). Admins only. */
 export default async function OpsCertificatesPage() {
@@ -17,7 +20,7 @@ export default async function OpsCertificatesPage() {
   return (
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsCerts.title")} />
-      {queue.length === 0 && <p className="text-[15px] text-ink-2">{t("opsCerts.empty")}</p>}
+      {queue.length === 0 && <p className="text-body text-ink-2">{t("opsCerts.empty")}</p>}
       {queue.map((c) => (
         <section key={c.id} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
           <div className="flex items-center gap-3">
@@ -26,7 +29,7 @@ export default async function OpsCertificatesPage() {
               <span className="block font-semibold">
                 {c.helperName} · {t(`categoryShort.${c.category}`)}
               </span>
-              <span className="block text-[13px] text-ink-2">
+              <span className="block text-meta text-ink-2">
                 {c.issuer}
                 {c.number ? ` · №${c.number}` : ""}
                 {c.expiresOn ? ` · ${t("cert.until", { date: c.expiresOn })}` : ""}

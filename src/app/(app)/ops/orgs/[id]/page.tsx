@@ -5,6 +5,9 @@ import { getViewer } from "@/lib/auth";
 import { Uuid, parseOr } from "@/lib/input";
 import { members, orgForOps } from "@/lib/orgs";
 import { DecideOrg } from "./decide";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsOrgs.title");
 
 /** /ops/orgs/[id] — check the registration certificate and payout account, then decide. */
 export default async function OpsOrgPage({ params }: PageProps<"/ops/orgs/[id]">) {
@@ -16,7 +19,7 @@ export default async function OpsOrgPage({ params }: PageProps<"/ops/orgs/[id]">
   if (!o) notFound();
   const staff = await members(id);
   const row = (label: string, value: React.ReactNode) => (
-    <div className="flex justify-between gap-4 text-[15px]">
+    <div className="flex justify-between gap-4 text-body">
       <span className="text-ink-2">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </div>
@@ -31,15 +34,15 @@ export default async function OpsOrgPage({ params }: PageProps<"/ops/orgs/[id]">
         {row(t("opsOrgs.owner"), o.ownerName)}
         {row(t("org.area"), o.area ?? "—")}
         {row(t("org.payout"), o.payout ? `${o.payout.bank} ••${o.payout.last4} · ${o.payout.holder}` : "—")}
-        {o.description && <p className="whitespace-pre-line text-[14px] text-ink-2">{o.description}</p>}
+        {o.description && <p className="whitespace-pre-line text-small text-ink-2">{o.description}</p>}
         {o.docUrl ? (
           <a href={o.docUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-ink underline underline-offset-2">
             {t("opsOrgs.openDoc")}
           </a>
         ) : (
-          <p className="text-sm text-danger">{t("opsOrgs.noDoc")}</p>
+          <p className="text-small text-danger">{t("opsOrgs.noDoc")}</p>
         )}
-        <p className="text-[13px] text-ink-2">{t("opsOrgs.checkHint")}</p>
+        <p className="text-meta text-ink-2">{t("opsOrgs.checkHint")}</p>
       </Card>
       <DecideOrg id={o.id} requested={o.requestedCategories} approved={o.categories} />
       {staff.length > 0 && (

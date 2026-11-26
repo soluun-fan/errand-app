@@ -8,6 +8,9 @@ import { myCertificates, myMemberships } from "@/lib/orgs";
 import { CertForm } from "./cert-form";
 import { notFound } from "next/navigation";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("cert.title");
 
 /**
  * /helper/certificates — trade credentials for launch services. Direct care credentials aren't
@@ -38,10 +41,10 @@ export default async function CertificatesPage() {
 
       {qualified.length > 0 && (
         <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
-          <h2 className="text-[13px] font-semibold text-ink-2">{t("cert.canTake")}</h2>
+          <h2 className="text-meta font-semibold text-ink-2">{t("cert.canTake")}</h2>
           <ul className="flex flex-wrap gap-2">
             {qualified.map((q) => (
-              <li key={`${q.category}:${q.orgId ?? "own"}`} className="inline-flex items-center gap-1.5 rounded-full bg-held-bg px-3 py-1.5 text-[13px] font-semibold text-held">
+              <li key={`${q.category}:${q.orgId ?? "own"}`} className="inline-flex items-center gap-1.5 rounded-full bg-held-bg px-3 py-1.5 text-meta font-semibold text-held">
                 <CategoryIcon id={q.category} size={14} /> {t(`categoryShort.${q.category}`)} · {q.orgId ? orgs.find((o) => o.orgId === q.orgId)?.orgName ?? t("cert.viaOrg") : t("cert.own")}
               </li>
             ))}
@@ -56,13 +59,13 @@ export default async function CertificatesPage() {
               <CategoryIcon id={c.category} tile size={16} />
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{t(`categoryShort.${c.category}`)}</span>
-                <span className="block truncate text-[13px] text-ink-2">
+                <span className="block truncate text-meta text-ink-2">
                   {c.issuer}
                   {c.expiresOn ? ` · ${t("cert.until", { date: c.expiresOn })}` : ""}
                 </span>
-                {c.reviewNote && <span className="block text-[13px] text-ink-2">{c.reviewNote}</span>}
+                {c.reviewNote && <span className="block text-meta text-ink-2">{c.reviewNote}</span>}
               </span>
-              <span className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${c.status === "approved" ? "bg-held-bg text-held" : c.status === "pending" ? "bg-fill text-ink-2" : "bg-danger/10 text-danger"}`}>
+              <span className={`rounded-full px-2.5 py-1 text-caption font-bold ${c.status === "approved" ? "bg-held-bg text-held" : c.status === "pending" ? "bg-fill text-ink-2" : "bg-danger/10 text-danger"}`}>
                 {t(`cert.status.${c.status}`)}
               </span>
             </li>
@@ -70,9 +73,9 @@ export default async function CertificatesPage() {
         </ul>
       )}
 
-      <h2 className="text-[17px] font-bold">{t("cert.add")}</h2>
+      <h2 className="text-title font-bold">{t("cert.add")}</h2>
       <CertForm />
-      <p className="text-[14px] text-ink-2">{t("cert.orgHint")}</p>
+      <p className="text-small text-ink-2">{t("cert.orgHint")}</p>
     </>
   );
 }

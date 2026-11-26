@@ -53,9 +53,9 @@ export function DocUpload({
   return (
     <div className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{label}</span>
-        {help && <span className="block text-sm text-ink-2">{help}</span>}
-        {path && <span className="block text-sm text-held">{t("kyc.uploaded")}</span>}
+        <span className="block text-body font-semibold">{label}</span>
+        {help && <span className="block text-small text-ink-2">{help}</span>}
+        {path && <span className="block text-small text-held">{t("kyc.uploaded")}</span>}
       </span>
       <input ref={input} type="file" className="sr-only" accept="image/*,application/pdf" onChange={(e) => onFile(e.target.files?.[0])} />
       <button type="button" disabled={busy} onClick={() => input.current?.click()} className={path ? btn.secondary : btn.small}>

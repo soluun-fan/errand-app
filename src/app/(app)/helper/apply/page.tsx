@@ -6,6 +6,9 @@ import { latestApplication } from "@/lib/kyc";
 import { ApplyForm } from "./apply-form";
 import { TestHelperForm } from "./test-helper-form";
 import { canUseUnverifiedHelperTest, unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("kyc.title");
 
 /** /helper/apply — verification form, or the status of the latest application. */
 export default async function ApplyPage() {
@@ -36,7 +39,7 @@ export default async function ApplyPage() {
       )}
       {canApply && (
         <>
-          <p className="text-[16px] text-ink-2">{t("kyc.intro")}</p>
+          <p className="text-lead text-ink-2">{t("kyc.intro")}</p>
           <ApplyForm />
         </>
       )}

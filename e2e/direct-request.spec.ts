@@ -86,7 +86,7 @@ test("a customer sends Bat a request; only Bat sees it; Bat declines and it open
   const o = await other.newPage();
   // (Next streams this page, so a not-found arrives as HTTP 200 — check what is on screen)
   await o.goto(`/jobs/${id}`);
-  await expect(o.getByText("could not be found")).toBeVisible();
+  await expect(o.getByText("Энэ хуудас олдсонгүй")).toBeVisible();
   await expect(o.getByText("[verify] Шууд хүсэлт")).toHaveCount(0);
   const { data: feed } = await db.rpc("nearby_open_deals", { p_helper_id: nomin.id });
   expect((feed ?? []).map((r) => r.deal_id)).not.toContain(id);

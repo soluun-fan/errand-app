@@ -16,18 +16,18 @@ export function ManageMembers({ orgId, kinds, members }: { orgId: string; kinds:
   const [removed, remove] = useActionState<ActionResult, FormData>(removeWorker, {});
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-bold">{t("org.manage.title")}</h2>
+      <h2 className="text-title font-bold">{t("org.manage.title")}</h2>
       <form action={invite} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
         <input type="hidden" name="orgId" value={orgId} />
         <label className={fieldLabel}>
           {t("org.manage.phone")}
           <input name="phone" required inputMode="tel" className={`${field} tabular-nums`} placeholder="8800 0000" />
-          <span className="text-[12px] font-normal text-ink-2">{t("org.manage.phoneHelp")}</span>
+          <span className="text-caption font-normal text-ink-2">{t("org.manage.phoneHelp")}</span>
         </label>
         <fieldset className="flex flex-wrap gap-2">
-          <legend className="mb-2 text-[14px] font-semibold">{t("org.manage.kinds")}</legend>
+          <legend className="mb-2 text-small font-semibold">{t("org.manage.kinds")}</legend>
           {kinds.map((c) => (
-            <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[14px] has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
+            <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-small has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
               <input type="checkbox" name="categories" value={c} defaultChecked className="accent-brand" />
               <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
             </label>
@@ -41,11 +41,11 @@ export function ManageMembers({ orgId, kinds, members }: { orgId: string; kinds:
           </select>
         </label>
         {state.error && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-small text-danger">
             {state.error}
           </p>
         )}
-        {state.done && <p className="text-sm text-held">{t("org.manage.sent")}</p>}
+        {state.done && <p className="text-small text-held">{t("org.manage.sent")}</p>}
         <SubmitButton className={`${btn.primary} w-full`}>{t("org.manage.invite")}</SubmitButton>
       </form>
 
@@ -54,7 +54,7 @@ export function ManageMembers({ orgId, kinds, members }: { orgId: string; kinds:
           <li key={m.helperId} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
             <span className="min-w-0 flex-1">
               <span className="block font-semibold">{m.name}</span>
-              <span className="block text-[13px] text-ink-2">
+              <span className="block text-meta text-ink-2">
                 {t(`org.roles.${m.role}`)} · {m.status === "invited" ? t("org.manage.waiting") : m.categories.map((c) => t(`categoryShort.${c}`)).join(", ") || "—"}
                 {m.categories.some((c) => c === "childcare" || c === "eldercare") && m.kycLevel < 4 ? ` · ${t("org.manage.needsRecord")}` : ""}
               </span>
@@ -69,7 +69,7 @@ export function ManageMembers({ orgId, kinds, members }: { orgId: string; kinds:
           </li>
         ))}
       </ul>
-      {removed.error && <p className="text-sm text-danger">{removed.error}</p>}
+      {removed.error && <p className="text-small text-danger">{removed.error}</p>}
     </section>
   );
 }

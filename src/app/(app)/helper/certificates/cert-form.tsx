@@ -61,18 +61,18 @@ export function CertForm() {
         </label>
       </div>
       {categoryTrust(category) === "care" && (
-        <label className="flex items-start gap-3 rounded-input bg-fill p-3 text-[15px]">
+        <label className="flex items-start gap-3 rounded-input bg-fill p-3 text-body">
           <input type="checkbox" name="firstAid" className="mt-1 h-5 w-5" />
           <span>{t("care.firstAidClaim")}</span>
         </label>
       )}
       <DocUpload label={t("cert.doc")} path={doc} prepare={(mime, bytes) => prepareDoc("cert", mime, bytes)} onDone={setDoc} onError={setError} />
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}
-      {sent && <p className="text-sm text-held">{t("cert.sent")}</p>}
+      {sent && <p className="text-small text-held">{t("cert.sent")}</p>}
       <button disabled={busy || !doc} className={`${btn.primary} w-full`}>
         {busy ? t("common.working") : t("cert.submit")}
       </button>

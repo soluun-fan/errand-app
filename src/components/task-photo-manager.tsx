@@ -92,9 +92,9 @@ export function TaskPhotoManager({ dealId, photos }: { dealId: string; photos: T
           {busy ? t("taskPhotos.uploading") : t("taskPhotos.add")}
         </button>
       )}
-      <p className="text-[13px] text-ink-2">{t("taskPhotos.editableUntil")}</p>
+      <p className="text-meta text-ink-2">{t("taskPhotos.editableUntil")}</p>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

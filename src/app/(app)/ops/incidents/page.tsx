@@ -15,6 +15,9 @@ import type { Locale, T } from "@/i18n";
 import { acknowledge, liftAccountPauseAction, pauseAccountAction, resolve } from "../actions";
 import { CircleCheck, MapPin, Phone } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsIncidents.title");
 
 /**
  * /ops/incidents — SOS first, then other open reports, then the latest resolved. Admins only.
@@ -43,17 +46,17 @@ export default async function OpsIncidentsPage() {
                       {sos ? "🆘 SOS" : t(`safety.kinds.${i.kind}`)}
                       {sos && i.alerts > 1 && <span className="font-normal"> · {t("opsIncidents.presses", { n: i.alerts, when: fmtDateTime(i.lastAlertAt, locale) })}</span>}
                     </p>
-                    <span className="rounded-full bg-fill px-2.5 py-0.5 text-sm font-semibold">{t(`opsIncidents.status.${i.status}`)}</span>
+                    <span className="rounded-full bg-fill px-2.5 py-0.5 text-small font-semibold">{t(`opsIncidents.status.${i.status}`)}</span>
                   </div>
-                  <p className="text-sm text-ink-2">{fmtDateTime(i.createdAt, locale)}</p>
+                  <p className="text-small text-ink-2">{fmtDateTime(i.createdAt, locale)}</p>
                   <Link href={`/tasks/${i.dealId}`} className="font-semibold underline underline-offset-4">
                     {i.dealTitle}
                   </Link>
-                  <p className="text-[15px]">
+                  <p className="text-body">
                     {t("opsIncidents.from", { name: i.reporter.name, role: t(`opsIncidents.role.${i.reporter.role}`) })}
                     {i.subject && <> · {t("opsIncidents.about", { name: i.subject.name })}</>}
                   </p>
-                  {i.note && <p className="whitespace-pre-line rounded-input bg-fill p-2.5 text-[15px]">{i.note}</p>}
+                  {i.note && <p className="whitespace-pre-line rounded-input bg-fill p-2.5 text-body">{i.note}</p>}
                   <div className="flex flex-wrap gap-2">
                     {tel && i.status !== "resolved" && (
                       <a href={`tel:${tel}`} className={btn.secondary}>
@@ -73,7 +76,7 @@ export default async function OpsIncidentsPage() {
                     ))}
                   </div>
                   {i.status === "resolved" ? (
-                    <p className="text-sm text-ink-2">
+                    <p className="text-small text-ink-2">
                       ✓ {i.handledBy}: {i.opsNote}
                     </p>
                   ) : (
@@ -81,7 +84,7 @@ export default async function OpsIncidentsPage() {
                       {i.status === "open" && (
                         <InlineAction action={acknowledge} fields={{ id: i.id }} label={t("opsIncidents.ack")} className={`${sos ? btn.danger : btn.small} w-full`} />
                       )}
-                      {i.status === "acknowledged" && <p className="text-sm text-ink-2">{t("opsIncidents.handling", { name: i.handledBy ?? "—" })}</p>}
+                      {i.status === "acknowledged" && <p className="text-small text-ink-2">{t("opsIncidents.handling", { name: i.handledBy ?? "—" })}</p>}
                       <ConfirmSheet
                         action={resolve}
                         fields={{ id: i.id }}
@@ -111,7 +114,7 @@ export default async function OpsIncidentsPage() {
 function PauseControl({ who, t, locale }: { who: { id: string; name: string; pausedUntil: number | null }; t: T; locale: Locale }) {
   if (who.pausedUntil !== null) {
     return (
-      <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-input bg-warn-bg px-3 py-2 text-sm text-warn">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-input bg-warn-bg px-3 py-2 text-small text-warn">
         {t("opsIncidents.pausedUntil", { name: who.name, date: fmtDateTime(who.pausedUntil, locale) })}
         <InlineAction action={liftAccountPauseAction} fields={{ userId: who.id }} label={t("opsIncidents.lift")} className={btn.small} />
       </div>

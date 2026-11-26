@@ -34,7 +34,7 @@ export function InlineAction({
       ))}
       {children}
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

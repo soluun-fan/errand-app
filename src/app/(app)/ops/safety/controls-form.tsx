@@ -15,21 +15,21 @@ export function ControlsForm({ c }: { c: Omit<Controls, "updatedAt"> }) {
     <label className={fieldLabel}>
       {label}
       <input name={name} inputMode="numeric" defaultValue={value} className={field} />
-      <span className="text-sm font-normal">{help}</span>
+      <span className="text-small font-normal">{help}</span>
     </label>
   );
   return (
     <form action={action} className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsSafety.switches")}</h2>
-        <label className="flex items-start gap-3 text-[15px]">
+        <label className="flex items-start gap-3 text-body">
           <input type="checkbox" name="postingPaused" defaultChecked={c.postingPaused} className="mt-1 h-5 w-5 flex-none accent-danger" />
           <span>
             <span className="block font-semibold">{t("opsSafety.pausePosting")}</span>
             <span className="block text-ink-2">{t("opsSafety.pausePostingHelp")}</span>
           </span>
         </label>
-        <label className="flex items-start gap-3 text-[15px]">
+        <label className="flex items-start gap-3 text-body">
           <input type="checkbox" name="paymentsPaused" defaultChecked={c.paymentsPaused} className="mt-1 h-5 w-5 flex-none accent-danger" />
           <span>
             <span className="block font-semibold">{t("opsSafety.freeze")}</span>
@@ -51,7 +51,7 @@ export function ControlsForm({ c }: { c: Omit<Controls, "updatedAt"> }) {
       </section>
 
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

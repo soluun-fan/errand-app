@@ -57,24 +57,24 @@ export function PricingForm({ p }: { p: PricingSettings }) {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPricing.serviceFee")}</h2>
-        <p className="text-sm text-ink-2">{t("opsPricing.serviceFeeShareHelp")}</p>
+        <p className="text-small text-ink-2">{t("opsPricing.serviceFeeShareHelp")}</p>
         <div className="grid grid-cols-3 gap-3">
           {num("serviceFeePct", t("opsPricing.serviceFeePct"), p.serviceFeeBps / 100, "%")}
           {num("serviceFeeMin", t("opsPricing.serviceFeeMin"), p.serviceFeeMin)}
           {num("serviceFeeMax", t("opsPricing.serviceFeeMax"), p.serviceFeeMax)}
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-[15px]">
+        <label className="flex min-h-11 items-center gap-2 text-body">
           <input type="checkbox" name="firstTaskFree" defaultChecked={p.firstTaskFree} className="size-5" />
           {t("opsPricing.firstTaskFree")}
         </label>
-        <p className="text-sm text-ink-2">{t("opsPricing.serviceFeeHelp")}</p>
+        <p className="text-small text-ink-2">{t("opsPricing.serviceFeeHelp")}</p>
         <input type="hidden" name="tierCount" value={p.serviceFeeTiers.length} />
         {p.serviceFeeTiers.map((tier, i) => (
           <div key={i} className="grid grid-cols-2 gap-3">
             {tier.below !== null ? (
               num(`tierBelow${i}`, t("opsPricing.tierBelow"), tier.below)
             ) : (
-              <p className="self-end pb-4 text-[15px] text-ink-2">{t("opsPricing.tierRest")}</p>
+              <p className="self-end pb-4 text-body text-ink-2">{t("opsPricing.tierRest")}</p>
             )}
             {num(`tierFee${i}`, t("opsPricing.tierFee"), tier.fee)}
           </div>
@@ -82,7 +82,7 @@ export function PricingForm({ p }: { p: PricingSettings }) {
       </section>
 
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

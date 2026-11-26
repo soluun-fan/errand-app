@@ -21,7 +21,7 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
       type="button"
       onClick={copy}
       aria-label={label ? `${t("common.copy")}: ${label}` : t("common.copy")}
-      className="min-h-11 flex-none px-2 text-[15px] font-semibold text-brand-ink underline underline-offset-4"
+      className="min-h-11 flex-none px-2 text-body font-semibold text-brand-ink underline underline-offset-4"
     >
       <span aria-live="polite">{done ? `✓ ${t("common.copied")}` : t("common.copy")}</span>
     </button>

@@ -28,7 +28,7 @@ export function CareCheckOut({ dealId, done }: { dealId: string; done: boolean }
         <p className="font-semibold">
           {t("care.checkOutTitle")} {done && <span className="text-held">· {t("proof.done")}</span>}
         </p>
-        <p className="text-sm text-ink-2">{t("care.checkOutSub")}</p>
+        <p className="text-small text-ink-2">{t("care.checkOutSub")}</p>
       </div>
       {!done && (
         <button type="button" disabled={busy} onClick={go} className={`${btn.primary} w-full`}>
@@ -36,7 +36,7 @@ export function CareCheckOut({ dealId, done }: { dealId: string; done: boolean }
         </button>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-import { APP_NAME } from "@/lib/brand";
 import { FlowHeader, Note } from "@/components/ui";
 import { InlineAction } from "@/components/inline-action";
 import { LegalDoc } from "@/components/legal-doc";
@@ -9,8 +7,9 @@ import { getViewer } from "@/lib/auth";
 import { legalParams } from "@/lib/legal-params";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
 import { acceptHelperTerms } from "./actions";
+import { titled } from "@/lib/page-title";
 
-export const metadata: Metadata = { title: `${APP_NAME} — Туслагчийн гэрээ` };
+export const generateMetadata = titled("legal.helperTitle");
 
 const KEYS = ["independent", "eligibility", "price", "earnings", "work", "backout", "conditions", "disputes", "taxes", "safety", "ending"] as const;
 

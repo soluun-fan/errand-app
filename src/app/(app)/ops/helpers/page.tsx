@@ -6,6 +6,9 @@ import { getViewer } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { reviewQueue } from "@/lib/kyc";
 import { CircleCheck } from "lucide-react";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("ops.title");
 
 /** /ops/helpers — helper applications waiting for review (admins only; others get a 404). */
 export default async function OpsHelpersPage() {
@@ -24,9 +27,9 @@ export default async function OpsHelpersPage() {
               <Link href={`/ops/helpers/${a.id}`} className="press flex items-center justify-between gap-3 border-b border-line py-3">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{a.legalName}</span>
-                  <span className="block text-sm text-ink-2">{t("ops.submitted", { when: fmtDateTime(a.submittedAt, locale) })}</span>
+                  <span className="block text-small text-ink-2">{t("ops.submitted", { when: fmtDateTime(a.submittedAt, locale) })}</span>
                 </span>
-                <span className="text-[15px] font-semibold">{t("ops.review")} ›</span>
+                <span className="text-body font-semibold">{t("ops.review")} ›</span>
               </Link>
             </li>
           ))}

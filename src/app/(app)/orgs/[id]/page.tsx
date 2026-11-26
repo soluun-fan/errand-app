@@ -9,6 +9,9 @@ import { fmtMoney } from "@/lib/format";
 import { Uuid, parseOr } from "@/lib/input";
 import { canManage, members, organization, organizationBalance, publicOrganization } from "@/lib/orgs";
 import { ManageMembers } from "./manage";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("org.title");
 
 /**
  * /orgs/[id] — an organisation customers can trust: who it is, what Ops approved it for, its
@@ -35,13 +38,13 @@ export default async function OrgPage({ params }: PageProps<"/orgs/[id]">) {
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
           <Building2 aria-hidden size={30} />
         </span>
-        <h1 className="text-[22px] font-bold tracking-tight">{org.name}</h1>
+        <h1 className="text-heading font-bold tracking-tight">{org.name}</h1>
         <span className="flex flex-wrap justify-center gap-1.5">
-          <span className="rounded-full bg-fill px-2.5 py-1 text-[12px] font-semibold text-ink-2">{t(`org.kinds.${org.kind}`)}</span>
-          {org.status === "approved" && <span className="rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">{t("org.verified")}</span>}
+          <span className="rounded-full bg-fill px-2.5 py-1 text-caption font-semibold text-ink-2">{t(`org.kinds.${org.kind}`)}</span>
+          {org.status === "approved" && <span className="rounded-full bg-held-bg px-2.5 py-1 text-caption font-bold text-held">{t("org.verified")}</span>}
         </span>
         {pub && (
-          <p className="flex items-center gap-1 text-[14px] text-ink-2">
+          <p className="flex items-center gap-1 text-small text-ink-2">
             {pub.rating !== null && (
               <>
                 <Star aria-hidden size={14} className="fill-brand text-brand" /> <b className="text-ink">{pub.rating.toFixed(1)}</b> ({pub.ratingCount}) ·
@@ -50,20 +53,20 @@ export default async function OrgPage({ params }: PageProps<"/orgs/[id]">) {
             {t("org.jobsDone", { n: pub.jobsDone })}
           </p>
         )}
-        {org.description && <p className="whitespace-pre-line text-left text-[15px] leading-relaxed">{org.description}</p>}
+        {org.description && <p className="whitespace-pre-line text-left text-body leading-relaxed">{org.description}</p>}
         <span className="flex flex-wrap justify-center gap-2">
           {(org.status === "approved" ? org.categories : org.requestedCategories).map((c) => (
-            <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[13px] font-medium">
+            <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-meta font-medium">
               <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
             </span>
           ))}
         </span>
-        <p className="text-[12px] text-ink-2">{t("org.paidNote")}</p>
+        <p className="text-caption text-ink-2">{t("org.paidNote")}</p>
       </section>
 
       {pub && pub.workers.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-bold">{t("org.workers", { n: pub.workers.length })}</h2>
+          <h2 className="text-title font-bold">{t("org.workers", { n: pub.workers.length })}</h2>
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {pub.workers.map((h) => (
               <li key={h.id} className="min-w-0">
@@ -75,9 +78,9 @@ export default async function OrgPage({ params }: PageProps<"/orgs/[id]">) {
       )}
 
       {manage && <section className="rounded-card bg-held-bg p-4 text-held">
-        <h2 className="text-sm">{t("org.balance")}</h2>
-        <p className="text-[26px] font-bold tabular-nums">{fmtMoney(await organizationBalance(org.id))}</p>
-        <p className="mt-2 text-sm">{t("earnings.withdrawSoon")}</p>
+        <h2 className="text-small">{t("org.balance")}</h2>
+        <p className="text-display-sm font-bold tabular-nums">{fmtMoney(await organizationBalance(org.id))}</p>
+        <p className="mt-2 text-small">{t("earnings.withdrawSoon")}</p>
       </section>}
       {manage && org.status === "approved" && <ManageMembers orgId={org.id} kinds={org.categories} members={list} />}
     </>

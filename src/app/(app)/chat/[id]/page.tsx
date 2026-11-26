@@ -11,6 +11,9 @@ import { SafetyBar } from "@/components/safety-bar";
 import { SOS_STATUSES } from "@/lib/incident-rules";
 import { isParty, liveSos } from "@/lib/incidents";
 import { ChatRoom } from "./chat-room";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("meta.chat");
 
 /**
  * /chat/[taskId] — the viewer's conversation for this task (customer ⇄ chosen helper).
@@ -49,7 +52,7 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         <Avatar name={other?.name ?? "?"} size={40} />
         <div className="min-w-0">
           <p className="truncate font-semibold">{other?.name ?? t("deal.newHelper")}</p>
-          <p className="text-sm text-ink-2">{access.inquiry ? t("chat.beforeApplying") : deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
+          <p className="text-small text-ink-2">{access.inquiry ? t("chat.beforeApplying") : deal.status === "open" ? (me === deal.customerId ? t("chat.withApplicant") : t("chat.withCustomerBefore")) : me === deal.customerId ? t("chat.withHelper") : t("chat.withCustomer")}</p>
         </div>
       </div>
       {canReport && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}

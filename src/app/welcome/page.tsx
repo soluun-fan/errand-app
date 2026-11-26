@@ -29,7 +29,7 @@ import { getSupportSettings } from "@/lib/support";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: APP_NAME, description: t("common.description") };
+  return { title: { absolute: APP_NAME }, description: t("common.description") }; // not "Guigere · Guigere"
 }
 
 const wrap = "mx-auto w-full max-w-6xl px-5 sm:px-6"; // 20 px on phones, like the app (docs/ui.md)
@@ -93,18 +93,18 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
     <LoginPromptProvider>
       <div className="flex flex-1 flex-col">
         {closed && (
-          <p role="status" className="bg-held-bg px-4 py-3 text-center text-[15px] font-medium text-held">
+          <p role="status" className="bg-held-bg px-4 py-3 text-center text-body font-medium text-held">
             {t("landing.closed")}
           </p>
         )}
         {/* top bar */}
         <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
           <div className={`${wrap} flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-2`}>
-            <Link href="/welcome" className="flex shrink-0 items-center gap-2 text-[20px] font-extrabold tracking-tight">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
+            <Link href="/welcome" className="flex shrink-0 items-center gap-2 text-title-lg font-extrabold tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">{APP_MARK}</span>
               {APP_NAME}
             </Link>
-            <nav aria-label={t("tabs.navigation")} className="order-last hidden w-full flex-wrap items-center gap-x-6 text-[15px] text-ink-2 md:flex lg:order-none lg:w-auto">
+            <nav aria-label={t("tabs.navigation")} className="order-last hidden w-full flex-wrap items-center gap-x-6 text-body text-ink-2 md:flex lg:order-none lg:w-auto">
               <a href="#how" className="flex min-h-12 items-center hover:text-ink">
                 {t("landing.nav.how")}
               </a>
@@ -113,10 +113,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
               </a>
             </nav>
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Link href="/login" className="flex min-h-11 items-center px-3 text-[15px] font-semibold">
+              <Link href="/login" className="flex min-h-11 items-center px-3 text-body font-semibold">
                 {t("landing.nav.login")}
               </Link>
-              <LoginGate next="/post" className="press hidden min-h-11 items-center rounded-[14px] bg-brand px-4 text-[15px] font-bold text-white sm:flex">
+              <LoginGate next="/post" className="press hidden min-h-11 items-center rounded-input bg-brand px-4 text-body font-bold text-white sm:flex">
                 {t("landing.nav.post")}
               </LoginGate>
             </div>
@@ -127,19 +127,19 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         <section className="bg-brand-bg/60">
           <div className={`${wrap} ${hero.grid} py-10 md:py-16`}>
             <div className={hero.main}>
-              <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-[13px] font-medium shadow-card">
+              <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-meta font-medium shadow-card">
                 <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${online > 0 ? "bg-held" : "bg-ink-3"}`} />
                 {online > 0 ? t("landing.areaLive", { n: online }) : t("landing.areaIdle")}
               </p>
-              <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-tight text-balance md:text-[52px]">
+              <h1 className="text-display font-extrabold leading-[1.1] tracking-tight text-balance md:text-hero">
                 {t("landing.title1")}
                 <br />
                 <span className="text-brand-ink">{t("landing.title2")}</span>
               </h1>
-              <p className="max-w-[56ch] text-[16px] leading-relaxed text-ink-2 md:text-[17px]">{t("landing.sub")}</p>
+              <p className="text-pretty text-lead leading-relaxed text-ink-2 md:text-title">{t("landing.sub")}</p>
               <LandingSearch />
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[13px] font-semibold text-ink-2">{t("landing.popular")}</span>
+                <span className="text-meta font-semibold text-ink-2">{t("landing.popular")}</span>
                 {popular.map((p) => (
                   <LoginGate
                     key={p.id}
@@ -232,10 +232,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
             <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((s, i) => (
                 <li key={i} className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">
-                  <span className="text-[13px] font-bold text-brand-ink">{t("landing.step", { n: i + 1 })}</span>
+                  <span className="text-meta font-bold text-brand-ink">{t("landing.step", { n: i + 1 })}</span>
                   <s.icon aria-hidden size={28} className="text-ink" />
-                  <h3 className="text-[18px] font-bold">{s.title}</h3>
-                  <p className="text-[14px] leading-relaxed text-ink-2">{s.body}</p>
+                  <h3 className="text-title font-bold">{s.title}</h3>
+                  <p className="text-small leading-relaxed text-ink-2">{s.body}</p>
                 </li>
               ))}
             </ol>
@@ -249,8 +249,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
             <dl className={`${wrap} grid gap-x-2 gap-y-6 text-center ${statItems.length === 3 ? "grid-cols-3" : "grid-cols-2"} md:auto-cols-fr md:grid-flow-col md:grid-cols-none`}>
               {statItems.map(([label, value]) => (
                 <div key={label} className="flex flex-col-reverse items-center justify-end gap-1">
-                  <dt className="text-[13px] leading-snug text-balance text-ink-2 sm:text-[14px]">{label}</dt>
-                  <dd className="text-[26px] font-extrabold tabular-nums tracking-tight sm:text-[30px] md:text-[38px]">{value}</dd>
+                  <dt className="text-meta leading-snug text-balance text-ink-2 sm:text-small">{label}</dt>
+                  <dd className="text-display-sm font-extrabold tabular-nums tracking-tight sm:text-display md:text-display-lg">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -259,7 +259,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* why us — two-tone heading */}
         <section className={`${wrap} flex flex-col ${space.section} py-12`}>
-          <h2 className="text-[30px] font-extrabold tracking-tight md:text-[40px]">
+          <h2 className="text-display font-extrabold tracking-tight md:text-display-lg">
             <span className="text-ink-2">{t("landing.whyA")} </span>
             {t("landing.whyB")}
           </h2>
@@ -269,8 +269,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
                   <w.icon size={22} />
                 </span>
-                <h3 className="text-[16px] font-bold leading-snug">{w.title}</h3>
-                <p className="text-[13px] text-ink-2">{w.body}</p>
+                <h3 className="text-lead font-bold leading-snug">{w.title}</h3>
+                <p className="text-meta text-ink-2">{w.body}</p>
               </div>
             ))}
           </div>
@@ -279,15 +279,15 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* become a helper · how prices work */}
         <section id="helper" className={`${wrap} grid scroll-mt-20 gap-3 pb-16 md:grid-cols-2`}>
           <div className="flex flex-col gap-3 rounded-card bg-ink p-6 text-white md:p-8">
-            <h2 className="text-[24px] font-extrabold">{t("landing.helperTitle")}</h2>
-            <p className="text-[15px] text-white/75">{t("landing.helperBody")}</p>
-            <LoginGate next="/helper/apply" className="press mt-2 flex min-h-12 w-fit items-center rounded-[14px] bg-brand px-5 text-[16px] font-bold text-white">
+            <h2 className="text-headline font-extrabold">{t("landing.helperTitle")}</h2>
+            <p className="text-body text-white/75">{t("landing.helperBody")}</p>
+            <LoginGate next="/helper/apply" className="press mt-2 flex min-h-12 w-fit items-center rounded-input bg-brand px-5 text-lead font-bold text-white">
               {t("landing.helperCta")}
             </LoginGate>
           </div>
           <div className="flex flex-col gap-3 rounded-card bg-brand-bg p-6 md:p-8">
-            <h2 className="text-[24px] font-extrabold">{t("landing.priceTitle")}</h2>
-            <p className="text-[15px] text-ink-2">{t("landing.priceBody", { amount: fmtMoney(lowestMinFee(live, cfg)) })}</p>
+            <h2 className="text-headline font-extrabold">{t("landing.priceTitle")}</h2>
+            <p className="text-body text-ink-2">{t("landing.priceBody", { amount: fmtMoney(lowestMinFee(live, cfg)) })}</p>
           </div>
         </section>
 
@@ -295,14 +295,14 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10 md:pb-10">
           <div className={`${wrap} grid gap-8 md:grid-cols-[1fr_1fr_1.2fr]`}>
             <div className="flex flex-col gap-3">
-              <span className="flex items-center gap-2 text-[20px] font-extrabold tracking-tight">
-                <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">{APP_MARK}</span>
+              <span className="flex items-center gap-2 text-title-lg font-extrabold tracking-tight">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-white">{APP_MARK}</span>
                 {APP_NAME}
               </span>
-              <p className="max-w-[40ch] text-[14px] text-ink-2">{t("landing.footerAbout")}</p>
+              <p className="max-w-[40ch] text-small text-ink-2">{t("landing.footerAbout")}</p>
               {/* company details as Ops entered them (/ops/support); an empty one isn't shown */}
               {company && (company.company_name || company.company_reg_no || company.company_address || company.phone || company.email) && (
-                <address className="flex flex-col gap-0.5 break-words text-[13px] not-italic leading-relaxed text-ink-2">
+                <address className="flex flex-col gap-0.5 break-words text-meta not-italic leading-relaxed text-ink-2">
                   {(company.company_name || company.company_reg_no) && (
                     <span>{[company.company_name, company.company_reg_no && t("landing.regNo", { n: company.company_reg_no })].filter(Boolean).join(" · ")}</span>
                   )}
@@ -316,9 +316,9 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   )}
                 </address>
               )}
-              <p className="mt-1 text-[13px] text-ink-2">© 2026 {APP_NAME}</p>
+              <p className="mt-1 text-meta text-ink-2">© 2026 {APP_NAME}</p>
             </div>
-            <nav aria-label={t("landing.footerServices")} className="grid grid-cols-2 gap-6 text-[14px] [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">
+            <nav aria-label={t("landing.footerServices")} className="grid grid-cols-2 gap-6 text-small [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">
               <div className="flex flex-col gap-2">
                 <h3 className="font-bold">{t("landing.footerServices")}</h3>
                 <LoginGate next="/post" className="text-left text-ink-2 hover:text-ink">
@@ -350,7 +350,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   ["/terms", t("legal.termsTitle")],
                 ] as const
               ).map(([href, label]) => (
-                <Link key={href} href={href} className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-[15px] font-semibold hover:bg-canvas">
+                <Link key={href} href={href} className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-body font-semibold hover:bg-canvas">
                   {label}
                   <ChevronRight aria-hidden size={18} />
                 </Link>
@@ -362,8 +362,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* always-there call to action */}
         <div className="fixed inset-x-0 bottom-0 z-30 bg-ink/95 pb-[env(safe-area-inset-bottom)] text-white backdrop-blur md:hidden">
           <div className={`${wrap} flex min-h-16 items-center justify-between gap-3`}>
-            <p className="hidden min-w-0 text-[14px] font-medium sm:block">{t("landing.bar")}</p>
-            <LoginGate next="/post" className={`${btn.primary} my-2 min-h-12 w-full px-4 text-[15px] sm:w-auto sm:shrink-0`}>
+            <p className="hidden min-w-0 text-small font-medium sm:block">{t("landing.bar")}</p>
+            <LoginGate next="/post" className={`${btn.primary} my-2 min-h-12 w-full px-4 text-body sm:w-auto sm:shrink-0`}>
               {t("landing.nav.post")}
             </LoginGate>
           </div>

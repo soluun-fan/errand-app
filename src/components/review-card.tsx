@@ -19,13 +19,13 @@ export function ReviewCard({ r, t }: { r: RecentReview; t: T }) {
             <Star key={s} aria-hidden size={14} className={s <= r.stars ? "fill-brand text-brand" : "text-line"} />
           ))}
         </span>
-        <span className="text-[12px] text-ink-2">
+        <span className="text-caption text-ink-2">
           {r.category ? `${t(`categoryShort.${r.category}`)} · ` : ""}
           {date}
         </span>
       </span>
-      <p className="line-clamp-3 flex-1 text-[14px] leading-relaxed">{r.note}</p>
-      <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-[13px]">
+      <p className="line-clamp-3 flex-1 text-small leading-relaxed">{r.note}</p>
+      <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-meta">
         <Link href={`/helpers/${r.helperId}`} className="flex min-h-11 min-w-0 items-center break-words font-semibold text-brand-ink">
           {r.helperName} ›
         </Link>

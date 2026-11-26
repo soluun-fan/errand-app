@@ -44,7 +44,7 @@ export function PriceChangeCard({
     >
       <label className={fieldLabel}>
         {t("priceChange.newPrice")}
-        <input name="price" inputMode="numeric" defaultValue={String(start)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+        <input name="price" inputMode="numeric" defaultValue={String(start)} className={`${field} text-title-lg font-bold tabular-nums`} required />
       </label>
     </ConfirmSheet>
   );
@@ -62,11 +62,11 @@ export function PriceChangeCard({
   const diff = pc.fee - deal.fee;
   return (
     <section className="flex flex-col gap-2 rounded-card border-2 border-brand bg-bg p-4 shadow-card" aria-live="polite">
-      <h2 className="text-[13px] font-semibold text-ink-2">{t("priceChange.title")}</h2>
+      <h2 className="text-meta font-semibold text-ink-2">{t("priceChange.title")}</h2>
       {pc.status === "awaiting_payment" ? (
         <>
-          <p className="text-[16px] font-semibold">{t("priceChange.agreed", { amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
-          <p className="text-[14px] text-ink-2">
+          <p className="text-lead font-semibold">{t("priceChange.agreed", { amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
+          <p className="text-small text-ink-2">
             {me === "customer" ? t("priceChange.payDiff", { amount: fmtMoney(diff) }) : t("priceChange.waitPay", { amount: fmtMoney(diff) })}
           </p>
           {pay}
@@ -74,15 +74,15 @@ export function PriceChangeCard({
         </>
       ) : mine ? (
         <>
-          <p className="text-[16px] font-semibold">{t("priceChange.youProposed", { amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
-          <p className="text-[14px] text-ink-2">{t("priceChange.waiting", { name: otherName })}</p>
-          {settle && <p className="text-[13px] text-ink-2">{t("settle.deadline")}</p>}
+          <p className="text-lead font-semibold">{t("priceChange.youProposed", { amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
+          <p className="text-small text-ink-2">{t("priceChange.waiting", { name: otherName })}</p>
+          {settle && <p className="text-meta text-ink-2">{t("settle.deadline")}</p>}
           <InlineAction action={action} fields={{ ...fields, intent: "withdraw_price" }} label={t("priceChange.withdraw")} className={`${btn.text} self-center`} />
         </>
       ) : (
         <>
-          <p className="text-[16px] font-semibold">{t("priceChange.theyPropose", { name: otherName, amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
-          <p className="text-[14px] text-ink-2">
+          <p className="text-lead font-semibold">{t("priceChange.theyPropose", { name: otherName, amount: fmtMoney(pc.fee), from: fmtMoney(deal.fee) })}</p>
+          <p className="text-small text-ink-2">
             {deal.payMode === "direct"
               ? t("direct.priceNote", { amount: fmtMoney(pc.fee) })
               : diff < 0
@@ -94,7 +94,7 @@ export function PriceChangeCard({
             <InlineAction action={action} fields={{ ...fields, intent: "answer_price", accept: "1" }} label={t("priceChange.accept")} className={`${btn.small} w-full`} />
           </div>
           <div className="flex justify-center">{proposeSheet(t("priceChange.answerOther"), pc.fee)}</div>
-          {settle && <p className="text-[13px] text-ink-2">{t("settle.deadline")}</p>}
+          {settle && <p className="text-meta text-ink-2">{t("settle.deadline")}</p>}
         </>
       )}
     </section>

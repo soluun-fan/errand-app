@@ -17,9 +17,9 @@ export function DecideOrg({ id, requested, approved }: { id: string; requested: 
     <form action={action} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
       <input type="hidden" name="id" value={id} />
       <fieldset className="flex flex-wrap gap-2">
-        <legend className="mb-2 text-[14px] font-semibold">{t("opsOrgs.approveFor")}</legend>
+        <legend className="mb-2 text-small font-semibold">{t("opsOrgs.approveFor")}</legend>
         {requested.map((c) => (
-          <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-[14px] has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
+          <label key={c} className="flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3 text-small has-[:checked]:border-brand has-[:checked]:bg-brand-bg">
             <input type="checkbox" name="categories" value={c} defaultChecked={approved.length ? approved.includes(c) : true} className="accent-brand" />
             <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
           </label>
@@ -30,11 +30,11 @@ export function DecideOrg({ id, requested, approved }: { id: string; requested: 
         <textarea name="note" maxLength={500} rows={3} className={`${field} min-h-20 py-2`} />
       </label>
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}
-      {state.done && <p className="text-sm text-held">{t("opsContent.saved")}</p>}
+      {state.done && <p className="text-small text-held">{t("opsContent.saved")}</p>}
       <Choices />
     </form>
   );

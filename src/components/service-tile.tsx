@@ -24,8 +24,8 @@ function ServiceTile({ category, label, price, cover }: { category: CategoryId; 
     ) : (
       <CategoryIcon id={category} tile size={24} />
     )}
-    <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug [overflow-wrap:anywhere]">{label}</span>
-    <span className="text-[13px] leading-snug tabular-nums text-ink-2">{price}</span>
+    <span className="min-w-0 flex-1 text-small font-semibold leading-snug [overflow-wrap:anywhere]">{label}</span>
+    <span className="text-meta leading-snug tabular-nums text-ink-2">{price}</span>
   </>;
 }
 
@@ -50,7 +50,7 @@ export function CategoryGroups({ live, cfg, covers, t, link }: {
     const wide = group === "specialized";
     return (
       <nav key={group} aria-label={t(`home.kinds.${group}`)} className="flex flex-col gap-2">
-        <h3 className="text-[13px] font-semibold text-ink-2">{t(`home.kinds.${group}`)}</h3>
+        <h3 className="text-meta font-semibold text-ink-2">{t(`home.kinds.${group}`)}</h3>
         <ExpandableGrid className={GRID[group]} more={t("home.moreKinds", { n: ids.length - 6 })} less={t("home.fewerKinds")}>
           {ids.map((id) => link(id, wide ? wideTileClass : tileClass,
             <ServiceTile category={id} label={t(`categoryShort.${id}`)} price={price(id)} cover={wide ? undefined : covers.get(id)} />))}

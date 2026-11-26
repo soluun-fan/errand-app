@@ -13,6 +13,9 @@ import { earningsSummary } from "@/lib/withdrawals";
 import { pendingEarningsStage } from "@/lib/earnings-rules";
 import { withdrawAction } from "./actions";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("earnings.title");
 
 /**
  * Орлого — the helper's earnings (owner's V1 Master Spec C10): what we owe them for finished jobs,
@@ -55,17 +58,17 @@ export default async function EarningsPage() {
   const payoutRow = (w: (typeof sum.recent)[number]) => (
     <div key={w.id} className="flex flex-col gap-1 border-b border-line py-3 last:border-b-0">
       <div className="flex items-center gap-3">
-        <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${pill[w.status] ?? "bg-fill text-ink-2"}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-meta font-semibold ${pill[w.status] ?? "bg-fill text-ink-2"}`}>
           {t(`earnings.status.${w.status}`)}
           {w.auto ? ` · ${t("earnings.auto")}` : ""}
         </span>
         <span className="flex-1" />
         <span className={`font-bold tabular-nums ${w.status === "failed" ? "text-ink-3 line-through" : ""}`}>{fmtMoney(w.amount)}</span>
       </div>
-      <span className="text-sm text-ink-2">
+      <span className="text-small text-ink-2">
         {w.bank} {w.account} · {fmtDateTime(w.decidedAt ?? w.requestedAt, locale)}
       </span>
-      <details className="text-sm text-ink-2">
+      <details className="text-small text-ink-2">
         <summary className="inline-flex min-h-9 cursor-pointer items-center font-medium">{t("earnings.details")}</summary>
         <span className="block">{t("earnings.requestedAt", { time: fmtDateTime(w.requestedAt, locale) })}</span>
         {w.status !== "requested" && w.decidedAt !== null && (
@@ -83,12 +86,12 @@ export default async function EarningsPage() {
       <CategoryIcon id={d.category} tile size={20} />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold">{d.title}</span>
-        <span className="block text-sm text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>
+        <span className="block text-small text-ink-2">{fmtDateTime(d.createdAt, locale)}</span>
       </span>
       {viaApp(d) ? (
         <span className="font-bold tabular-nums text-held">+{fmtMoney(net(d))}</span>
       ) : (
-        <span className="text-right text-[13px] text-ink-2">
+        <span className="text-right text-meta text-ink-2">
           {fmtMoney(net(d))}
           <span className="block">{t("earnings.paidDirectly")}</span>
         </span>
@@ -102,12 +105,12 @@ export default async function EarningsPage() {
       {(pending.length > 0 || sum.onTheWay > 0) && <AutoRefresh seconds={30} />}
       <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
         <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
-          <span className="text-sm font-medium">{t("earnings.available")}</span>
-          <span className="break-words text-[26px] font-bold tabular-nums text-brand-ink">{fmtMoney(sum.available)}</span>
+          <span className="text-small font-medium">{t("earnings.available")}</span>
+          <span className="break-words text-display-sm font-bold tabular-nums text-brand-ink">{fmtMoney(sum.available)}</span>
         </div>
         <div className="flex flex-col gap-1 rounded-card bg-fill p-4">
-          <span className="text-sm font-medium text-ink-2">{t("earnings.queued")}</span>
-          <span className="break-words text-[26px] font-bold tabular-nums">{fmtMoney(sum.onTheWay)}</span>
+          <span className="text-small font-medium text-ink-2">{t("earnings.queued")}</span>
+          <span className="break-words text-display-sm font-bold tabular-nums">{fmtMoney(sum.onTheWay)}</span>
         </div>
       </div>
       {sum.onTheWay > 0 && <Note tone="info">{t("earnings.onTheWay", { amount: fmtMoney(sum.onTheWay) })}</Note>}
@@ -125,10 +128,10 @@ export default async function EarningsPage() {
               body={t("earnings.withdrawBody", { bank: account.bank, account: account.masked })}
               confirmLabel={t("earnings.withdrawConfirm")}
             >
-              <p className="text-[13px] text-ink-2">{t("earnings.withdrawWhen")}</p>
+              <p className="text-meta text-ink-2">{t("earnings.withdrawWhen")}</p>
             </ConfirmSheet>
           ) : (
-            <p className="text-[14px] text-ink-2">
+            <p className="text-small text-ink-2">
               {!sum.accountChecked ? t("earnings.err.unchecked") : t("earnings.minimum", { amount: fmtMoney(sum.minimum) })}
             </p>
           )
@@ -139,14 +142,14 @@ export default async function EarningsPage() {
             {t("payout.add")}
           </Link>
         )}
-        <p className="text-[13px] text-ink-2">{t("earnings.rules", { n: sum.perDay, days: sum.autoPayoutDays })}</p>
+        <p className="text-meta text-ink-2">{t("earnings.rules", { n: sum.perDay, days: sum.autoPayoutDays })}</p>
       </div>
       {jobs.some((d) => d.payeeOrgId) && <Note tone="info">{t("org.workerPay")}</Note>}
 
       {pending.length > 0 && (
         <section className="flex flex-col">
           <h2 className="font-bold">{t("earnings.pendingJobs")}</h2>
-          <p className="mb-2 mt-1 text-[13px] text-ink-2">{t("earnings.pendingExplain")}</p>
+          <p className="mb-2 mt-1 text-meta text-ink-2">{t("earnings.pendingExplain")}</p>
           <div className="rounded-card bg-bg px-4 shadow-card">
             {pending.map(({ job, stage }) => (
               <Link
@@ -157,11 +160,11 @@ export default async function EarningsPage() {
                 <CategoryIcon id={job.category} tile size={20} />
                 <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                   <span className="block truncate font-semibold">{job.title}</span>
-                  <span className={`block text-sm ${stage === "disputed" || stage === "overdue" ? "text-warn" : "text-ink-2"}`}>
+                  <span className={`block text-small ${stage === "disputed" || stage === "overdue" ? "text-warn" : "text-ink-2"}`}>
                     {t(`earnings.stage.${stage}`)}
                   </span>
                   {job.status === "check" && job.checkUntil !== null && (
-                    <span className="block text-[13px] text-ink-2">
+                    <span className="block text-meta text-ink-2">
                       {t("earnings.reviewUntil", { time: fmtDateTime(job.checkUntil, locale) })}
                     </span>
                   )}
@@ -193,7 +196,7 @@ export default async function EarningsPage() {
       {finished.length > 0 && (
         <section className="flex flex-col">
           <h2 className="font-bold">{t("earnings.finished")}</h2>
-          <p className="mb-2 text-[13px] text-ink-2">{t("earnings.thisMonth", { amount: fmtMoney(monthTotal), n: monthJobs.length })}</p>
+          <p className="mb-2 text-meta text-ink-2">{t("earnings.thisMonth", { amount: fmtMoney(monthTotal), n: monthJobs.length })}</p>
           <div className="rounded-card bg-bg px-4 shadow-card">
             {finished.slice(0, 8).map(jobRow)}
             {finished.length > 8 && (

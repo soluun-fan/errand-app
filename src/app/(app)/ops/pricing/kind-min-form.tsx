@@ -56,7 +56,7 @@ export function KindMinForm({
           aria-label={mode === "hourly" ? t("opsPricing.kindHourly") : t("opsPricing.kindFixed")}
         />
       )}
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="flex flex-col gap-1 text-small">
         {t("opsPricing.defaultMinutes")}
         <input
           type="number"
@@ -69,7 +69,7 @@ export function KindMinForm({
           className={`${field} w-28 tabular-nums`}
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="flex flex-col gap-1 text-small">
         {t("opsPricing.checkHours")}
         <input
           type="number"
@@ -81,9 +81,9 @@ export function KindMinForm({
           className={`${field} w-32 tabular-nums`}
         />
       </label>
-      <SubmitButton className="min-h-10 rounded-full bg-ink px-4 text-[14px] font-bold text-white">{t("opsPricing.save")}</SubmitButton>
-      {state.error && <span className="w-full text-[12px] text-danger">{state.error}</span>}
-      {state.done && <span className="w-full text-[12px] text-held">{t("opsPricing.saved")}</span>}
+      <SubmitButton className="min-h-10 rounded-full bg-ink px-4 text-small font-bold text-white">{t("opsPricing.save")}</SubmitButton>
+      {state.error && <span className="w-full text-caption text-danger">{state.error}</span>}
+      {state.done && <span className="w-full text-caption text-held">{t("opsPricing.saved")}</span>}
     </form>
   );
 }

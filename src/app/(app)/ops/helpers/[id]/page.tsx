@@ -11,6 +11,9 @@ import { KYC_DOCS } from "@/lib/kyc-rules";
 import { decideKyc } from "../actions";
 import { FileText } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("ops.title");
 
 const CHECKS = ["name", "last4", "age", "selfie", "payout"] as const;
 
@@ -32,7 +35,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
     </label>
   );
   const row = (label: string, value: string) => (
-    <div className="flex justify-between gap-4 text-[15px]">
+    <div className="flex justify-between gap-4 text-body">
       <span className="text-ink-2">{label}</span>
       <span className="text-right font-medium">{value}</span>
     </div>
@@ -41,7 +44,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
   return (
     <>
       <FlowHeader href="/ops/helpers" label={t("common.back")} title={app.legalName} />
-      <p className="text-sm text-ink-2">{t("ops.submitted", { when: fmtDateTime(app.submittedAt, locale) })}</p>
+      <p className="text-small text-ink-2">{t("ops.submitted", { when: fmtDateTime(app.submittedAt, locale) })}</p>
 
       <section className="grid grid-cols-2 gap-2">
         {KYC_DOCS.map((d) => {
@@ -62,7 +65,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
               ) : (
                 <div className="aspect-[4/3] w-full rounded-input bg-fill" />
               )}
-              <figcaption className="text-sm text-ink-2">{t(`kyc.docs.${d}`)}</figcaption>
+              <figcaption className="text-small text-ink-2">{t(`kyc.docs.${d}`)}</figcaption>
             </figure>
           );
         })}
@@ -85,7 +88,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
       )}
       <Card>
         <h2 className="font-bold">{t("ops.checklist")}</h2>
-        <ul className="flex list-disc flex-col gap-1 pl-5 text-[15px]">
+        <ul className="flex list-disc flex-col gap-1 pl-5 text-body">
           {CHECKS.map((c) => (
             <li key={c}>{t(`ops.checks.${c}`)}</li>
           ))}
@@ -104,10 +107,10 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
             confirmLabel={t("ops.approve")}
           >
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("ops.categories")}</legend>
+              <legend className="mb-2 text-body font-medium text-ink-2">{t("ops.categories")}</legend>
               <div className="flex flex-wrap gap-3">
                 {CATEGORIES.map((c) => (
-                  <label key={c.id} className="flex min-h-11 items-center gap-2 text-[15px]">
+                  <label key={c.id} className="flex min-h-11 items-center gap-2 text-body">
                     <input type="checkbox" name="categories" value={c.id} defaultChecked={app.categories.includes(c.id)} className="h-5 w-5 accent-ink" />
                     <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
                   </label>

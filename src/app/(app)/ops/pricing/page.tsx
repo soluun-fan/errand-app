@@ -8,6 +8,9 @@ import { getPricing, kindMinimums, pricingConfig } from "@/lib/pricing";
 import { CATEGORIES } from "@/lib/engine";
 import { KindMinForm } from "./kind-min-form";
 import { PricingForm } from "./pricing-form";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsPricing.title");
 
 const DAY = Date.UTC(2026, 10, 16, 4); // 12:00 Ulaanbaatar — examples are priced by day
 
@@ -34,7 +37,7 @@ export default async function OpsPricingPage() {
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsPricing.title")} />
       <Card>
         <h2 className="font-bold">{t("opsPricing.examples")}</h2>
-        <ul className="flex flex-col gap-1.5 text-[15px]">
+        <ul className="flex flex-col gap-1.5 text-body">
           {EXAMPLES.map((x) => {
             const q = quoteFee(x.category, { ...DEFAULT_DETAILS, ...x.details }, cfg, DAY);
             const r = priceRange(q.total, DAY, cfg);
@@ -43,7 +46,7 @@ export default async function OpsPricingPage() {
                 <span>{t(`opsPricing.ex.${x.key}`)}</span>
                 <span className="text-right tabular-nums">
                   <b className="text-brand-ink">{fmtMoney(q.total)}</b>
-                  <span className="block text-sm text-ink-2">
+                  <span className="block text-small text-ink-2">
                     {fmtMoney(r.min)}–{fmtMoney(r.max)} · +{fmtMoney(serviceFeeFor(q.total, cfg))}
                   </span>
                 </span>
@@ -51,11 +54,11 @@ export default async function OpsPricingPage() {
             );
           })}
         </ul>
-        <p className="text-sm text-ink-2">{t("opsPricing.examplesHelp")}</p>
+        <p className="text-small text-ink-2">{t("opsPricing.examplesHelp")}</p>
       </Card>
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPricing.kindsTitle")}</h2>
-        <p className="text-sm text-ink-2">{t("opsPricing.kindsHelp")}</p>
+        <p className="text-small text-ink-2">{t("opsPricing.kindsHelp")}</p>
         <div className="flex flex-col rounded-card bg-bg shadow-card">
           {CATEGORIES.map((c) => {
             const k = kinds.find((x) => x.category === c.id);

@@ -19,6 +19,9 @@ import { closeMyAccount, removeAddress } from "./actions";
 import { ConfirmSheet } from "@/components/sheet";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("profile.title");
 
 const KIND_ICON = { home: <House aria-hidden size={22} />, work: <Briefcase aria-hidden size={22} />, other: <MapPin aria-hidden size={22} /> } as const;
 
@@ -31,7 +34,7 @@ function Segmented({ name, value, options, action }: { name: string; value: stri
           name={name}
           value={v}
           aria-pressed={v === value}
-          className={`min-h-11 rounded-full text-[15px] font-semibold ${v === value ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
+          className={`min-h-11 rounded-full text-body font-semibold ${v === value ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
         >
           {label}
         </button>
@@ -47,7 +50,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
   const { profile, actor } = viewer;
   const [orgs, invitations, memberships, sp] = await Promise.all([myOrganizations(profile.id), myInvitations(profile.id), myMemberships(profile.id), searchParams]);
   const row = (label: string, value: string) => (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[15px]">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-body">
       <span className="text-ink-2">{label}</span>
       <span className="min-w-0 flex-1 basis-32 break-words text-right font-medium">{value}</span>
     </div>
@@ -66,8 +69,8 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
             <HandHelping size={22} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[16px] font-bold text-brand-ink">{t("helper.becomeTitle")}</span>
-            <span className="block text-[14px] text-ink-2">{t("profile.becomeSub")}</span>
+            <span className="block text-lead font-bold text-brand-ink">{t("helper.becomeTitle")}</span>
+            <span className="block text-small text-ink-2">{t("profile.becomeSub")}</span>
           </span>
           <ChevronRight aria-hidden size={20} className="flex-none text-brand-ink" />
         </Link>
@@ -76,13 +79,13 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
       {actor.helperApproved && (
         <section id="work-kinds" className="flex scroll-mt-20 flex-col gap-2">
-          <h2 className="text-[17px] font-bold">{t("workKinds.title")}</h2>
+          <h2 className="text-title font-bold">{t("workKinds.title")}</h2>
           <WorkKinds all={OPEN_CATEGORIES} mine={profile.categories} />
         </section>
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-ink-2">{t("mode.label")}</h2>
+        <h2 className="text-small font-semibold text-ink-2">{t("mode.label")}</h2>
         <Segmented
           name="mode"
           value={mode}
@@ -116,9 +119,9 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
 
       {mode === "customer" && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-ink-2">{t("profile.addresses")}</h2>
+          <h2 className="text-small font-semibold text-ink-2">{t("profile.addresses")}</h2>
           {addresses.length === 0 ? (
-            <p className="text-[15px] text-ink-2">{t("profile.addressesEmpty")}</p>
+            <p className="text-body text-ink-2">{t("profile.addressesEmpty")}</p>
           ) : (
             <ul className="flex flex-col rounded-card bg-bg shadow-card">
               {addresses.map((a) => {
@@ -130,12 +133,12 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
                 ].filter((x): x is string => typeof x === "string" && x.length > 0);
                 return (
                   <li key={a.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-                    <span aria-hidden className="text-xl">
+                    <span aria-hidden className="text-title-lg">
                       {KIND_ICON[a.kind]}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold">{label}</span>
-                      <span className="block truncate text-sm text-ink-2">{[a.address, ...bits].join(" · ")}</span>
+                      <span className="block truncate text-small text-ink-2">{[a.address, ...bits].join(" · ")}</span>
                     </span>
                     <form action={removeAddress}>
                       <input type="hidden" name="id" value={a.id} />
@@ -152,7 +155,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-ink-2">{t("lang.label")}</h2>
+        <h2 className="text-small font-semibold text-ink-2">{t("lang.label")}</h2>
         <Segmented name="locale" value={locale} action={setLocale} options={LOCALES.map((l) => [l, t(`lang.${l}`)])} />
       </section>
 
@@ -166,22 +169,22 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         <LinkRow href="/help" icon={CircleHelp} label={t("profile.help")} />
       </nav>
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-ink-2">{t("org.my")}</h2>
+        <h2 className="text-small font-semibold text-ink-2">{t("org.my")}</h2>
         {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
         {orgs.filter((o) => o.status === "pending" || o.status === "approved").map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
-          <span className="block font-semibold">{o.name}</span><span className="text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+          <span className="block font-semibold">{o.name}</span><span className="text-small text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
         </Link>)}
         {/* closed or refused companies stay reachable, folded away */}
         {orgs.some((o) => o.status === "suspended" || o.status === "rejected") && (
           <details className="rounded-card bg-bg px-4 py-3 shadow-card">
-            <summary className="cursor-pointer text-[15px] font-semibold text-ink-2">
+            <summary className="cursor-pointer text-body font-semibold text-ink-2">
               {t("org.closedCount", { n: orgs.filter((o) => o.status === "suspended" || o.status === "rejected").length })}
             </summary>
             <div className="mt-2 flex flex-col">
               {orgs.filter((o) => o.status === "suspended" || o.status === "rejected").map((o) => (
-                <Link key={o.id} href={`/orgs/${o.id}`} className="flex justify-between gap-3 border-t border-line py-2.5 text-[15px]">
+                <Link key={o.id} href={`/orgs/${o.id}`} className="flex justify-between gap-3 border-t border-line py-2.5 text-body">
                   <span className="min-w-0 truncate">{o.name}</span>
-                  <span className="flex-none text-sm text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
+                  <span className="flex-none text-small text-ink-2">{t(`org.statusShort.${o.status}`)}</span>
                 </Link>
               ))}
             </div>
@@ -191,7 +194,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         <Link href="/orgs/new" className={btn.secondary}>{t("org.newTitle")}</Link>
       </section>
       {/* the documents they agreed to, always one tap away */}
-      <nav aria-label={t("legal.docs")} className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[14px]">
+      <nav aria-label={t("legal.docs")} className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-small">
         <Link href="/terms" className="font-medium text-ink-2 underline underline-offset-2">{t("legal.termsTitle")}</Link>
         <Link href="/privacy" className="font-medium text-ink-2 underline underline-offset-2">{t("info.privacyTitle")}</Link>
         {(profile.role === "helper" || profile.helper_status) && <Link href="/helper-terms" className="font-medium text-ink-2 underline underline-offset-2">{t("legal.helperTitle")}</Link>}
@@ -203,7 +206,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         action={closeMyAccount}
         fields={{}}
         trigger={t("closeAccount.button")}
-        triggerClass={`${btn.text} w-full text-[13px] text-ink-3`}
+        triggerClass={`${btn.text} w-full text-meta text-ink-3`}
         title={t("closeAccount.title")}
         body={t("closeAccount.body")}
         confirmLabel={t("closeAccount.confirm")}

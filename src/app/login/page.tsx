@@ -8,6 +8,9 @@ import { safeNext } from "@/lib/next-path";
 import { setLocale } from "@/lib/prefs";
 import { pendingLogin, verifyMnLoginEnabled } from "@/lib/verify-mn-login";
 import { LoginForm } from "./login-form";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("login.title");
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const next = safeNext((await searchParams).next);
@@ -26,16 +29,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             name="locale"
             value={l}
             aria-pressed={l === locale}
-            className={`min-h-11 rounded-lg px-3 text-sm font-semibold ${l === locale ? "bg-ink text-white" : "text-ink-2"}`}
+            className={`min-h-11 rounded-lg px-3 text-small font-semibold ${l === locale ? "bg-ink text-white" : "text-ink-2"}`}
           >
             {t(`lang.${l}`)}
           </button>
         ))}
       </form>
       <div className="flex flex-col gap-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-lg font-bold text-white">{APP_MARK}</span>
-        <h1 className="text-2xl font-bold">{t("login.title")}</h1>
-        <p className="text-[15px] text-ink-2">{t(verifyMn ? "login.verifyIntro" : "login.sub")}</p>
+        <span className="flex h-11 w-11 items-center justify-center rounded-input bg-brand text-title font-bold text-white">{APP_MARK}</span>
+        <h1 className="text-headline font-bold">{t("login.title")}</h1>
+        <p className="text-body text-ink-2">{t(verifyMn ? "login.verifyIntro" : "login.sub")}</p>
       </div>
       <LoginForm verifyMn={verifyMn} pending={pending} showDemoHint={!verifyMn && devShowSmsCodes()} next={next} />
     </main>

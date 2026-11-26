@@ -167,6 +167,9 @@ export const en = {
     errorBody: "Connection lost or the server had a problem. Your money is safe — nothing was changed.",
     comingSoonTitle: "Coming soon",
     notFound: "We couldn't find that.",
+    notFoundTitle: "Page not found",
+    notFoundBody: "The link may be old or mistyped.",
+    goHome: "Go to the home page",
     working: "Working…",
     copy: "Copy",
     copied: "Copied",
@@ -179,6 +182,12 @@ export const en = {
     active: "Now",
     empty: "No tasks yet",
     emptyBody: "Post your first task — helpers nearby see it straight away.",
+  },
+  // browser-tab titles for pages whose heading is private (a task title stays out of history)
+  meta: {
+    chat: "Chat",
+    task: "Task",
+    job: "Job",
   },
   tabs: {
     navigation: "Main navigation",

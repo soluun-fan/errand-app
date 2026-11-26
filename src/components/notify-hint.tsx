@@ -74,8 +74,8 @@ export function NotifyHint() {
       </span>
       {/* text gets the room; on narrow phones the button drops below it instead of squeezing it */}
       <span className="min-w-0 flex-1 basis-52">
-        <span className="block text-[15px] font-semibold">{t("notifyHint.title")}</span>
-        <span className="block text-[13px] leading-snug text-ink-2">{t("notifyHint.body")}</span>
+        <span className="block text-body font-semibold">{t("notifyHint.title")}</span>
+        <span className="block text-meta leading-snug text-ink-2">{t("notifyHint.body")}</span>
       </span>
       <button type="button" disabled={state === "busy"} onClick={turnOn} className={`${btn.primary} order-last w-full flex-none px-4 sm:order-none sm:w-auto`}>
         {t("notifyHint.go")}

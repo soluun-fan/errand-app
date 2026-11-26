@@ -16,11 +16,11 @@ export function Membership({ invitation, pending }: { invitation: Invitation; pe
     <form action={action} className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
       <input type="hidden" name="orgId" value={invitation.orgId} />
       <Link href={`/orgs/${invitation.orgId}`} className="font-semibold text-brand-ink">{invitation.orgName}</Link>
-      {pending && <p className="text-sm">{t("org.join", { name: invitation.orgName, role: t(`org.roles.${invitation.role}`) })}</p>}
-      <p className="text-sm text-ink-2">{invitation.categories.map((c) => t(`categoryShort.${c}`)).join(" · ")}</p>
-      <p className="text-sm text-ink-2">{t("org.paidNote")}</p>
+      {pending && <p className="text-small">{t("org.join", { name: invitation.orgName, role: t(`org.roles.${invitation.role}`) })}</p>}
+      <p className="text-small text-ink-2">{invitation.categories.map((c) => t(`categoryShort.${c}`)).join(" · ")}</p>
+      <p className="text-small text-ink-2">{t("org.paidNote")}</p>
       {pending ? <AnswerButtons /> : invitation.role !== "owner" && <SubmitButton className={btn.text}>{t("org.leave")}</SubmitButton>}
-      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      {state.error && <p role="alert" className="text-small text-danger">{state.error}</p>}
     </form>
   );
 }

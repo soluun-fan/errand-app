@@ -28,6 +28,7 @@ export function BottomSheet({
   }, [open]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop tap only; a native <dialog> already closes with Escape
     <dialog
       ref={ref}
       aria-label={title}
@@ -40,7 +41,7 @@ export function BottomSheet({
       <div className="flex max-h-[85dvh] flex-col gap-4 overflow-y-auto p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <div aria-hidden className="mx-auto -mt-2 h-1 w-10 rounded-full bg-line" />
         <div className="grid grid-cols-[minmax(0,1fr)_48px] items-start gap-2">
-          <h2 className="min-w-0 py-2 text-xl font-semibold leading-snug">{title}</h2>
+          <h2 className="min-w-0 py-2 text-title-lg font-semibold leading-snug">{title}</h2>
           <button type="button" onClick={onClose} aria-label={t("common.close")} className="flex h-12 w-12 items-center justify-center rounded-full text-ink-2 hover:bg-fill">
             <X aria-hidden size={20} />
           </button>
@@ -123,10 +124,10 @@ export function ConfirmSheet({
           {Object.entries(fields).map(([k, v]) => (
             <input key={k} type="hidden" name={k} value={v} />
           ))}
-          {body && <div className="text-[16px] text-ink">{body}</div>}
+          {body && <div className="text-lead text-ink">{body}</div>}
           {children}
           {state.error && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="text-small text-danger">
               {state.error}
             </p>
           )}

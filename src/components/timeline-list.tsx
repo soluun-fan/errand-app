@@ -24,10 +24,10 @@ export function TimelineList<E extends { at: number }>({ events, describe, local
   const render = (list: E[], keyBase: number) =>
     groups(list).map((g, gi) => (
       <li key={`${keyBase}-${gi}`} className="flex flex-col gap-2">
-        <p className="text-[13px] font-semibold text-ink-3">{g.day}</p>
+        <p className="text-meta font-semibold text-ink-3">{g.day}</p>
         <ol className="flex flex-col gap-2 border-l-2 border-line pl-3">
           {g.items.map((e, i) => (
-            <li key={i} className="flex gap-3 text-sm">
+            <li key={i} className="flex gap-3 text-small">
               <span className="w-11 flex-none text-ink-2 tabular-nums">{fmtClock(e.at)}</span>
               <span className="min-w-0">{describe(e)}</span>
             </li>

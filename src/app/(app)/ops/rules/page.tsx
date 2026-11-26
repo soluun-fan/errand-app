@@ -4,6 +4,9 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getRules } from "@/lib/rules";
 import { RulesForm } from "./rules-form";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsRules.title");
 
 /** /ops/rules — timings and limits (docs/decisions.md 2026-11-18 "Rules from the database"). Admins only. */
 export default async function OpsRulesPage() {

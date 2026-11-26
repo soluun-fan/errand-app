@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
-import { APP_NAME } from "@/lib/brand";
 import { FlowHeader } from "@/components/ui";
 import { LegalDoc } from "@/components/legal-doc";
 import { getT } from "@/i18n/server";
 import { legalParams } from "@/lib/legal-params";
 import { LEGAL_VERSIONS } from "@/lib/legal-rules";
+import { titled } from "@/lib/page-title";
 
-export const metadata: Metadata = { title: `${APP_NAME} — Үйлчилгээний нөхцөл` };
+export const generateMetadata = titled("legal.termsTitle");
 
 const KEYS = ["service", "account", "posting", "price", "payment", "shopping", "check", "cancel", "disputes", "conduct", "liability", "changes"] as const;
 

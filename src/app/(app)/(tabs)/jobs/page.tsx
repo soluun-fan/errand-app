@@ -26,6 +26,9 @@ import { ConditionChips } from "@/components/conditions";
 import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
 import { canUseUnverifiedHelperTest, isActiveTestHelper, unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("tabs.jobs");
 
 /** Open tasks as price chips on the map, at the approximate (~300 m) spot where the helper starts. */
 function jobPins(items: JobListItem[]): MapMarker[] {
@@ -57,7 +60,7 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
   const outside = mine !== undefined && !mine.includes(d.category);
   const full = d.offers.length >= d.maxApplicants;
   const dur = d.details.minutes >= 60 ? t("price.hours", { n: d.details.minutes / 60 }) : t("price.min", { n: d.details.minutes });
-  const tag = "inline-flex min-h-7 items-center gap-1 rounded-[8px] px-2 text-[12px] font-semibold";
+  const tag = "inline-flex min-h-7 items-center gap-1 rounded-lg px-2 text-caption font-semibold";
   return (
     <Link href={`/jobs/${d.id}`} className="press flex flex-col gap-2.5 rounded-card bg-bg p-4 shadow-card">
       <span className="flex flex-wrap gap-1.5">
@@ -83,8 +86,8 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
       <ConditionChips variety={d.details.variety} require={d.details.require} t={t} />
       <span className="flex gap-3">
         <span className="flex min-w-0 flex-1 flex-col gap-2.5">
-          <span className="line-clamp-2 text-[16px] font-bold leading-snug">{d.title}</span>
-          <span className="flex flex-col gap-1 text-[13px] text-ink-2">
+          <span className="line-clamp-2 text-lead font-bold leading-snug">{d.title}</span>
+          <span className="flex flex-col gap-1 text-meta text-ink-2">
             <span className="flex items-center gap-1.5">
               <MapPin aria-hidden size={14} className="flex-none text-brand-ink" />
               {item.distanceKm === null ? t("job.noPin") : t("job.away", { km: item.distanceKm.toFixed(1) })}
@@ -111,10 +114,10 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
       </span>
       <span className="flex items-end justify-between gap-3 border-t border-line pt-2.5">
         <span className="flex flex-col">
-          <span className="text-[13px] font-medium text-ink-2">{t("job.feeLabel")}</span>
-          <span className="text-[20px] font-extrabold leading-tight tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
+          <span className="text-meta font-medium text-ink-2">{t("job.feeLabel")}</span>
+          <span className="text-title-lg font-extrabold leading-tight tabular-nums text-brand-ink">{fmtMoney(earn(d))}</span>
         </span>
-        {d.offers.length > 0 && <span className="pb-0.5 text-[13px] font-semibold text-route">{t("job.applicants", { n: d.offers.length })}</span>}
+        {d.offers.length > 0 && <span className="pb-0.5 text-meta font-semibold text-route">{t("job.applicants", { n: d.offers.length })}</span>}
       </span>
     </Link>
   );
@@ -126,7 +129,7 @@ function Thumb({ pic, t }: { pic: NonNullable<Pic>; t: T }) {
     <span className="relative h-[88px] w-[88px] flex-none overflow-hidden rounded-input bg-fill">
       {/* eslint-disable-next-line @next/next/no-img-element -- signed / public storage URL */}
       <img src={pic.url} alt="" loading="lazy" className="h-full w-full object-cover" />
-      {pic.example && <span className="absolute inset-x-0 bottom-0 bg-ink/60 px-1 py-0.5 text-center text-[10px] font-medium text-white">{t("job.examplePic")}</span>}
+      {pic.example && <span className="absolute inset-x-0 bottom-0 bg-ink/60 px-1 py-0.5 text-center text-tiny font-medium text-white">{t("job.examplePic")}</span>}
     </span>
   );
 }
@@ -191,7 +194,7 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
       </nav>
       <TaskMap markers={jobPins(items)} showMe className="h-64" />
       {items.length === 0 ? (
-        <p className="text-[15px] text-ink-2">{t("job.allEmpty")}</p>
+        <p className="text-body text-ink-2">{t("job.allEmpty")}</p>
       ) : (
         items.map((i) => <JobRow key={i.deal.id} item={i} t={t} now={Date.now()} locale={locale} mine={mine} pic={picOf(i.deal, pics)} />)
       )}
@@ -209,7 +212,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   /** `status`: the online pill (approved helpers) — always in sight, like PleaseHelp's header switch. */
   const pageHeader = (status?: ReactNode) => (
     <header className="flex items-center justify-between gap-3 pt-2">
-      <h1 className="text-[24px] font-bold tracking-tight">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
+      <h1 className="text-headline font-bold tracking-tight">{actor.helperApproved ? t("tabs.jobs") : t("helper.becomeTitle")}</h1>
       <span className="flex items-center gap-2">
         {status}
         <Link href="/profile" aria-label={t("home.profile")} className="md:hidden">
@@ -226,8 +229,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {header}
         <section className="flex flex-col gap-3 rounded-card bg-bg p-5 shadow-card">
           <Landmark aria-hidden size={28} className="text-brand-ink" />
-          <h2 className="text-[18px] font-bold">{t("payout.gateTitle")}</h2>
-          <p className="text-[15px] text-ink-2">{t("payout.gateBody")}</p>
+          <h2 className="text-title font-bold">{t("payout.gateTitle")}</h2>
+          <p className="text-body text-ink-2">{t("payout.gateBody")}</p>
           <Link href="/helper/bank" className={`${btn.primary} w-full`}>
             {t("payout.add")}
           </Link>
@@ -260,7 +263,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {pageHeader(
           <a
             href="#online"
-            className={`flex min-h-10 items-center gap-2 rounded-full px-3.5 text-[14px] font-semibold ${online ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}
+            className={`flex min-h-10 items-center gap-2 rounded-full px-3.5 text-small font-semibold ${online ? "bg-held-bg text-held" : "bg-fill text-ink-2"}`}
           >
             <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${online ? "bg-held" : "bg-ink-3"}`} />
             {online ? t("job.pillOnline", { km: presence?.radiusKm ?? 3 }) : t("job.offline")}
@@ -274,7 +277,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             {active.map((d) => (
               <Link key={d.id} href={`/jobs/${d.id}`} className="press grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-card bg-bg p-3 shadow-card">
                 <CategoryIcon id={d.category} tile size={20} />
-                <span className="min-w-0 break-words text-[17px] font-semibold">{d.title}</span>
+                <span className="min-w-0 break-words text-title font-semibold">{d.title}</span>
                 <ChevronRight aria-hidden size={18} className="flex-none text-ink-2" />
                 <div className="col-start-2 -mt-1.5"><StatusBadge status={d.status} t={t} /></div>
               </Link>
@@ -320,9 +323,9 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         ) : (
           <section className="flex flex-col gap-2">
             <TaskMap markers={[...busy.map((c) => ({ lat: c.lat, lng: c.lng, kind: "busy" as const, label: String(c.count) })), ...jobPins([...offers, ...applied, ...feed])]} showMe className="h-64" />
-            {busy.length > 0 && <p className="text-[13px] text-ink-2">{t("job.busyLegend")}</p>}
+            {busy.length > 0 && <p className="text-meta text-ink-2">{t("job.busyLegend")}</p>}
             {feed.length === 0 ? (
-              <p className="text-[15px] text-ink-2">
+              <p className="text-body text-ink-2">
                 {t("job.nearbyEmpty")}{" "}
                 <Link href="/jobs?view=all" className="font-semibold text-ink underline underline-offset-4">
                   {t("job.seeAll")}
@@ -343,15 +346,15 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     return (
       <>
         {header}
-        <p className="rounded-card bg-warn-bg p-4 text-[15px] text-warn">{t("kyc.testWarning")}</p>
-        <p className="text-[15px] text-ink-2">{t(canJoin ? "kyc.testJoinHint" : "kyc.testInviteOnly")}</p>
+        <p className="rounded-card bg-warn-bg p-4 text-body text-warn">{t("kyc.testWarning")}</p>
+        <p className="text-body text-ink-2">{t(canJoin ? "kyc.testJoinHint" : "kyc.testInviteOnly")}</p>
         {canJoin && (
           <Link href="/helper/apply" className={`${btn.primary} w-full`}>
             {t("kyc.testTitle")}
           </Link>
         )}
         <h2 className="font-bold">{t("job.boardTitle")}</h2>
-        <p className="-mt-2 text-sm text-ink-2">{t("job.boardSub")}</p>
+        <p className="-mt-2 text-small text-ink-2">{t("job.boardSub")}</p>
         <Board sp={sp} viewerId={profile.id} from={null} mine={actor.categories ?? []} t={t} locale={locale} />
       </>
     );
@@ -361,7 +364,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const pending = app?.status === "submitted";
   const chip = (state: "done" | "inReview" | "needed") => (
     <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+      className={`rounded-full px-2.5 py-1 text-caption font-semibold ${
         state === "done" ? "bg-held-bg text-held" : state === "inReview" ? "bg-warn-bg text-warn" : "bg-fill text-ink-2"
       }`}
     >
@@ -380,7 +383,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     <>
       {header}
       <TodoCard items={todos} t={t} />
-      <p className="text-[16px] text-ink-2">{t("helper.becomeBody")}</p>
+      <p className="text-lead text-ink-2">{t("helper.becomeBody")}</p>
       <Card>
         <h2 className="font-bold">{t("helper.checklist")}</h2>
         <ul className="flex flex-col divide-y divide-line">
@@ -388,21 +391,21 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             <li key={label}>
               {state === "needed" && !pending ? (
                 <Link href="/helper/apply" className="press flex min-h-12 items-center justify-between gap-3">
-                  <span className="text-[15px]">{label}</span>
+                  <span className="text-body">{label}</span>
                   {/* needed → one clear button to the form (not a grey label you can't act on) */}
-                  <span className="flex-none whitespace-nowrap rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold text-white">{t("helper.stepGo")} ›</span>
+                  <span className="flex-none whitespace-nowrap rounded-full bg-brand px-3 py-1.5 text-meta font-bold text-white">{t("helper.stepGo")} ›</span>
                 </Link>
               ) : (
                 <span className="flex min-h-12 items-center justify-between gap-3">
-                  <span className="text-[15px]">{label}</span>
+                  <span className="text-body">{label}</span>
                   {chip(state)}
                 </span>
               )}
             </li>
           ))}
         </ul>
-        {app && <p className="text-sm text-ink-2">{t(`kyc.status.${app.status}`)}</p>}
-        {app?.decisionNote && <p className="text-sm text-ink-2">{t("kyc.note", { note: app.decisionNote })}</p>}
+        {app && <p className="text-small text-ink-2">{t(`kyc.status.${app.status}`)}</p>}
+        {app?.decisionNote && <p className="text-small text-ink-2">{t("kyc.note", { note: app.decisionNote })}</p>}
         {!pending && (
           <Link href="/helper/apply" className={`${btn.primary} w-full`}>
             {app ? t("kyc.again") : t("kyc.start")}
@@ -410,7 +413,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         )}
       </Card>
       <h2 className="font-bold">{t("job.boardTitle")}</h2>
-      <p className="-mt-2 text-sm text-ink-2">{t("job.boardSub")}</p>
+      <p className="-mt-2 text-small text-ink-2">{t("job.boardSub")}</p>
       <Board sp={sp} viewerId={profile.id} from={null} mine={actor.categories ?? []} t={t} locale={locale} />
     </>
   );

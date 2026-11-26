@@ -14,7 +14,7 @@ export function DecideCert({ id }: { id: string }) {
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="id" value={id} />
       <input name="note" maxLength={500} placeholder={t("opsOrgs.note")} className={field} />
-      {state.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state.error && <p className="text-small text-danger">{state.error}</p>}
       <Buttons />
     </form>
   );

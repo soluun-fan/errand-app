@@ -8,6 +8,9 @@ import { getViewer } from "@/lib/auth";
 import { LAUNCH_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { helperDirectory, savedHelperIds, type HelperSort } from "@/lib/helper-profile";
 import { portfolioThumbs } from "@/lib/work-photos";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("web.helpersTitle");
 
 /**
  * /helpers — browse verified helpers (PleaseHelp "내 주변 헬퍼" / Unegui-style listing): category,
@@ -41,8 +44,8 @@ export default async function HelpersPage({ searchParams }: PageProps<"/helpers"
         <FlowHeader href="/" label={t("common.back")} />
       </div>
       <header>
-        <h1 className="text-[24px] font-bold tracking-tight md:text-[30px]">{t("web.helpersTitle")}</h1>
-        <p className="mt-1 text-[15px] text-ink-2">{t("web.helpersSub")}</p>
+        <h1 className="text-headline font-bold tracking-tight md:text-display">{t("web.helpersTitle")}</h1>
+        <p className="mt-1 text-body text-ink-2">{t("web.helpersSub")}</p>
       </header>
       <nav className="flex gap-2">
         <Link href={href({ saved: false })} className={chipClass(!onlySaved)}>

@@ -11,7 +11,8 @@ The rules live in `docs/ui.md` (read the sections you need). This is the checkli
 - Tokens only (`bg-ink`, `text-ink-2`, `bg-fill`, `border-line`, `text-brand-ink`, `bg-held-bg`…), never raw hex. Defined in `src/app/globals.css`.
 - Orange = the main action and prices. Status colours (held green, warn amber, danger red) mean status only. A warning is never green; orange is never a warning.
 - Headline money = `text-brand-ink`, breakdown lines = ink, held money = held green. Always `fmtMoney`.
-- Section titles: `text-[18px] font-bold tracking-tight md:text-[24px]`. Small group labels: `text-[13px] font-semibold text-ink-2`.
+- Font sizes only from the type scale (`text-caption` … `text-hero`, docs/ui.md); the design-tokens test rejects `text-[Npx]`, Tailwind `text-sm/lg…`, `rounded-[Npx]` and raw `#hex`.
+- Section titles: `text-title font-bold tracking-tight md:text-headline`. Small group labels: `text-meta font-semibold text-ink-2`.
 
 ## Shapes
 - Plain cards: `rounded-card bg-bg shadow-card`, **no border**. A 2 px orange border means *selected* or *your turn* only.

@@ -77,7 +77,7 @@ export function ContactRow({
       <Link href={href} className={`${btn.small} relative w-full`}>
         <Ico as={MessageCircle} /> {t("chat.open")}
         {unread > 0 && (
-          <span className="rounded-full bg-danger px-2 py-0.5 text-xs font-bold text-white">{t("chat.unread", { n: unread })}</span>
+          <span className="rounded-full bg-danger px-2 py-0.5 text-caption font-bold text-white">{t("chat.unread", { n: unread })}</span>
         )}
       </Link>
     </div>
@@ -163,7 +163,7 @@ export function DealView(p: DealViewProps) {
         overlap={showMap}
       >
         <StepTracker status={deal.status} events={events} t={t} />
-        <div className="text-[16px] text-ink">
+        <div className="text-lead text-ink">
           <DealStatusLine p={p} helperName={helperName} payeeName={payeeName} />
         </div>
         {deal.heldAmount > 0 && (
@@ -173,9 +173,9 @@ export function DealView(p: DealViewProps) {
               : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}
           </HeldBadge>
         )}
-        {p.rated !== null && <p className="text-sm text-ink-2">{t("deal.rated", { stars: p.rated })}</p>}
+        {p.rated !== null && <p className="text-small text-ink-2">{t("deal.rated", { stars: p.rated })}</p>}
         {waiting && (
-          <Link href="/help" className="self-start text-[15px] font-medium text-ink underline underline-offset-4">
+          <Link href="/help" className="self-start text-body font-medium text-ink underline underline-offset-4">
             {t("common.needHelp")}
           </Link>
         )}
@@ -258,8 +258,8 @@ export function DealView(p: DealViewProps) {
       {deal.status === "open" && isCustomer && !care && (
         <section className="flex flex-col gap-2" aria-live="polite">
           <h2 className="font-bold">{t("deal.offers", { n: applicants.length, max: deal.maxApplicants })}</h2>
-          {deal.category === "escort" && <p className="text-sm text-ink-2">{t("care.posterChoice")}</p>}
-          {applicants.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
+          {deal.category === "escort" && <p className="text-small text-ink-2">{t("care.posterChoice")}</p>}
+          {applicants.length === 0 && <p className="text-body text-ink-2">{t("deal.noOffers")}</p>}
           {applicants.length > 1 && (
             <SegmentedLinks
               label={t("deal.sortLabel")}
@@ -273,7 +273,7 @@ export function DealView(p: DealViewProps) {
             />
           )}
           {applicants.length > 0 && pickAt !== null && (
-            <p className="self-start rounded-full bg-fill px-3 py-1 text-sm font-medium">
+            <p className="self-start rounded-full bg-fill px-3 py-1 text-small font-medium">
               <Countdown until={pickAt} serverNow={serverNow} template={t("deal.autoPickIn")} />
             </p>
           )}
@@ -309,7 +309,7 @@ export function DealView(p: DealViewProps) {
                       t={t}
                     />
                     {care && p.firstAid?.has(o.helperId) && (
-                      <p className="self-start rounded-full bg-held-bg px-3 py-1 text-[13px] font-medium text-held">
+                      <p className="self-start rounded-full bg-held-bg px-3 py-1 text-meta font-medium text-held">
                         <Ico as={HeartPulse} size={14} /> {t("care.firstAidBadge")}
                       </p>
                     )}
@@ -317,7 +317,7 @@ export function DealView(p: DealViewProps) {
                       <BadgeChips badges={p.applicantBadges.get(o.helperId) as HelperBadges & { record: OnTime }} t={t} />
                     )}
                     {p.needsCall && !p.careCalls?.has(o.helperId) && (
-                      <p className="rounded-input bg-warn-bg px-3 py-2 text-[13px] text-warn">
+                      <p className="rounded-input bg-warn-bg px-3 py-2 text-meta text-warn">
                         {!callsEnabled()
                           ? t("call.requiredUnavailable")
                           : care
@@ -344,7 +344,7 @@ export function DealView(p: DealViewProps) {
                           confirmLabel={t("deal.choose")}
                         >
                           {care && !p.careKnown?.has(o.helperId) && (
-                            <label className="flex items-start gap-3 rounded-input bg-warn-bg p-3 text-[15px]">
+                            <label className="flex items-start gap-3 rounded-input bg-warn-bg p-3 text-body">
                               <input type="checkbox" name="familyHome" required className="mt-1 h-5 w-5" />
                               <span>{t("care.meetFirst", { name: pp.name })}</span>
                             </label>
@@ -366,7 +366,7 @@ export function DealView(p: DealViewProps) {
                             name="price"
                             inputMode="numeric"
                             defaultValue={String(agreed)}
-                            className={`${field} text-[20px] font-bold tabular-nums`}
+                            className={`${field} text-title-lg font-bold tabular-nums`}
                             required
                           />
                         </label>
@@ -393,7 +393,7 @@ export function DealView(p: DealViewProps) {
                 name="price"
                 inputMode="numeric"
                 defaultValue={String(deal.postedFee)}
-                className={`${field} text-[20px] font-bold tabular-nums`}
+                className={`${field} text-title-lg font-bold tabular-nums`}
                 required
               />
             </label>
@@ -408,7 +408,7 @@ export function DealView(p: DealViewProps) {
         p.serverNow - deal.createdAt >= p.nudgeAfterMinutes * 60_000 && (
           <section className="flex flex-col gap-3 rounded-card bg-warn-bg p-4">
             <h2 className="font-bold">{t("nudge.title")}</h2>
-            <p className="text-[15px]">{t("nudge.body", { amount: fmtMoney(deal.postedFee) })}</p>
+            <p className="text-body">{t("nudge.body", { amount: fmtMoney(deal.postedFee) })}</p>
             <div className="grid grid-cols-3 gap-2">
               {[500, 1000, 1500].map((step) => (
                 <ConfirmSheet
@@ -438,7 +438,7 @@ export function DealView(p: DealViewProps) {
                   name="price"
                   inputMode="numeric"
                   defaultValue={String(deal.postedFee + 2000)}
-                  className={`${field} text-[20px] font-bold tabular-nums`}
+                  className={`${field} text-title-lg font-bold tabular-nums`}
                   required
                 />
               </label>
@@ -457,17 +457,17 @@ export function DealView(p: DealViewProps) {
 
       {topUpPending && deal.receiptAmount !== null && (
         <section className="flex flex-col gap-2 rounded-card border-2 border-warn bg-warn-bg p-4" aria-live="polite">
-          <h2 className="text-lg font-bold text-ink">{t("deal.topUp.title", { amount: fmtMoney(topUpPending.amount) })}</h2>
+          <h2 className="text-title font-bold text-ink">{t("deal.topUp.title", { amount: fmtMoney(topUpPending.amount) })}</h2>
           {isCustomer ? (
             <>
-              <p className="text-[15px] text-ink">
+              <p className="text-body text-ink">
                 {t("deal.topUp.body", {
                   helper: helperName,
                   receipt: fmtMoney(deal.receiptAmount),
                   budget: fmtMoney(deal.itemBudget),
                 })}
               </p>
-              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[15px] tabular-nums">
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-body tabular-nums">
                 <dt className="text-ink-2">{t("deal.topUp.receipt")}</dt>
                 <dd className="text-right">{fmtMoney(deal.receiptAmount)}</dd>
                 <dt className="text-ink-2">{t("deal.topUp.budget")}</dt>
@@ -477,7 +477,7 @@ export function DealView(p: DealViewProps) {
               </dl>
             </>
           ) : (
-            <p className="text-[15px] text-ink">{t("deal.topUp.waiting", { amount: fmtMoney(topUpPending.amount) })}</p>
+            <p className="text-body text-ink">{t("deal.topUp.waiting", { amount: fmtMoney(topUpPending.amount) })}</p>
           )}
         </section>
       )}
@@ -486,14 +486,14 @@ export function DealView(p: DealViewProps) {
         <Card>
           <p className="font-semibold">{t("deal.receipt", { amount: fmtMoney(deal.receiptAmount) })}</p>
           {deal.receiptAmount <= deal.itemBudget && (
-            <p className="text-sm text-held">{t("deal.receiptWithin", { budget: fmtMoney(deal.itemBudget) })}</p>
+            <p className="text-small text-held">{t("deal.receiptWithin", { budget: fmtMoney(deal.itemBudget) })}</p>
           )}
-          {topUp?.status === "paid" && <p className="text-sm text-held">{t("deal.topUp.paid", { amount: fmtMoney(topUp.amount) })}</p>}
+          {topUp?.status === "paid" && <p className="text-small text-held">{t("deal.topUp.paid", { amount: fmtMoney(topUp.amount) })}</p>}
         </Card>
       )}
       {topUp?.status === "declined" && deal.status === "in_progress" && (
         <Card>
-          <p className="text-[15px]">{t("deal.topUp.declined")}</p>
+          <p className="text-body">{t("deal.topUp.declined")}</p>
         </Card>
       )}
 
@@ -505,8 +505,8 @@ export function DealView(p: DealViewProps) {
           <h2 className="font-bold">
             <Ico as={Hash} /> {t("conditions.codeTitle")}
           </h2>
-          <p className="text-[40px] font-extrabold tracking-[0.3em] tabular-nums text-brand-ink">{p.handoverCode}</p>
-          <p className="text-sm text-ink-2">{t("conditions.codeSub")}</p>
+          <p className="text-display-lg font-extrabold tracking-[0.3em] tabular-nums text-brand-ink">{p.handoverCode}</p>
+          <p className="text-small text-ink-2">{t("conditions.codeSub")}</p>
         </section>
       )}
       <DealMoney deal={deal} payeeName={payeeName} t={t} />
@@ -523,11 +523,11 @@ export function DealView(p: DealViewProps) {
       )}
 
       <DetailSection label={t("job.whenLabel")}>
-        <p className="text-[18px] font-bold">{when}</p>
+        <p className="text-title font-bold">{when}</p>
       </DetailSection>
 
       <DetailSection label={t("job.placeLabel")}>
-        <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <p className="whitespace-pre-line pb-1 text-lead">{deal.description}</p>
         <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
         {p.photosEditable ? (
           <TaskPhotoManager dealId={deal.id} photos={p.photos ?? []} />
@@ -553,8 +553,8 @@ export function DealView(p: DealViewProps) {
             },
           ]}
         />
-        {detailBits.length > 0 && <p className="text-[15px] text-ink-2">{detailBits.join(" · ")}</p>}
-        {deal.details.note && <p className="rounded-input bg-fill p-3 text-[15px]">{deal.details.note}</p>}
+        {detailBits.length > 0 && <p className="text-body text-ink-2">{detailBits.join(" · ")}</p>}
+        {deal.details.note && <p className="rounded-input bg-fill p-3 text-body">{deal.details.note}</p>}
       </DetailSection>
       {p.recipientCheck}
 

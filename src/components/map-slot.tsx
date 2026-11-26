@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
  */
 export function MapSlot({ children, className = "h-[38vh] min-h-56" }: { children?: ReactNode; className?: string }) {
   return (
-    <div className={`relative overflow-hidden bg-[#eef0ec] ${className}`}>
+    <div className={`relative overflow-hidden bg-map-ground ${className}`}>
       <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 400 300">
         <rect width="400" height="300" fill="#eef0ec" />
         <g fill="#e2e6df">
@@ -36,7 +36,7 @@ export function MapSlot({ children, className = "h-[38vh] min-h-56" }: { childre
 /** White pill over the map: "📍 Сүхбаатар, 1-р хороо ›" or "~13:15-д ирнэ" (DESIGN §4.13). */
 export function MapPill({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-ink px-4 py-2 text-[15px] font-semibold text-white shadow-float">
+    <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-ink px-4 py-2 text-body font-semibold text-white shadow-float">
       {children}
     </span>
   );

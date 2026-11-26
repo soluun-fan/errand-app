@@ -20,32 +20,32 @@ export function RecentRequests({ items, t, now }: { items: PublicRequest[]; t: T
   return (
     <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-float">
       <header className="flex flex-col gap-0.5">
-        <h2 className="flex items-center gap-2 text-[16px] font-bold">
+        <h2 className="flex items-center gap-2 text-lead font-bold">
           <span aria-hidden className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-held opacity-60 motion-reduce:hidden" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-held" />
           </span>
           {items.length > 0 ? t("landing.liveTitle") : t("landing.liveEmptyTitle")}
         </h2>
-        {items.length > 0 && <span className="pl-[18px] text-[12px] text-ink-2">{t("landing.liveSub")}</span>}
+        {items.length > 0 && <span className="pl-[18px] text-caption text-ink-2">{t("landing.liveSub")}</span>}
       </header>
       {items.length === 0 ? (
-        <p className="flex items-start gap-2 text-[14px] text-ink-2">
+        <p className="flex items-start gap-2 text-small text-ink-2">
           <ShieldCheck aria-hidden size={18} className="mt-0.5 flex-none text-held" />
           {t("landing.liveEmptyBody")}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((r, i) => (
-            <li key={i} className="flex items-center gap-3 rounded-[16px] bg-canvas px-3 py-2.5">
+            <li key={i} className="flex items-center gap-3 rounded-cta bg-canvas px-3 py-2.5">
               <CategoryIcon id={r.category} tile size={20} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold">{t(`category.${r.category}`)}</span>
-                <span className="block truncate text-[12px] text-ink-2">
+                <span className="block truncate text-body font-semibold">{t(`category.${r.category}`)}</span>
+                <span className="block truncate text-caption text-ink-2">
                   {t(`status.${r.status}`)} · {t("landing.ago", { t: ago(now - r.createdAt, t) })}
                 </span>
               </span>
-              <span className="flex-none text-[15px] font-bold tabular-nums text-brand-ink">{fmtMoney(r.fee)}</span>
+              <span className="flex-none text-body font-bold tabular-nums text-brand-ink">{fmtMoney(r.fee)}</span>
             </li>
           ))}
         </ul>

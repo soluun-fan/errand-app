@@ -21,9 +21,9 @@ export function WorkCard({ p, t, href }: { p: WorkPhotoCard; t: T; href: string 
       {/* eslint-disable-next-line @next/next/no-img-element -- public work photo in Supabase Storage */}
       <img src={p.url} alt={p.category ? t("workPhotos.altKind", { kind: t(`categoryShort.${p.category}`) }) : t("workPhotos.alt")} loading="lazy" className="aspect-square w-full bg-fill object-cover" />
       <span className="flex flex-col gap-0.5 p-3">
-        <span className="line-clamp-2 break-words text-[14px] font-semibold leading-snug">{p.category ? t(`categoryShort.${p.category}`) : t("workPhotos.alt")}</span>
-        {p.fee !== null && p.fee > 0 && <span className="text-[16px] font-bold tabular-nums">{fmtMoney(p.fee)}</span>}
-        <span className="flex flex-wrap items-center gap-1 text-[13px] text-ink-2">
+        <span className="line-clamp-2 break-words text-small font-semibold leading-snug">{p.category ? t(`categoryShort.${p.category}`) : t("workPhotos.alt")}</span>
+        {p.fee !== null && p.fee > 0 && <span className="text-lead font-bold tabular-nums">{fmtMoney(p.fee)}</span>}
+        <span className="flex flex-wrap items-center gap-1 text-meta text-ink-2">
           <span className="min-w-0 break-words">{p.helperName}</span>
           {p.rating !== null && (
             <>
@@ -47,7 +47,7 @@ export function PortfolioGrid({ photos, t, action }: { photos: WorkPhoto[]; t: T
             {/* eslint-disable-next-line @next/next/no-img-element -- public work photo in Supabase Storage */}
             <img src={p.url} alt={p.category ? t("workPhotos.altKind", { kind: t(`categoryShort.${p.category}`) }) : t("workPhotos.alt")} loading="lazy" className="aspect-square w-full bg-fill object-cover" />
           </a>
-          <span className="flex items-center justify-between gap-1 px-2.5 py-1.5 text-[12px] text-ink-2">
+          <span className="flex items-center justify-between gap-1 px-2.5 py-1.5 text-caption text-ink-2">
             <span className="truncate">
               {p.category ? t(`categoryShort.${p.category}`) : ""} · {month(p.at)}
               {p.source === "review" ? ` · ${t("workPhotos.fromReview")}` : ""}

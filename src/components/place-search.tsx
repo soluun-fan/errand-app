@@ -52,7 +52,7 @@ export function PlaceSearch({ onPick }: { onPick: (p: PlaceResult) => void }) {
   return (
     <div ref={box} className="absolute inset-x-3 top-3 z-20">
       <label className="flex h-11 items-center gap-2 rounded-full bg-white px-4 shadow-[0_2px_6px_rgb(0_0_0/0.2)]">
-        <Search size={18} aria-hidden className="flex-none text-[#5f6368]" />
+        <Search size={18} aria-hidden className="flex-none text-ink-2" />
         <input
           id="place-search"
           value={q}
@@ -70,7 +70,7 @@ export function PlaceSearch({ onPick }: { onPick: (p: PlaceResult) => void }) {
           aria-label={t("map.search")}
           autoComplete="off"
           enterKeyHint="search"
-          className="min-w-0 flex-1 bg-transparent text-[15px] text-[#202124] outline-none placeholder:text-[#80868b]"
+          className="min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-3"
         />
         {q && (
           <button
@@ -80,7 +80,7 @@ export function PlaceSearch({ onPick }: { onPick: (p: PlaceResult) => void }) {
               setQ("");
               setResults(null);
             }}
-            className="flex h-8 w-8 flex-none items-center justify-center text-[#5f6368]"
+            className="flex h-8 w-8 flex-none items-center justify-center text-ink-2"
           >
             <X size={16} aria-hidden />
           </button>
@@ -92,22 +92,22 @@ export function PlaceSearch({ onPick }: { onPick: (p: PlaceResult) => void }) {
           aria-label={t("map.search")}
           className="mt-1.5 max-h-56 overflow-y-auto rounded-2xl bg-white py-1 shadow-[0_4px_12px_rgb(0_0_0/0.2)]"
         >
-          {state === "busy" && !results && <li className="px-4 py-3 text-sm text-[#5f6368]">…</li>}
-          {state === "failed" && <li className="px-4 py-3 text-sm text-[#5f6368]">{t("map.searchFailed")}</li>}
-          {state !== "failed" && results?.length === 0 && <li className="px-4 py-3 text-sm text-[#5f6368]">{t("map.searchNone")}</li>}
+          {state === "busy" && !results && <li className="px-4 py-3 text-small text-ink-2">…</li>}
+          {state === "failed" && <li className="px-4 py-3 text-small text-ink-2">{t("map.searchFailed")}</li>}
+          {state !== "failed" && results?.length === 0 && <li className="px-4 py-3 text-small text-ink-2">{t("map.searchNone")}</li>}
           {results?.map((r) => (
             <li key={r.id} role="option" aria-selected={false}>
               <button
                 type="button"
-                className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left hover:bg-[#f1f3f4] focus-visible:bg-[#f1f3f4]"
+                className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left hover:bg-fill focus-visible:bg-fill"
                 onClick={() => {
                   onPick(r);
                   setQ(r.name);
                   setOpen(false);
                 }}
               >
-                <span className="text-[15px] font-medium text-[#202124]">{r.name}</span>
-                {r.detail && <span className="text-[13px] text-[#5f6368]">{r.detail}</span>}
+                <span className="text-body font-medium text-ink">{r.name}</span>
+                {r.detail && <span className="text-meta text-ink-2">{r.detail}</span>}
               </button>
             </li>
           ))}

@@ -35,7 +35,7 @@ export function meElement(): HTMLElement {
 /** A white pill with dark bold text (prices on the jobs map). */
 export function chipElement(text: string): HTMLElement {
   const el = document.createElement("div");
-  el.className = "rounded-full bg-white px-2.5 py-1 text-[13px] font-bold text-[#202124] shadow-[0_1px_4px_rgb(0_0_0/0.3)]";
+  el.className = "rounded-full bg-white px-2.5 py-1 text-meta font-bold text-ink shadow-[0_1px_4px_rgb(0_0_0/0.3)]";
   el.textContent = text;
   return el;
 }
@@ -57,7 +57,7 @@ export function LocateButton({ onClick, busy, label, className = "" }: { onClick
       disabled={busy}
       aria-label={label}
       title={label}
-      className={`press absolute z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#1a73e8] shadow-[0_2px_6px_rgb(0_0_0/0.25)] disabled:text-ink-3 ${className}`}
+      className={`press absolute z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white text-map-control shadow-[0_2px_6px_rgb(0_0_0/0.25)] disabled:text-ink-3 ${className}`}
     >
       {busy ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <LocateFixed size={20} aria-hidden />}
     </button>

@@ -16,6 +16,9 @@ import { PhotoStrip, PortfolioGrid } from "@/components/work-photos";
 import { WorkPhotoRemove, WorkPhotoReport } from "@/components/portfolio-cards";
 import { portfolio } from "@/lib/work-photos";
 import { SaveButton } from "../save-button";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("helperProfile.title");
 
 /** Ulaanbaatar calendar date as "2026.11" (month) or "2026.11.16" (day) — short, same in both languages. */
 const ubDate = (ms: number, withDay = false) => {
@@ -49,8 +52,8 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
 
   const stat = (value: React.ReactNode, label: string) => (
     <div className="flex flex-col items-center gap-0.5 px-2 text-center">
-      <span className="text-[18px] font-bold tabular-nums">{value}</span>
-      <span className="text-[12px] text-ink-2">{label}</span>
+      <span className="text-title font-bold tabular-nums">{value}</span>
+      <span className="text-caption text-ink-2">{label}</span>
     </div>
   );
 
@@ -58,22 +61,22 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
   return (
     <>
       <FlowHeader href={mode === "helper" ? "/jobs" : "/"} label={t("common.back")} title={t("helperProfile.title")} />
-      {me && <p className="rounded-card bg-brand-bg p-3 text-[14px] text-brand-ink">{t("helperProfile.yours")}</p>}
+      {me && <p className="rounded-card bg-brand-bg p-3 text-small text-brand-ink">{t("helperProfile.yours")}</p>}
 
       <section className="flex flex-col items-center gap-3 rounded-card bg-bg p-5 text-center shadow-card">
         <Avatar name={p.name} size={76} />
         <div className="flex flex-col items-center gap-1.5">
-          <h1 className="text-[22px] font-bold tracking-tight">{p.name}</h1>
+          <h1 className="text-heading font-bold tracking-tight">{p.name}</h1>
           <span className="flex flex-wrap justify-center gap-1.5">
             {p.kycLevel >= 3 && (
-              <span className="rounded-full bg-held-bg px-2.5 py-1 text-[12px] font-bold text-held">{t("kyc.badgeVerified")}</span>
+              <span className="rounded-full bg-held-bg px-2.5 py-1 text-caption font-bold text-held">{t("kyc.badgeVerified")}</span>
             )}
             {p.kycLevel < 3 && (
-              <span className="rounded-full bg-warn-bg px-2.5 py-1 text-[12px] font-bold text-warn">{t("kyc.badgeUnverified")}</span>
+              <span className="rounded-full bg-warn-bg px-2.5 py-1 text-caption font-bold text-warn">{t("kyc.badgeUnverified")}</span>
             )}
           </span>
           {p.area && (
-            <span className="flex items-center gap-1 text-[13px] text-ink-2">
+            <span className="flex items-center gap-1 text-meta text-ink-2">
               <MapPin aria-hidden size={14} /> {p.area}
             </span>
           )}
@@ -98,24 +101,24 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
       {/* the helper's own words and price, then what their finished jobs actually paid */}
       {(p.bio || p.fromPrice || typical || me) && (
         <section className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
-          <h2 className="text-[13px] font-semibold text-ink-2">{t("listing.about")}</h2>
+          <h2 className="text-meta font-semibold text-ink-2">{t("listing.about")}</h2>
           {p.bio ? (
-            <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.bio}</p>
+            <p className="whitespace-pre-line text-body leading-relaxed">{p.bio}</p>
           ) : (
-            me && <p className="text-[14px] text-ink-2">{t("listing.emptyMine")}</p>
+            me && <p className="text-small text-ink-2">{t("listing.emptyMine")}</p>
           )}
           {(p.fromPrice || typical) && (
             <dl className="grid grid-cols-2 gap-2 border-t border-line pt-3">
               {p.fromPrice && (
                 <div className="flex flex-col">
-                  <dt className="text-[12px] text-ink-2">{t("listing.fromPriceShown")}</dt>
-                  <dd className="text-[18px] font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(p.fromPrice) })}</dd>
+                  <dt className="text-caption text-ink-2">{t("listing.fromPriceShown")}</dt>
+                  <dd className="text-title font-bold tabular-nums text-brand-ink">{t("home.from", { amount: fmtMoney(p.fromPrice) })}</dd>
                 </div>
               )}
               {typical && (
                 <div className="flex flex-col">
-                  <dt className="text-[12px] text-ink-2">{t("listing.typical", { n: typical.jobs })}</dt>
-                  <dd className="text-[18px] font-bold tabular-nums">{fmtMoney(typical.median)}</dd>
+                  <dt className="text-caption text-ink-2">{t("listing.typical", { n: typical.jobs })}</dt>
+                  <dd className="text-title font-bold tabular-nums">{fmtMoney(typical.median)}</dd>
                 </div>
               )}
             </dl>
@@ -126,10 +129,10 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
 
       {highlights.length > 0 && (
         <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
-          <h2 className="text-[13px] font-semibold text-ink-2">{t("helperProfile.highlights")}</h2>
+          <h2 className="text-meta font-semibold text-ink-2">{t("helperProfile.highlights")}</h2>
           <div className="flex flex-wrap gap-2">
             {highlights.map((h) => (
-              <span key={h.tag} className="rounded-full bg-brand-bg px-3 py-1.5 text-[13px] font-semibold text-brand-ink">
+              <span key={h.tag} className="rounded-full bg-brand-bg px-3 py-1.5 text-meta font-semibold text-brand-ink">
                 {t(`rating.tags.${h.tag as "onTime"}`)} · {h.n}
               </span>
             ))}
@@ -139,10 +142,10 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
 
       {p.categories.length > 0 && (
         <section className="flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card">
-          <h2 className="text-[13px] font-semibold text-ink-2">{t("helperProfile.does")}</h2>
+          <h2 className="text-meta font-semibold text-ink-2">{t("helperProfile.does")}</h2>
           <div className="flex flex-wrap gap-2">
             {p.categories.map((c) => (
-              <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[13px] font-medium">
+              <span key={c} className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-meta font-medium">
                 <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
               </span>
             ))}
@@ -153,9 +156,9 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
       {/* portfolio: photos of finished jobs, each one agreed by that job's customer */}
       {(work.length > 0 || me) && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-bold">{t("workPhotos.portfolioTitle", { n: work.length })}</h2>
+          <h2 className="text-title font-bold">{t("workPhotos.portfolioTitle", { n: work.length })}</h2>
           {work.length === 0 ? (
-            <p className="rounded-card bg-bg p-4 text-[14px] text-ink-2 shadow-card">{t("workPhotos.portfolioEmptyMine")}</p>
+            <p className="rounded-card bg-bg p-4 text-small text-ink-2 shadow-card">{t("workPhotos.portfolioEmptyMine")}</p>
           ) : (
             <PortfolioGrid photos={work} t={t} action={(ph) => (me ? <WorkPhotoRemove photoId={ph.id} t={t} /> : <WorkPhotoReport photoId={ph.id} t={t} />)} />
           )}
@@ -163,9 +166,9 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-[17px] font-bold">{t("helperProfile.reviewsTitle", { n: p.ratingCount })}</h2>
+        <h2 className="text-title font-bold">{t("helperProfile.reviewsTitle", { n: p.ratingCount })}</h2>
         {reviews.length === 0 ? (
-          <p className="rounded-card bg-bg p-4 text-[14px] text-ink-2 shadow-card">{t("helperProfile.noReviews")}</p>
+          <p className="rounded-card bg-bg p-4 text-small text-ink-2 shadow-card">{t("helperProfile.noReviews")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {reviews.map((r, i) => (
@@ -176,7 +179,7 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
                       <Star key={s} aria-hidden size={15} className={s <= r.stars ? "fill-brand text-brand" : "text-line"} />
                     ))}
                   </span>
-                  <span className="text-[12px] text-ink-2">
+                  <span className="text-caption text-ink-2">
                     {r.category ? `${t(`categoryShort.${r.category}`)} · ` : ""}
                     {ubDate(r.at, true)}
                   </span>
@@ -184,15 +187,15 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
                 {r.tags.length > 0 && (
                   <span className="flex flex-wrap gap-1.5">
                     {r.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-fill px-2 py-0.5 text-[12px] font-medium text-ink-2">
+                      <span key={tag} className="rounded-full bg-fill px-2 py-0.5 text-caption font-medium text-ink-2">
                         {t(`rating.tags.${tag as "onTime"}`)}
                       </span>
                     ))}
                   </span>
                 )}
-                {r.note && <p className="text-[15px] leading-relaxed">{r.note}</p>}
+                {r.note && <p className="text-body leading-relaxed">{r.note}</p>}
                 <PhotoStrip urls={r.photos} t={t} size="h-24" />
-                <span className="text-[12px] font-medium text-ink-2">{r.reviewer}</span>
+                <span className="text-caption font-medium text-ink-2">{r.reviewer}</span>
               </li>
             ))}
           </ul>

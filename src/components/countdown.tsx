@@ -35,7 +35,7 @@ export function Countdown({ until, serverNow, template, pill = false }: { until:
   const text = template ? template.replace("{time}", clock) : clock;
   return (
     <span
-      className={`tabular-nums ${pill ? "inline-flex items-center gap-1.5 rounded-full bg-warn-bg px-3 py-1.5 text-sm font-semibold text-warn" : ""}`}
+      className={`tabular-nums ${pill ? "inline-flex items-center gap-1.5 rounded-full bg-warn-bg px-3 py-1.5 text-small font-semibold text-warn" : ""}`}
       role="timer"
       aria-live="off"
     >

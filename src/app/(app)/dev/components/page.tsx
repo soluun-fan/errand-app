@@ -69,7 +69,7 @@ export default async function Gallery({ searchParams }: PageProps<"/dev/componen
   const sample = buildFixture("check", now);
   return (
     <>
-      <h1 className="text-2xl font-bold">UI gallery</h1>
+      <h1 className="text-headline font-bold">UI gallery</h1>
       <Note tone="info">Dev only. Language follows Profile → Language. Sheets open but never change data.</Note>
 
       <Card>

@@ -45,6 +45,9 @@ import { ContactRow } from "../../tasks/[id]/deal-view";
 import { jobAction, removeMyProof } from "../actions";
 import { Hash } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("meta.job");
 
 /**
  * The helper's view of one task (docs/screens-helper-ops.md): what it pays, how far, and the
@@ -147,7 +150,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           name="price"
           inputMode="numeric"
           defaultValue={String(start)}
-          className={`${field} text-[20px] font-bold tabular-nums`}
+          className={`${field} text-title-lg font-bold tabular-nums`}
           required
         />
       </label>
@@ -311,7 +314,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 maxLength={4}
                 required
                 autoComplete="off"
-                className={`${field} text-center text-[24px] font-bold tracking-[0.3em] tabular-nums`}
+                className={`${field} text-center text-headline font-bold tracking-[0.3em] tabular-nums`}
               />
             </label>
           )}
@@ -478,7 +481,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {deal.status === "open" && categoryTrust(deal.category) === "care" && <Note tone="warn">{t("care.helperNote")}</Note>}
         {!startPhoto && <Note tone="info">{t(deal.category === "eldercare" ? "care.scopeElder" : "care.scopeChild")}</Note>}
         {!startPhoto && mine && firstMeeting && <Note tone="info">{t("care.meetFirstHelper")}</Note>}
-        {line && <p className="text-[16px]">{line}</p>}
+        {line && <p className="text-lead">{line}</p>}
         {mine && deal.heldAmount > 0 && (
           <HeldBadge>
             {deal.payMode === "direct"
@@ -516,30 +519,30 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         rows={[
           {
             label: payee ? t("org.payee", { name: payee.name }) : t("job.feeLabel"),
-            value: <span className="text-[22px] font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span>,
+            value: <span className="text-heading font-bold tabular-nums leading-tight text-brand-ink">{fmtMoney(net)}</span>,
           },
           {
             label: t("job.itemsLabel"),
             value:
               deal.itemBudget > 0 ? (
                 <>
-                  <span className="block text-[17px] font-bold tabular-nums">
+                  <span className="block text-title font-bold tabular-nums">
                     {t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}
                   </span>
-                  <span className="block text-sm text-ink-2">
+                  <span className="block text-small text-ink-2">
                     {t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}
                   </span>
                 </>
               ) : (
-                <span className="text-[17px] font-semibold">{t("job.noItems")}</span>
+                <span className="text-title font-semibold">{t("job.noItems")}</span>
               ),
           },
           {
             label: t("job.whenLabel"),
             value: (
               <>
-                <span className="block text-[17px] font-bold">{when}</span>
-                {effort.length > 0 && <span className="block text-[14px] text-ink-2">{effort.join(" · ")}</span>}
+                <span className="block text-title font-bold">{when}</span>
+                {effort.length > 0 && <span className="block text-small text-ink-2">{effort.join(" · ")}</span>}
               </>
             ),
           },
@@ -548,12 +551,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {deal.payMode !== "direct" && !payeeOrgId && ["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status) && (
         <DetailSection label={t("job.paymentTimingTitle")}>
-          <p className="text-[14px] leading-relaxed text-ink-2">{t("job.paymentTiming", { hours: deal.checkHours })}</p>
+          <p className="text-small leading-relaxed text-ink-2">{t("job.paymentTiming", { hours: deal.checkHours })}</p>
         </DetailSection>
       )}
 
       <DetailSection label={t("job.placeLabel")}>
-        <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
+        <p className="whitespace-pre-line pb-1 text-lead">{deal.description}</p>
         <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} missing={missing} />
         <TaskPhotoGrid photos={photos} t={t} />
         <RouteStops
@@ -590,8 +593,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             },
           ]}
         />
-        {bits.length > 0 && <p className="text-[15px] text-ink-2">{bits.join(" · ")}</p>}
-        {mine && dt.note && <p className="rounded-input bg-fill p-3 text-[15px]">{dt.note}</p>}
+        {bits.length > 0 && <p className="text-body text-ink-2">{bits.join(" · ")}</p>}
+        {mine && dt.note && <p className="rounded-input bg-fill p-3 text-body">{dt.note}</p>}
       </DetailSection>
 
       {mine && deal.status === "matched" && (
@@ -628,7 +631,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 action={removeMyProof}
                 fields={{ dealId: deal.id, proofId: p.id }}
                 trigger={t("proof.remove")}
-                triggerClass={`${btn.text} min-h-9 self-start px-1 text-[13px] text-danger`}
+                triggerClass={`${btn.text} min-h-9 self-start px-1 text-meta text-danger`}
                 title={t("proof.removeTitle")}
                 body={t("proof.removeBody")}
                 confirmLabel={t("proof.remove")}
@@ -643,7 +646,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       {mine && deal.status === "released" && (
         <section className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-5">
           {myRating ? (
-            <p className="text-sm text-ink-2">{t("rateCustomer.done", { stars: myRating.stars })}</p>
+            <p className="text-small text-ink-2">{t("rateCustomer.done", { stars: myRating.stars })}</p>
           ) : (
             <ConfirmSheet
               action={jobAction}
@@ -659,7 +662,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                     <input type="radio" name="stars" value={n} required defaultChecked={n === 5} className="peer sr-only" />
                     <span
                       aria-label={t("rating.stars", { n })}
-                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn"
+                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-title-lg text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn"
                     >
                       ★{n}
                     </span>
@@ -670,7 +673,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 {CUSTOMER_TAGS.map((tag) => (
                   <label key={tag} className="cursor-pointer">
                     <input type="checkbox" name="tags" value={tag} className="peer sr-only" />
-                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white">
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-body peer-checked:bg-ink peer-checked:text-white">
                       {t(`rateCustomer.tags.${tag}`)}
                     </span>
                   </label>
@@ -692,7 +695,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {customer && (
         <DetailSection label={t("job.customerLabel")}>
-          <p className="text-[16px]">
+          <p className="text-lead">
             {customer.name}
             {customerRating !== null ? ` · ★ ${customerRating.toFixed(1)} (${custStats?.customer_rating_count})` : ""}
           </p>

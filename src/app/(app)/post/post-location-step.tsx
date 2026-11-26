@@ -86,7 +86,7 @@ export function PostLocationStep({
   );
   return (
     <>
-      <p className="-mt-2 text-[14px] leading-relaxed text-ink-2">{t("addressEntry.intro")}</p>
+      <p className="-mt-2 text-small leading-relaxed text-ink-2">{t("addressEntry.intro")}</p>
       {twoPoint ? (
         // pickup → drop-off as one route: two stops joined by a line
         <div className="rounded-card bg-bg p-4 shadow-card">
@@ -127,10 +127,10 @@ export function PostLocationStep({
           <div className="flex items-start justify-between gap-2">
             <div>
               <h2 className="font-semibold">{t("addressEntry.details")}</h2>
-              <p className="text-sm text-ink-2">{t("addressEntry.detailsHelp")}</p>
+              <p className="text-small text-ink-2">{t("addressEntry.detailsHelp")}</p>
             </div>
             {!isCarry && (
-              <button type="button" onClick={() => set("showDetails", false)} className="min-h-11 text-[13px] font-medium text-brand-ink">
+              <button type="button" onClick={() => set("showDetails", false)} className="min-h-11 text-meta font-medium text-brand-ink">
                 {t("addressEntry.hideDetails")}
               </button>
             )}
@@ -151,7 +151,7 @@ export function PostLocationStep({
             ))}
           </div>
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-[15px] font-medium text-ink-2">{t("task.lift")}</legend>
+            <legend className="mb-1.5 text-body font-medium text-ink-2">{t("task.lift")}</legend>
             <div className="grid grid-cols-3 gap-1 rounded-full bg-fill p-1" role="radiogroup">
               {(["yes", "no", "unknown"] as const).map((v) => (
                 <button
@@ -160,14 +160,14 @@ export function PostLocationStep({
                   role="radio"
                   aria-checked={d.lift === v}
                   onClick={() => set("lift", v)}
-                  className={`min-h-11 rounded-full text-[15px] font-semibold ${d.lift === v ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
+                  className={`min-h-11 rounded-full text-body font-semibold ${d.lift === v ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
                 >
                   {t(v === "yes" ? "task.liftYes" : v === "no" ? "task.liftNo" : "task.liftUnknown")}
                 </button>
               ))}
             </div>
           </fieldset>
-          {isCarry && d.lift === "unknown" && <p className="text-sm text-ink-2">{t("task.liftUnknownNote")}</p>}
+          {isCarry && d.lift === "unknown" && <p className="text-small text-ink-2">{t("task.liftUnknownNote")}</p>}
           <label className={fieldLabel}>
             {t("task.note")}
             <textarea
@@ -180,7 +180,7 @@ export function PostLocationStep({
           </label>
           {/* PleaseHelp-style one-tap notes: common instructions without typing */}
           <div className="-mt-1 flex flex-col gap-1.5">
-            <span className="text-[13px] text-ink-2">{t("task.noteQuick")}</span>
+            <span className="text-meta text-ink-2">{t("task.noteQuick")}</span>
             <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
               {NOTE_CHIPS.map((k) => {
                 const phrase = t(`task.noteChips.${k}`);
@@ -215,13 +215,13 @@ export function PostLocationStep({
       ) : (
         <div className="flex flex-col gap-1">
           <DashedAdd label={t("addressEntry.details")} onClick={() => set("showDetails", true)} />
-          {arrivalSummary && <p className="px-1 text-[13px] text-ink-2">{arrivalSummary}</p>}
+          {arrivalSummary && <p className="px-1 text-meta text-ink-2">{arrivalSummary}</p>}
         </div>
       )}
 
       {d.address.trim() && !savedMatch && (
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("task.saveAs")}</legend>
+          <legend className="mb-2 text-body font-medium text-ink-2">{t("task.saveAs")}</legend>
           <div className="flex gap-2" role="radiogroup">
             {(["home", "work", "other"] as const).map((k) => (
               <button
@@ -237,7 +237,7 @@ export function PostLocationStep({
             ))}
           </div>
           {d.saveAs !== "" && d.saveAs !== "other" && saved.some((a) => a.kind === d.saveAs) && (
-            <p className="text-sm text-ink-2">{t("task.saveReplaces", { name: t(`task.saved.${d.saveAs}`) })}</p>
+            <p className="text-small text-ink-2">{t("task.saveReplaces", { name: t(`task.saved.${d.saveAs}`) })}</p>
           )}
         </fieldset>
       )}

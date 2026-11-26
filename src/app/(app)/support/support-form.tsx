@@ -23,7 +23,7 @@ export function SupportForm() {
         {t("support.message")}
         <textarea id="support-message" name="message" required minLength={SUPPORT_MIN} maxLength={SUPPORT_MAX} rows={5} className={field} placeholder={t("support.placeholder")} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      {state.error && <p role="alert" className="text-small text-danger">{state.error}</p>}
       <SubmitButton className={`${btn.primary} w-full`}>{t("support.send")}</SubmitButton>
     </form>
   );

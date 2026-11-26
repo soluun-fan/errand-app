@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { btn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { RING_TIMEOUT_MS, type CallLog } from "@/lib/call-rules";
@@ -240,35 +240,38 @@ export function CallPanel({
     if (inc) await endCall(dealId, inc.callId, "decline", { kind: "declined", video: inc.video }, withHelper);
   }
 
+  // one signalling row (an offer, or the other side's answer / hang-up). An Effect Event (React 19.2):
+  // it always sees the latest phase and handlers, so the subscription below never has to restart.
+  const onSignalRow = useEffectEvent((row: SignalRow) => {
+    if (row.deal_id !== dealId) return;
+    if (row.kind === "offer") {
+      if (phaseRef.current !== "idle" && phaseRef.current !== "ended") {
+        void endCall(dealId, row.call_id, "busy", null, withHelper);
+        return;
+      }
+      if (row.sdp) {
+        setIncoming({ callId: row.call_id, video: row.video, sdp: row.sdp });
+        setMessage(null);
+        go("incoming");
+        navigator.vibrate?.([300, 200, 300, 200, 300]);
+      }
+    } else if (row.call_id === callId.current) {
+      void onSignal(row.kind, row.sdp);
+    }
+  });
+
   // incoming offers and the other side's answers / hang-ups (Realtime, filtered by RLS to me)
   useEffect(() => {
     const sb = browserClient();
     const channel = sb
       .channel(`calls-${dealId}-${me}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "call_signals", filter: `to_user_id=eq.${me}` }, (payload) => {
-        const row = payload.new as SignalRow;
-        if (row.deal_id !== dealId) return;
-        if (row.kind === "offer") {
-          if (phaseRef.current !== "idle" && phaseRef.current !== "ended") {
-            void endCall(dealId, row.call_id, "busy", null, withHelper);
-            return;
-          }
-          if (row.sdp) {
-            setIncoming({ callId: row.call_id, video: row.video, sdp: row.sdp });
-            setMessage(null);
-            go("incoming");
-            navigator.vibrate?.([300, 200, 300, 200, 300]);
-          }
-        } else if (row.call_id === callId.current) {
-          void onSignal(row.kind, row.sdp);
-        }
-      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "call_signals", filter: `to_user_id=eq.${me}` }, (payload) =>
+        onSignalRow(payload.new as SignalRow),
+      )
       .subscribe();
     return () => {
       void sb.removeChannel(channel);
     };
-    // onSignal/finish read refs; re-subscribing on every render would drop events
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId, me]);
 
   // arriving from the push notification: "/chat/<id>?call=<callId>"
@@ -295,16 +298,13 @@ export function CallPanel({
     return () => clearInterval(id);
   }, [phase]);
 
-  // leaving the page ends the call cleanly
-  useEffect(
-    () => () => {
-      const id = callId.current;
-      if (id && ["outgoing", "connecting", "live"].includes(phaseRef.current)) void endCall(dealId, id, "hangup", null, withHelper);
-      cleanup();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // leaving the page ends the call cleanly (an Effect Event: the latest call, without re-running)
+  const leave = useEffectEvent(() => {
+    const id = callId.current;
+    if (id && ["outgoing", "connecting", "live"].includes(phaseRef.current)) void endCall(dealId, id, "hangup", null, withHelper);
+    cleanup();
+  });
+  useEffect(() => () => leave(), []);
 
   const toggleMute = () => {
     local.current?.getAudioTracks().forEach((tr) => (tr.enabled = muted));
@@ -329,12 +329,12 @@ export function CallPanel({
               <Ico as={Video} /> {t("call.video")}
             </button>
           </div>
-          <p className="text-xs text-ink-2">{t("call.privacyNote")}</p>
+          <p className="text-caption text-ink-2">{t("call.privacyNote")}</p>
         </div>
       )}
 
       {message && (
-        <div role="status" className="flex flex-col gap-2 rounded-input bg-fill p-3 text-sm">
+        <div role="status" className="flex flex-col gap-2 rounded-input bg-fill p-3 text-small">
           <span>{message}</span>
           {showFallback && (
             <button type="button" className={`${btn.small} self-start`} onClick={onFallback}>
@@ -350,12 +350,12 @@ export function CallPanel({
           aria-label={t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-ink/95 p-6 text-white"
         >
-          <p className="text-center text-2xl font-bold">{t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })}</p>
+          <p className="text-center text-headline font-bold">{t(incoming.video ? "call.incomingVideo" : "call.incoming", { name })}</p>
           <div className="flex gap-6">
             <button
               type="button"
               onClick={decline}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-2xl"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-headline"
               aria-label={t("call.decline")}
             >
               ✕
@@ -363,7 +363,7 @@ export function CallPanel({
             <button
               type="button"
               onClick={accept}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-held text-2xl"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-held text-headline"
               aria-label={t("call.accept")}
             >
               {incoming.video ? <Ico as={Video} size={24} /> : <Ico as={Phone} size={24} />}
@@ -374,7 +374,9 @@ export function CallPanel({
 
       {/* the call screen stays mounted while active so the media elements keep their streams */}
       <div className={active ? "fixed inset-0 z-50 flex flex-col bg-ink text-white" : "hidden"} aria-hidden={!active}>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- a live call: there is no caption track to give */}
         <audio ref={remoteAudio} autoPlay />
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- a live call: there is no caption track to give */}
         {video && <video ref={remoteVideo} autoPlay playsInline className="absolute inset-0 h-full w-full object-cover" />}
         {video && (
           <video
@@ -386,8 +388,8 @@ export function CallPanel({
           />
         )}
         <div className="relative z-10 mt-auto flex flex-col items-center gap-5 bg-gradient-to-t from-ink/90 to-transparent p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-          <p className="text-xl font-semibold">{name}</p>
-          <p className="text-sm text-white/80" role="status">
+          <p className="text-title-lg font-semibold">{name}</p>
+          <p className="text-small text-white/80" role="status">
             {phase === "outgoing"
               ? t("call.calling", { name })
               : phase === "connecting"
@@ -398,7 +400,7 @@ export function CallPanel({
             <button
               type="button"
               onClick={toggleMute}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-title-lg"
               aria-label={muted ? t("call.unmute") : t("call.mute")}
               aria-pressed={muted}
             >
@@ -408,7 +410,7 @@ export function CallPanel({
               <button
                 type="button"
                 onClick={toggleCam}
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-xl"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-title-lg"
                 aria-label={camOff ? t("call.cameraOn") : t("call.cameraOff")}
                 aria-pressed={camOff}
               >
@@ -427,7 +429,7 @@ export function CallPanel({
                   t("call.ended"),
                 )
               }
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-danger text-xl"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-danger text-title-lg"
               aria-label={t("call.hangUp")}
             >
               ✕

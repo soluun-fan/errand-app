@@ -110,18 +110,18 @@ export function ChatRoom({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      {!callsAvailable && !textOnly && <p className="rounded-input bg-fill p-3 text-sm text-ink-2">{t("call.temporarilyUnavailable")}</p>}
+      {!callsAvailable && !textOnly && <p className="rounded-input bg-fill p-3 text-small text-ink-2">{t("call.temporarilyUnavailable")}</p>}
       {!textOnly && canCall && <CallPanel dealId={dealId} withHelper={withHelper} me={me} name={name} canCall={canCall} initialCallId={initialCallId} onFallback={() => voice.current?.start()} />}
-      <p className="rounded-input bg-warn-bg p-3 text-sm text-warn"><Ico as={Lock} size={16} /> {t("chat.safety")}</p>
+      <p className="rounded-input bg-warn-bg p-3 text-small text-warn"><Ico as={Lock} size={16} /> {t("chat.safety")}</p>
 
       <ol className="flex flex-1 flex-col gap-2" aria-live="polite">
-        {messages.length === 0 && <li className="py-8 text-center text-[15px] text-ink-2">{t("chat.empty")}</li>}
+        {messages.length === 0 && <li className="py-8 text-center text-body text-ink-2">{t("chat.empty")}</li>}
         {messages.map((m) => {
           const log = m.system ? decodeCallLog(m.text) : null;
           if (log) {
             const time = log.kind === "ended" ? `${Math.floor(log.seconds / 60)}:${String(log.seconds % 60).padStart(2, "0")}` : "";
             return (
-              <li key={m.id} className="self-center rounded-full bg-fill px-3 py-1 text-sm text-ink-2">
+              <li key={m.id} className="self-center rounded-full bg-fill px-3 py-1 text-small text-ink-2">
                 {log.video ? <Ico as={Video} size={16} /> : <Ico as={Phone} size={16} />} {log.video ? `${t("call.log.video")} · ` : ""}
                 {t(`call.log.${log.kind}`, { time })} · {fmtClock(m.at)}
               </li>
@@ -129,7 +129,7 @@ export function ChatRoom({
           }
           return (
           <li key={m.id} className={`flex flex-col ${m.fromMe ? "items-end" : "items-start"}`}>
-            <div className={`max-w-[80%] rounded-card px-3.5 py-2 text-[16px] ${m.fromMe ? "bg-ink text-white" : "bg-fill text-ink"}`}>
+            <div className={`max-w-[80%] rounded-card px-3.5 py-2 text-lead ${m.fromMe ? "bg-ink text-white" : "bg-fill text-ink"}`}>
               {m.imageUrl && (
                 <a href={m.imageUrl} target="_blank" rel="noopener noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage URL */}
@@ -138,20 +138,21 @@ export function ChatRoom({
               )}
               {m.audioUrl && (
                 <span className="flex items-center gap-2">
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption -- a voice message between two people; no transcript exists */}
                   <audio controls preload="none" src={m.audioUrl} className="h-10 max-w-56" />
-                  {m.audioSeconds && <span className="text-xs tabular-nums opacity-80">{m.audioSeconds}s</span>}
+                  {m.audioSeconds && <span className="text-caption tabular-nums opacity-80">{m.audioSeconds}s</span>}
                 </span>
               )}
               {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
             </div>
-            <span className="mt-0.5 text-xs text-ink-2">
+            <span className="mt-0.5 text-caption text-ink-2">
               {fmtClock(m.at)}
               {m.masked ? ` · ${t("chat.maskedTag")}` : ""}
               {m.fromMe && m.seen ? ` · ${t("chat.seen")}` : ""}
             </span>
             {/* the reader is warned where it matters: next to the message asking for money outside the app */}
             {m.payOutside && !m.fromMe && (
-              <p className="mt-1 flex max-w-[80%] items-start gap-1.5 rounded-input bg-warn-bg px-3 py-2 text-[13px] leading-snug text-warn">
+              <p className="mt-1 flex max-w-[80%] items-start gap-1.5 rounded-input bg-warn-bg px-3 py-2 text-meta leading-snug text-warn">
                 <ShieldAlert aria-hidden size={16} className="mt-px shrink-0" />
                 {t(canReport ? "chat.payOutsideWarn" : "chat.payOutsideWarnBefore")}
               </p>
@@ -163,7 +164,7 @@ export function ChatRoom({
       </ol>
 
       {notice && (
-        <p role="alert" className={`rounded-input p-3 text-sm ${notice.tone === "warn" ? "bg-warn-bg text-warn" : "bg-danger-bg text-danger"}`}>
+        <p role="alert" className={`rounded-input p-3 text-small ${notice.tone === "warn" ? "bg-warn-bg text-warn" : "bg-danger-bg text-danger"}`}>
           {notice.text}
         </p>
       )}
@@ -182,7 +183,7 @@ export function ChatRoom({
           </>}
           {!recording && (
           <>
-          {!textOnly && <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-xl">
+          {!textOnly && <button type="button" aria-label={t("chat.photo")} disabled={busy} onClick={() => file.current?.click()} className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-fill text-title-lg">
             <Ico as={Camera} size={22} />
           </button>}
           <label className="sr-only" htmlFor="chat-text">
@@ -195,7 +196,7 @@ export function ChatRoom({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t("chat.placeholder")}
-            className="max-h-32 min-h-12 min-w-0 flex-1 resize-none rounded-input border border-line bg-bg px-3 py-3 text-[16px] outline-none focus:border-ink"
+            className="max-h-32 min-h-12 min-w-0 flex-1 resize-none rounded-input border border-line bg-bg px-3 py-3 text-lead outline-none focus:border-ink"
           />
           <button
             type="submit"
@@ -209,7 +210,7 @@ export function ChatRoom({
           )}
         </form>
       ) : (
-        <p className="rounded-input bg-fill p-3 text-center text-sm text-ink-2">{t("chat.readOnly")}</p>
+        <p className="rounded-input bg-fill p-3 text-center text-small text-ink-2">{t("chat.readOnly")}</p>
       )}
     </div>
   );

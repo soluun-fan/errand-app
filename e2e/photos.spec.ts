@@ -55,7 +55,7 @@ test("photos added while posting reach the task; only people who may see the tas
   await loginAs(other, PHONES.nomin);
   const o = await other.newPage();
   await o.goto(`/jobs/${id}`);
-  await expect(o.getByText("could not be found")).toBeVisible();
+  await expect(o.getByText("Энэ хуудас олдсонгүй")).toBeVisible();
   await expect(o.getByRole("img", { name: "Ажлын зураг 1" })).toHaveCount(0);
   await Promise.all([customer.close(), helper.close(), other.close()]);
 });

@@ -9,6 +9,9 @@ import { listMyTasks, walletEntries } from "@/lib/deals/queries";
 import { firstPhotoUrls } from "@/lib/task-photos";
 import { kindCovers } from "@/lib/covers";
 import { fmtMoney } from "@/lib/format";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("tabs.tasks");
 
 const REFUND_KINDS = ["refund", "budget_refund"];
 /** Past tasks shown straight away; the rest open in place. */
@@ -38,7 +41,7 @@ export default async function TasksPage() {
       thumb={ownPics.get(x.deal.id) ?? covers.get(x.deal.category) ?? null}
       row
       rowAction={
-        <Link href={`/post?again=${x.deal.id}`} className="flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-brand-ink">
+        <Link href={`/post?again=${x.deal.id}`} className="flex min-h-11 items-center gap-1.5 text-small font-semibold text-brand-ink">
           <RotateCcw aria-hidden size={16} /> {t("deal.postAgain")}
         </Link>
       }
@@ -64,7 +67,7 @@ export default async function TasksPage() {
 
       {active.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-[17px] font-bold">{t("tasksTab.active")}</h2>
+          <h2 className="text-title font-bold">{t("tasksTab.active")}</h2>
           {active.map((x) => (
             <DealCard key={x.deal.id} deal={x.deal} offerCount={x.offerCount} t={t} locale={locale} />
           ))}
@@ -75,20 +78,20 @@ export default async function TasksPage() {
         <div className={`grid gap-2.5 ${heldNow > 0 && refunds > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
           {heldNow > 0 && (
             <div className="flex flex-col gap-1 rounded-card bg-held-bg p-4 text-held">
-              <span className="flex items-center gap-1.5 text-sm font-medium">
+              <span className="flex items-center gap-1.5 text-small font-medium">
                 <ShieldCheck aria-hidden size={16} /> {t("wallet.heldNow")}
               </span>
-              <span className="text-[20px] font-bold tabular-nums">{fmtMoney(heldNow)}</span>
-              <span className="text-[13px]">{t("wallet.heldNowSub", { n: holding.length })}</span>
+              <span className="text-title-lg font-bold tabular-nums">{fmtMoney(heldNow)}</span>
+              <span className="text-meta">{t("wallet.heldNowSub", { n: holding.length })}</span>
             </div>
           )}
           {refunds > 0 && (
             <div className="flex flex-col gap-1 rounded-card bg-bg p-4 shadow-card">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-ink-2">
+              <span className="flex items-center gap-1.5 text-small font-medium text-ink-2">
                 <Undo2 aria-hidden size={16} /> {t("wallet.refunds")}
               </span>
-              <span className="text-[20px] font-bold tabular-nums">{fmtMoney(refunds)}</span>
-              <span className="text-[13px] text-ink-2">{t("wallet.refundsSub")}</span>
+              <span className="text-title-lg font-bold tabular-nums">{fmtMoney(refunds)}</span>
+              <span className="text-meta text-ink-2">{t("wallet.refundsSub")}</span>
             </div>
           )}
         </div>
@@ -96,12 +99,12 @@ export default async function TasksPage() {
 
       {past.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-bold">{t("home.past")}</h2>
+          <h2 className="text-title font-bold">{t("home.past")}</h2>
           <div className="flex flex-col rounded-card bg-bg px-4 shadow-card">
             {past.slice(0, PAST_SHOWN).map(pastRow)}
             {past.length > PAST_SHOWN && (
               <details className="group">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center text-[14px] font-semibold text-brand-ink">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center text-small font-semibold text-brand-ink">
                   <span className="group-open:hidden">{t("home.pastAll", { n: past.length })}</span>
                   <span className="hidden group-open:inline">{t("home.pastLess")}</span>
                 </summary>

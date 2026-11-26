@@ -19,8 +19,8 @@ export function SupportSettingsForm({ s }: { s: SupportSettings }) {
         </label>
       ))}
       <fieldset className="mt-2 flex flex-col gap-3">
-        <legend className="text-[15px] font-bold">{t("opsSupport.company")}</legend>
-        <p className="text-[13px] text-ink-2">{t("opsSupport.companyHelp")}</p>
+        <legend className="text-body font-bold">{t("opsSupport.company")}</legend>
+        <p className="text-meta text-ink-2">{t("opsSupport.companyHelp")}</p>
         {(["company_name", "company_reg_no", "company_address"] as const).map((k) => (
           <label key={k} className={fieldLabel} htmlFor={`support-${k}`}>
             {t(`opsSupport.f.${k}`)}
@@ -28,8 +28,8 @@ export function SupportSettingsForm({ s }: { s: SupportSettings }) {
           </label>
         ))}
       </fieldset>
-      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
-      {state.done && <p role="status" className="text-sm text-held">{t("opsSupport.saved")}</p>}
+      {state.error && <p role="alert" className="text-small text-danger">{state.error}</p>}
+      {state.done && <p role="status" className="text-small text-held">{t("opsSupport.saved")}</p>}
       <SubmitButton className={btn.secondary}>{t("opsSupport.save")}</SubmitButton>
     </form>
   );
@@ -45,7 +45,7 @@ export function SupportDone({ id }: { id: string }) {
         {t("opsSupport.note")}
         <input id={`note-${id}`} name="note" maxLength={1000} className={field} />
       </label>
-      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      {state.error && <p role="alert" className="text-small text-danger">{state.error}</p>}
       <SubmitButton className={btn.secondary}>{t("opsSupport.markDone")}</SubmitButton>
     </form>
   );

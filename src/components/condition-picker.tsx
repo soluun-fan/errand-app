@@ -73,7 +73,7 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
   return (
     <fieldset className="min-w-0 space-y-3 rounded-card bg-bg p-4 shadow-card" aria-label={t("conditions.postTitle")}>
       <h2 className="font-semibold">{t("conditions.postTitle")}</h2>
-      <p className="text-sm text-ink-2">{t("conditions.pickHelp")}</p>
+      <p className="text-small text-ink-2">{t("conditions.pickHelp")}</p>
       <div className="flex flex-wrap gap-2">
         {choices([...primary, ...CONDITION_FLAGS.filter(k => k !== "checked" && !expanded && !primary.includes(k) && value[k]), ...(value.checked ? ["checked" as const] : [])])}
         {custom.map(item => (
@@ -84,11 +84,11 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
         ))}
       </div>
       <details className="group" onToggle={e => setExpanded(e.currentTarget.open)}>
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-brand-ink">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-small font-semibold text-brand-ink">
           {t("conditions.more")}{value.language && ` · ${t(`conditions.lang.${value.language}`)}`}<ChevronDown size={14} aria-hidden className="group-open:rotate-180" />
         </summary>
         <div className="flex flex-wrap gap-2">{choices(available.filter(k => !primary.includes(k)))}</div>
-        <label className="mt-3 block text-sm">{t("conditions.k.language")}
+        <label className="mt-3 block text-small">{t("conditions.k.language")}
           <select className={`${field} mt-1`} value={value.language ?? ""} onChange={e => onChange({ ...value, language: e.target.value as Language || null })}>
             <option value="">{t("conditions.anyLanguage")}</option>
             {LANGUAGES.map(l => <option key={l} value={l}>{t(`conditions.lang.${l}`)}</option>)}
@@ -96,16 +96,17 @@ export function ConditionPicker({ category, variety, value, onChange, pending, s
         </label>
       </details>
       {adding ? <div>
-        <label className="block text-sm font-medium">{t("conditions.newLabel")}
+        <label className="block text-small font-medium">{t("conditions.newLabel")}
+          {/* eslint-disable-next-line jsx-a11y/no-autofocus -- the field the person just asked to open */}
           <input autoFocus value={pending} maxLength={CUSTOM_CONDITION_LENGTH} placeholder={t("conditions.example")} className={`${field} mt-1`}
             onChange={e => setPending(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); add(); } }} />
         </label>
-        {duplicate && <p role="status" className="mt-1 text-sm text-ink-2">{t("conditions.duplicate")}</p>}
+        {duplicate && <p role="status" className="mt-1 text-small text-ink-2">{t("conditions.duplicate")}</p>}
         <div className="mt-2 flex gap-2">
           <button type="button" disabled={!label || duplicate} className={btn.secondary} onClick={add}>{t("conditions.add")}</button>
           <button type="button" className={btn.text} onClick={() => { setPending(""); setAdding(false); }}>{t("common.cancel")}</button>
         </div>
-      </div> : custom.length < CUSTOM_CONDITION_LIMIT && <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 items-center gap-1 text-sm font-semibold text-brand-ink"><Plus size={16} />{t("conditions.newLabel")}</button>}
+      </div> : custom.length < CUSTOM_CONDITION_LIMIT && <button type="button" onClick={() => setAdding(true)} className="flex min-h-11 items-center gap-1 text-small font-semibold text-brand-ink"><Plus size={16} />{t("conditions.newLabel")}</button>}
     </fieldset>
   );
 }

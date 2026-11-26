@@ -7,6 +7,9 @@ import { badgeQueue } from "@/lib/badges";
 import { decideBadgeAction } from "../actions";
 import { Car, IdCard } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsBadges.title");
 
 /** /ops/badges — check drivers' licences and car registrations (docs/decisions.md 2026-11-18). Admins only. */
 export default async function OpsBadgesPage() {
@@ -17,14 +20,14 @@ export default async function OpsBadgesPage() {
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsBadges.title")} />
       <Note tone="info">{t("opsBadges.help")}</Note>
-      {queue.length === 0 && <p className="text-[15px] text-ink-2">{t("opsBadges.none")}</p>}
+      {queue.length === 0 && <p className="text-body text-ink-2">{t("opsBadges.none")}</p>}
       {queue.map((b) => (
         <Card key={b.id}>
           <h2 className="font-bold">
             {b.kind === "driver" ? <Ico as={IdCard} /> : <Ico as={Car} />} {b.helperName}
           </h2>
-          <p className="text-[15px]">{Object.entries(b.info).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>
-          {b.expiresOn && <p className="text-sm text-ink-2">{t("opsBadges.expires", { date: b.expiresOn })}</p>}
+          <p className="text-body">{Object.entries(b.info).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>
+          {b.expiresOn && <p className="text-small text-ink-2">{t("opsBadges.expires", { date: b.expiresOn })}</p>}
           {b.docUrl && (
             <a href={b.docUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-ink underline">
               {t("opsBadges.openDoc")}

@@ -445,3 +445,19 @@ The owner sent screenshots of PleaseHelp's profile, home, request form and subca
   - Already had: stats row (rating · jobs · joined), review tags with counts ("on time · 12"), work photos with the price when the customer agreed, reviews with photos, one or two helpers.
   - Not copied: gender and age on the profile (an open question for the lawyer); reviews of customers shown publicly; a separate portfolio-post page (the helper's profile already holds the photos).
 - **Open:** extra stops on one trip; a helper "has a car" field the customer can ask for (carry/deliver); "is there parking for the helper?" on carry jobs (UB apartment yards); per-category tap-to-fill phrases for the description; more job types per category (they list about 10 under delivery; we have 2).
+
+## 2026-11-26 — Code and design review against current practice
+Owner: "whatever bug or mistake, inconsistency — fix. and research more recent and modern professional coding practices". Checked against the Next.js 16 docs bundled in node_modules, the React 19 / Tailwind 4 guidance and WCAG 2.2.
+- **Already current:** Next 16.4 with `proxy.ts` and the React Compiler, React 19.3 with `useActionState`, Zod 4, Tailwind 4 tokens in `@theme`, `next/font`, security headers, server-only data access. `npm audit` (production): 0 vulnerabilities. Every server action checks the signed-in user itself; the six that don't are public on purpose (sign-in, sign-out, language, the recipient's private link, the component gallery's no-op).
+- **Fixed:**
+  - One **type scale** (14 named sizes) replaced 25 hand-picked font sizes and Tailwind's own sizes (≈830 class names); radii and the map colours became tokens too. `design-tokens.test.ts` keeps it that way.
+  - **Every page has its own browser-tab title** ("Profile · Guigere"); task, job and chat pages use a generic title so a private task title never lands in browser history.
+  - **Root `error.tsx`, `global-error.tsx`, `not-found.tsx`** (translated 404), **`robots.ts` and `sitemap.ts`**: only production is indexed, and only the landing and info pages.
+  - **Accessibility lint:** the full `jsx-a11y` recommended set is on (Next enables 6 rules); the few exceptions (live-call media, the login code autofocus, dialog backdrops) carry a written reason.
+  - **Call panel:** the Realtime handler and the leave-page hang-up use `useEffectEvent` (React 19.2) instead of switching off the dependency rule.
+  - The map's place search used Google's greys; it now uses ours.
+- **Later, on purpose:**
+  - Cache Components (`'use cache'`, Next 16's caching model): our pages are per-user and live, so the gain is small and the migration touches every data read.
+  - A full nonce-based Content-Security-Policy: start with `Content-Security-Policy-Report-Only` and a report endpoint, because maps (workers, blob:), Supabase Realtime and calls need careful allow-lists.
+  - Major upgrades (TypeScript 7, lucide-react 1.x, web-push 4): each one on its own branch with the full test suite.
+  - SMS code lifetime and resend limits are set in the Supabase dashboard (Auth → Phone), not in `supabase/config.toml`; keep the lifetime at 5 minutes or less.

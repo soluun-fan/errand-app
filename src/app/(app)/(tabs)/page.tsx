@@ -29,6 +29,9 @@ import { TodoCard } from "@/components/todo-card";
 import { NotifyHint } from "@/components/notify-hint";
 import { InstallHint } from "@/components/install-hint";
 import { customerTodos } from "@/lib/todo";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("tabs.home");
 
 /**
  * Home (redesign 2026-11-16, shortened 2026-11-24): task first — greeting, "what do you need?",
@@ -92,20 +95,20 @@ export default async function Home() {
       <section className={`relative isolate ${hero.grid} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}>
         <div className={hero.main}>
           <header className="flex items-center justify-between pt-2 md:hidden">
-            <p className="text-[14px] text-ink-2">
+            <p className="text-small text-ink-2">
               {name ? t("home.hello") : t("home.greetingAnon")}
-              {name && <b className="block text-[17px] text-ink">{name}</b>}
+              {name && <b className="block text-title text-ink">{name}</b>}
             </p>
             <Link href="/profile" aria-label={t("home.profile")} className="press rounded-full">
               <Avatar name={viewer.profile.name || "?"} size={44} />
             </Link>
           </header>
-          <p className="flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-full bg-bg px-3 py-1.5 text-[13px] font-medium shadow-card">
+          <p className="flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-full bg-bg px-3 py-1.5 text-meta font-medium shadow-card">
             <MapPin aria-hidden size={14} className="text-brand-ink" />
             {viewer.profile.area || t("home.area")}
             {online > 0 && <span className="text-ink-2">· {t("home.online", { n: online })}</span>}
           </p>
-          <h1 className="text-[24px] font-bold leading-tight tracking-tight md:text-[40px] md:font-extrabold">
+          <h1 className="text-headline font-bold leading-tight tracking-tight md:text-display-lg md:font-extrabold">
             <span className="hidden md:inline">{name ? `${t("home.hello")} ${name}. ` : ""}</span>
             {t("home.hero")}
           </h1>
@@ -114,7 +117,7 @@ export default async function Home() {
             <label htmlFor="q" className="sr-only">
               {t("home.search")}
             </label>
-            <input id="q" name="title" maxLength={40} placeholder={t("home.search")} className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3" />
+            <input id="q" name="title" maxLength={40} placeholder={t("home.search")} className="min-w-0 flex-1 bg-transparent text-lead outline-none placeholder:text-ink-3" />
             <button aria-label={t("home.heroGo")} className={hero.searchGo}>
               <span className="hidden md:inline">{t("landing.searchGo")}</span>
               <ArrowRight aria-hidden size={20} className="md:hidden" />
@@ -139,11 +142,11 @@ export default async function Home() {
         </div>
         <div className="flex min-w-0 flex-col gap-3">
           {/* live tasks first: the one thing that matters right now */}
-          {active.length > 0 && <h2 className="text-[15px] font-semibold">{t("tasksTab.active")}</h2>}
+          {active.length > 0 && <h2 className="text-body font-semibold">{t("tasksTab.active")}</h2>}
           {active.slice(0, 2).map((x) => (
             <DealCard key={x.deal.id} deal={x.deal} offerCount={x.offerCount} t={t} locale={locale} />
           ))}
-          {active.length > 2 && <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-[14px] font-semibold text-brand-ink">
+          {active.length > 2 && <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-small font-semibold text-brand-ink">
             {t("home.viewActive", { n: active.length })}<ArrowRight aria-hidden size={18} className="shrink-0" />
           </Link>}
           <div className="hidden md:block"><RecentRequests items={active.length > 0 ? recent.slice(0, 2) : recent} t={t} now={now} /></div>
@@ -217,7 +220,7 @@ export default async function Home() {
           t("web.reviews"),
           null,
           <div className="flex flex-col gap-3">
-            <p className="text-[14px] leading-relaxed text-ink-2">{t("web.reviewsSelection")}</p>
+            <p className="text-small leading-relaxed text-ink-2">{t("web.reviewsSelection")}</p>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {reviews.map((r, i) => (
                 <li key={i}>
@@ -230,7 +233,7 @@ export default async function Home() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <Link href="/safety" className="flex items-start gap-2 text-[14px] font-medium text-held">
+        <Link href="/safety" className="flex items-start gap-2 text-small font-medium text-held">
           <ShieldCheck aria-hidden size={18} className="mt-0.5 flex-none" />
           <span>
             {t("home.trust")} <span className="underline underline-offset-2">{t("home.howItWorks")}</span>
@@ -241,7 +244,7 @@ export default async function Home() {
             {([1, 2, 3] as const).map((n) => (
               <div key={n} className="w-60 flex-none snap-start rounded-card bg-bg p-4 shadow-card">
                 <p className="font-semibold">{t(`home.explainer${n}Title`)}</p>
-                <p className="mt-1 text-[14px] text-ink-2">{t(`home.explainer${n}Body`)}</p>
+                <p className="mt-1 text-small text-ink-2">{t(`home.explainer${n}Body`)}</p>
               </div>
             ))}
           </section>

@@ -27,13 +27,14 @@ export function ProofGallery({
   /** Per-photo control (e.g. the helper's "remove"), rendered under the caption. */
   action?: (p: ProofView) => React.ReactNode;
 }) {
-  if (!proofs.length) return <p className="text-[15px] text-ink-2">{t("proof.noneYet")}</p>;
+  if (!proofs.length) return <p className="text-body text-ink-2">{t("proof.noneYet")}</p>;
   return (
     <div className="grid grid-cols-2 gap-2">
       {proofs.map((p) => (
         <figure key={p.id} className={`flex flex-col gap-1 ${p.removed ? "opacity-60" : ""}`}>
           {p.url ? (
             p.isVideo ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption -- a silent proof clip of the work; nothing to caption
               <video src={p.url} controls playsInline preload="metadata" className="aspect-square w-full rounded-input bg-fill object-cover" />
             ) : (
               <a href={p.url} target="_blank" rel="noopener noreferrer">
@@ -42,20 +43,20 @@ export function ProofGallery({
               </a>
             )
           ) : p.note === "check-out" ? (
-            <div className="flex aspect-square w-full items-center justify-center rounded-input bg-fill text-[40px]" aria-hidden>
+            <div className="flex aspect-square w-full items-center justify-center rounded-input bg-fill text-display-lg" aria-hidden>
               <MapPin aria-hidden size={36} className="text-ink-3" />
             </div>
           ) : (
             <div className="aspect-square w-full rounded-input bg-fill" />
           )}
-          <figcaption className="text-sm text-ink-2">
+          <figcaption className="text-small text-ink-2">
             <span className="tabular-nums">{clock(p.at)}</span> · {caption(p, t)}
           </figcaption>
-          {p.removed && <span className="rounded-input bg-fill px-2 py-1 text-xs font-medium text-ink-2">{t("proof.removedTag")}</span>}
+          {p.removed && <span className="rounded-input bg-fill px-2 py-1 text-caption font-medium text-ink-2">{t("proof.removedTag")}</span>}
           {action?.(p)}
           {showFlags &&
             p.flags.map((f) => (
-              <span key={f} className="rounded-input bg-warn-bg px-2 py-1 text-xs font-medium text-warn">
+              <span key={f} className="rounded-input bg-warn-bg px-2 py-1 text-caption font-medium text-warn">
                 ⚠ {t(`proof.flag.${f as "reused_photo" | "similar_photo" | "old_file"}`)}
               </span>
             ))}

@@ -53,12 +53,12 @@ export function DealCard({
           <CategoryIcon id={deal.category} tile size={22} />
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold">{deal.title}</span>
+          <span className="block truncate text-body font-semibold">{deal.title}</span>
           <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
-          <span className="block text-[13px] text-ink-2">{when}</span>
+          <span className="block text-meta text-ink-2">{when}</span>
         </span>
         <span className="flex flex-col items-end gap-1">
-          <span className="text-[15px] font-bold tabular-nums text-brand-ink">{fmtMoney(deal.fee + deal.itemBudget + deal.serviceFee)}</span>
+          <span className="text-body font-bold tabular-nums text-brand-ink">{fmtMoney(deal.fee + deal.itemBudget + deal.serviceFee)}</span>
           <StatusBadge status={deal.status} t={t} />
         </span>
       </Link>
@@ -76,15 +76,15 @@ export function DealCard({
   return (
     <Link href={`/tasks/${deal.id}`} className="press flex flex-col gap-2.5 rounded-card bg-ink p-4 text-white shadow-float">
       <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-white/12 px-2.5 py-1 text-[12px] font-semibold">{t(`status.${deal.status}`)}</span>
+        <span className="rounded-full bg-white/12 px-2.5 py-1 text-caption font-semibold">{t(`status.${deal.status}`)}</span>
         <ChevronRight aria-hidden size={18} className="text-white/70" />
       </div>
-      <b className="truncate text-[17px]">{deal.title}</b>
+      <b className="truncate text-title">{deal.title}</b>
       <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} />
       <span className="h-1.5 overflow-hidden rounded-full bg-white/15" aria-hidden>
         <span className="block h-full rounded-full bg-brand" style={{ width: `${Math.round(PROGRESS[deal.status] * 100)}%` }} />
       </span>
-      <span className="flex items-center gap-1.5 text-[13px] text-white/75">
+      <span className="flex items-center gap-1.5 text-meta text-white/75">
         <CategoryIcon id={deal.category} size={14} />
         {t(`categoryShort.${deal.category}`)} · {deal.scheduledAt ? when : deal.mode === "schedule" && deal.matchBy ? t("task.whenFlexibleUntil", { time: fmtDateTime(deal.matchBy, locale) }) : t("task.whenNow")}
         {deal.status === "open" && deal.mode === "schedule" ? ` · ${t("deal.offers", { n: offerCount, max: deal.maxApplicants })}` : ""}

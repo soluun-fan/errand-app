@@ -8,6 +8,9 @@ import { getViewer } from "@/lib/auth";
 import { LAUNCH_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { openRequests } from "@/lib/public-snapshot";
 import { Search } from "lucide-react";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("web.requestsTitle");
 
 /**
  * /requests — browse every open request (Unegui-style listing): category chips, newest / best paid.
@@ -36,10 +39,10 @@ export default async function RequestsPage({ searchParams }: PageProps<"/request
       </div>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[24px] font-bold tracking-tight md:text-[30px]">{t("web.requestsTitle")}</h1>
-          <p className="mt-1 text-[15px] text-ink-2">{t("web.requestsSub")}</p>
+          <h1 className="text-headline font-bold tracking-tight md:text-display">{t("web.requestsTitle")}</h1>
+          <p className="mt-1 text-body text-ink-2">{t("web.requestsSub")}</p>
         </div>
-        <Link href={cat ? `/post?cat=${cat}` : "/post"} className={`${btn.primary} min-h-12 text-[16px]`}>
+        <Link href={cat ? `/post?cat=${cat}` : "/post"} className={`${btn.primary} min-h-12 text-lead`}>
           {t("web.yourTask")}
         </Link>
       </header>

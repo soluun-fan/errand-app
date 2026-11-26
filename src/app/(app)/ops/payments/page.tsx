@@ -9,6 +9,9 @@ import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { activeProvider } from "@/lib/payments/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveUnpaidAction } from "../actions";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsPay.title");
 
 /**
  * /ops/payments — what needs a person (docs/decisions.md 2026-11-18 "Direct pay + wire.mn"): helpers
@@ -54,13 +57,13 @@ export default async function OpsPaymentsPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPay.unpaidTitle", { n: unpaid.length })}</h2>
-        {unpaid.length === 0 && <p className="text-[15px] text-ink-2">{t("opsPay.none")}</p>}
+        {unpaid.length === 0 && <p className="text-body text-ink-2">{t("opsPay.none")}</p>}
         {unpaid.map((u) => (
           <Card key={u.dealId}>
             <Link href={`/tasks/${u.dealId}`} className="font-semibold underline">
               {titles.get(u.dealId) ?? u.dealId}
             </Link>
-            <p className="text-sm text-ink-2">
+            <p className="text-small text-ink-2">
               {t("opsPay.unpaidLine", { amount: fmtMoney(u.amount), when: fmtDateTime(u.reportedAt, locale) })}
             </p>
             <ConfirmSheet
@@ -80,16 +83,16 @@ export default async function OpsPaymentsPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPay.refundsTitle", { n: refunds?.length ?? 0 })}</h2>
-        <p className="text-sm text-ink-2">{t("opsPay.refundsHelp")}</p>
+        <p className="text-small text-ink-2">{t("opsPay.refundsHelp")}</p>
         {(refunds ?? []).map((r) => (
           <Card key={r.id}>
             <Link href={`/tasks/${r.deal_id}`} className="font-semibold underline">
               {fmtMoney(Number(r.amount))} · {r.status}
             </Link>
-            <p className="text-sm text-ink-2">
+            <p className="text-small text-ink-2">
               {t("opsPay.refundLine", { when: fmtDateTime(Date.parse(r.created_at), locale), attempts: r.attempts })}
             </p>
-            {r.error && <p className="break-words text-xs text-danger">{r.error}</p>}
+            {r.error && <p className="break-words text-caption text-danger">{r.error}</p>}
           </Card>
         ))}
       </section>

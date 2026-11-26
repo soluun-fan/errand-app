@@ -15,6 +15,9 @@ import { openTaskCount, isFirstTask } from "@/lib/safety";
 import Link from "next/link";
 import { PostFlow, type Draft, type InviteTarget } from "./post-flow";
 import { Ban } from "lucide-react";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("post.title");
 
 /** The typed budget, without a paid top-up or the +10% buffer. */
 function typedBudget(d: ErrandDeal): number {

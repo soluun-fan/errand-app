@@ -24,7 +24,7 @@ export function GalleryChoices() {
       <OptionCard selected={people === 2} onSelect={() => setPeople(2)} icon="🧍🧍" title="2 туслах" sub="Хүнд эд зүйлд" price="36,000₮" />
       <OptionCard selected={false} disabled onSelect={() => {}} icon="🚗" title="Машинтай туслах" sub="Тун удахгүй" price="—" />
       <ToggleRow icon="🧊" title="Том, хүнд эд зүйл" sub="Хөргөгч, угаалгын машин…" checked={heavy} onChange={setHeavy} />
-      {open ? <p className="text-sm">(expanded)</p> : <DashedAdd label="Хаягийн дэлгэрэнгүй оруулах" onClick={() => setOpen(true)} />}
+      {open ? <p className="text-small">(expanded)</p> : <DashedAdd label="Хаягийн дэлгэрэнгүй оруулах" onClick={() => setOpen(true)} />}
     </div>
   );
 }

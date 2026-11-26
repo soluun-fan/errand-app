@@ -14,7 +14,7 @@ const DOT: Record<string, string> = {
 export function StatusBadge({ status, t }: { status: DealStatus; t: T }) {
   const tone = STATUS_TONE[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${TONE_CLASS[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-caption font-semibold ${TONE_CLASS[tone]}`}>
       <span aria-hidden className={`h-2 w-2 rounded-full ${DOT[tone]}`} />
       {t(`status.${status}`)}
     </span>

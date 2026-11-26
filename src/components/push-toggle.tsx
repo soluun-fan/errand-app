@@ -77,12 +77,12 @@ export function PushToggle() {
 
   return (
     <div className="flex items-center gap-3">
-      <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-xl text-brand-ink">
+      <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-input bg-fill text-title-lg text-brand-ink">
         <Bell aria-hidden size={22} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{t("job.notifications")}</span>
-        <span className="block text-sm text-ink-2">{sub}</span>
+        <span className="block text-body font-semibold">{t("job.notifications")}</span>
+        <span className="block text-small text-ink-2">{sub}</span>
       </span>
       {(state === "off" || state === "on") && (
         <button type="button" onClick={state === "on" ? turnOff : turnOn} className={state === "on" ? btn.secondary : btn.small}>

@@ -16,7 +16,7 @@ export function BadgeForm({ kind }: { kind: "driver" | "car" }) {
   const [state, action] = useActionState<ActionResult, FormData>(requestBadgeAction, {});
   const [doc, setDoc] = useState<string>();
   const [error, setError] = useState<string | null>(null);
-  if (state.done) return <p className="rounded-input bg-held-bg p-3 text-sm text-held">{t("badges.sent")}</p>;
+  if (state.done) return <p className="rounded-input bg-held-bg p-3 text-small text-held">{t("badges.sent")}</p>;
   return (
     <form action={action} className="flex flex-col gap-3 rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-bold">{kind === "driver" ? <><Ico as={IdCard} /> {t("badges.driverTitle")}</> : <><Ico as={Car} /> {t("badges.carTitle")}</>}</h2>
@@ -61,7 +61,7 @@ export function BadgeForm({ kind }: { kind: "driver" | "car" }) {
       </label>
       <DocUpload label={kind === "driver" ? t("badges.docDriver") : t("badges.docCar")} path={doc} prepare={(mime, bytes) => prepareDoc("cert", mime, bytes)} onDone={setDoc} onError={setError} />
       {(error || state.error) && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error ?? state.error}
         </p>
       )}

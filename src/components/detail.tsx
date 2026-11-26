@@ -40,7 +40,7 @@ export function MapHero({
         {/* one short live line on the map (e.g. "Bat is ~1.2 km away"), above the sheet's edge */}
         {caption && (
           <div className="pointer-events-none absolute inset-x-0 bottom-14 z-10 flex justify-center px-6">
-            <span className="max-w-full rounded-full bg-bg px-4 py-2 text-center text-[13px] font-semibold shadow-float">{caption}</span>
+            <span className="max-w-full rounded-full bg-bg px-4 py-2 text-center text-meta font-semibold shadow-float">{caption}</span>
           </div>
         )}
       </div>
@@ -68,12 +68,12 @@ export function DetailTitle({
     >
       {overlap && <span aria-hidden className="mx-auto -mt-2 mb-1 h-1 w-10 rounded-full bg-line" />}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-brand-bg px-3 text-sm font-bold text-brand-ink">
+        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-brand-bg px-3 text-small font-bold text-brand-ink">
           {tag}
         </span>
         {status}
       </div>
-      <h1 className="text-[21px] font-bold leading-snug tracking-tight">{title}</h1>
+      <h1 className="text-heading font-bold leading-snug tracking-tight">{title}</h1>
       {children}
     </header>
   );
@@ -83,7 +83,7 @@ export function DetailTitle({
 export function DetailSection({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
     <section className={`flex flex-col gap-1.5 rounded-card bg-bg p-4 shadow-card ${className}`}>
-      <h2 className="text-[13px] font-semibold text-ink-2">{label}</h2>
+      <h2 className="text-meta font-semibold text-ink-2">{label}</h2>
       {children}
     </section>
   );
@@ -101,7 +101,7 @@ export function DetailRows({ rows }: { rows: { label: string; value: ReactNode }
           key={r.label}
           className={`grid grid-cols-[6.5rem_minmax(0,1fr)] items-baseline gap-3 py-3.5 ${i > 0 ? "border-t border-line" : ""}`}
         >
-          <dt className="text-[14px] font-medium text-ink-2">{r.label}</dt>
+          <dt className="text-small font-medium text-ink-2">{r.label}</dt>
           <dd className="min-w-0">{r.value}</dd>
         </div>
       ))}
@@ -157,7 +157,7 @@ export function AddressBox({
   return (
     <div className="flex flex-col gap-1 rounded-input bg-fill px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[15px] font-bold">
+        <span className="text-body font-bold">
           {icon && <span aria-hidden>{icon} </span>}
           {label}
         </span>
@@ -169,7 +169,7 @@ export function AddressBox({
                 href={directionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-11 items-center px-2 text-[15px] font-semibold text-brand-ink underline underline-offset-4"
+                className="flex min-h-11 items-center px-2 text-body font-semibold text-brand-ink underline underline-offset-4"
               >
                 {directionsLabel}
               </a>
@@ -177,7 +177,7 @@ export function AddressBox({
           </span>
         )}
       </div>
-      <p className={`text-[16px] ${address ? "text-ink" : "text-ink-2"}`}>{address ?? hidden}</p>
+      <p className={`text-lead ${address ? "text-ink" : "text-ink-2"}`}>{address ?? hidden}</p>
     </div>
   );
 }

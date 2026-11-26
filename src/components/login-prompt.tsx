@@ -34,6 +34,7 @@ function useLoginSheet() {
   };
   const close = () => ref.current?.close();
   const dialog = (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop tap only; a native <dialog> already closes with Escape
     <dialog
       ref={ref}
       aria-labelledby="login-gate-title"
@@ -47,17 +48,17 @@ function useLoginSheet() {
         <span aria-hidden className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
           <LockKeyhole size={28} />
         </span>
-        <h2 id="login-gate-title" className="text-[20px] font-bold">
+        <h2 id="login-gate-title" className="text-title-lg font-bold">
           {t("landing.gateTitle")}
         </h2>
-        <p className="text-[15px] text-ink-2">{t("landing.gateBody")}</p>
+        <p className="text-body text-ink-2">{t("landing.gateBody")}</p>
         <Link href={`/login?next=${encodeURIComponent(next)}`} className={`${btn.primary} mt-2 w-full`}>
           {t("landing.gateGo")}
         </Link>
         <button type="button" onClick={close} className={`${btn.text} w-full`}>
           {t("landing.gateLater")}
         </button>
-        <p className="text-[13px] text-ink-2">{t("landing.gateNote")}</p>
+        <p className="text-meta text-ink-2">{t("landing.gateNote")}</p>
       </div>
     </dialog>
   );
@@ -97,7 +98,7 @@ export function LandingSearch() {
           onChange={(e) => setQ(e.target.value)}
           maxLength={60}
           placeholder={t("landing.searchPh")}
-          className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
+          className="min-w-0 flex-1 bg-transparent text-lead outline-none placeholder:text-ink-3"
         />
         <button aria-label={t("landing.searchGo")} className={hero.searchGo}>
           <span className="hidden sm:inline">{t("landing.searchGo")}</span>

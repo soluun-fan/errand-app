@@ -18,7 +18,7 @@ export function TestHelperForm({ allowed }: { allowed: boolean }) {
   return (
     <form action={action} className="flex flex-col gap-4">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-[15px] font-medium text-ink-2">{t("kyc.categories")}</legend>
+        <legend className="mb-1 text-body font-medium text-ink-2">{t("kyc.categories")}</legend>
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.filter((category) => category.trust === "open").map((category) => (
             <label key={category.id} className={chipClass(false)}>
@@ -29,7 +29,7 @@ export function TestHelperForm({ allowed }: { allowed: boolean }) {
           ))}
         </div>
       </fieldset>
-      <label className="flex items-start gap-3 text-[15px]">
+      <label className="flex items-start gap-3 text-body">
         <input className="mt-1 h-5 w-5 flex-none accent-ink" type="checkbox" name="agreement" required />
         <span>
           {t("kyc.agreement")}{" "}
@@ -39,7 +39,7 @@ export function TestHelperForm({ allowed }: { allowed: boolean }) {
         </span>
       </label>
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {state.error}
         </p>
       )}

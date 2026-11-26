@@ -57,7 +57,7 @@ export function CoverForm({ category, url }: { category: CategoryId; url: string
           <CategoryIcon id={category} tile size={28} />
         </div>
       )}
-      <span className="text-[14px] font-semibold">{t(`categoryShort.${category}`)}</span>
+      <span className="text-small font-semibold">{t(`categoryShort.${category}`)}</span>
       <input ref={input} type="file" accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} aria-label={t("opsContent.coverUpload", { kind: t(`categoryShort.${category}`) })} />
       <div className="flex gap-2">
         <button type="button" disabled={busy} onClick={() => input.current?.click()} className={`${btn.small} flex-1`}>
@@ -70,7 +70,7 @@ export function CoverForm({ category, url }: { category: CategoryId; url: string
         )}
       </div>
       {error && (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-caption text-danger">
           {error}
         </p>
       )}

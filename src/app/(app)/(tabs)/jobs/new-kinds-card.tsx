@@ -54,11 +54,11 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
       </button>
       <div className="pr-8">
         <p className="font-bold">{t("workKinds.newTitle")}</p>
-        <p className="text-sm text-ink-2">{t("workKinds.newBody")}</p>
+        <p className="text-small text-ink-2">{t("workKinds.newBody")}</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {missing.map((c) => (
-          <span key={c} className="inline-flex min-h-8 items-center gap-1 rounded-full bg-bg px-3 text-[13px] font-semibold">
+          <span key={c} className="inline-flex min-h-8 items-center gap-1 rounded-full bg-bg px-3 text-meta font-semibold">
             <CategoryIcon id={c} size={14} /> {t(`categoryShort.${c}`)}
           </span>
         ))}
@@ -83,12 +83,12 @@ export function NewKindsCard({ missing, userId }: { missing: CategoryId[]; userI
         >
           {busy ? t("common.working") : t("workKinds.addAll")}
         </button>
-        <Link href="/profile" className="text-[14px] font-semibold text-brand-ink underline underline-offset-4">
+        <Link href="/profile" className="text-small font-semibold text-brand-ink underline underline-offset-4">
           {t("workKinds.choose")}
         </Link>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

@@ -55,7 +55,7 @@ export function TaskPhotoPicker({ value, onChange }: { value: PickedPhoto[]; onC
     <section className="flex flex-col gap-2">
       <div>
         <p className="font-semibold">{t("taskPhotos.title")}</p>
-        <p className="text-sm text-ink-2">{t("taskPhotos.sub")}</p>
+        <p className="text-small text-ink-2">{t("taskPhotos.sub")}</p>
       </div>
       {value.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
@@ -82,7 +82,7 @@ export function TaskPhotoPicker({ value, onChange }: { value: PickedPhoto[]; onC
         </button>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

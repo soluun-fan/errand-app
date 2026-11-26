@@ -39,23 +39,23 @@ export function OfferCard({
     <div className={`flex flex-col gap-2 rounded-card bg-bg p-4 shadow-card ${badge ? "border-2 border-brand" : ""}`}>
       {badge && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-bg px-2.5 py-0.5 text-xs font-bold text-brand-ink">
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-bg px-2.5 py-0.5 text-caption font-bold text-brand-ink">
             <Star aria-hidden size={12} className="fill-brand text-brand" /> {badge}
           </span>
-          {badgeNote && <span className="text-[13px] text-ink-2">{badgeNote}</span>}
+          {badgeNote && <span className="text-meta text-ink-2">{badgeNote}</span>}
         </p>
       )}
       {/* who: name gets the full width; badges wrap under it */}
       <div className="flex items-center gap-3">
         <Avatar name={person.name} size={52} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-semibold">{person.name}</p>
+          <p className="truncate text-title font-semibold">{person.name}</p>
           <p className="mt-0.5 flex flex-wrap gap-1">
-            <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${person.verified ? "bg-held-bg text-held" : "bg-warn-bg text-warn"}`}>
+            <span className={`rounded-full px-1.5 py-0.5 text-tiny font-bold ${person.verified ? "bg-held-bg text-held" : "bg-warn-bg text-warn"}`}>
               {person.verified ? t("kyc.badgeVerified") : t("kyc.badgeUnverified")}
             </span>
           </p>
-          <p className="text-sm text-ink-2">
+          <p className="text-small text-ink-2">
             {person.rating !== null ? (
               <>
                 <span className="text-warn">★</span> {person.rating} ({person.ratingCount})
@@ -67,10 +67,10 @@ export function OfferCard({
           </p>
         </div>
       </div>
-      {organization && <Link href={`/orgs/${organization.id}`} className="text-sm font-semibold text-brand-ink">{t("org.payee", { name: organization.name })}</Link>}
-      {note && <p className="rounded-input bg-fill p-2.5 text-[15px] text-ink">“{note}”</p>}
+      {organization && <Link href={`/orgs/${organization.id}`} className="text-small font-semibold text-brand-ink">{t("org.payee", { name: organization.name })}</Link>}
+      {note && <p className="rounded-input bg-fill p-2.5 text-body text-ink">“{note}”</p>}
       {href && (
-        <Link href={href} className="flex min-h-10 items-center gap-1 self-start text-[14px] font-semibold text-brand-ink">
+        <Link href={href} className="flex min-h-10 items-center gap-1 self-start text-small font-semibold text-brand-ink">
           {t("care.viewApplicant")} <ChevronRight aria-hidden size={16} />
         </Link>
       )}

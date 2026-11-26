@@ -8,6 +8,9 @@ import { categorySettings } from "@/lib/orgs";
 import { KeywordsForm, LiveSwitch, QuickStartForm } from "./content-forms";
 import { CoverForm } from "./cover-form";
 import { kindCovers } from "@/lib/covers";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsContent.title");
 
 /**
  * /ops/content — what the app suggests, changed without a deploy (docs/decisions.md 2026-11-16
@@ -24,8 +27,8 @@ export default async function OpsContentPage() {
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsContent.title")} />
       <Note tone="info">{t("opsContent.help")}</Note>
       <section className="flex flex-col gap-3">
-        <h2 className="text-[18px] font-bold">{t("opsContent.kindsTitle")}</h2>
-        <p className="text-[14px] text-ink-2">{t("opsContent.kindsHelp")}</p>
+        <h2 className="text-title font-bold">{t("opsContent.kindsTitle")}</h2>
+        <p className="text-small text-ink-2">{t("opsContent.kindsHelp")}</p>
         <div className="flex flex-col rounded-card bg-bg shadow-card">
           {settings.map((k) => (
             <LiveSwitch key={k.category} category={k.category} trust={k.trust} live={k.live} />
@@ -33,8 +36,8 @@ export default async function OpsContentPage() {
         </div>
       </section>
       <section className="flex flex-col gap-3">
-        <h2 className="text-[18px] font-bold">{t("opsContent.coversTitle")}</h2>
-        <p className="text-[14px] text-ink-2">{t("opsContent.coversHelp")}</p>
+        <h2 className="text-title font-bold">{t("opsContent.coversTitle")}</h2>
+        <p className="text-small text-ink-2">{t("opsContent.coversHelp")}</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {CATEGORIES.map((c) => (
             <CoverForm key={c.id} category={c.id} url={covers.get(c.id) ?? null} />
@@ -43,20 +46,20 @@ export default async function OpsContentPage() {
       </section>
       {kinds.map((kind) => (
         <section key={kind} className="flex flex-col gap-3">
-          <h2 className="text-[18px] font-bold">{t(`opsContent.${kind}`)}</h2>
-          <p className="text-[14px] text-ink-2">{t(`opsContent.${kind}Help`)}</p>
+          <h2 className="text-title font-bold">{t(`opsContent.${kind}`)}</h2>
+          <p className="text-small text-ink-2">{t(`opsContent.${kind}Help`)}</p>
           {list
             .filter((q) => q.kind === kind)
             .map((q) => (
               <QuickStartForm key={q.id} q={q} kind={kind} />
             ))}
-          <h3 className="pt-2 text-[15px] font-semibold">{t("opsContent.new")}</h3>
+          <h3 className="pt-2 text-body font-semibold">{t("opsContent.new")}</h3>
           <QuickStartForm q={null} kind={kind} />
         </section>
       ))}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[18px] font-bold">{t("opsContent.keywords")}</h2>
-        <p className="text-[14px] text-ink-2">{t("opsContent.keywordsHelp")}</p>
+        <h2 className="text-title font-bold">{t("opsContent.keywords")}</h2>
+        <p className="text-small text-ink-2">{t("opsContent.keywordsHelp")}</p>
         {CATEGORIES.filter((c): c is typeof c & { id: Exclude<CategoryId, "other"> } => c.id !== "other").map((c) => (
           <KeywordsForm key={c.id} category={c.id} words={keywords[c.id] ?? []} />
         ))}

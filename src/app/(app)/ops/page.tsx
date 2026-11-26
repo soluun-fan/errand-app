@@ -18,6 +18,9 @@ import { tickHeartbeat } from "@/lib/scheduler";
 import { AlarmClock, Building2, Siren, Car, CreditCard, FireExtinguisher, IdCard, Image, Landmark, MessageCircle, Pencil, ScrollText, ShieldCheck, Tag, Timer } from "lucide-react";
 import { Ico } from "@/components/icon";
 import type { LucideIcon } from "lucide-react";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsHome.title");
 
 /** /ops — the operations hub (admins only; others get a 404). */
 export default async function OpsHome() {
@@ -49,7 +52,7 @@ export default async function OpsHome() {
       <span className="flex items-center gap-3 font-semibold">
         <Ico as={icon} size={20} className="text-ink-2" /> {label}
       </span>
-      {badge && <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${urgent ? "bg-danger text-white" : "bg-fill text-ink"}`}>{badge}</span>}
+      {badge && <span className={`rounded-full px-2.5 py-0.5 text-small font-bold ${urgent ? "bg-danger text-white" : "bg-fill text-ink"}`}>{badge}</span>}
     </Link>
   );
   return (
@@ -96,7 +99,7 @@ export default async function OpsHome() {
       </nav>
       {/* SOS alerts arrive as push: Ops must switch it on for the phone they carry */}
       <section className="flex flex-col gap-2">
-        <p className="text-[15px] text-ink-2">{t("opsHome.pushHelp")}</p>
+        <p className="text-body text-ink-2">{t("opsHome.pushHelp")}</p>
         <PushToggle />
       </section>
     </>

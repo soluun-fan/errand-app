@@ -68,7 +68,7 @@ export function DealStatusLine({ p, helperName, payeeName }: { p: DealViewProps;
               <Countdown until={deal.checkUntil} serverNow={serverNow} template={t("deal.autoConfirm")} pill />
             </span>
           )}
-          <span className="mt-1.5 block text-sm text-ink-2">{t("deal.autoConfirmInfo")}</span>
+          <span className="mt-1.5 block text-small text-ink-2">{t("deal.autoConfirmInfo")}</span>
         </>
       );
       break;

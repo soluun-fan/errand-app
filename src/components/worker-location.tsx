@@ -106,7 +106,7 @@ export function WorkerLocationStrip() {
       {/* one slim strip: amber when location is failing (with Retry), green while it is shared */}
       <div
         role="status"
-        className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-input px-3 py-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] ${failed ? "bg-warn-bg text-warn" : "bg-held-bg text-held"}`}
+        className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-input px-3 py-2 text-small sm:grid-cols-[auto_minmax(0,1fr)_auto] ${failed ? "bg-warn-bg text-warn" : "bg-held-bg text-held"}`}
       >
         {failed ? (
           <MapPinOff aria-hidden size={18} className="shrink-0" />

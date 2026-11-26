@@ -28,6 +28,9 @@ import { directPayOpen, directPayState, payeeAccount } from "@/lib/direct-pay";
 import { recipientVerificationForOwner } from "@/lib/verify-mn";
 import { RecipientVerificationCard } from "./recipient-verification-card";
 import { customerJobLocation } from "@/lib/job-location";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("meta.task");
 
 export default async function TaskPage({ params, searchParams }: PageProps<"/tasks/[id]">) {
   const viewer = await getViewer();
@@ -102,7 +105,7 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
     {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
       {[...questions].map(([helper, unread]) => (
-        <Link key={helper} href={`/chat/${deal.id}?with=${helper}`} className="flex min-h-12 items-center justify-between gap-3 border-b border-line text-sm last:border-0">
+        <Link key={helper} href={`/chat/${deal.id}?with=${helper}`} className="flex min-h-12 items-center justify-between gap-3 border-b border-line text-small last:border-0">
           <span>{people.get(helper)?.name || t("deal.newHelper")}</span>
           <span className="font-semibold text-brand-ink">{unread ? t("chat.unread", { n: unread }) : t("chat.open")}</span>
         </Link>

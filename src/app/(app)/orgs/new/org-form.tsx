@@ -52,7 +52,7 @@ export function OrgForm() {
         <input name="regNumber" required inputMode="numeric" pattern="[0-9]{7}" maxLength={7} className={`${field} tabular-nums`} placeholder="1234567" />
       </label>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("org.kind")}</legend>
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("org.kind")}</legend>
         <div className="flex flex-wrap gap-2">
           {ORG_KINDS.map((k) => (
             <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={chipClass(kind === k)}>
@@ -62,7 +62,7 @@ export function OrgForm() {
         </div>
       </fieldset>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("org.categories")}</legend>
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("org.categories")}</legend>
         <div className="flex flex-wrap gap-2">
           {CERTIFIABLE.map((c) => (
             <button key={c} type="button" role="checkbox" aria-checked={kinds.includes(c)} onClick={() => toggle(c)} className={chipClass(kinds.includes(c))}>
@@ -82,7 +82,7 @@ export function OrgForm() {
       <DocUpload label={t("org.doc")} help={t("org.docHelp")} path={doc} prepare={(mime, bytes) => prepareDoc("org", mime, bytes)} onDone={setDoc} onError={setError} />
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-[15px] font-medium text-ink-2">{t("org.payout")}</legend>
+        <legend className="mb-1 text-body font-medium text-ink-2">{t("org.payout")}</legend>
         <label className={fieldLabel}>
           {t("kyc.bank")}
           <select name="bank" required className={field} defaultValue="">
@@ -104,12 +104,12 @@ export function OrgForm() {
         </label>
       </fieldset>
 
-      <label className="flex items-start gap-3 text-[14px]">
+      <label className="flex items-start gap-3 text-small">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-5 w-5 accent-brand" />
         <span>{t("org.consent")}</span>
       </label>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

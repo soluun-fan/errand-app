@@ -49,8 +49,8 @@ export function ReviewPhotoPicker({ dealId }: { dealId: string }) {
   return (
     <section className="flex flex-col gap-2">
       <input type="hidden" name="reviewPhotos" value={JSON.stringify(photos.map((p) => p.id))} />
-      <p className="text-[14px] font-semibold">{t("workPhotos.reviewAdd")}</p>
-      <p className="-mt-1 text-[13px] text-ink-2">{t("workPhotos.reviewSub")}</p>
+      <p className="text-small font-semibold">{t("workPhotos.reviewAdd")}</p>
+      <p className="-mt-1 text-meta text-ink-2">{t("workPhotos.reviewSub")}</p>
       {photos.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p, i) => (
@@ -76,7 +76,7 @@ export function ReviewPhotoPicker({ dealId }: { dealId: string }) {
         </button>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-small text-danger">
           {error}
         </p>
       )}

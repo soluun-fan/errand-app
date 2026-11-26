@@ -64,10 +64,10 @@ export function AddressInput({
             <MapPin size={15} />
           </span>
         )}
-        <label id={`${id}-label`} htmlFor={`${id}-address`} className="flex-1 text-[16px] font-bold">
+        <label id={`${id}-label`} htmlFor={`${id}-address`} className="flex-1 text-lead font-bold">
           {label}
         </label>
-        {optional && <span className="text-xs text-ink-2">{t("addressEntry.optional")}</span>}
+        {optional && <span className="text-caption text-ink-2">{t("addressEntry.optional")}</span>}
       </div>
       <input
         id={`${id}-address`}
@@ -87,7 +87,7 @@ export function AddressInput({
           setShowChoices(true);
           setAllChoices(false);
         }}
-        className="min-h-12 w-full min-w-0 rounded-input border border-line bg-canvas/60 px-3 text-[16px] outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/15"
+        className="min-h-12 w-full min-w-0 rounded-input border border-line bg-canvas/60 px-3 text-lead outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/15"
       />
       {/* saved and recent places as one-tap chips (PleaseHelp-style); the full list stays under "Saved" */}
       {quick.length > 0 && (
@@ -103,7 +103,7 @@ export function AddressInput({
                   onChoose(choice);
                   setShowChoices(false);
                 }}
-                className="press inline-flex min-h-11 max-w-[14rem] flex-none items-center gap-1.5 rounded-full border border-line bg-bg px-3 text-[14px] font-medium"
+                className="press inline-flex min-h-11 max-w-[14rem] flex-none items-center gap-1.5 rounded-full border border-line bg-bg px-3 text-small font-medium"
               >
                 <Icon aria-hidden size={15} className="flex-none text-brand-ink" />
                 <span className="truncate">{choice.label}</span>
@@ -112,7 +112,7 @@ export function AddressInput({
           })}
         </div>
       )}
-      <p id={`${id}-hint`} className="mt-2 text-[13px] leading-relaxed text-ink-2">
+      <p id={`${id}-hint`} className="mt-2 text-meta leading-relaxed text-ink-2">
         {hint}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-4">
@@ -126,7 +126,7 @@ export function AddressInput({
             aria-label={t("addressEntry.saved")}
             aria-expanded={showChoices && matches.length > 0}
             aria-controls={`${id}-choices`}
-            className="flex min-h-11 items-center gap-1.5 text-[13px] font-medium text-ink-2"
+            className="flex min-h-11 items-center gap-1.5 text-meta font-medium text-ink-2"
           >
             <Bookmark aria-hidden size={15} />
             {t("addressEntry.savedShort")}
@@ -140,7 +140,7 @@ export function AddressInput({
               setPendingPin(null);
               onPinChange(null);
             }}
-            className="min-h-11 text-[13px] text-ink-2 underline underline-offset-2"
+            className="min-h-11 text-meta text-ink-2 underline underline-offset-2"
           >
             {t("addressEntry.clearPin")}
           </button>
@@ -148,7 +148,7 @@ export function AddressInput({
       </div>
       {showChoices && matches.length > 0 && (
         <div id={`${id}-choices`} className="mt-1 border-t border-line pt-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-ink-2">
+          <div className="flex items-center justify-between text-caption font-semibold text-ink-2">
             {t("addressEntry.saved")}
             <button
               type="button"
@@ -175,8 +175,8 @@ export function AddressInput({
                   >
                     <Icon aria-hidden size={18} className="flex-none text-ink-2" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-semibold">{choice.label}</span>
-                      {choice.label !== choice.address && <span className="block truncate text-[13px] text-ink-2">{choice.address}</span>}
+                      <span className="block text-small font-semibold">{choice.label}</span>
+                      {choice.label !== choice.address && <span className="block truncate text-meta text-ink-2">{choice.address}</span>}
                     </span>
                     {choice.address === value && <Check aria-hidden size={16} className="flex-none text-brand-ink" />}
                   </button>
@@ -188,7 +188,7 @@ export function AddressInput({
       )}
       <div className="mt-2 space-y-2">
         <PinMap value={pendingPin ?? pin} kind={kind} other={other} start={other} onChange={setPendingPin} height={220} />
-        <p className="text-[13px] text-ink-2">{t("addressEntry.pinHelp")}</p>
+        <p className="text-meta text-ink-2">{t("addressEntry.pinHelp")}</p>
         {pendingPin && (pendingPin.lat !== pin?.lat || pendingPin.lng !== pin?.lng) ? (
           <button
             type="button"
@@ -202,7 +202,7 @@ export function AddressInput({
           </button>
         ) : (
           pin && (
-            <span className="flex items-center gap-1 text-sm text-brand-ink">
+            <span className="flex items-center gap-1 text-small text-brand-ink">
               <Check size={15} />
               {t("addressEntry.pinConfirmed")}
             </span>

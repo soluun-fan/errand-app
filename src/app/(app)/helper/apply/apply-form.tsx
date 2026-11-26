@@ -40,8 +40,8 @@ function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | u
   return (
     <div className="flex items-center gap-3 rounded-card bg-bg p-3 shadow-card">
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold">{t(`kyc.docs.${doc}`)}</span>
-        {path && <span className="block text-sm text-held">{t("kyc.uploaded")}</span>}
+        <span className="block text-body font-semibold">{t(`kyc.docs.${doc}`)}</span>
+        {path && <span className="block text-small text-held">{t("kyc.uploaded")}</span>}
       </span>
       <input
         ref={input}
@@ -113,13 +113,13 @@ export function ApplyForm() {
         {KYC_DOCS.map((d) => (
           <DocSlot key={d} doc={d} path={files[d]} onDone={(p) => setFiles((x) => ({ ...x, [d]: p }))} onError={setError} />
         ))}
-        <p className="text-sm text-ink-2"><Ico as={Lock} size={16} /> {t("kyc.privacy")}</p>
+        <p className="text-small text-ink-2"><Ico as={Lock} size={16} /> {t("kyc.privacy")}</p>
       </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("kyc.stepWork")}</h2>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-[15px] font-medium text-ink-2">{t("kyc.categories")}</legend>
+          <legend className="mb-2 text-body font-medium text-ink-2">{t("kyc.categories")}</legend>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.filter((c) => c.trust === "open").map((c) => (
               <button key={c.id} type="button" role="checkbox" aria-checked={categories.includes(c.id)} onClick={() => toggle(c.id)} className={chipClass(categories.includes(c.id))}>
@@ -154,15 +154,15 @@ export function ApplyForm() {
               setHolder(e.target.value);
             }}
           />
-          <span className="text-sm font-normal">{t("kyc.holderHelp")}</span>
+          <span className="text-small font-normal">{t("kyc.holderHelp")}</span>
         </label>
       </section>
 
-      <label className="flex items-start gap-3 text-[15px]">
+      <label className="flex items-start gap-3 text-body">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
         <span>{t("kyc.consent")}</span>
       </label>
-      <label className="flex items-start gap-3 text-[15px]">
+      <label className="flex items-start gap-3 text-body">
         <input type="checkbox" checked={agreement} onChange={(e) => setAgreement(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
         <span>
           {t("kyc.agreement")}{" "}
@@ -173,7 +173,7 @@ export function ApplyForm() {
       </label>
 
       {error && (
-        <p role="alert" className="rounded-input bg-danger-bg p-3 text-sm text-danger">
+        <p role="alert" className="rounded-input bg-danger-bg p-3 text-small text-danger">
           {error}
         </p>
       )}

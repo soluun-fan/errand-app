@@ -10,6 +10,9 @@ import { getViewer } from "@/lib/auth";
 import { fmtDateTime, fmtMoney } from "@/lib/format";
 import { accountsToCheck, withdrawalQueue } from "@/lib/withdrawals";
 import { checkAccountAction, decideWithdrawalAction } from "../actions";
+import { titled } from "@/lib/page-title";
+
+export const generateMetadata = titled("opsWithdraw.title");
 
 /**
  * /ops/withdrawals — helpers' withdrawals to send from the bank app (owner's V1 Master Spec C10):
@@ -27,9 +30,9 @@ export default async function OpsWithdrawalsPage() {
       <FlowHeader href="/ops" label={t("common.back")} title={t("opsWithdraw.title")} />
       <Note tone="info">{t("opsWithdraw.help")}</Note>
       {queue.length === 0 ? (
-        <p className="text-[15px] text-ink-2">{t("opsWithdraw.none")}</p>
+        <p className="text-body text-ink-2">{t("opsWithdraw.none")}</p>
       ) : (
-        <p className="text-[15px] font-semibold">{t("opsWithdraw.total", { n: queue.length, amount: fmtMoney(total) })}</p>
+        <p className="text-body font-semibold">{t("opsWithdraw.total", { n: queue.length, amount: fmtMoney(total) })}</p>
       )}
       {queue.map((w) => (
         <Card key={w.id}>
@@ -38,12 +41,12 @@ export default async function OpsWithdrawalsPage() {
               <Link href={`/ops/helpers/${w.helperId}`} className="underline">
                 {w.helperName}
               </Link>
-              {w.auto && <span className="ml-2 rounded-full bg-fill px-2 py-0.5 text-[12px] font-medium text-ink-2">{t("earnings.auto")}</span>}
+              {w.auto && <span className="ml-2 rounded-full bg-fill px-2 py-0.5 text-caption font-medium text-ink-2">{t("earnings.auto")}</span>}
             </h2>
-            <span className="text-[20px] font-bold tabular-nums">{fmtMoney(w.amount)}</span>
+            <span className="text-title-lg font-bold tabular-nums">{fmtMoney(w.amount)}</span>
           </div>
-          <p className="text-[13px] text-ink-2">{fmtDateTime(w.requestedAt, locale)}</p>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-[15px]">
+          <p className="text-meta text-ink-2">{fmtDateTime(w.requestedAt, locale)}</p>
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-body">
             {(
               [
                 [t("kyc.bank"), w.bank],
@@ -84,8 +87,8 @@ export default async function OpsWithdrawalsPage() {
 
       {toCheck.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-[17px] font-bold">{t("opsWithdraw.checkTitle")}</h2>
-          <p className="text-[14px] text-ink-2">{t("opsWithdraw.checkHelp")}</p>
+          <h2 className="text-title font-bold">{t("opsWithdraw.checkTitle")}</h2>
+          <p className="text-small text-ink-2">{t("opsWithdraw.checkHelp")}</p>
           {toCheck.map((a) => (
             <Card key={a.userId}>
               <p className="font-bold">
@@ -94,7 +97,7 @@ export default async function OpsWithdrawalsPage() {
                 </Link>
                 {a.verifiedName ? ` · ${a.verifiedName}` : ""}
               </p>
-              <p className="text-[15px]">
+              <p className="text-body">
                 {a.bank} · <span className="break-all tabular-nums">{a.accountNumber}</span> · {a.holderName}
               </p>
               <InlineAction action={checkAccountAction} fields={{ userId: a.userId, accountUpdatedAt: a.updatedAt }} label={t("opsWithdraw.checkOk")} className={`${btn.secondary} w-full`}>
@@ -107,7 +110,7 @@ export default async function OpsWithdrawalsPage() {
                   <input name="bankReference" required minLength={3} maxLength={120} className={field} autoComplete="off" />
                 </label>
                 {!a.verifiedName && (
-                  <label className="flex min-h-11 items-start gap-2 text-[14px]">
+                  <label className="flex min-h-11 items-start gap-2 text-small">
                     <input type="checkbox" name="identityConfirmed" className="mt-1 size-5" />
                     {t("opsWithdraw.identityConfirm")}
                   </label>
