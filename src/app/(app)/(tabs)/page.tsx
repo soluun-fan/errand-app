@@ -1,12 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, ClipboardList, Compass, MapPin, RotateCcw, Search, ShieldCheck, UsersRound } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardList,
+  Compass,
+  Images,
+  MapPin,
+  MessageSquareQuote,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import { CategoryGroups } from "@/components/service-tile";
 import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, hero, seeAllClass, space } from "@/components/ui";
+import { Avatar, LinkRow, SectionPlaceholder, SeeAllArrow, SectionHeader, Wide, hero, seeAllClass, space } from "@/components/ui";
 import { TERMINAL_STATUSES } from "@/lib/engine";
 import { HelperCard } from "@/components/helper-card";
 import { OpenBoard } from "@/components/open-board";
@@ -46,9 +57,21 @@ export default async function Home() {
   const [t, locale, all] = await Promise.all([getT(), getLocale(), listMyTasks(viewer.profile.id)]);
   const active = all.filter((x) => !TERMINAL_STATUSES.includes(x.deal.status));
   const past = all.filter((x) => TERMINAL_STATUSES.includes(x.deal.status));
-  const [covers, todos] = await Promise.all([kindCovers(), customerTodos(viewer.profile.id, all.map((x) => x.deal))]);
+  const [covers, todos] = await Promise.all([
+    kindCovers(),
+    customerTodos(
+      viewer.profile.id,
+      all.map((x) => x.deal),
+    ),
+  ]);
   const everCompleted = all.some((x) => x.deal.status === "released");
-  const repeat = [...new Map(all.filter((x) => x.deal.status === "released" && !x.deal.title.startsWith("[verify]")) /* test tasks never become chips */.map((x) => [x.deal.title, x.deal])).values()].slice(0, 3);
+  const repeat = [
+    ...new Map(
+      all
+        .filter((x) => x.deal.status === "released" && !x.deal.title.startsWith("[verify]")) /* test tasks never become chips */
+        .map((x) => [x.deal.title, x.deal]),
+    ).values(),
+  ].slice(0, 3);
 
   // "from" price per category: the engine's build-up price for a usual job of that kind, today
   const [cfg, recent, online, board, helpers, reviews, popular, seasonal] = await Promise.all([
@@ -92,7 +115,9 @@ export default async function Home() {
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web.
           On wider screens its tint runs edge to edge (like the landing page) while its content stays on the page edge,
           so the search box lines up with every section below. */}
-      <section className={`relative isolate ${hero.gridFit} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}>
+      <section
+        className={`relative isolate ${hero.gridFit} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}
+      >
         <div className={hero.main}>
           <header className="flex items-center justify-between pt-2 md:hidden">
             <p className="text-small text-ink-2">
@@ -123,7 +148,13 @@ export default async function Home() {
             <label htmlFor="q" className="sr-only">
               {t("home.search")}
             </label>
-            <input id="q" name="title" maxLength={40} placeholder={t("home.search")} className="min-w-0 flex-1 bg-transparent text-lead outline-none placeholder:text-ink-3" />
+            <input
+              id="q"
+              name="title"
+              maxLength={40}
+              placeholder={t("home.search")}
+              className="min-w-0 flex-1 bg-transparent text-lead outline-none placeholder:text-ink-3"
+            />
             <button aria-label={t("home.heroGo")} className={hero.searchGo}>
               <span className="hidden md:inline">{t("landing.searchGo")}</span>
               <ArrowRight aria-hidden size={20} className="md:hidden" />
@@ -133,13 +164,21 @@ export default async function Home() {
           <div className={`-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0 ${hero.fitTitleWidth}`}>
             <DraftChip key={viewer.profile.id} userId={viewer.profile.id} />
             {repeat.map((d) => (
-              <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={`${hero.chip} ${hero.chipPlain}`}>
+              <Link
+                key={d.id}
+                href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`}
+                className={`${hero.chip} ${hero.chipPlain}`}
+              >
                 <RotateCcw aria-hidden size={14} />
                 {d.title}
               </Link>
             ))}
             {popular.map((p) => (
-              <Link key={p.id} href={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`} className={`${hero.chip} ${hero.chipPlain}`}>
+              <Link
+                key={p.id}
+                href={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`}
+                className={`${hero.chip} ${hero.chipPlain}`}
+              >
                 <CategoryIcon id={p.category} size={15} />
                 {qsTitle(p, locale)}
               </Link>
@@ -152,10 +191,15 @@ export default async function Home() {
           {active.slice(0, 2).map((x) => (
             <DealCard key={x.deal.id} deal={x.deal} offerCount={x.offerCount} t={t} locale={locale} />
           ))}
-          {active.length > 2 && <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-small font-semibold text-brand-ink">
-            {t("home.viewActive", { n: active.length })}<ArrowRight aria-hidden size={18} className="shrink-0" />
-          </Link>}
-          <div className="hidden md:block"><RecentRequests items={active.length > 0 ? recent.slice(0, 2) : recent} t={t} now={now} /></div>
+          {active.length > 2 && (
+            <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-small font-semibold text-brand-ink">
+              {t("home.viewActive", { n: active.length })}
+              <ArrowRight aria-hidden size={18} className="shrink-0" />
+            </Link>
+          )}
+          <div className="hidden md:block">
+            <RecentRequests items={active.length > 0 ? recent.slice(0, 2) : recent} t={t} now={now} />
+          </div>
         </div>
       </section>
       {/* nice-to-haves after the main thing, not before it */}
@@ -165,9 +209,17 @@ export default async function Home() {
         null,
         // the only price that is ours is the minimum — said once (the header's sub), not on every tile
         <div className={`flex flex-col ${space.section}`}>
-          <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
-            <Link key={id} href={`/post?cat=${id}`} className={className}>{tile}</Link>
-          )} />
+          <CategoryGroups
+            live={live}
+            cfg={cfg}
+            covers={covers}
+            t={t}
+            link={(id, className, tile) => (
+              <Link key={id} href={`/post?cat=${id}`} className={className}>
+                {tile}
+              </Link>
+            )}
+          />
         </div>,
         t("home.allFrom"),
       )}
@@ -192,41 +244,62 @@ export default async function Home() {
 
       {/* discovery (open requests, helpers, their work, reviews): the website only — phones stay short (2026-11-24) */}
       <div className="hidden flex-col gap-14 md:flex">
-      {board.length > 0 && section(t("web.requestsTitle"), "/requests", <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={covers} />)}
-
-      {helpers.length > 0 &&
-        section(
-          t("web.nearbyHelpers"),
-          "/helpers",
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {helpers.map((h) => (
-              <li key={h.id}>
-                <HelperCard h={h} t={t} photos={thumbs.get(h.id)} />
-              </li>
-            ))}
-          </ul>,
+        {/* each one keeps its place: an honest placeholder until there is real data (owner, 2026-11-26) */}
+        {section(
+          t("web.requestsTitle"),
+          board.length > 0 ? "/requests" : null,
+          board.length > 0 ? (
+            <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={covers} />
+          ) : (
+            <SectionPlaceholder
+              icon={<ClipboardList size={22} />}
+              title={t("landing.emptyBoardTitle")}
+              body={t("landing.emptyBoardBody")}
+            />
+          ),
         )}
 
-      {/* helpers' finished work (PleaseHelp "portfolio" row): every photo agreed by that job's customer */}
-      {work.length > 0 &&
-        section(
+        {section(
+          t("web.nearbyHelpers"),
+          helpers.length > 0 ? "/helpers" : null,
+          helpers.length > 0 ? (
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {helpers.map((h) => (
+                <li key={h.id}>
+                  <HelperCard h={h} t={t} photos={thumbs.get(h.id)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <SectionPlaceholder
+              icon={<UsersRound size={22} />}
+              title={t("landing.emptyHelpersTitle")}
+              body={t("landing.emptyHelpersBody")}
+            />
+          ),
+        )}
+
+        {/* helpers' finished work (PleaseHelp "portfolio" row): every photo agreed by that job's customer */}
+        {section(
           t("workPhotos.homeTitle"),
           null,
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {work.map((p) => (
-              <li key={p.id}>
-                <WorkCard p={p} t={t} href={`/helpers/${p.helperId}`} />
-              </li>
-            ))}
-          </ul>,
+          work.length > 0 ? (
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {work.map((p) => (
+                <li key={p.id}>
+                  <WorkCard p={p} t={t} href={`/helpers/${p.helperId}`} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <SectionPlaceholder icon={<Images size={22} />} title={t("landing.emptyWorkTitle")} body={t("landing.emptyWorkBody")} />
+          ),
         )}
 
-      {reviews.length > 0 &&
-        section(
+        {section(
           t("web.reviews"),
           null,
-          <div className="flex flex-col gap-3">
-            <p className="text-small leading-relaxed text-ink-2">{t("web.reviewsSelection")}</p>
+          reviews.length > 0 ? (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {reviews.map((r, i) => (
                 <li key={i}>
@@ -234,7 +307,14 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
-          </div>,
+          ) : (
+            <SectionPlaceholder
+              icon={<MessageSquareQuote size={22} />}
+              title={t("landing.emptyReviewsTitle")}
+              body={t("landing.emptyReviewsBody")}
+            />
+          ),
+          t("web.reviewsSelection"),
         )}
       </div>
 
@@ -255,9 +335,7 @@ export default async function Home() {
             ))}
           </section>
         )}
-        {past.length > 0 && (
-          <LinkRow card href="/tasks" icon={ClipboardList} label={t("home.past")} count={past.length} />
-        )}
+        {past.length > 0 && <LinkRow card href="/tasks" icon={ClipboardList} label={t("home.past")} count={past.length} />}
       </div>
     </Wide>
   );

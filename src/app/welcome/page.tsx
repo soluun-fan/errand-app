@@ -1,4 +1,16 @@
-import { BadgeCheck, ChevronRight, Hand, PenLine, ShieldCheck, Siren, Star, Tag } from "lucide-react";
+import {
+  BadgeCheck,
+  ChevronRight,
+  ClipboardList,
+  Hand,
+  Images,
+  MessageSquareQuote,
+  PenLine,
+  ShieldCheck,
+  Siren,
+  Star,
+  Tag,
+} from "lucide-react";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
 import { kindCovers } from "@/lib/covers";
 import { latestWork } from "@/lib/work-photos";
@@ -13,7 +25,7 @@ import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/logi
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { SeeAllArrow, SectionHeader, btn, hero, seeAllClass, space } from "@/components/ui";
+import { SectionPlaceholder, SeeAllArrow, SectionHeader, btn, hero, seeAllClass, space } from "@/components/ui";
 import { ReviewCard } from "@/components/review-card";
 import { recentReviews } from "@/lib/helper-profile";
 import { getLocale, getT } from "@/i18n/server";
@@ -104,7 +116,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">{APP_MARK}</span>
               {APP_NAME}
             </Link>
-            <nav aria-label={t("tabs.navigation")} className="order-last hidden w-full flex-wrap items-center gap-x-6 text-body text-ink-2 md:flex lg:order-none lg:w-auto">
+            <nav
+              aria-label={t("tabs.navigation")}
+              className="order-last hidden w-full flex-wrap items-center gap-x-6 text-body text-ink-2 md:flex lg:order-none lg:w-auto"
+            >
               <a href="#how" className="flex min-h-12 items-center hover:text-ink">
                 {t("landing.nav.how")}
               </a>
@@ -116,7 +131,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
               <Link href="/login" className="flex min-h-11 items-center px-3 text-body font-semibold">
                 {t("landing.nav.login")}
               </Link>
-              <LoginGate next="/post" className="press hidden min-h-11 items-center rounded-input bg-brand px-4 text-body font-bold text-white sm:flex">
+              <LoginGate
+                next="/post"
+                className="press hidden min-h-11 items-center rounded-input bg-brand px-4 text-body font-bold text-white sm:flex"
+              >
                 {t("landing.nav.post")}
               </LoginGate>
             </div>
@@ -159,9 +177,17 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* categories with today's starting price */}
         <section className={`${wrap} flex flex-col ${space.section} py-12`}>
           <SectionHeader size="lg" title={t("landing.catsTitle")} sub={t("home.allFrom")} />
-          <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
-            <LoginGate key={id} next={`/post?cat=${id}`} className={className}>{tile}</LoginGate>
-          )} />
+          <CategoryGroups
+            live={live}
+            cfg={cfg}
+            covers={covers}
+            t={t}
+            link={(id, className, tile) => (
+              <LoginGate key={id} next={`/post?cat=${id}`} className={className}>
+                {tile}
+              </LoginGate>
+            )}
+          />
         </section>
 
         {/* what people need this season (Unegui-style row) */}
@@ -178,29 +204,40 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           />
         </section>
 
-        {/* requests waiting for a helper — recruits helpers; shown only when there are some */}
-        {board.length > 0 && (
-          <section className="bg-bg py-12">
-            <div className={`${wrap} flex flex-col ${space.section}`}>
-              <SectionHeader
-                size="lg"
-                title={t("landing.boardTitle")}
-                sub={t("landing.boardSub")}
-                more={
-                  <LoginGate next="/jobs?view=all" className={seeAllClass}>
-                    {t("landing.boardAll")} <SeeAllArrow />
+        {/* requests waiting for a helper — recruits helpers; an honest placeholder until there are some */}
+        <section className="bg-bg py-12">
+          <div className={`${wrap} flex flex-col ${space.section}`}>
+            <SectionHeader
+              size="lg"
+              title={t("landing.boardTitle")}
+              sub={t("landing.boardSub")}
+              more={
+                <LoginGate next="/jobs?view=all" className={seeAllClass}>
+                  {t("landing.boardAll")} <SeeAllArrow />
+                </LoginGate>
+              }
+            />
+            {board.length > 0 ? (
+              <OpenBoard items={board} t={t} locale={locale} covers={covers} />
+            ) : (
+              <SectionPlaceholder
+                icon={<ClipboardList size={22} />}
+                title={t("landing.emptyBoardTitle")}
+                body={t("landing.emptyBoardBody")}
+                action={
+                  <LoginGate next="/post" className={`${btn.primary} w-full sm:w-auto`}>
+                    {t("landing.searchGo")}
                   </LoginGate>
                 }
               />
-              <OpenBoard items={board} t={t} locale={locale} covers={covers} />
-            </div>
-          </section>
-        )}
+            )}
+          </div>
+        </section>
 
         {/* helpers' finished work: real photos, each agreed by that job's customer */}
-        {work.length > 0 && (
-          <section className={`${wrap} flex flex-col ${space.section} py-12`}>
-            <SectionHeader size="lg" title={t("workPhotos.homeTitle")} sub={t("workPhotos.homeSub")} />
+        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
+          <SectionHeader size="lg" title={t("workPhotos.homeTitle")} sub={t("workPhotos.homeSub")} />
+          {work.length > 0 ? (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {work.map((p) => (
                 <li key={p.id}>
@@ -208,13 +245,15 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          ) : (
+            <SectionPlaceholder icon={<Images size={22} />} title={t("landing.emptyWorkTitle")} body={t("landing.emptyWorkBody")} />
+          )}
+        </section>
 
         {/* what customers say: 4★ and up with a written note, photo reviews first (PleaseHelp-style) */}
-        {reviews.length > 0 && (
-          <section className={`${wrap} flex flex-col ${space.section} pb-12`}>
-            <SectionHeader size="lg" title={t("web.reviews")} sub={t("web.reviewsSelection")} />
+        <section className={`${wrap} flex flex-col ${space.section} pb-12`}>
+          <SectionHeader size="lg" title={t("web.reviews")} sub={t("web.reviewsSelection")} />
+          {reviews.length > 0 ? (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {reviews.map((r, i) => (
                 <li key={i}>
@@ -222,8 +261,14 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          ) : (
+            <SectionPlaceholder
+              icon={<MessageSquareQuote size={22} />}
+              title={t("landing.emptyReviewsTitle")}
+              body={t("landing.emptyReviewsBody")}
+            />
+          )}
+        </section>
 
         {/* how it works, 4 steps */}
         <section id="how" className="scroll-mt-20 py-12">
@@ -245,8 +290,12 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* real totals, only once they're big enough (publicStats) */}
         {stats && (
           <section aria-labelledby="stats-title" className="bg-brand-bg/60 py-10">
-            <h2 id="stats-title" className="sr-only">{t("landing.stats.title")}</h2>
-            <dl className={`${wrap} grid gap-x-2 gap-y-6 text-center ${statItems.length === 3 ? "grid-cols-3" : "grid-cols-2"} md:auto-cols-fr md:grid-flow-col md:grid-cols-none`}>
+            <h2 id="stats-title" className="sr-only">
+              {t("landing.stats.title")}
+            </h2>
+            <dl
+              className={`${wrap} grid gap-x-2 gap-y-6 text-center ${statItems.length === 3 ? "grid-cols-3" : "grid-cols-2"} md:auto-cols-fr md:grid-flow-col md:grid-cols-none`}
+            >
               {statItems.map(([label, value]) => (
                 <div key={label} className="flex flex-col-reverse items-center justify-end gap-1">
                   <dt className="text-meta leading-snug text-balance text-ink-2 sm:text-small">{label}</dt>
@@ -281,7 +330,10 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           <div className="flex flex-col gap-3 rounded-card bg-ink p-6 text-white md:p-8">
             <h2 className="text-headline font-extrabold">{t("landing.helperTitle")}</h2>
             <p className="text-body text-white/75">{t("landing.helperBody")}</p>
-            <LoginGate next="/helper/apply" className="press mt-2 flex min-h-12 w-fit items-center rounded-input bg-brand px-5 text-lead font-bold text-white">
+            <LoginGate
+              next="/helper/apply"
+              className="press mt-2 flex min-h-12 w-fit items-center rounded-input bg-brand px-5 text-lead font-bold text-white"
+            >
               {t("landing.helperCta")}
             </LoginGate>
           </div>
@@ -304,21 +356,36 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
               {company && (company.company_name || company.company_reg_no || company.company_address || company.phone || company.email) && (
                 <address className="flex flex-col gap-0.5 break-words text-meta not-italic leading-relaxed text-ink-2">
                   {(company.company_name || company.company_reg_no) && (
-                    <span>{[company.company_name, company.company_reg_no && t("landing.regNo", { n: company.company_reg_no })].filter(Boolean).join(" · ")}</span>
+                    <span>
+                      {[company.company_name, company.company_reg_no && t("landing.regNo", { n: company.company_reg_no })]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                   )}
                   {company.company_address && <span>{company.company_address}</span>}
                   {(company.phone || company.email) && (
                     <span>
-                      {company.phone && <a href={`tel:${company.phone.replace(/[^\d+]/g, "")}`} className="hover:text-ink">{company.phone}</a>}
+                      {company.phone && (
+                        <a href={`tel:${company.phone.replace(/[^\d+]/g, "")}`} className="hover:text-ink">
+                          {company.phone}
+                        </a>
+                      )}
                       {company.phone && company.email && " · "}
-                      {company.email && <a href={`mailto:${company.email}`} className="hover:text-ink">{company.email}</a>}
+                      {company.email && (
+                        <a href={`mailto:${company.email}`} className="hover:text-ink">
+                          {company.email}
+                        </a>
+                      )}
                     </span>
                   )}
                 </address>
               )}
               <p className="mt-1 text-meta text-ink-2">© 2026 {APP_NAME}</p>
             </div>
-            <nav aria-label={t("landing.footerServices")} className="grid grid-cols-2 gap-6 text-small [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11">
+            <nav
+              aria-label={t("landing.footerServices")}
+              className="grid grid-cols-2 gap-6 text-small [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_button]:min-h-11"
+            >
               <div className="flex flex-col gap-2">
                 <h3 className="font-bold">{t("landing.footerServices")}</h3>
                 <LoginGate next="/post" className="text-left text-ink-2 hover:text-ink">
@@ -350,7 +417,11 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   ["/terms", t("legal.termsTitle")],
                 ] as const
               ).map(([href, label]) => (
-                <Link key={href} href={href} className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-body font-semibold hover:bg-canvas">
+                <Link
+                  key={href}
+                  href={href}
+                  className="press flex min-h-14 items-center justify-between rounded-input border border-line px-4 text-body font-semibold hover:bg-canvas"
+                >
                   {label}
                   <ChevronRight aria-hidden size={18} />
                 </Link>

@@ -178,6 +178,26 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div aria-hidden className={`animate-pulse rounded-card bg-fill ${className}`} />;
 }
 
+/**
+ * A data section with nothing real to show yet (owner, 2026-11-26: "honest placeholders"): the
+ * section keeps its place and says plainly what will appear there — never sample data. It goes away
+ * by itself as soon as the first real item exists.
+ */
+export function SectionPlaceholder({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-4 rounded-card border-2 border-dashed border-line bg-bg/60 p-5 sm:flex-row sm:items-center md:p-6">
+      <span aria-hidden className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-brand-bg text-brand-ink">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-lead font-bold">{title}</p>
+        <p className="mt-1 text-small leading-relaxed text-ink-2">{body}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; title: string; body?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
