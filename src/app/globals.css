@@ -18,8 +18,8 @@
   --color-fill: #efece8; /* chips, address boxes, tiles — visible on white and on the page grey */
   --color-canvas: #f5f4f2; /* the page behind the cards */
   --color-bg: #ffffff; /* cards, sheets, inputs */
-  --color-brand: #c2410c; /* orange fills: white text clears 5:1, including compact button labels */
-  --color-brand-ink: #c2410c; /* orange text and links on white or the page grey: ≥ 4.7:1 */
+  --color-brand: #cf4a0e; /* orange fills (owner 2026-11-26: brighter): the brightest shade where white text still clears 4.5:1 (4.53) */
+  --color-brand-ink: #c2410c; /* orange text and links stay darker: on the page grey a brighter one would fail 4.5:1 (this is 4.7) */
   --color-brand-bg: #fff1e8; /* soft orange behind brand-ink (category tag) */
 
   /* status colours mean status only; text tones darkened where needed to reach 4.5:1 */

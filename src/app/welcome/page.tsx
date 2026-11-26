@@ -344,7 +344,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* footer (UBCab-style): what we do · help · and the trust pages as cards */}
-        <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10 md:pb-10">
+        <footer className="mt-auto border-t border-line bg-bg pb-28 pt-10">
           <div className={`${wrap} grid gap-8 md:grid-cols-[1fr_1fr_1.2fr]`}>
             <div className="flex flex-col gap-3">
               <span className="flex items-center gap-2 text-title-lg font-extrabold tracking-tight">
@@ -431,7 +431,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </footer>
 
         {/* always-there call to action */}
-        <div className="fixed inset-x-0 bottom-0 z-30 bg-ink/95 pb-[env(safe-area-inset-bottom)] text-white backdrop-blur md:hidden">
+        {/* the pinned call to action, on computers too (owner 2026-11-26, from the earlier landing page) */}
+        <div className="fixed inset-x-0 bottom-0 z-30 bg-ink/95 pb-[env(safe-area-inset-bottom)] text-white backdrop-blur">
           <div className={`${wrap} flex min-h-16 items-center justify-between gap-3`}>
             <p className="hidden min-w-0 text-small font-medium sm:block">{t("landing.bar")}</p>
             <LoginGate next="/post" className={`${btn.primary} my-2 min-h-12 w-full px-4 text-body sm:w-auto sm:shrink-0`}>
