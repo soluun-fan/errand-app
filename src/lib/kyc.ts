@@ -1,9 +1,10 @@
 import "server-only";
 import { notify } from "@/lib/push";
-import { adminIds } from "@/lib/safety";
-import type { CategoryId } from "@/lib/engine";
+import { adminIds, audit } from "@/lib/safety";
+import { TERMINAL_STATUSES, type CategoryId } from "@/lib/engine";
 import { KYC_LEVEL_VERIFIED, KYC_RETENTION_DAYS, type KycDoc } from "@/lib/kyc-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ageBandOf } from "@/lib/profile-rules";
 
 /**
  * Helper verification (docs/decisions.md 2026-11-18). Everything here runs with the service role
@@ -15,6 +16,8 @@ export const KYC_BUCKET = "kyc";
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
 export type ApplicationStatus = "submitted" | "approved" | "rejected" | "changes_requested";
+/** "helper": the helper application; "identity": a customer's ID check for jobs in their home (2026-11-26). */
+export type KycPurpose = "helper" | "identity";
 
 export interface MyApplication {
   id: string;
@@ -24,11 +27,13 @@ export interface MyApplication {
   decidedAt: number | null;
 }
 
-export async function latestApplication(userId: string): Promise<MyApplication | null> {
+/** The latest application of one kind: a helper application, or a customer's identity check. */
+export async function latestApplication(userId: string, purpose: KycPurpose = "helper"): Promise<MyApplication | null> {
   const { data } = await createAdminClient()
     .from("helper_applications")
     .select("id, status, decision_note, submitted_at, decided_at")
     .eq("user_id", userId)
+    .eq("purpose", purpose)
     .order("submitted_at", { ascending: false })
     .limit(1)
     .maybeSingle<{
@@ -79,6 +84,25 @@ export interface ApplicationInput {
 
 export type SubmitResult = { ok: true } | { ok: false; reason: "files" | "open" };
 
+/** A customer's identity check: the same ID files and Ops review as helpers, nothing else (no kinds, no bank). */
+export async function submitIdentity(userId: string, a: Pick<ApplicationInput, "legalName" | "idLast4" | "birthDate" | "files">): Promise<SubmitResult> {
+  for (const path of Object.values(a.files)) if (!(await fileExists(userId, path))) return { ok: false, reason: "files" };
+  const { error } = await createAdminClient().from("helper_applications").insert({
+    user_id: userId,
+    purpose: "identity",
+    legal_name: a.legalName,
+    id_last4: a.idLast4,
+    birth_date: a.birthDate,
+    categories: [],
+    id_front_path: a.files.id_front,
+    id_back_path: a.files.id_back,
+    selfie_path: a.files.selfie,
+    consent_at: new Date().toISOString(),
+  });
+  if (error) return error.code === "23505" ? { ok: false, reason: "open" } : Promise.reject(new Error(error.message));
+  return { ok: true };
+}
+
 /** Stores a complete application (all required files must exist in the applicant's folder). */
 export async function submitApplication(userId: string, a: ApplicationInput): Promise<SubmitResult> {
   for (const path of Object.values(a.files)) if (!(await fileExists(userId, path))) return { ok: false, reason: "files" };
@@ -117,17 +141,78 @@ export interface QueueItem {
   userId: string;
   legalName: string;
   submittedAt: number;
+  purpose: KycPurpose;
 }
 
 export async function reviewQueue(): Promise<QueueItem[]> {
   const { data } = await createAdminClient()
     .from("helper_applications")
-    .select("id, user_id, legal_name, submitted_at")
+    .select("id, user_id, legal_name, submitted_at, purpose")
     .eq("status", "submitted")
     .order("submitted_at")
     .limit(100)
-    .returns<{ id: string; user_id: string; legal_name: string; submitted_at: string }[]>();
-  return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id, legalName: r.legal_name, submittedAt: Date.parse(r.submitted_at) }));
+    .returns<{ id: string; user_id: string; legal_name: string; submitted_at: string; purpose: KycPurpose }[]>();
+  return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id, legalName: r.legal_name, submittedAt: Date.parse(r.submitted_at), purpose: r.purpose }));
+}
+
+/** Recently approved applications, newest first — where Ops finds one to send back for a re-check. */
+export async function recentlyApproved(limit = 30): Promise<(QueueItem & { decidedAt: number })[]> {
+  const { data } = await createAdminClient()
+    .from("helper_applications")
+    .select("id, user_id, legal_name, submitted_at, decided_at, purpose")
+    .eq("status", "approved")
+    .order("decided_at", { ascending: false })
+    .limit(limit)
+    .returns<{ id: string; user_id: string; legal_name: string; submitted_at: string; decided_at: string; purpose: KycPurpose }[]>();
+  return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id, legalName: r.legal_name, submittedAt: Date.parse(r.submitted_at), decidedAt: Date.parse(r.decided_at), purpose: r.purpose }));
+}
+
+/**
+ * Undo an approval so the person verifies again (owner 2026-11-26: an approval made with test
+ * details couldn't be corrected). The checked name, verified level and age band are cleared, they
+ * stop being an active helper, and their bank account must be checked again. Never while they have a
+ * job in progress. The name can't simply be edited: it must come from a newly checked ID.
+ */
+export async function reopenVerification(appId: string, opsId: string, note: string): Promise<"ok" | "changed" | "busy"> {
+  const db = createAdminClient();
+  const { data: a } = await db
+    .from("helper_applications")
+    .select("id, user_id, purpose")
+    .eq("id", appId)
+    .eq("status", "approved")
+    .maybeSingle<{ id: string; user_id: string; purpose: KycPurpose }>();
+  if (!a) return "changed";
+  const { count } = await db
+    .from("deals")
+    .select("id", { count: "exact", head: true })
+    .eq("helper_id", a.user_id)
+    .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
+  if ((count ?? 0) > 0) return "busy";
+  const now = new Date().toISOString();
+  const { data: reopened } = await db
+    .from("helper_applications")
+    .update({ status: "changes_requested", decided_at: now, decided_by: opsId, decision_note: note })
+    .eq("id", appId)
+    .eq("status", "approved")
+    .select("id");
+  if (!reopened?.length) return "changed";
+  const { data: prof } = await db.from("profiles").select("role").eq("id", a.user_id).single<{ role: string }>();
+  // a customer's identity check only clears the verification; a helper's also ends helper work and the bank check
+  const helper = a.purpose === "helper";
+  await db
+    .from("profiles")
+    .update({
+      ...(helper ? { role: prof?.role === "admin" ? "admin" : "customer", helper_status: null } : {}),
+      kyc_level: 1,
+      verified_name: null,
+      age_band: null,
+      show_age_band: false,
+    })
+    .eq("id", a.user_id)
+    .throwOnError();
+  if (helper) await db.from("payout_accounts").update({ verified_at: null }).eq("user_id", a.user_id).throwOnError();
+  await audit(opsId, "kyc.reopened", a.user_id, { appId, note });
+  return "ok";
 }
 
 export interface ApplicationForOps {
@@ -142,6 +227,7 @@ export interface ApplicationForOps {
   payout: { bank: string; accountMasked: string; holderName: string } | null;
   profileName: string;
   submittedAt: number;
+  purpose: KycPurpose;
 }
 
 /** One application with 5-minute links to its documents — for an admin only (caller checks). */
@@ -178,6 +264,7 @@ export async function applicationForOps(id: string): Promise<ApplicationForOps |
     payout: pay ? { bank: pay.bank, accountMasked: `•••• ${String(pay.account_number).slice(-4)}`, holderName: pay.holder_name } : null,
     profileName: prof?.name ?? "",
     submittedAt: Date.parse(a.submitted_at),
+    purpose: a.purpose === "identity" ? "identity" : "helper",
   };
 }
 
@@ -199,7 +286,21 @@ export async function decide(
   const { data: a } = await db.from("helper_applications").select("*").eq("id", appId).eq("status", "submitted").maybeSingle();
   if (!a) return false;
   const now = new Date().toISOString();
-  if (decision === "approve") {
+  if (a.purpose === "identity") {
+    // a customer's ID check (2026-11-26): approval verifies the person — no helper role, kinds or bank
+    if (decision === "approve") {
+      const { data: prof } = await db.from("profiles").select("kyc_level").eq("id", a.user_id).single<{ kyc_level: number }>();
+      await db
+        .from("profiles")
+        .update({
+          kyc_level: Math.max(prof?.kyc_level ?? 1, KYC_LEVEL_VERIFIED),
+          verified_name: a.legal_name,
+          age_band: a.birth_date ? ageBandOf(String(a.birth_date), new Date()) : null,
+        })
+        .eq("id", a.user_id)
+        .throwOnError();
+    }
+  } else if (decision === "approve") {
     const { data: pay } = await db.from("payout_accounts").select("bank, account_number, holder_name").eq("user_id", a.user_id).single();
     // Reviewing an ID does not establish who owns the submitted bank account.
     // Account ownership is checked separately against information from the bank.
@@ -211,6 +312,8 @@ export async function decide(
         helper_status: "approved",
         kyc_level: KYC_LEVEL_VERIFIED,
         verified_name: a.legal_name,
+        // the decade only (opt-in to show, 2026-11-26); the birth date itself is deleted with the files
+        age_band: a.birth_date ? ageBandOf(String(a.birth_date), new Date()) : null,
         categories: categories.length ? categories : a.categories,
         payout_bank: pay?.bank ?? null,
         payout_account_last4: pay ? String(pay.account_number).slice(-4) : null,

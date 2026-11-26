@@ -1,5 +1,8 @@
 "use server";
 
+import { needsIdCheck } from "@/lib/kyc-rules";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
+
 import { redirect } from "next/navigation";
 import { isOnboarded } from "@/lib/legal-rules";
 import { getT } from "@/i18n/server";
@@ -74,6 +77,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
 
   if (!CATEGORIES.some((c) => c.id === category)) return { error: t("error.generic"), step: STEP.type };
   if (!(await liveCategories()).includes(category)) return { error: t("specialized.unavailable"), step: STEP.type };
+  // jobs in someone's home or with a person: the customer's ID is checked first (2026-11-26)
+  if (needsIdCheck(category, viewer.profile.kyc_level, !unverifiedHelpersTestMode)) return { error: t("verify.neededToPost"), step: STEP.type };
   if (!title || !description || title.length > cfg.titleMax || description.length > cfg.descriptionMax) {
     return { error: t("task.reasonWhat"), step: STEP.what };
   }

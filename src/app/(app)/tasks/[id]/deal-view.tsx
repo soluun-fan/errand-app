@@ -120,6 +120,7 @@ export function DealView(p: DealViewProps) {
     dt.floor !== null && t("details.floor", { v: dt.floor }),
     dt.unit && t("details.unit", { v: dt.unit }),
     dt.lift === "yes" ? t("details.liftYes") : dt.lift === "no" ? t("details.liftNo") : null,
+    dt.parking === "yes" ? t("details.parkingYes") : dt.parking === "no" ? t("details.parkingNo") : null,
     dt.people === 2 && t("details.people", { n: 2 }),
   ].filter((x): x is string => typeof x === "string" && x.length > 0);
 

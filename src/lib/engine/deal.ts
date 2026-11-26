@@ -12,7 +12,6 @@ import {
   DEFAULT_CONFIG,
   HOUR_MS,
   MINUTE_MS,
-  TWO_POINT_CATEGORIES,
   customerChoosesHelper,
   categoryTrust,
   type CategoryId,
@@ -282,6 +281,7 @@ function normalizeDetails(category: CategoryId, raw: Partial<ErrandDetails> | un
   if (!Number.isFinite(d.km) || d.km < 0 || d.km > 100) fail("INVALID_INPUT", "Distance must be between 0 and 100 km");
   if (d.floor !== null && (!Number.isInteger(d.floor) || d.floor < 0 || d.floor > 60)) fail("INVALID_INPUT", "Floor must be 0–60");
   if (d.lift !== null && !["yes", "no", "unknown"].includes(d.lift)) fail("INVALID_INPUT", "Bad lift value");
+  if (d.parking != null && !["yes", "no", "unknown"].includes(d.parking)) fail("INVALID_INPUT", "Bad parking value");
   if (d.people !== 1 && d.people !== 2) fail("INVALID_INPUT", "People must be 1 or 2");
   if (!Number.isInteger(d.minutes) || d.minutes < 30 || d.minutes > 480 || d.minutes % 30 !== 0) {
     fail("INVALID_INPUT", "Duration must be 30 minutes to 8 hours, in 30-minute steps");
@@ -293,6 +293,8 @@ function normalizeDetails(category: CategoryId, raw: Partial<ErrandDetails> | un
     floor: d.floor,
     unit: clean(d.unit, 20),
     lift: d.lift,
+    parking: d.parking ?? null,
+    contactless: Boolean(d.contactless),
     note: clean(d.note, 300),
     people: d.people,
     carryByHelper: Boolean(d.carryByHelper),
@@ -326,7 +328,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const scheduledAt = input.scheduledAt ?? null;
   if (scheduledAt !== null && scheduledAt <= ctx.now) fail("INVALID_INPUT", "Scheduled time must be in the future");
   const location = validLocation(input.location);
-  const pickupLocation = TWO_POINT_CATEGORIES.includes(input.category) ? validLocation(input.pickupLocation) : null;
+  // any kind may have a pickup: the customer chooses one place or two (2026-11-26)
+  const pickupLocation = validLocation(input.pickupLocation);
   // Both pins: the distance comes from the map, never from the client's number.
   const details = normalizeDetails(
     input.category,

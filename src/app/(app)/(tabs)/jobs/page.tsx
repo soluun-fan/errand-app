@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarClock, ChevronRight, Landmark, MapPin, Users, Zap } from "lucide-react";
+import { CalendarClock, ChevronRight, DoorClosed, IdCard, Landmark, MapPin, Users, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
 import { WorkReady } from "@/components/work-ready";
@@ -73,6 +73,18 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
         ) : (
           d.status === "open" && <span className={`${tag} ${full ? "bg-fill text-ink-2" : "bg-brand-bg text-brand-ink"}`}>{full ? t("job.full") : t("job.available")}</span>
         )}
+        {item.customerVerified && (
+          <span className={`${tag} bg-held-bg text-held`}>
+            <IdCard aria-hidden size={13} />
+            {t("verify.badge")}
+          </span>
+        )}
+        {d.details.contactless && (
+          <span className={`${tag} bg-fill text-ink-2`}>
+            <DoorClosed aria-hidden size={13} />
+            {t("job.contactless")}
+          </span>
+        )}
         {/* a team job, said up front (PleaseHelp "2 helpers wanted") */}
         {d.details.people === 2 && (
           <span className={`${tag} bg-fill text-ink-2`}>
@@ -140,7 +152,7 @@ function Thumb({ pic, t }: { pic: NonNullable<Pic>; t: T }) {
  */
 /** "Бүх ажил": every open post in the city, with category + sort filters (links, so it works without JS). */
 async function Board({ sp, viewerId, from, mine, t, locale }: {
-  sp: { cat?: string | string[]; sort?: string | string[]; when?: string | string[] };
+  sp: { cat?: string | string[]; sort?: string | string[]; when?: string | string[]; meet?: string | string[]; idok?: string | string[] };
   viewerId: string;
   from: { lat: number; lng: number } | null;
   mine: readonly CategoryId[];
@@ -151,17 +163,28 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
   const sort: BoardSort = sp.sort === "new" || sp.sort === "pay" ? sp.sort : from ? "near" : "new";
   // Now / scheduled (PleaseHelp-style): a helper free right now wants the "now" jobs first
   const when = sp.when === "now" || sp.when === "later" ? sp.when : undefined;
+  // jobs that don't need meeting the customer (PleaseHelp "비대면", 2026-11-26)
+  const contactless = sp.meet === "no";
+  // only customers whose ID was checked (2026-11-26)
+  const idOk = sp.idok === "1";
   const items = (await browseOpenDeals(viewerId, { category: cat, sort, from })).filter(
-    (i) => !when || (when === "now") === (i.deal.scheduledAt === null && i.deal.mode !== "schedule"),
+    (i) =>
+      (!when || (when === "now") === (i.deal.scheduledAt === null && i.deal.mode !== "schedule")) &&
+      (!contactless || Boolean(i.deal.details.contactless)) &&
+      (!idOk || Boolean(i.customerVerified)),
   );
   const pics = await loadPics(items);
-  const href = (p: { cat?: string; sort?: string; when?: string }) => {
+  const href = (p: { cat?: string; sort?: string; when?: string; meet?: boolean; idok?: boolean }) => {
     const q = new URLSearchParams({ view: "all" });
     const c = "cat" in p ? p.cat : cat;
     const s = p.sort ?? sort;
     const w = "when" in p ? p.when : when;
+    const m = "meet" in p ? p.meet : contactless;
+    const v = "idok" in p ? p.idok : idOk;
     if (c) q.set("cat", c);
     if (w) q.set("when", w);
+    if (m) q.set("meet", "no");
+    if (v) q.set("idok", "1");
     q.set("sort", s);
     return `/jobs?${q}`;
   };
@@ -183,6 +206,12 @@ async function Board({ sp, viewerId, from, mine, t, locale }: {
             {w === "now" ? <Zap aria-hidden size={14} /> : <CalendarClock aria-hidden size={14} />} {t(`job.when_${w}`)}
           </Link>
         ))}
+        <Link href={href({ meet: !contactless })} aria-current={contactless ? "page" : undefined} className={chipClass(contactless)}>
+          <DoorClosed aria-hidden size={14} /> {t("job.contactless")}
+        </Link>
+        <Link href={href({ idok: !idOk })} aria-current={idOk ? "page" : undefined} className={chipClass(idOk)}>
+          <IdCard aria-hidden size={14} /> {t("verify.verifiedOnly")}
+        </Link>
         <span aria-hidden className="mx-1 h-6 w-px flex-none bg-line" />
         {(["near", "new", "pay"] as const).map((s) =>
           s === "near" && !from ? null : (

@@ -16,6 +16,8 @@ import Link from "next/link";
 import { PostFlow, type Draft, type InviteTarget } from "./post-flow";
 import { Ban } from "lucide-react";
 import { titled } from "@/lib/page-title";
+import { ID_CHECK_KINDS, needsIdCheck } from "@/lib/kyc-rules";
+import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 
 export const generateMetadata = titled("post.title");
 
@@ -167,6 +169,8 @@ export default async function PostPage({ searchParams }: PageProps<"/post">) {
       cfg={cfg}
       live={live}
       invite={invite}
+      // jobs in a home or with a person need a checked ID first (2026-11-26); empty when not needed
+      idCheckKinds={needsIdCheck("repair", viewer.profile.kyc_level, !unverifiedHelpersTestMode) ? [...ID_CHECK_KINDS] : []}
     />
     </>
   );

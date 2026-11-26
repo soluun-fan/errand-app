@@ -4,6 +4,7 @@
  * stored data minimal.
  */
 import { namesMatch } from "@/lib/engine/payouts";
+import type { CategoryId } from "@/lib/engine/config";
 
 export const KYC_DOCS = ["id_front", "id_back", "selfie"] as const;
 export type KycDoc = (typeof KYC_DOCS)[number];
@@ -58,3 +59,14 @@ export function cleanLegalName(raw: string): string | null {
   const v = raw.normalize("NFC").replace(/\s+/g, " ").trim();
   return v.length >= 3 && v.length <= 80 && /^[\p{L}\s.'-]+$/u.test(v) ? v : null;
 }
+
+
+/**
+ * Jobs where a helper enters a private home or goes with a person (owner 2026-11-26): the customer
+ * must have a checked ID before posting them. Everyday errands outside the home don't need it.
+ */
+export const ID_CHECK_KINDS: readonly CategoryId[] = ["repair", "assembly", "plumbing", "electrical", "cleaning", "childcare", "eldercare", "escort"];
+
+/** Must this customer verify their ID before posting this kind? Never while ID review is switched off (private test). */
+export const needsIdCheck = (category: CategoryId, kycLevel: number, idReviewOn: boolean): boolean =>
+  idReviewOn && ID_CHECK_KINDS.includes(category) && kycLevel < KYC_LEVEL_VERIFIED;

@@ -76,7 +76,8 @@ export const categoryTrust = (id: CategoryId): Trust => categoryConfig(id).trust
 
 /** Tasks with a pickup and a drop-off (distance and a pickup pin apply); others happen in one place. */
 // "other" and "escort" too (owner 2026-11-17): "take the keys there and come back" is priced by
-// distance, and the way back (round trip) costs a share of it (roundTripBps, 50% by default).
+// distance, and the way back (round trip) costs a share of it (roundTripBps: 100% since 2026-11-26 — the
+// helper travels the same distance again).
 export const TWO_POINT_CATEGORIES: readonly CategoryId[] = ["shop", "deliver", "carry", "other", "escort"];
 
 /** Flat service fee by task price: the first tier whose `below` is above the price (null = any). */
@@ -250,7 +251,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   titleMax: 40,
   descriptionMax: 500,
   carryPerFloor: 1500,
-  roundTripBps: 5000,
+  roundTripBps: 10000, // the way back costs the same as the way there (owner 2026-11-26)
   travelMinPerKm: 3,
   careDayStartHour: 8,
   careDayEndHour: 21,

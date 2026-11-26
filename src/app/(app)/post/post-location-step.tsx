@@ -1,17 +1,16 @@
 "use client";
 
 import { AddressInput, type AddressChoice } from "@/components/address-input";
-import { DashedAdd } from "@/components/choice";
+import { DashedAdd, ToggleRow } from "@/components/choice";
 import { RouteStops } from "@/components/detail";
 import { Ico } from "@/components/icon";
 import { chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { SavedAddress } from "@/lib/addresses";
-import { TWO_POINT_CATEGORIES } from "@/lib/engine";
 
-import { Check, Plus } from "lucide-react";
+import { Check, DoorClosed, Plus } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import { KIND_ICON, digits, fromSaved, type Draft } from "./post-draft";
+import { CONTACTLESS_KINDS, KIND_ICON, digits, fromSaved, twoPlaces, type Draft } from "./post-draft";
 const NOTE_MAX = 300;
 const NOTE_CHIPS = ["door", "guard", "callFirst", "codeInChat"] as const;
 
@@ -30,7 +29,7 @@ export function PostLocationStep({
 }) {
   const t = useT();
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
+  const twoPoint = twoPlaces(d);
   const isCarry = d.category === "carry";
   const savedMatch = saved.find((a) => a.address === d.address.trim());
   const savedName = (a: SavedAddress) => (a.kind === "other" ? (a.label ?? a.address) : t(`task.saved.${a.kind}`));
@@ -87,6 +86,24 @@ export function PostLocationStep({
   return (
     <>
       <p className="-mt-2 text-small leading-relaxed text-ink-2">{t("addressEntry.intro")}</p>
+      {/* one place or pickup → drop-off: the customer decides; the kind only sets the usual (2026-11-26) */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-body font-medium text-ink-2">{t("addressEntry.placesLabel")}</legend>
+        <div className="grid grid-cols-2 gap-1 rounded-full bg-fill p-1" role="radiogroup" aria-label={t("addressEntry.placesLabel")}>
+          {([1, 2] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={twoPoint === (n === 2)}
+              onClick={() => setD((x) => ({ ...x, places: n, ...(n === 1 ? { roundTrip: false } : {}) }))}
+              className={`min-h-11 rounded-full text-body font-semibold ${twoPoint === (n === 2) ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
+            >
+              {t(n === 1 ? "addressEntry.placesOne" : "addressEntry.placesTwo")}
+            </button>
+          ))}
+        </div>
+      </fieldset>
       {twoPoint ? (
         // pickup → drop-off as one route: two stops joined by a line
         <div className="rounded-card bg-bg p-4 shadow-card">
@@ -168,6 +185,26 @@ export function PostLocationStep({
             </div>
           </fieldset>
           {isCarry && d.lift === "unknown" && <p className="text-small text-ink-2">{t("task.liftUnknownNote")}</p>}
+          {/* UB apartment yards: whether a car can stop by the entrance changes a carry job (2026-11-26) */}
+          {isCarry && (
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="mb-1.5 text-body font-medium text-ink-2">{t("task.parking")}</legend>
+              <div className="grid grid-cols-3 gap-1 rounded-full bg-fill p-1" role="radiogroup">
+                {(["yes", "no", "unknown"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="radio"
+                    aria-checked={d.parking === v}
+                    onClick={() => set("parking", v)}
+                    className={`min-h-11 rounded-full text-body font-semibold ${d.parking === v ? "bg-bg text-ink shadow-float" : "text-ink-2"}`}
+                  >
+                    {t(v === "yes" ? "task.parkingYes" : v === "no" ? "task.parkingNo" : "task.liftUnknown")}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className={fieldLabel}>
             {t("task.note")}
             <textarea
@@ -217,6 +254,16 @@ export function PostLocationStep({
           <DashedAdd label={t("addressEntry.details")} onClick={() => set("showDetails", true)} />
           {arrivalSummary && <p className="px-1 text-meta text-ink-2">{arrivalSummary}</p>}
         </div>
+      )}
+
+      {CONTACTLESS_KINDS.includes(d.category) && (
+        <ToggleRow
+          icon={<DoorClosed aria-hidden size={22} />}
+          title={t("task.contactless")}
+          sub={t("task.contactlessSub")}
+          checked={Boolean(d.contactless)}
+          onChange={(v) => set("contactless", v)}
+        />
       )}
 
       {d.address.trim() && !savedMatch && (

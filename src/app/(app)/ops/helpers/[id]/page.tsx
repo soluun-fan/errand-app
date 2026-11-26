@@ -8,7 +8,7 @@ import { CATEGORIES } from "@/lib/engine";
 import { fmtDateTime } from "@/lib/format";
 import { applicationForOps } from "@/lib/kyc";
 import { KYC_DOCS } from "@/lib/kyc-rules";
-import { decideKyc } from "../actions";
+import { decideKyc, reopenKyc } from "../actions";
 import { FileText } from "lucide-react";
 import { Ico } from "@/components/icon";
 import { titled } from "@/lib/page-title";
@@ -44,7 +44,13 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
   return (
     <>
       <FlowHeader href="/ops/helpers" label={t("common.back")} title={app.legalName} />
-      <p className="text-small text-ink-2">{t("ops.submitted", { when: fmtDateTime(app.submittedAt, locale) })}</p>
+      <p className="text-small text-ink-2">
+        {/* a customer's ID check (2026-11-26) is reviewed the same way, but verifies the person only */}
+        <span className="mr-2 rounded-full bg-fill px-2 py-0.5 text-caption font-semibold text-ink">
+          {t(app.purpose === "identity" ? "ops.purposeIdentity" : "ops.purposeHelper")}
+        </span>
+        {t("ops.submitted", { when: fmtDateTime(app.submittedAt, locale) })}
+      </p>
 
       <section className="grid grid-cols-2 gap-2">
         {KYC_DOCS.map((d) => {
@@ -89,7 +95,7 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
       <Card>
         <h2 className="font-bold">{t("ops.checklist")}</h2>
         <ul className="flex list-disc flex-col gap-1 pl-5 text-body">
-          {CHECKS.map((c) => (
+          {CHECKS.filter((c) => app.purpose === "helper" || c !== "payout").map((c) => (
             <li key={c}>{t(`ops.checks.${c}`)}</li>
           ))}
         </ul>
@@ -103,20 +109,28 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
             trigger={t("ops.approve")}
             triggerClass={`${btn.primary} w-full`}
             title={t("ops.approve")}
-            body={t("ops.approveBody", { name: app.legalName })}
+            body={t(app.purpose === "identity" ? "ops.approveIdentityBody" : "ops.approveBody", { name: app.legalName })}
             confirmLabel={t("ops.approve")}
           >
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-body font-medium text-ink-2">{t("ops.categories")}</legend>
-              <div className="flex flex-wrap gap-3">
-                {CATEGORIES.map((c) => (
-                  <label key={c.id} className="flex min-h-11 items-center gap-2 text-body">
-                    <input type="checkbox" name="categories" value={c.id} defaultChecked={app.categories.includes(c.id)} className="h-5 w-5 accent-ink" />
-                    <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            {app.purpose === "helper" && (
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 text-body font-medium text-ink-2">{t("ops.categories")}</legend>
+                <div className="flex flex-wrap gap-3">
+                  {CATEGORIES.map((c) => (
+                    <label key={c.id} className="flex min-h-11 items-center gap-2 text-body">
+                      <input
+                        type="checkbox"
+                        name="categories"
+                        value={c.id}
+                        defaultChecked={app.categories.includes(c.id)}
+                        className="h-5 w-5 accent-ink"
+                      />
+                      <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
           </ConfirmSheet>
           <div className="flex flex-wrap justify-center gap-1">
             <ConfirmSheet
@@ -142,6 +156,23 @@ export default async function OpsApplicationPage({ params }: PageProps<"/ops/hel
               {note}
             </ConfirmSheet>
           </div>
+        </PrimaryBar>
+      )}
+      {/* an approval made with wrong (e.g. test) details: undo it so the person verifies again */}
+      {app.status === "approved" && (
+        <PrimaryBar>
+          <ConfirmSheet
+            action={reopenKyc}
+            fields={fields}
+            trigger={t("ops.reopen")}
+            triggerClass={`${btn.secondary} w-full`}
+            title={t("ops.reopenTitle", { name: app.legalName })}
+            body={t("ops.reopenBody")}
+            confirmLabel={t("ops.reopen")}
+            confirmClass={btn.danger}
+          >
+            {note}
+          </ConfirmSheet>
         </PrimaryBar>
       )}
     </>

@@ -241,6 +241,8 @@ export async function getPresence(helperId: string): Promise<Presence | null> {
 export interface JobListItem {
   deal: ErrandDeal;
   distanceKm: number | null;
+  /** The open board only: the customer's ID has been checked (2026-11-26). */
+  customerVerified?: boolean;
   /** Offers only: when this helper's exclusive window ends. */
   expiresAt?: number;
 }
@@ -345,7 +347,14 @@ export async function browseOpenDeals(
     });
   if (opts.sort === "near") items.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   if (opts.sort === "pay") items.sort((a, b) => b.deal.fee - a.deal.fee);
-  return items;
+  // which customers have a checked ID — one lookup for the whole list
+  const customers = [...new Set(items.map((i) => i.deal.customerId))];
+  const verified = new Set<string>();
+  if (customers.length) {
+    const { data: rows } = await createAdminClient().from("profiles").select("id").in("id", customers).gte("kyc_level", 3).returns<{ id: string }[]>();
+    for (const r of rows ?? []) verified.add(r.id);
+  }
+  return items.map((i) => ({ ...i, customerVerified: verified.has(i.deal.customerId) }));
 }
 
 /** Open tasks this helper has applied to (their pending requests). */

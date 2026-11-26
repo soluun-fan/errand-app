@@ -53,3 +53,34 @@ export function median(values: readonly number[], min = 1): number | null {
   const s = [...values].sort((a, b) => a - b);
   return s[Math.floor((s.length - 1) / 2)];
 }
+
+/** How a helper gets around (PleaseHelp-style, 2026-11-26); the helper picks any of these. */
+export const TRANSPORT = ["walk", "bicycle", "motorbike", "car"] as const;
+export type Transport = (typeof TRANSPORT)[number];
+export const cleanTransport = (raw: unknown[]): Transport[] => TRANSPORT.filter((m) => raw.includes(m));
+
+/** Years of experience the helper states: whole years 0–60, or null when left empty. */
+export function parseExperience(raw: string): number | null | "invalid" {
+  const v = raw.trim();
+  if (!v) return null;
+  if (!/^\d{1,2}$/.test(v)) return "invalid";
+  const n = Number(v);
+  return n <= 60 ? n : "invalid";
+}
+
+/**
+ * The decade shown instead of a birth date (owner 2026-11-26, opt-in): 18 = "18–19", then 20, 30 …
+ * and 60 = "60+". Taken from the verified ID at approval; the birth date itself is deleted later.
+ */
+export function ageBandOf(birthIso: string, now: Date): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthIso)) return null;
+  const b = new Date(`${birthIso}T00:00:00Z`);
+  if (Number.isNaN(b.getTime())) return null;
+  let age = now.getUTCFullYear() - b.getUTCFullYear();
+  const m = now.getUTCMonth() - b.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getUTCDate() < b.getUTCDate())) age--;
+  if (age < 18) return null;
+  if (age < 20) return 18;
+  return Math.min(60, Math.floor(age / 10) * 10);
+}
+export const ageBandLabel = (band: number): string => (band === 18 ? "18–19" : band >= 60 ? "60+" : `${band}–${band + 9}`);

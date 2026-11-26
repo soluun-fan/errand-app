@@ -68,6 +68,8 @@ export const DetailsInput = z
     floor: z.number().int().nullable(),
     unit: text(40),
     lift: z.enum(["yes", "no", "unknown"]).nullable(),
+    parking: z.enum(["yes", "no", "unknown"]).nullable().optional(),
+    contactless: z.boolean().optional(),
     note: text(600),
     people: z.union([z.literal(1), z.literal(2)]),
     carryByHelper: z.boolean(),

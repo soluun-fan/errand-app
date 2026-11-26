@@ -9,9 +9,10 @@ import { TWO_POINT_CATEGORIES, straightKm, type ErrandDeal, type GeoPoint } from
  * for two-place tasks without a pickup pin (e.g. "buy it anywhere"), which start wherever the helper
  * shops, so there's nothing to check.
  */
-export function startPoint(d: Pick<ErrandDeal, "category" | "pickupLocation" | "location">): GeoPoint | null {
+export function startPoint(d: Pick<ErrandDeal, "category" | "pickupLocation" | "pickupAddress" | "location">): GeoPoint | null {
   if (d.pickupLocation) return d.pickupLocation;
-  if (TWO_POINT_CATEGORIES.includes(d.category)) return null;
+  // a two-place task without a pickup pin (the kind's usual, or one the customer chose) has no fixed start
+  if (TWO_POINT_CATEGORIES.includes(d.category) || d.pickupAddress) return null;
   return d.location;
 }
 

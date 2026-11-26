@@ -27,7 +27,7 @@ describe("each kind has its own floor", () => {
 
   it("the trip and the night extra come on top", () => {
     expect(taskMinFee("shop", d({ km: 4 }), NOON, cfg)).toBe(5000 + 4500); // 3 km beyond the first
-    expect(taskMinFee("shop", d({ km: 4, roundTrip: true }), NOON, cfg)).toBe(5000 + 4500 + 3000);
+    expect(taskMinFee("shop", d({ km: 4, roundTrip: true }), NOON, cfg)).toBe(5000 + 4500 + 6000); // the way back = the way there
     expect(taskMinFee("trash", d(), NIGHT, cfg)).toBe(3000 + cfg.nightFee);
   });
 

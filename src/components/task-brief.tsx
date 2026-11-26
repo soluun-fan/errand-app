@@ -1,6 +1,6 @@
 "use client";
 
-import { ListChecks } from "lucide-react";
+import { ListChecks, Sparkles } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useT } from "@/i18n/client";
 import type { CategoryId } from "@/lib/engine";
@@ -58,6 +58,28 @@ export function TaskBrief({ category, value, title, titleValue, maxLength, title
           <ListChecks aria-hidden size={17} className="mt-0.5 flex-none text-brand-ink" />
           <p id="brief-guidance" className="flex-1 text-meta leading-relaxed text-ink-2">{t(`brief.guidance.${category}`)}</p>
           {value.length > maxLength * 0.8 && <span className="text-caption tabular-nums text-ink-2">{value.length}/{maxLength}</span>}
+        </div>
+      </div>
+      {/* tap-to-fill (PleaseHelp-style): a usual request for this kind, so posting needs less typing */}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-meta text-ink-2">{t("brief.startersLabel")}</span>
+        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
+          {(["a", "b"] as const).map((k) => {
+            const phrase = t(`brief.starters.${category}.${k}`);
+            const used = value.includes(phrase);
+            return (
+              <button
+                key={k}
+                type="button"
+                disabled={used || value.length + phrase.length + 1 > maxLength}
+                onClick={() => onChange(value.trim() ? `${value.trimEnd()}\n${phrase}` : phrase)}
+                className="press inline-flex min-h-11 flex-none items-center gap-1.5 rounded-full border border-line bg-bg px-3.5 text-small font-medium disabled:opacity-50"
+              >
+                <Sparkles aria-hidden size={15} className="flex-none text-brand-ink" />
+                {phrase}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

@@ -5,7 +5,6 @@ import { Ico } from "@/components/icon";
 import { Note, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import {
-  TWO_POINT_CATEGORIES,
   categoryConfig,
   categoryTrust,
   heldItemBudget,
@@ -18,7 +17,7 @@ import { fmtMoney, toUbLocal } from "@/lib/format";
 import { CalendarDays, DoorOpen, Hand, Receipt, Ruler, ShoppingBag, Weight, Wrench } from "lucide-react";
 
 import type { Dispatch, SetStateAction } from "react";
-import { DURATIONS, KM, digits, type Draft } from "./post-draft";
+import { DURATIONS, KM, digits, twoPlaces, type Draft } from "./post-draft";
 export function PostEffortStep({
   d,
   setD,
@@ -44,7 +43,7 @@ export function PostEffortStep({
 }) {
   const t = useT();
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
+  const twoPoint = twoPlaces(d);
   const isCarry = d.category === "carry";
   const care = categoryTrust(d.category) === "care";
   const buys = categoryConfig(d.category).items;

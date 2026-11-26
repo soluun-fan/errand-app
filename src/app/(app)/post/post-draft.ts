@@ -1,6 +1,6 @@
 import type { Pin } from "@/components/pin-map";
 import type { AddressKind, SavedAddress } from "@/lib/addresses";
-import { type CategoryId, type Lift, type TaskConditions } from "@/lib/engine";
+import { TWO_POINT_CATEGORIES, type CategoryId, type Lift, type TaskConditions } from "@/lib/engine";
 import { type JobVariety } from "@/lib/engine/job-varieties";
 import { toUbLocal } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
@@ -30,6 +30,10 @@ export interface Draft {
   floor: string;
   unit: string;
   lift: Lift | null;
+  /** Carry: can the helper park near the entrance? */
+  parking?: Lift | null;
+  /** The job can be done without meeting (leave at the door, with the guard…). */
+  contactless?: boolean;
   note: string;
   km: number;
   when: When;
@@ -56,6 +60,8 @@ export interface Draft {
   pin: Pin | null;
   /** Two-point tasks: map pin for the pickup. With both pins the distance is measured, not guessed. */
   pickupPin: Pin | null;
+  /** One place or two (pickup → drop-off), chosen by the customer; unset = the kind's usual (2026-11-26). */
+  places?: 1 | 2;
   /** "Choose for me": pick the best applicant if I haven't chosen in a few minutes. */
   autoPick: boolean;
 }
@@ -74,6 +80,12 @@ export function fromSaved(a: SavedAddress): Partial<Draft> {
     pin: a.lat !== null && a.lng !== null ? { lat: a.lat, lng: a.lng } : null,
   };
 }
+
+/** Does this task have a pickup and a drop-off? The customer's choice, else the kind's usual. */
+export const twoPlaces = (d: Pick<Draft, "places" | "category">): boolean => (d.places ? d.places === 2 : TWO_POINT_CATEGORIES.includes(d.category));
+
+/** Kinds that can be done without meeting the customer; in-home and care work always meet. */
+export const CONTACTLESS_KINDS: readonly CategoryId[] = ["shop", "deliver", "queue", "other", "trash"];
 
 export const digits = (s: string) => s.replace(/[^\d]/g, "");
 

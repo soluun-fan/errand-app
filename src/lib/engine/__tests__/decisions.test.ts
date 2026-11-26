@@ -7,20 +7,22 @@ const c1 = customer("c1");
 const h1 = helper("h1");
 
 describe("round trip (Буцаж ирэх)", () => {
-  it("adds half the whole trip's distance part, rounded to the fee step", () => {
-    // deliver 4 km: base 5000 (incl. 1 km) + 3 km × 1500 = 4500; return leg 50% of 4 × 1500 = 3000
+  it("prices the way back like the way there (owner 2026-11-26), rounded to the fee step", () => {
+    // deliver 4 km: base 5000 (incl. 1 km) + 3 km × 1500 = 4500; the way back is the full 4 × 1500 = 6000
     const q = quoteFee("deliver", { ...DEFAULT_DETAILS, km: 4, roundTrip: true });
     expect(q.lines).toEqual([
       { key: "base", amount: 5000 },
       { key: "distance", amount: 4500, qty: 3 },
-      { key: "roundTrip", amount: 3000 },
+      { key: "roundTrip", amount: 6000 },
     ]);
-    expect(q.total).toBe(12500);
-    // 2.5 km → 3750 × 50% = 1875 → rounds to 2000
+    expect(q.total).toBe(15500);
+    // 2.5 km back → 3750 → rounds to 4000 (it was 2000 at the old 50% share)
     expect(quoteFee("deliver", { ...DEFAULT_DETAILS, km: 2.5, roundTrip: true }).lines.find((l) => l.key === "roundTrip")).toEqual({
       key: "roundTrip",
-      amount: 2000,
+      amount: 4000,
     });
+    // a short 1 km errand there and back: the way there is included, the way back is not free
+    expect(quoteFee("deliver", { ...DEFAULT_DETAILS, km: 1, roundTrip: true }).lines.find((l) => l.key === "roundTrip")?.amount).toBe(1500);
   });
 
   it("costs nothing without a distance, and the engine drops the flag", () => {
@@ -32,10 +34,10 @@ describe("round trip (Буцаж ирэх)", () => {
 
   it("is part of our estimate (kept for learning); the customer's price only has to meet the minimum", () => {
     const w = new World(DEFAULT_CONFIG);
-    // the minimum includes the trip (owner, 2026-11-17): 5,000 + 3 km × 1,500 + the way back 3,000
+    // the minimum includes the trip (owner, 2026-11-17): 5,000 + 3 km × 1,500 + the way back 4 km × 1,500 (2026-11-26)
     const trip = { category: "deliver" as const, itemBudget: 0, details: { km: 4, roundTrip: true } };
-    expect(() => w.post({ ...trip, fee: 12000 })).toThrow("Minimum fee is ₮12500");
-    expect((w.get(w.post({ ...trip, fee: 12500 })) as ErrandDeal).details).toMatchObject({ quotedFee: 12500, minFee: 12500, counterMax: 0 });
+    expect(() => w.post({ ...trip, fee: 15000 })).toThrow("Minimum fee is ₮15500");
+    expect((w.get(w.post({ ...trip, fee: 15500 })) as ErrandDeal).details).toMatchObject({ quotedFee: 15500, minFee: 15500, counterMax: 0 });
     // time and effort are only our estimate: a long, heavy job can still be posted at its minimum
     const long = { category: "shop" as const, itemBudget: 0, details: { minutes: 120, heavy: true } };
     const id = w.post({ ...long, fee: 7000 }); // below our 17,000 estimate is fine: their call

@@ -110,6 +110,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       {(mode === "customer" || actor.helperApproved || viewer.profile.helper_status === "approved") && (
         <nav className="flex flex-col rounded-card bg-bg shadow-card">
           {mode === "customer" && <LinkRow href="/helpers?saved=1" icon={Heart} label={t("helperProfile.savedTitle")} />}
+          {mode === "customer" && <LinkRow href="/verify" icon={IdCard} label={profile.kyc_level >= 3 ? t("verify.badge") : t("verify.link")} />}
           {actor.helperApproved && <LinkRow href={`/helpers/${profile.id}`} icon={UserRound} label={t("helperProfile.title")} />}
           {actor.helperApproved && !(unverifiedHelpersTestMode && profile.test_helper) && <LinkRow href="/helper/bank" icon={Landmark} label={t("payout.title")} />}
           {(actor.helperApproved || viewer.profile.helper_status === "approved") && <LinkRow href="/helper/record" icon={AlarmClock} label={t("standards.recordTitle")} />}

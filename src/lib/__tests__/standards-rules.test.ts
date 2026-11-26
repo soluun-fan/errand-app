@@ -7,9 +7,12 @@ const far = { lat: 47.9284, lng: 106.9177 }; // ~1.1 km north
 const now = Date.UTC(2026, 10, 22, 4);
 
 it("starts at the pickup pin, else the task pin; two-place tasks without a pickup have no check", () => {
-  expect(startPoint({ category: "shop", pickupLocation: near, location: pin })).toEqual(near);
-  expect(startPoint({ category: "shop", pickupLocation: null, location: pin })).toBeNull();
-  expect(startPoint({ category: "queue", pickupLocation: null, location: pin })).toEqual(pin);
+  expect(startPoint({ category: "shop", pickupLocation: near, pickupAddress: "Номин", location: pin })).toEqual(near);
+  expect(startPoint({ category: "shop", pickupLocation: null, pickupAddress: null, location: pin })).toBeNull();
+  expect(startPoint({ category: "queue", pickupLocation: null, pickupAddress: null, location: pin })).toEqual(pin);
+  // the customer chose two places on a one-place kind (2026-11-26): no fixed start without a pin
+  expect(startPoint({ category: "repair", pickupLocation: null, pickupAddress: "Их дэлгүүр", location: pin })).toBeNull();
+  expect(startPoint({ category: "repair", pickupLocation: near, pickupAddress: "Их дэлгүүр", location: pin })).toEqual(near);
 });
 
 it("start needs a fresh position within the radius", () => {

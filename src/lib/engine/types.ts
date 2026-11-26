@@ -38,6 +38,10 @@ export interface ErrandDetails {
   floor: number | null;
   unit: string | null;
   lift: Lift | null;
+  /** Carry jobs: can the helper park near the entrance? (UB apartment yards; 2026-11-26) */
+  parking?: Lift | null;
+  /** Can be done without meeting the customer (left at the door, with the guard…); helpers can filter for it. */
+  contactless?: boolean;
   /** "Ж: Орцны код, хаалганы өнгө…" */
   note: string | null;
   people: 1 | 2;

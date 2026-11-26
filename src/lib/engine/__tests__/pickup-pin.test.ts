@@ -59,9 +59,20 @@ describe("pickup pin at posting", () => {
     expect(d.pickupLocation).toBeNull();
   });
 
-  it("ignores a pickup pin on one-place tasks (queue, repair…)", () => {
+  it("keeps a pickup pin on any kind when the customer chose two places (2026-11-26)", () => {
+    // e.g. a queue job that starts by fetching documents elsewhere: the pickup stays and the distance is measured
     const d = createErrand(
-      { id: "Q1", title: "Queue", description: "At the tax office", category: "queue", mode: "now", address: "Tax office", itemBudget: 0, fee: 5000, customerId: "c1", location: SQ, pickupLocation: NORTH_2KM },
+      { id: "Q1", title: "Queue", description: "Pick up the papers, then queue at the tax office", category: "queue", mode: "now", address: "Tax office", itemBudget: 0, fee: 9000, customerId: "c1", location: SQ, pickupLocation: NORTH_2KM },
+      { now: T0, actor: customer("c1") },
+      DEFAULT_CONFIG,
+    ).deal;
+    expect(d.pickupLocation).toEqual(NORTH_2KM);
+    expect(d.details.km).toBeGreaterThan(1);
+  });
+
+  it("a one-place task without a pickup pin stays one place", () => {
+    const d = createErrand(
+      { id: "Q2", title: "Queue", description: "At the tax office", category: "queue", mode: "now", address: "Tax office", itemBudget: 0, fee: 5000, customerId: "c1", location: SQ },
       { now: T0, actor: customer("c1") },
       DEFAULT_CONFIG,
     ).deal;

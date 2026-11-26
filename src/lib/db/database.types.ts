@@ -840,6 +840,7 @@ export type Database = {
           decided_by: string | null;
           decision_note: string | null;
           files_purged_at: string | null;
+          purpose: string;
         };
         Insert: {
           id?: string;
@@ -875,6 +876,7 @@ export type Database = {
           decided_by?: string | null;
           decision_note?: string | null;
           files_purged_at?: string | null;
+          purpose?: string;
         };
         Update: {
           id?: string;
@@ -910,6 +912,7 @@ export type Database = {
           decided_by?: string | null;
           decision_note?: string | null;
           files_purged_at?: string | null;
+          purpose?: string;
         };
         Relationships: [
           {
@@ -2358,6 +2361,10 @@ export type Database = {
           desktop_work_enabled: boolean;
           customer_rating_sum: number;
           customer_rating_count: number;
+          experience_years: number | null;
+          transport: string[];
+          age_band: number | null;
+          show_age_band: boolean;
         };
         Insert: {
           id: string;
@@ -2405,6 +2412,10 @@ export type Database = {
           desktop_work_enabled?: boolean;
           customer_rating_sum?: number;
           customer_rating_count?: number;
+          experience_years?: number | null;
+          transport?: string[];
+          age_band?: number | null;
+          show_age_band?: boolean;
         };
         Update: {
           id?: string;
@@ -2452,6 +2463,10 @@ export type Database = {
           desktop_work_enabled?: boolean;
           customer_rating_sum?: number;
           customer_rating_count?: number;
+          experience_years?: number | null;
+          transport?: string[];
+          age_band?: number | null;
+          show_age_band?: boolean;
         };
         Relationships: [];
       };

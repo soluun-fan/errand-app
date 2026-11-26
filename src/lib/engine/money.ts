@@ -217,7 +217,8 @@ export function quoteFee(category: CategoryId, d: ErrandDetails, cfg: EngineConf
   const distance = roundStep(extraKm * cfg.perKm, cfg);
   if (distance > 0) lines.push({ key: "distance", amount: distance, qty: extraKm });
   if (d.roundTrip && km > 0) {
-    // Return leg: a share of the whole trip's distance, rounded to the fee step.
+    // Return leg: the same distance again (roundTripBps, 100% by default), rounded to the fee step;
+    // the included km only ever covers the way there.
     const back = roundStep(bps(km * cfg.perKm, cfg.roundTripBps), cfg);
     if (back > 0) lines.push({ key: "roundTrip", amount: back });
   }

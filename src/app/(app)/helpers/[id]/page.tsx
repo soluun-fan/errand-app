@@ -17,6 +17,7 @@ import { WorkPhotoRemove, WorkPhotoReport } from "@/components/portfolio-cards";
 import { portfolio } from "@/lib/work-photos";
 import { SaveButton } from "../save-button";
 import { titled } from "@/lib/page-title";
+import { ageBandLabel } from "@/lib/profile-rules";
 
 export const generateMetadata = titled("helperProfile.title");
 
@@ -80,6 +81,22 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
               <MapPin aria-hidden size={14} /> {p.area}
             </span>
           )}
+          {/* PleaseHelp-style facts the helper chose to share (2026-11-26) */}
+          {(p.experienceYears !== null || p.ageBand !== null || p.transport.length > 0) && (
+            <span className="flex flex-wrap justify-center gap-1.5 pt-1">
+              {p.experienceYears !== null && p.experienceYears > 0 && (
+                <span className="rounded-full bg-fill px-2.5 py-1 text-caption font-semibold text-ink-2">{t("helperProfile.experience", { n: p.experienceYears })}</span>
+              )}
+              {p.ageBand !== null && (
+                <span className="rounded-full bg-fill px-2.5 py-1 text-caption font-semibold text-ink-2">{t("helperProfile.ageBand", { band: ageBandLabel(p.ageBand) })}</span>
+              )}
+              {p.transport.map((m) => (
+                <span key={m} className="rounded-full bg-fill px-2.5 py-1 text-caption font-semibold text-ink-2">
+                  {t(`listing.transportModes.${m}`)}
+                </span>
+              ))}
+            </span>
+          )}
         </div>
         <div className="grid w-full grid-cols-3 divide-x divide-line border-t border-line pt-3">
           {stat(
@@ -123,7 +140,17 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
               )}
             </dl>
           )}
-          {me && pricing && <ListingEditor bio={p.bio} fromPrice={p.fromPrice} minPrice={pricing.baseFee} />}
+          {me && pricing && (
+            <ListingEditor
+              bio={p.bio}
+              fromPrice={p.fromPrice}
+              minPrice={pricing.baseFee}
+              experienceYears={p.experienceYears}
+              transport={p.transport}
+              ownAgeBand={p.ownAgeBand}
+              showAgeBand={p.showAgeBand}
+            />
+          )}
         </section>
       )}
 

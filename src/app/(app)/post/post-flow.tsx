@@ -14,7 +14,6 @@ import type { SavedAddress } from "@/lib/addresses";
 import { draftKeyFor } from "@/lib/draft";
 import {
   CATEGORIES,
-  TWO_POINT_CATEGORIES,
   categoryConfig,
   categoryTrust,
   customerChoosesHelper,
@@ -40,7 +39,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import { postTask, type PostState } from "./actions";
 
-import { STEPS, digits, fromSaved, startString, type Draft, type InviteTarget } from "./post-draft";
+import { CONTACTLESS_KINDS, STEPS, digits, fromSaved, startString, twoPlaces, type Draft, type InviteTarget } from "./post-draft";
 import { PostEffortStep } from "./post-effort-step";
 import { PostLocationStep } from "./post-location-step";
 export type { Draft, InviteTarget } from "./post-draft";
@@ -56,6 +55,7 @@ export function PostFlow({
   live,
   openTasks = 0,
   firstTask = false,
+  idCheckKinds = [],
 }: {
   userId: string;
   live: CategoryId[];
@@ -66,6 +66,8 @@ export function PostFlow({
   openTasks?: number;
   /** No service fee: the customer's first task (server-checked; the engine decides again on posting). */
   firstTask?: boolean;
+  /** Kinds this customer may only post after an ID check (empty = none, or checks are off). */
+  idCheckKinds?: CategoryId[];
   initial: Partial<Draft>;
   startStep?: number;
   defaultAddress: string;
@@ -186,7 +188,7 @@ export function PostFlow({
     return () => clearInterval(id);
   }, []);
 
-  const twoPoint = TWO_POINT_CATEGORIES.includes(d.category);
+  const twoPoint = twoPlaces(d);
   const isCarry = d.category === "carry";
   const buys = categoryConfig(d.category).items;
   const posterChooses = customerChoosesHelper(d.category);
@@ -207,6 +209,8 @@ export function PostFlow({
     floor: d.floor ? Number(d.floor) : null,
     unit: d.unit || null,
     lift: d.lift,
+    parking: isCarry ? (d.parking ?? null) : null,
+    contactless: CONTACTLESS_KINDS.includes(d.category) && Boolean(d.contactless),
     note: d.note || null,
     people: d.people,
     carryByHelper: isCarry ? d.carryByHelper : true,
@@ -379,7 +383,7 @@ export function PostFlow({
                   aria-checked={on}
                   // one tap answers this screen's question and moves on
                   onClick={() => {
-                    setD((x) => ({ ...x, category: c.id, variety: x.category === c.id ? x.variety : undefined }));
+                    setD((x) => ({ ...x, category: c.id, variety: x.category === c.id ? x.variety : undefined, places: x.category === c.id ? x.places : undefined }));
                     setStep(1);
                   }}
                   className={`press flex items-center gap-3 rounded-card border-2 bg-bg p-3.5 text-left shadow-card ${on ? "border-brand" : "border-transparent"}`}
@@ -414,6 +418,15 @@ export function PostFlow({
             <CategoryIcon id={d.category} size={16} />
             {t(`categoryShort.${d.category}`)} · {t("task.change")}
           </button>
+          {/* a job in someone's home or with a person: the ID check comes first (2026-11-26) */}
+          {idCheckKinds.includes(d.category) && (
+            <Note tone="info">
+              {t("verify.neededNote")}{" "}
+              <Link href="/verify" className="font-semibold underline underline-offset-2">
+                {t("verify.link")}
+              </Link>
+            </Note>
+          )}
           <TaskBrief
             category={d.category}
             value={brief}

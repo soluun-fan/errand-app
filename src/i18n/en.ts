@@ -183,6 +183,19 @@ export const en = {
     empty: "No tasks yet",
     emptyBody: "Post your first task — helpers nearby see it straight away.",
   },
+  // a customer's ID check, needed before jobs in their home or with a person (2026-11-26)
+  verify: {
+    title: "Verify your ID",
+    link: "Verify ID",
+    intro: "Before you book work inside your home or with a person — repairs, assembly, plumbing, electrical, cleaning, care, escorting — we check your ID. It keeps both the helper and you safe. The ID photos are deleted 30 days after the check.",
+    neededToPost: "A helper comes into your home for this job, so please verify your ID first: Profile → Verify ID.",
+    neededNote: "Please verify your ID before booking this job.",
+    verified: "Your ID has been checked.",
+    unavailable: "ID checks are paused during the private test.",
+    consent: "I allow {app} to use my ID card and selfie only to check who I am.",
+    badge: "ID checked",
+    verifiedOnly: "ID-checked customers",
+  },
   // browser-tab titles for pages whose heading is private (a task title stays out of history)
   meta: {
     chat: "Chat",
@@ -297,6 +310,8 @@ export const en = {
     platform: "{app} · service fee + commission",
   },
   helperProfile: {
+    experience: "{n} years' experience",
+    ageBand: "Age {band}",
     title: "Helper profile",
     yours: "This is how customers see your profile.",
     reviewsN: "{n} reviews",
@@ -340,6 +355,13 @@ export const en = {
     openNowBody: "Nearby helpers are told now and anyone may apply — the helper you picked too.",
   },
   listing: {
+    experience: "Years of experience",
+    experienceInvalid: "Enter your experience as 0–60 years.",
+    transport: "How do you get around?",
+    transportModes: { walk: "On foot or bus", bicycle: "Bicycle", motorbike: "Motorbike", car: "Car" },
+    showAge: "Show my age range ({band})",
+    showAgeHelp: "Only signed-in customers see it: the range, never your birth date.",
+    ageAfterId: "You can show your age range once your ID has been checked.",
     about: "About",
     add: "Add an introduction",
     edit: "Edit introduction",
@@ -619,6 +641,25 @@ export const en = {
     mealPrep: "Prepare a meal for an older adult",
   },
   brief: {
+    // tap-to-fill phrases under the description (PleaseHelp-style, 2026-11-26)
+    startersLabel: "Fill in with one tap",
+    starters: {
+      shop: { a: "Bring groceries from Nomin supermarket", b: "Pick up medicine from the pharmacy" },
+      carry: { a: "Carry a washing machine up to the 5th floor", b: "Help move a sofa and load it into a car" },
+      queue: { a: "Queue for me at the passport office", b: "Get me a number at the hospital" },
+      deliver: { a: "Deliver some documents", b: "Collect a parcel and bring it home" },
+      repair: { a: "Fix a dripping tap", b: "Replace a door handle" },
+      other: { a: "Water the plants", b: "Wrap a gift and deliver it" },
+      dayjob: { a: "Help set up an event on Saturday", b: "Help pack goods at a warehouse" },
+      trash: { a: "Take out boxes and bagged rubbish", b: "Help get rid of old furniture" },
+      escort: { a: "Go with them to the hospital and bring them home", b: "Go along to a service centre" },
+      assembly: { a: "Assemble a new wardrobe", b: "Assemble a table and chairs" },
+      plumbing: { a: "Replace the sink pipe", b: "Clear a blocked drain" },
+      electrical: { a: "Fix a socket", b: "Put up a ceiling light" },
+      cleaning: { a: "Clean a 2-room apartment top to bottom", b: "Clean the kitchen" },
+      childcare: { a: "Play with my child for 2 hours", b: "Pick my child up from school" },
+      eldercare: { a: "Cook a meal for an older person", b: "Keep an older person company over tea" },
+    },
     help: "Write it like a message. A sentence or a short list is enough. We'll ask for the address and time next.",
     titlePreview: "Post title · edit if needed",
     questions: {
@@ -675,6 +716,9 @@ export const en = {
     },
   },
   addressEntry: {
+    placesLabel: "How many places?",
+    placesOne: "One place",
+    placesTwo: "Pickup → drop-off",
     pinConfirmed: "Pin confirmed",
     savedShort: "Saved places",
     optional: "Optional",
@@ -987,6 +1031,11 @@ export const en = {
     tooManySessions: "Too many attempts for this link. Ask the delivery requester for a new link.",
   },
   task: {
+    parking: "Can the helper park near the entrance?",
+    parkingYes: "Yes",
+    parkingNo: "No",
+    contactless: "Can be done without meeting",
+    contactlessSub: "e.g. left at the door or with the building guard. Helpers can look for these jobs.",
     steps: { type: "What kind of task?", what: "What exactly?", where: "Where and when?", review: "Review" },
     typeHint: "You set the price at the last step (from {amount}). Helpers can take it or answer with theirs.",
     change: "change",
@@ -1160,6 +1209,8 @@ export const en = {
     },
   },
   details: {
+    parkingYes: "Parking near the entrance",
+    parkingNo: "No parking nearby",
     entrance: "Entrance {v}",
     floor: "Floor {v}",
     unit: "Apt {v}",
@@ -1203,6 +1254,7 @@ export const en = {
     pickup: "Pickup",
   },
   job: {
+    contactless: "Contactless",
     locationShare: "Share my location with this customer",
     locationStop: "Stop sharing my location",
     locationHint:
@@ -1503,6 +1555,15 @@ export const en = {
       "Private test: any adult with a verified Mongolian phone number may work without ID review. Test access is not a safety check; do not treat helpers as publicly vetted.",
   },
   ops: {
+    purposeHelper: "Helper",
+    purposeIdentity: "Customer ID",
+    approveIdentityBody: "Approve {name}'s ID? They become \"ID checked\" only — not a helper.",
+    reopen: "Send back for re-check",
+    reopenTitle: "Undo {name}'s approval?",
+    reopenBody: "Their checked name and verified status are cleared and they stop taking jobs. They submit their ID and bank account again and you check them. No withdrawals until the bank account is checked again.",
+    reopenBusy: "This person has a job in progress. Try again when it's finished.",
+    recentApproved: "Recently approved",
+    approvedOn: "Approved {when}",
     title: "Helper applications",
     empty: "No applications waiting.",
     submitted: "Sent {when}",
@@ -1589,6 +1650,7 @@ export const en = {
     act: {
       account_closed: "closed their account",
       account_paused: "paused an account",
+      kyc_reopened: "sent a verification back for a re-check",
       account_pause_lifted: "lifted an account pause",
       errors_resolve: "marked an error fixed",
       badge_approve: "approved a licence / car document",
@@ -2270,7 +2332,7 @@ export const en = {
       "The other person on a task sees what they need for that task (exact address only after matching; never your phone number). Our operations team sees data only to handle payments, safety reports and disputes; their actions are logged. Public on purpose: helpers' profiles and reviews (reviewer's name hidden), photos you add to a review, and a helper's job photos you agree to show — with the kind of job only, never your address or name. You can remove them any time from the task. Map place search sends only the words you type to Photon (komoot), an OpenStreetMap search service; never your position.",
     pKeepT: "How long we keep it",
     pKeepB:
-      "When identity review is used, helper ID images and date of birth supplied for that review are deleted 30 days after the verification decision. Registration stores only that you confirmed you are 18 or older, not your date of birth. Positions in safety reports: deleted 30 days after the report is resolved. A helper's location during a job: shown live to that task's customer, and the route is kept {routeDays} days for disputes, then deleted. Chats: deleted after the task's retention period. Payment and task records: kept as the law requires. When you close your account, your name, bank account, saved places, devices and public photos are removed; the records the law requires stay without your name.",
+      "When identity review is used (helpers, and customers who verify for jobs in their home), the ID images and date of birth supplied are deleted 30 days after the verification decision. We keep only the age range (e.g. 30–39); a helper's is shown to customers only if they switch it on. Registration stores only that you confirmed you are 18 or older, not your date of birth. Positions in safety reports: deleted 30 days after the report is resolved. A helper's location during a job: shown live to that task's customer, and the route is kept {routeDays} days for disputes, then deleted. Chats: deleted after the task's retention period. Payment and task records: kept as the law requires. When you close your account, your name, bank account, saved places, devices and public photos are removed; the records the law requires stay without your name.",
     pRightsT: "Your choices",
     pRightsB:
       "You can edit your name, area and saved addresses in your profile, remove photos you made public, turn notifications and location off (helpers need them on to work), and close your account in Profile when nothing is running. To get a copy of your data, contact us.",

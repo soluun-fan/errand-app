@@ -13,7 +13,7 @@ import { Lock } from "lucide-react";
 import { Ico } from "@/components/icon";
 
 /** One document slot: camera / file → (compress if photo) → signed upload into the applicant's folder. */
-function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | undefined; onDone: (p: string) => void; onError: (m: string) => void }) {
+export function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | undefined; onDone: (p: string) => void; onError: (m: string) => void }) {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

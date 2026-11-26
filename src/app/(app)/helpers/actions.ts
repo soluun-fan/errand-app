@@ -10,7 +10,7 @@ import { setListing, setSaved } from "@/lib/helper-profile";
 import { Uuid, parseOr } from "@/lib/input";
 import { parsePrice } from "@/lib/price-input";
 import { getPricing } from "@/lib/pricing";
-import { BIO_MAX } from "@/lib/profile-rules";
+import { BIO_MAX, cleanTransport, parseExperience } from "@/lib/profile-rules";
 
 /** ♡ / ♥ on a helper profile. Shape-checked here; who may be saved is checked in `setSaved`. */
 export async function toggleSaved(form: FormData): Promise<void> {
@@ -40,8 +40,16 @@ export async function saveListing(_prev: ActionResult, form: FormData): Promise<
     const min = (await getPricing()).baseFee;
     if (fromPrice === null || fromPrice < min || fromPrice > 10_000_000) return { error: t("listing.priceInvalid", { min: fmtMoney(min) }) };
   }
+  const experience = parseExperience(String(form.get("experienceYears") ?? ""));
+  if (experience === "invalid") return { error: t("listing.experienceInvalid") };
   // phones / links are masked when saved (the sheet says so up front); contact stays in the app
-  await setListing(viewer.profile.id, { bio: raw, fromPrice });
+  await setListing(viewer.profile.id, {
+    bio: raw,
+    fromPrice,
+    experienceYears: experience,
+    transport: cleanTransport(form.getAll("transport")),
+    showAgeBand: form.get("showAgeBand") === "on",
+  });
   refresh();
   return { done: true };
 }

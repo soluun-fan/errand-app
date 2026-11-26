@@ -79,9 +79,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const [{ data: custStats }, { data: myRating }] = await Promise.all([
     createAdminClient()
       .from("profiles")
-      .select("customer_rating_sum, customer_rating_count")
+      .select("customer_rating_sum, customer_rating_count, kyc_level")
       .eq("id", deal.customerId)
-      .maybeSingle<{ customer_rating_sum: number; customer_rating_count: number }>(),
+      .maybeSingle<{ customer_rating_sum: number; customer_rating_count: number; kyc_level: number }>(),
     createAdminClient()
       .from("ratings")
       .select("stars")
@@ -126,6 +126,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       ? t("job.flexibleFor", { time: fmtDateTime(deal.matchBy, locale), dur: duration }) // not urgent: open until then
       : t("job.nowFor", { dur: duration });
   const effort = [
+    dt.contactless && t("job.contactless"),
+    dt.parking === "yes" ? t("details.parkingYes") : dt.parking === "no" ? t("details.parkingNo") : null,
     dt.km > 0 && t("job.trip", { km: dt.km.toFixed(1) }),
     dt.heavy && t("task.heavy"),
     dt.tools && t("price.tools"),
@@ -699,6 +701,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             {customer.name}
             {customerRating !== null ? ` · ★ ${customerRating.toFixed(1)} (${custStats?.customer_rating_count})` : ""}
           </p>
+          {/* the customer verified their ID (2026-11-26) */}
+          {(custStats?.kyc_level ?? 0) >= 3 && (
+            <span className="w-fit rounded-full bg-held-bg px-2.5 py-1 text-caption font-bold text-held">{t("verify.badge")}</span>
+          )}
         </DetailSection>
       )}
 

@@ -2,7 +2,7 @@ import "server-only";
 import { categoryTrust, type CategoryId } from "@/lib/engine";
 import { qualificationsForMany } from "@/lib/qualifications";
 import { RATING_TAGS } from "@/lib/labels";
-import { MAX_SAVED_HELPERS, cleanBio, maskName, median, publicNote, tagCounts } from "@/lib/profile-rules";
+import { MAX_SAVED_HELPERS, cleanBio, maskName, median, publicNote, tagCounts, cleanTransport, type Transport } from "@/lib/profile-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isActiveTestHelper } from "@/lib/helper-test-mode";
 import { getRules } from "@/lib/rules";
@@ -27,10 +27,19 @@ export interface HelperProfile {
   bio: string | null;
   /** "From 8,000₮" — what the helper says they usually start at; null = not given. */
   fromPrice: number | null;
+  /** Years of experience the helper states; null = not given. */
+  experienceYears: number | null;
+  /** How they get around (walk, bicycle, motorbike, car). */
+  transport: Transport[];
+  /** The age range shown to customers: only when the helper switched it on (2026-11-26). */
+  ageBand: number | null;
+  /** The helper's own view: their band from the verified ID, and whether it is shown. */
+  ownAgeBand: number | null;
+  showAgeBand: boolean;
 }
 
 /** The profile columns a customer may see (same as the trust card + the listing). */
-const PUBLIC_COLS = "id, name, area, categories, kyc_level, rating_sum, rating_count, completed_count, created_at, bio, from_price";
+const PUBLIC_COLS = "id, name, area, categories, kyc_level, rating_sum, rating_count, completed_count, created_at, bio, from_price, experience_years, transport, age_band, show_age_band";
 interface PublicRow {
   id: string;
   name: string | null;
@@ -43,6 +52,10 @@ interface PublicRow {
   created_at: string;
   bio: string | null;
   from_price: number | null;
+  experience_years: number | null;
+  transport: string[] | null;
+  age_band: number | null;
+  show_age_band: boolean | null;
 }
 
 function toProfile(r: PublicRow): HelperProfile {
@@ -59,6 +72,11 @@ function toProfile(r: PublicRow): HelperProfile {
     memberSince: Date.parse(r.created_at),
     bio: r.bio?.trim() || null,
     fromPrice: r.from_price === null ? null : Number(r.from_price),
+    experienceYears: r.experience_years ?? null,
+    transport: cleanTransport(r.transport ?? []),
+    ageBand: r.show_age_band && r.age_band !== null ? Number(r.age_band) : null,
+    ownAgeBand: r.age_band ?? null,
+    showAgeBand: Boolean(r.show_age_band),
   };
 }
 
@@ -126,11 +144,14 @@ export async function typicalPrice(helperId: string): Promise<{ median: number; 
 }
 
 /** The helper's own listing: intro and "from" price. Contacts in the intro are masked. */
-export async function setListing(helperId: string, input: { bio: string | null; fromPrice: number | null }): Promise<{ masked: boolean }> {
+export async function setListing(
+  helperId: string,
+  input: { bio: string | null; fromPrice: number | null; experienceYears: number | null; transport: Transport[]; showAgeBand: boolean },
+): Promise<{ masked: boolean }> {
   const { bio, masked } = cleanBio(input.bio);
   await createAdminClient()
     .from("profiles")
-    .update({ bio, from_price: input.fromPrice })
+    .update({ bio, from_price: input.fromPrice, experience_years: input.experienceYears, transport: input.transport, show_age_band: input.showAgeBand })
     .eq("id", helperId)
     .eq("role", "helper")
     .throwOnError();
