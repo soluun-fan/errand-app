@@ -5,7 +5,9 @@ import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
-import { applicationForOps, decide, reopenVerification, revokeHelper, type Decision } from "@/lib/kyc";
+import { applicationForOps, decide, reopenVerification, revokeHelper, setComputerAllowed, type Decision } from "@/lib/kyc";
+import { refresh } from "next/cache";
+import { Uuid, parseOr } from "@/lib/input";
 import { notify } from "@/lib/push";
 
 /** Ops decision on one helper application. Admins only; a note is required unless approving. */
@@ -78,4 +80,17 @@ export async function revokeHelperAction(_prev: ActionResult, form: FormData): P
   if (r === "changed") return { error: t("error.changed") };
   await notify([userId], { title: "push.kycChangesTitle", body: "push.kycDecisionBody", url: "/helper/apply", tag: "kyc" });
   redirect("/ops/helpers");
+}
+
+/** Let a helper work from a computer, or not (Ops "All helpers" list, 2026-11-27). Admins only. */
+export async function setComputerAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  if (viewer.profile.role !== "admin") return { error: t("ops.notAdmin") };
+  const userId = parseOr(Uuid, form.get("userId"));
+  if (!userId) return { error: t("error.generic") };
+  if (!(await setComputerAllowed(userId, viewer.profile.id, form.get("allowed") === "1"))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
 }

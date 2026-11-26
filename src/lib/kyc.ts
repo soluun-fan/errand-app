@@ -242,6 +242,8 @@ export interface ActiveHelper {
   via: "id" | "test" | "none";
   jobs: number;
   admin: boolean;
+  /** Ops let them work from a computer (profiles.desktop_ok). */
+  desktopOk: boolean;
 }
 export async function activeHelpers(): Promise<ActiveHelper[]> {
   const db = createAdminClient();
@@ -264,12 +266,19 @@ export async function activeHelpers(): Promise<ActiveHelper[]> {
       .returns<{ user_id: string }[]>();
     for (const r of data ?? []) reviewed.add(r.user_id);
   }
+  // read on its own: a database without the column yet (before the migration) means "no"
+  const desktop = new Set<string>();
+  if (ids.length) {
+    const { data, error } = await db.from("profiles").select("id").in("id", ids).eq("desktop_ok", true).returns<{ id: string }[]>();
+    if (!error) for (const r of data ?? []) desktop.add(r.id);
+  }
   return (ps ?? []).map((p) => ({
     userId: p.id,
     name: p.name?.trim() || "—",
     via: reviewed.has(p.id) ? "id" : p.test_helper ? "test" : "none",
     jobs: Number(p.completed_count),
     admin: p.role === "admin",
+    desktopOk: desktop.has(p.id),
   }));
 }
 
@@ -494,4 +503,18 @@ export async function purgeKycFiles(now = Date.now()): Promise<number> {
     n++;
   }
   return n;
+}
+
+/** Ops: let a helper work from a computer, or not (2026-11-27). Only approved helpers; audited. */
+export async function setComputerAllowed(userId: string, opsId: string, allowed: boolean): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from("profiles")
+    .update({ desktop_ok: allowed })
+    .eq("id", userId)
+    .eq("helper_status", "approved")
+    .select("id")
+    .throwOnError();
+  if (!data?.length) return false;
+  await audit(opsId, allowed ? "helper.computer_on" : "helper.computer_off", userId, {});
+  return true;
 }

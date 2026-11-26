@@ -3,7 +3,7 @@ import { CalendarClock, ChevronRight, DoorClosed, IdCard, Landmark, MapPin, User
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
 import { WorkReady } from "@/components/work-ready";
-import { deviceCheckBypassed } from "@/lib/work-ready";
+import { computerAllowed, deviceCheckBypassed } from "@/lib/work-ready";
 import { TodoCard } from "@/components/todo-card";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
@@ -330,7 +330,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         <TodoCard items={todos} t={t} />
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
         <div id="online" className="scroll-mt-20">
-          <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))}>
+          <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))} computerOk={await computerAllowed(profile.id)}>
             <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
           </WorkReady>
         </div>

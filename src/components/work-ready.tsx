@@ -28,7 +28,16 @@ const isStandalone = () =>
  * phone with notifications and location on; otherwise a checklist with one button per step. The
  * server checks the same (src/lib/work-ready.ts). `enforce` is false only for browser tests.
  */
-export function WorkReady({ enforce, children }: { enforce: boolean; children: ReactNode }) {
+export function WorkReady({
+  enforce,
+  computerOk = false,
+  children,
+}: {
+  enforce: boolean;
+  /** Ops let this helper work from a computer: the phone step counts as done (2026-11-27). */
+  computerOk?: boolean;
+  children: ReactNode;
+}) {
   const t = useT();
   const [mounted, setMounted] = useState(false);
   const [phone, setPhone] = useState(true);
@@ -62,7 +71,7 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
     if (!enforce) return;
     setMounted(true);
     const uaMobile = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile;
-    setPhone(uaMobile === true || isMobileDevice(navigator.userAgent));
+    setPhone(computerOk || uaMobile === true || isMobileDevice(navigator.userAgent));
     setIos(isIos());
     setInstalled(!isIos() || isStandalone());
     // notifications: subscribed on this device (and saved on the server again, in case it was lost)
@@ -91,7 +100,7 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
         })
         .catch(() => setGeo("off"));
     else setGeo("off");
-  }, [enforce, publicKey, sendPosition]);
+  }, [enforce, computerOk, publicKey, sendPosition]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function turnOnPush() {
@@ -141,7 +150,7 @@ export function WorkReady({ enforce, children }: { enforce: boolean; children: R
       </h2>
       <p className="text-small text-ink-2">{t("workReady.sub")}</p>
       <ol className="flex flex-col divide-y divide-line">
-        {step(<Smartphone size={18} />, t("workReady.phone"), phone ? t("workReady.phoneOk") : t("workReady.phoneBody"), phone, null)}
+        {step(<Smartphone size={18} />, t("workReady.phone"), phone ? t(computerOk ? "workReady.computerOk" : "workReady.phoneOk") : t("workReady.phoneBody"), phone, null)}
         {phone &&
           ios &&
           step(

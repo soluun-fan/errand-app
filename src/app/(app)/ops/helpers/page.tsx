@@ -7,7 +7,8 @@ import { fmtDateTime } from "@/lib/format";
 import { activeHelpers, recentlyApproved, reviewQueue } from "@/lib/kyc";
 import { ConfirmSheet } from "@/components/sheet";
 import { btn, field, fieldLabel } from "@/components/ui";
-import { revokeHelperAction } from "./actions";
+import { revokeHelperAction, setComputerAction } from "./actions";
+import { InlineAction } from "@/components/inline-action";
 import { CircleCheck } from "lucide-react";
 import { titled } from "@/lib/page-title";
 
@@ -90,21 +91,30 @@ export default async function OpsHelpersPage() {
                     {t("ops.jobsDone", { n: h.jobs })}
                   </span>
                 </span>
-                <ConfirmSheet
-                  action={revokeHelperAction}
-                  fields={{ userId: h.userId }}
-                  trigger={t("ops.revoke")}
-                  triggerClass={`${btn.text} min-h-11 text-small text-danger`}
-                  title={t("ops.revokeTitle", { name: h.name })}
-                  body={t("ops.revokeBody")}
-                  confirmLabel={t("ops.revoke")}
-                  confirmClass={btn.danger}
-                >
-                  <label className={fieldLabel}>
-                    {t("ops.note")}
-                    <textarea name="note" rows={3} maxLength={500} className={field} />
-                  </label>
-                </ConfirmSheet>
+                <span className="flex items-center gap-1">
+                  {/* Ops decides who may work from a computer (2026-11-27): phone check skipped, notifications + location still needed */}
+                  <InlineAction
+                    action={setComputerAction}
+                    fields={{ userId: h.userId, allowed: h.desktopOk ? "0" : "1" }}
+                    label={h.desktopOk ? t("ops.computerOff") : t("ops.computerOn")}
+                    className={`${btn.text} min-h-11 text-small ${h.desktopOk ? "text-held" : "text-ink-2"}`}
+                  />
+                  <ConfirmSheet
+                    action={revokeHelperAction}
+                    fields={{ userId: h.userId }}
+                    trigger={t("ops.revoke")}
+                    triggerClass={`${btn.text} min-h-11 text-small text-danger`}
+                    title={t("ops.revokeTitle", { name: h.name })}
+                    body={t("ops.revokeBody")}
+                    confirmLabel={t("ops.revoke")}
+                    confirmClass={btn.danger}
+                  >
+                    <label className={fieldLabel}>
+                      {t("ops.note")}
+                      <textarea name="note" rows={3} maxLength={500} className={field} />
+                    </label>
+                  </ConfirmSheet>
+                </span>
               </li>
             ))}
           </ul>

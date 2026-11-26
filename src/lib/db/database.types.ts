@@ -2364,6 +2364,7 @@ export type Database = {
           deleted_at: string | null;
           age_confirmed_at: string | null;
           test_helper: boolean;
+          desktop_ok: boolean;
           desktop_work_enabled: boolean;
           customer_rating_sum: number;
           customer_rating_count: number;
@@ -2415,6 +2416,7 @@ export type Database = {
           deleted_at?: string | null;
           age_confirmed_at?: string | null;
           test_helper?: boolean;
+          desktop_ok?: boolean;
           desktop_work_enabled?: boolean;
           customer_rating_sum?: number;
           customer_rating_count?: number;
@@ -2466,6 +2468,7 @@ export type Database = {
           deleted_at?: string | null;
           age_confirmed_at?: string | null;
           test_helper?: boolean;
+          desktop_ok?: boolean;
           desktop_work_enabled?: boolean;
           customer_rating_sum?: number;
           customer_rating_count?: number;

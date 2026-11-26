@@ -20,8 +20,18 @@ export async function deviceCheckBypassed(profile: { test_helper?: boolean }): P
   return (await cookies()).get("e2e-device")?.value === "ok";
 }
 
+/**
+ * Ops let this helper work from a computer (profiles.desktop_ok, 2026-11-27): only the phone check
+ * is skipped. Read on its own so a database without the column (before the migration) means "no".
+ */
+export async function computerAllowed(userId: string): Promise<boolean> {
+  const { data, error } = await createAdminClient().from("profiles").select("desktop_ok").eq("id", userId).maybeSingle<{ desktop_ok: boolean }>();
+  return !error && data?.desktop_ok === true;
+}
+
 export async function workReadyMissing(profile: { id: string; test_helper?: boolean }): Promise<ReadyStep[]> {
   if (await deviceCheckBypassed(profile)) return [];
+  const computer = await computerAllowed(profile.id);
   const h = await headers();
   const db = createAdminClient();
   const [{ count }, { data: pos }, rules] = await Promise.all([
@@ -34,7 +44,7 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
       .throwOnError(),
     getRules(),
   ]);
-  return missingSteps({
+  const missing = missingSteps({
     userAgent: h.get("user-agent"),
     chMobile: h.get("sec-ch-ua-mobile"),
     pushDevices: count ?? 0,
@@ -42,4 +52,5 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
     now: Date.now(),
     freshMs: rules.readyPositionMinutes * 60_000,
   });
+  return computer ? missing.filter((s) => s !== "phone") : missing;
 }

@@ -30,7 +30,7 @@ import { callParty, callsEnabled } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { portfolioCandidates } from "@/lib/work-photos";
 import { WorkReady } from "@/components/work-ready";
-import { deviceCheckBypassed } from "@/lib/work-ready";
+import { computerAllowed, deviceCheckBypassed } from "@/lib/work-ready";
 import { PortfolioAskSection } from "@/components/portfolio-cards";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { workedTogether } from "@/lib/care";
@@ -731,7 +731,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
           {/* applying, taking a price or starting needs a phone with notifications + location on */}
-          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))}>{primary}</WorkReady> : primary}
+          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))} computerOk={await computerAllowed(viewer.profile.id)}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
         </PrimaryBar>
       )}
