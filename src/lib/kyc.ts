@@ -311,6 +311,8 @@ export async function decide(
       .update({
         role: prof?.role === "admin" ? "admin" : "helper",
         helper_status: "approved",
+        // a real review replaces the private-test shortcut (or they'd be blocked once test mode is off)
+        test_helper: false,
         kyc_level: KYC_LEVEL_VERIFIED,
         verified_name: a.legal_name,
         // the decade only (opt-in to show, 2026-11-26); the birth date itself is deleted with the files

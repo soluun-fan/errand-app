@@ -1489,6 +1489,9 @@ export const en = {
     cancel: "Cancel",
   },
   kyc: {
+    approvedNotActive: "Your ID has been checked, but you can't take jobs right now.",
+    approvedButAdmin: "You're signed in with an Ops (admin) account. Ops accounts don't take jobs — sign in with a separate phone number to work as a helper.",
+    approvedAskOps: "Contact our team through Help — we'll check it and turn it on.",
     agreement: "I accept the",
     agreementLink: "Helper service agreement",
     title: "Become a verified helper",

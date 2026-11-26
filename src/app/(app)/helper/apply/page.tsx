@@ -3,6 +3,7 @@ import { FlowHeader, Note } from "@/components/ui";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { latestApplication } from "@/lib/kyc";
+import { isPaused } from "@/lib/safety";
 import { ApplyForm } from "./apply-form";
 import { TestHelperForm } from "./test-helper-form";
 import { canUseUnverifiedHelperTest, unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
@@ -31,11 +32,25 @@ export default async function ApplyPage() {
   return (
     <>
       <FlowHeader href="/jobs" label={t("common.back")} title={t("kyc.title")} />
-      {app && (
-        <Note tone={app.status === "submitted" ? "info" : app.status === "approved" ? "held" : "warn"}>
-          <span className="block font-semibold">{t(`kyc.status.${app.status}`)}</span>
-          {app.decisionNote && <span className="mt-1 block">{t("kyc.note", { note: app.decisionNote })}</span>}
+      {/* approved but not working (helpers with a working account never reach this page): say why, never "you can take jobs now" */}
+      {app?.status === "approved" ? (
+        <Note tone="warn">
+          <span className="block font-semibold">{t("kyc.approvedNotActive")}</span>
+          <span className="mt-1 block">
+            {viewer.profile.role === "admin"
+              ? t("kyc.approvedButAdmin")
+              : isPaused(viewer.profile)
+                ? t("safety.accountPaused")
+                : t("kyc.approvedAskOps")}
+          </span>
         </Note>
+      ) : (
+        app && (
+          <Note tone={app.status === "submitted" ? "info" : "warn"}>
+            <span className="block font-semibold">{t(`kyc.status.${app.status}`)}</span>
+            {app.decisionNote && <span className="mt-1 block">{t("kyc.note", { note: app.decisionNote })}</span>}
+          </Note>
+        )
       )}
       {canApply && (
         <>
