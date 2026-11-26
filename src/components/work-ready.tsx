@@ -7,7 +7,11 @@ import { useT } from "@/i18n/client";
 import { isMobileDevice } from "@/lib/work-ready-rules";
 import { btn } from "./ui";
 
-type Perm = "loading" | "on" | "off" | "denied" | "unsupported";
+/**
+ * "failed": asked but it didn't work (no location found, the browser refused quietly) — said, with a retry.
+ * "nokey": this site has no notification key configured (a server setting, not the person's browser).
+ */
+type Perm = "loading" | "on" | "off" | "denied" | "unsupported" | "failed" | "nokey";
 
 function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
@@ -45,6 +49,7 @@ export function WorkReady({
   const [installed, setInstalled] = useState(true);
   const [push, setPush] = useState<Perm>("loading");
   const [geo, setGeo] = useState<Perm>("loading");
+  const [checked, setChecked] = useState(false);
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   const sendPosition = useCallback(() => {
@@ -56,12 +61,13 @@ export function WorkReady({
     navigator.geolocation.getCurrentPosition(
       async (p) => {
         try {
-          setGeo((await reportPosition(p.coords.latitude, p.coords.longitude)) ? "on" : "off");
+          setGeo((await reportPosition(p.coords.latitude, p.coords.longitude)) ? "on" : "failed");
         } catch {
-          setGeo("off");
+          setGeo("failed");
         }
       },
-      (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "off"),
+      // no position (computer location services off, no Wi-Fi) or too slow: say so, never a silent "off"
+      (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "failed"),
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
   }, []);
@@ -75,7 +81,8 @@ export function WorkReady({
     setIos(isIos());
     setInstalled(!isIos() || isStandalone());
     // notifications: subscribed on this device (and saved on the server again, in case it was lost)
-    if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) setPush("unsupported");
+    if (!publicKey) setPush("nokey");
+    else if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) setPush("unsupported");
     else if (Notification.permission === "denied") setPush("denied");
     else
       navigator.serviceWorker
@@ -101,6 +108,9 @@ export function WorkReady({
         .catch(() => setGeo("off"));
     else setGeo("off");
   }, [enforce, computerOk, publicKey, sendPosition]);
+  useEffect(() => {
+    if (!checked && push !== "loading" && geo !== "loading") setChecked(true);
+  }, [checked, push, geo]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function turnOnPush() {
@@ -115,13 +125,15 @@ export function WorkReady({
       await savePush({ endpoint: j.endpoint, keys: j.keys });
       setPush("on");
     } catch {
-      setPush("off");
+      setPush("failed");
     }
   }
 
   if (!enforce) return <>{children}</>;
-  if (!mounted || push === "loading" || geo === "loading") return <div aria-busy className="min-h-24 rounded-card bg-fill" />;
+  // the placeholder only before the first check: a step being retried shows "checking…" in place
+  if (!mounted || (!checked && (push === "loading" || geo === "loading"))) return <div aria-busy className="min-h-24 rounded-card bg-fill" />;
   const ready = phone && installed && push === "on" && geo === "on";
+  const retry = (s: Perm) => s === "off" || s === "failed";
   if (ready) return <>{children}</>;
 
   const step = (icon: ReactNode, title: string, body: string, done: boolean, action: ReactNode) => (
@@ -165,13 +177,19 @@ export function WorkReady({
           t("workReady.notifications"),
           push === "denied"
             ? t(ios ? "workReady.notifDeniedIos" : "workReady.notifDenied")
-            : push === "unsupported"
-              ? t(ios && !installed ? "workReady.notifAfterInstall" : "workReady.notifUnsupported")
-              : t("workReady.notifBody"),
+            : push === "nokey"
+              ? t("workReady.notifNoKey")
+              : push === "unsupported"
+                ? t(ios && !installed ? "workReady.notifAfterInstall" : "workReady.notifUnsupported")
+                : push === "failed"
+                  ? t("workReady.notifFailed")
+                  : push === "loading"
+                    ? t("workReady.checking")
+                    : t("workReady.notifBody"),
           push === "on",
-          push === "off" && phone && installed ? (
-            <button type="button" onClick={turnOnPush} className={`${btn.primary} w-full`}>
-              {t("workReady.notifGo")}
+          (retry(push) || push === "loading") && phone && installed ? (
+            <button type="button" onClick={turnOnPush} disabled={push === "loading"} className={`${btn.primary} w-full`}>
+              {push === "loading" ? t("workReady.checking") : t("workReady.notifGo")}
             </button>
           ) : null,
         )}
@@ -182,11 +200,15 @@ export function WorkReady({
             ? t(ios ? "workReady.geoDeniedIos" : "workReady.geoDenied")
             : geo === "unsupported"
               ? t("workReady.geoUnsupported")
-              : t("workReady.geoBody"),
+              : geo === "failed"
+                ? t(computerOk ? "workReady.geoFailedComputer" : "workReady.geoFailed")
+                : geo === "loading"
+                  ? t("workReady.checking")
+                  : t("workReady.geoBody"),
           geo === "on",
-          geo === "off" && phone ? (
-            <button type="button" onClick={sendPosition} className={`${btn.primary} w-full`}>
-              {t("workReady.geoGo")}
+          (retry(geo) || geo === "loading") && phone ? (
+            <button type="button" onClick={sendPosition} disabled={geo === "loading"} className={`${btn.primary} w-full`}>
+              {geo === "loading" ? t("workReady.checking") : t("workReady.geoGo")}
             </button>
           ) : null,
         )}
