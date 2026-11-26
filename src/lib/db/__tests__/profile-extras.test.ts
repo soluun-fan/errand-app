@@ -28,6 +28,13 @@ it("an identity check needs no job kinds; a helper application still does", asyn
   expect((await sqlError(application("anything", "{queue}"))).message).toMatch(/purpose/);
 });
 
+it("a helper may apply for every kind of work at once (no six-kind cap, 20261127040000)", async () => {
+  const { CATEGORIES } = await import("@/lib/engine");
+  await db.query("delete from public.helper_applications where user_id = $1", [userId]);
+  await application("helper", `{${CATEGORIES.map((c) => c.id).join(",")}}`);
+  await db.query("delete from public.helper_applications where user_id = $1", [userId]);
+});
+
 it("profile extras: known transport only, sensible experience, decade age bands, off by default", async () => {
   const { rows } = await db.query<{ show_age_band: boolean; transport: string[] }>("select show_age_band, transport from public.profiles where id = $1", [userId]);
   expect(rows[0]).toEqual({ show_age_band: false, transport: [] });

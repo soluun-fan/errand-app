@@ -76,7 +76,7 @@ export async function supportInbox(): Promise<SupportRequestView[]> {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const { data } = await db
     .from("support_requests")
-    .select("id, user_id, topic, message, status, ops_note, created_at, profiles(name, phone)")
+    .select("id, user_id, topic, message, status, ops_note, created_at, profiles!support_requests_user_id_fkey(name, phone)")
     .or(`status.eq.open,created_at.gt.${since}`)
     .order("created_at", { ascending: false })
     .limit(200)
