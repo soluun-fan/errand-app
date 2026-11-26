@@ -4,7 +4,10 @@ import { EmptyState, FlowHeader } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
-import { recentlyApproved, reviewQueue } from "@/lib/kyc";
+import { activeHelpers, recentlyApproved, reviewQueue } from "@/lib/kyc";
+import { ConfirmSheet } from "@/components/sheet";
+import { btn, field, fieldLabel } from "@/components/ui";
+import { revokeHelperAction } from "./actions";
 import { CircleCheck } from "lucide-react";
 import { titled } from "@/lib/page-title";
 
@@ -14,7 +17,13 @@ export const generateMetadata = titled("ops.title");
 export default async function OpsHelpersPage() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, locale, queue, approved] = await Promise.all([getT(), getLocale(), reviewQueue(), recentlyApproved()]);
+  const [t, locale, queue, approved, helpers] = await Promise.all([
+    getT(),
+    getLocale(),
+    reviewQueue(),
+    recentlyApproved(),
+    activeHelpers(),
+  ]);
   return (
     <>
       <FlowHeader href="/ops" label={t("common.back")} title={t("ops.title")} />
@@ -55,6 +64,47 @@ export default async function OpsHelpersPage() {
                   </span>
                   <span className="text-body text-ink-2">›</span>
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {/* everyone who can take jobs now and how they got there: switch off accounts nobody checked (2026-11-26) */}
+      {helpers.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-title font-bold">{t("ops.allHelpers", { n: helpers.length })}</h2>
+          <ul className="flex flex-col">
+            {helpers.map((h) => (
+              <li key={h.userId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">
+                    {h.name}
+                    {h.admin && <span className="ml-2 rounded-full bg-fill px-2 py-0.5 text-caption font-semibold text-ink-2">Ops</span>}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 text-small text-ink-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-caption font-semibold ${h.via === "id" ? "bg-held-bg text-held" : "bg-warn-bg text-warn"}`}
+                    >
+                      {t(`ops.via.${h.via}`)}
+                    </span>
+                    {t("ops.jobsDone", { n: h.jobs })}
+                  </span>
+                </span>
+                <ConfirmSheet
+                  action={revokeHelperAction}
+                  fields={{ userId: h.userId }}
+                  trigger={t("ops.revoke")}
+                  triggerClass={`${btn.text} min-h-11 text-small text-danger`}
+                  title={t("ops.revokeTitle", { name: h.name })}
+                  body={t("ops.revokeBody")}
+                  confirmLabel={t("ops.revoke")}
+                  confirmClass={btn.danger}
+                >
+                  <label className={fieldLabel}>
+                    {t("ops.note")}
+                    <textarea name="note" rows={3} maxLength={500} className={field} />
+                  </label>
+                </ConfirmSheet>
               </li>
             ))}
           </ul>

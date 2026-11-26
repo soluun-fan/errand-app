@@ -216,6 +216,72 @@ export async function reopenVerification(appId: string, opsId: string, note: str
   return "ok";
 }
 
+/** Everyone who can take jobs now, and how they got there — so Ops can spot accounts nobody checked. */
+export interface ActiveHelper {
+  userId: string;
+  name: string;
+  /** "id": a real ID review approved them · "test": the private-test shortcut · "none": neither (seed data or a manual edit). */
+  via: "id" | "test" | "none";
+  jobs: number;
+  admin: boolean;
+}
+export async function activeHelpers(): Promise<ActiveHelper[]> {
+  const db = createAdminClient();
+  const { data: ps } = await db
+    .from("profiles")
+    .select("id, name, role, test_helper, completed_count")
+    .eq("helper_status", "approved")
+    .order("created_at")
+    .limit(500)
+    .returns<{ id: string; name: string | null; role: string; test_helper: boolean | null; completed_count: number }[]>();
+  const ids = (ps ?? []).map((p) => p.id);
+  const reviewed = new Set<string>();
+  if (ids.length) {
+    const { data } = await db.from("helper_applications").select("user_id").in("user_id", ids).eq("purpose", "helper").eq("status", "approved").returns<{ user_id: string }[]>();
+    for (const r of data ?? []) reviewed.add(r.user_id);
+  }
+  return (ps ?? []).map((p) => ({
+    userId: p.id,
+    name: p.name?.trim() || "—",
+    via: reviewed.has(p.id) ? "id" : p.test_helper ? "test" : "none",
+    jobs: Number(p.completed_count),
+    admin: p.role === "admin",
+  }));
+}
+
+/**
+ * Switch off someone's helper access (owner 2026-11-26: test accounts like "fff" were active helpers
+ * nobody checked). They become a customer again and may apply properly later; never while they have a
+ * job in progress. Their approved application, if any, is sent back too, so the record stays honest.
+ */
+export async function revokeHelper(userId: string, opsId: string, note: string): Promise<"ok" | "busy" | "changed"> {
+  const db = createAdminClient();
+  const { data: p } = await db.from("profiles").select("role, helper_status").eq("id", userId).maybeSingle<{ role: string; helper_status: string | null }>();
+  if (!p || p.helper_status !== "approved") return "changed";
+  const { count } = await db
+    .from("deals")
+    .select("id", { count: "exact", head: true })
+    .eq("helper_id", userId)
+    .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`);
+  if ((count ?? 0) > 0) return "busy";
+  const now = new Date().toISOString();
+  await db
+    .from("helper_applications")
+    .update({ status: "changes_requested", decided_at: now, decided_by: opsId, decision_note: note })
+    .eq("user_id", userId)
+    .eq("purpose", "helper")
+    .eq("status", "approved")
+    .throwOnError();
+  await db
+    .from("profiles")
+    .update({ role: p.role === "admin" ? "admin" : "customer", helper_status: null, test_helper: false, kyc_level: 1, verified_name: null, age_band: null, show_age_band: false })
+    .eq("id", userId)
+    .throwOnError();
+  await db.from("payout_accounts").update({ verified_at: null }).eq("user_id", userId).throwOnError();
+  await audit(opsId, "helper.revoked", userId, { note });
+  return "ok";
+}
+
 export interface ApplicationForOps {
   id: string;
   userId: string;

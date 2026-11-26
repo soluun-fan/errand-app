@@ -5,7 +5,7 @@ import type { ActionResult } from "@/components/sheet";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
-import { applicationForOps, decide, reopenVerification, type Decision } from "@/lib/kyc";
+import { applicationForOps, decide, reopenVerification, revokeHelper, type Decision } from "@/lib/kyc";
 import { notify } from "@/lib/push";
 
 /** Ops decision on one helper application. Admins only; a note is required unless approving. */
@@ -59,5 +59,22 @@ export async function reopenKyc(_prev: ActionResult, form: FormData): Promise<Ac
   if (r === "busy") return { error: t("ops.reopenBusy") };
   if (r === "changed") return { error: t("error.changed") };
   await notify([app.userId], { title: "push.kycChangesTitle", body: "push.kycDecisionBody", url: "/helper/apply", tag: "kyc" });
+  redirect("/ops/helpers");
+}
+
+/** Switch off one person's helper access (Ops "All helpers" list). Admins only; a note is required. */
+export async function revokeHelperAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const t = await getT();
+  if (viewer.profile.role !== "admin") return { error: t("ops.notAdmin") };
+  const userId = String(form.get("userId") ?? "");
+  const note = String(form.get("note") ?? "").trim().slice(0, 500);
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { error: t("error.generic") };
+  if (!note) return { error: t("ops.noteNeeded") };
+  const r = await revokeHelper(userId, viewer.profile.id, note);
+  if (r === "busy") return { error: t("ops.reopenBusy") };
+  if (r === "changed") return { error: t("error.changed") };
+  await notify([userId], { title: "push.kycChangesTitle", body: "push.kycDecisionBody", url: "/helper/apply", tag: "kyc" });
   redirect("/ops/helpers");
 }

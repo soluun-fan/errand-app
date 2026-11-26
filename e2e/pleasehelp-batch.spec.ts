@@ -131,3 +131,31 @@ test("a helper adds experience and how they get around", async ({ browser }) => 
     await h.close();
   }
 });
+
+test("Ops switches off a helper nobody checked", async ({ browser }) => {
+  const sol = await profile(NAMES.solongo);
+  const before = { role: sol.role, helper_status: sol.helper_status, test_helper: sol.test_helper, kyc_level: sol.kyc_level, categories: sol.categories };
+  await db.from("profiles").update({ role: "helper", helper_status: "approved", test_helper: true, categories: ["queue"] }).eq("id", sol.id).throwOnError();
+  const ops = await browser.newContext();
+  await loginAs(ops, PHONES.ops);
+  const o = await ops.newPage();
+  try {
+    await o.goto("/ops/helpers");
+    const row = o.getByRole("listitem").filter({ hasText: NAMES.solongo });
+    await expect(row.getByText("Тест товчоор")).toBeVisible();
+    await row.getByRole("button", { name: "Туслагч эрхийг хаах" }).click();
+    const sheet = o.getByRole("dialog");
+    await sheet.getByRole("textbox").fill("Тест бүртгэл");
+    await sheet.getByRole("button", { name: "Туслагч эрхийг хаах" }).click();
+    await expect(o.getByRole("listitem").filter({ hasText: NAMES.solongo })).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const p = await profile(NAMES.solongo);
+        return { role: p.role, helper_status: p.helper_status, test_helper: p.test_helper };
+      })
+      .toEqual({ role: "customer", helper_status: null, test_helper: false });
+  } finally {
+    await db.from("profiles").update(before).eq("id", sol.id).throwOnError();
+    await ops.close();
+  }
+});
