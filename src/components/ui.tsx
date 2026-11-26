@@ -50,6 +50,22 @@ export const space = {
   group: "gap-3",
 } as const;
 
+/**
+ * The Home and landing hero (PleaseHelp's layout, our look), one shape for both pages: a text column
+ * capped at 640 px and a side card of about 416 px, pushed to the page edges and centred against each
+ * other; a search box with a thin ink border (no shadow on wider screens) and small chips under it.
+ */
+export const hero = {
+  grid: "grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,40rem)_minmax(0,26rem)] lg:items-center lg:justify-between lg:gap-16",
+  main: "flex min-w-0 flex-col gap-5",
+  search:
+    "flex min-h-14 items-center gap-2 rounded-[18px] bg-bg py-1.5 pl-4 pr-1.5 shadow-float md:min-h-16 md:border-2 md:border-ink md:shadow-none",
+  searchGo: "press flex min-h-11 flex-none items-center justify-center gap-1.5 rounded-[14px] bg-brand px-3 text-white md:min-h-12 md:px-5 md:text-[16px] md:font-bold",
+  /** chip shape; add `hero.chipPlain` (or ink colours for the draft chip) */
+  chip: "press inline-flex min-h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-medium md:min-h-10",
+  chipPlain: "border-line bg-bg text-ink",
+} as const;
+
 /** Title of a root (tab) screen. */
 export const pageTitle = "pt-2 text-[24px] font-bold tracking-tight";
 

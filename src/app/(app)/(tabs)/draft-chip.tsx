@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/client";
-import { chipClass } from "@/components/ui";
+import { hero } from "@/components/ui";
 import { draftKeyFor } from "@/lib/draft";
 import { titleFromBrief } from "@/lib/task-brief";
 
@@ -25,7 +25,7 @@ export function DraftChip({ userId }: { userId: string }) {
   /* eslint-enable react-hooks/set-state-in-effect */
   if (!title) return null;
   return (
-    <Link href="/post?resume=1" className={chipClass(true)}>
+    <Link href="/post?resume=1" className={`${hero.chip} border-ink bg-ink text-white`}>
       ↻ {t("home.continueDraft", { title })} →
     </Link>
   );

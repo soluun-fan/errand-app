@@ -13,7 +13,7 @@ import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/logi
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { SeeAllArrow, SectionHeader, btn, seeAllClass, space } from "@/components/ui";
+import { SeeAllArrow, SectionHeader, btn, hero, seeAllClass, space } from "@/components/ui";
 import { ReviewCard } from "@/components/review-card";
 import { recentReviews } from "@/lib/helper-profile";
 import { getLocale, getT } from "@/i18n/server";
@@ -125,8 +125,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* hero: the question, search, popular starts — and real recent activity beside it */}
         <section className="bg-brand-bg/60">
-          <div className={`${wrap} grid gap-8 py-10 md:grid-cols-[1.25fr_1fr] md:items-start md:gap-12 md:py-16`}>
-            <div className="flex min-w-0 flex-col gap-5">
+          <div className={`${wrap} ${hero.grid} py-10 md:py-16`}>
+            <div className={hero.main}>
               <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-[13px] font-medium shadow-card">
                 <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${online > 0 ? "bg-held" : "bg-ink-3"}`} />
                 {online > 0 ? t("landing.areaLive", { n: online }) : t("landing.areaIdle")}
@@ -144,7 +144,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   <LoginGate
                     key={p.id}
                     next={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`}
-                    className="press flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-bg px-3.5 text-[14px] font-medium"
+                    className={`${hero.chip} ${hero.chipPlain}`}
                   >
                     <CategoryIcon id={p.category} size={15} />
                     {qsTitle(p, locale)}

@@ -15,6 +15,7 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
   - `space.section`: 16 / 24 px from a section's title to its content, and between groups inside it.
   - `space.group`: 12 px between cards of one list, and from a label to its control. Things that belong together (a button and its fine print, two money cards) go in one wrapper with `gap-3`, so the bigger page gap doesn't pull them apart.
   - Side-by-side columns on desktop (hero + side card) are 48 px apart.
+  - **Hero (Home and landing) share one shape**, `hero` in `src/components/ui.tsx`, taken from PleaseHelp: the text column is at most 640 px, the side card about 416 px; both are pushed to the page edges and centred against each other. The search box has a thin ink border and no shadow on wider screens (phones keep the soft shadow). Chips under it are small (40 px on desktop, 44 px on phones). A search box is never wider than its column.
   - **One left edge per page.** Every section's content starts on the page edge. A page-wide band (the Home and landing hero) tints the full screen width but keeps its content on that edge, never inset inside a padded panel. Only cards inset their content (16 px).
 - Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
 - Motion: sheets 250ms, snap 30/55/92%. Haptic on paid / matched / released. Respect reduced motion.

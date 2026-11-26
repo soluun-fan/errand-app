@@ -3,7 +3,7 @@
 import { ArrowRight, LockKeyhole, Search, X } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
-import { btn } from "@/components/ui";
+import { btn, hero } from "@/components/ui";
 import { useT } from "@/i18n/client";
 
 /**
@@ -85,7 +85,7 @@ export function LandingSearch() {
           e.preventDefault();
           open(q.trim() ? `/post?title=${encodeURIComponent(q.trim().slice(0, 60))}` : "/post");
         }}
-        className="flex min-h-16 items-center gap-2 rounded-[20px] border-2 border-ink bg-bg py-1.5 pl-4 pr-1.5 shadow-float"
+        className={hero.search}
       >
         <Search aria-hidden size={20} className="flex-none text-ink-2" />
         <label htmlFor="landing-q" className="sr-only">
@@ -99,7 +99,7 @@ export function LandingSearch() {
           placeholder={t("landing.searchPh")}
           className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3"
         />
-        <button aria-label={t("landing.searchGo")} className="press flex min-h-12 flex-none items-center gap-1.5 rounded-[14px] bg-brand px-4 text-[16px] font-bold text-white">
+        <button aria-label={t("landing.searchGo")} className={hero.searchGo}>
           <span className="hidden sm:inline">{t("landing.searchGo")}</span>
           <ArrowRight aria-hidden size={20} className="sm:hidden" />
         </button>

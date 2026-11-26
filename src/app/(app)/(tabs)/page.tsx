@@ -6,7 +6,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, chipClass, seeAllClass, space } from "@/components/ui";
+import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, hero, seeAllClass, space } from "@/components/ui";
 import { TERMINAL_STATUSES } from "@/lib/engine";
 import { HelperCard } from "@/components/helper-card";
 import { OpenBoard } from "@/components/open-board";
@@ -89,8 +89,8 @@ export default async function Home() {
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web.
           On wider screens its tint runs edge to edge (like the landing page) while its content stays on the page edge,
           so the search box lines up with every section below. */}
-      <section className="relative isolate grid grid-cols-1 gap-8 md:py-12 md:first:-mt-6 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-12 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50">
-        <div className="flex min-w-0 flex-col gap-5">
+      <section className={`relative isolate ${hero.grid} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}>
+        <div className={hero.main}>
           <header className="flex items-center justify-between pt-2 md:hidden">
             <p className="text-[14px] text-ink-2">
               {name ? t("home.hello") : t("home.greetingAnon")}
@@ -109,13 +109,13 @@ export default async function Home() {
             <span className="hidden md:inline">{name ? `${t("home.hello")} ${name}. ` : ""}</span>
             {t("home.hero")}
           </h1>
-          <form action="/post" className="flex min-h-14 items-center gap-2 rounded-[18px] bg-bg pl-4 pr-1.5 shadow-float md:min-h-16 md:border-2 md:border-ink">
+          <form action="/post" className={hero.search}>
             <Search aria-hidden size={20} className="flex-none text-ink-2" />
             <label htmlFor="q" className="sr-only">
               {t("home.search")}
             </label>
             <input id="q" name="title" maxLength={40} placeholder={t("home.search")} className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-ink-3" />
-            <button aria-label={t("home.heroGo")} className="press flex h-11 flex-none items-center justify-center gap-1.5 rounded-[14px] bg-brand px-3 text-white md:h-12 md:px-5 md:font-bold">
+            <button aria-label={t("home.heroGo")} className={hero.searchGo}>
               <span className="hidden md:inline">{t("landing.searchGo")}</span>
               <ArrowRight aria-hidden size={20} className="md:hidden" />
             </button>
@@ -124,13 +124,13 @@ export default async function Home() {
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
             <DraftChip key={viewer.profile.id} userId={viewer.profile.id} />
             {repeat.map((d) => (
-              <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={chipClass(false)}>
+              <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={`${hero.chip} ${hero.chipPlain}`}>
                 <RotateCcw aria-hidden size={14} />
                 {d.title}
               </Link>
             ))}
             {popular.map((p) => (
-              <Link key={p.id} href={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`} className={chipClass(false)}>
+              <Link key={p.id} href={`/post?cat=${p.category}&title=${encodeURIComponent(qsTitle(p, locale))}`} className={`${hero.chip} ${hero.chipPlain}`}>
                 <CategoryIcon id={p.category} size={15} />
                 {qsTitle(p, locale)}
               </Link>
@@ -146,7 +146,7 @@ export default async function Home() {
           {active.length > 2 && <Link href="/tasks" className="flex min-h-12 items-center justify-between gap-2 text-[14px] font-semibold text-brand-ink">
             {t("home.viewActive", { n: active.length })}<ArrowRight aria-hidden size={18} className="shrink-0" />
           </Link>}
-          <div className="hidden md:block"><RecentRequests items={recent} t={t} now={now} /></div>
+          <div className="hidden md:block"><RecentRequests items={active.length > 0 ? recent.slice(0, 2) : recent} t={t} now={now} /></div>
         </div>
       </section>
       {/* nice-to-haves after the main thing, not before it */}
