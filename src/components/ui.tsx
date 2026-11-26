@@ -53,11 +53,12 @@ export const space = {
 /**
  * The Home and landing hero (PleaseHelp's layout, our look), one shape for both pages: a text column
  * of 576 px — measured so the title and paragraph letters end where the search box ends (mn and en),
- * so nothing in the column sticks out past the text. A fixed gap (64 px, 96 px on wide screens) separates
- * it from the side card, which fills the rest up to the page edge; the two are centred against each other; a search box with a thin ink border (no shadow on wider screens) and small chips under it.
+ * so nothing in the column sticks out past the text. The side card is at most 384 px and sits on the
+ * page's right edge; the space between them is never under 64 px and grows to ~144 px on wide screens,
+ * so the two halves breathe instead of looking squeezed; they are centred against each other; a search box with a thin ink border (no shadow on wider screens) and small chips under it.
  */
 export const hero = {
-  grid: "grid grid-cols-1 gap-8 lg:grid-cols-[36rem_minmax(0,1fr)] lg:items-center lg:gap-16 xl:gap-24",
+  grid: "grid grid-cols-1 gap-8 lg:grid-cols-[36rem_minmax(0,24rem)] lg:items-center lg:justify-between lg:gap-16",
   main: "flex min-w-0 flex-col gap-5",
   search:
     "flex min-h-14 items-center gap-2 rounded-cta bg-bg py-1.5 pl-4 pr-1.5 shadow-float md:min-h-16 md:border-2 md:border-ink md:shadow-none",
