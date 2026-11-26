@@ -98,3 +98,11 @@ describe("recommendReasons", () => {
   });
   it("nothing to compare with one applicant", () => expect(recommendReasons([r(0.4, 4.8, 10, 30)])).toEqual([]));
 });
+
+describe("recommendReasons: reliability", () => {
+  it("says 'reliable' when that's where the recommended helper leads", () => {
+    const a = { distanceKm: null, rating: 4.8, ratingCount: 61, completed: 61, reliability: 0.8 };
+    const b = { distanceKm: null, rating: 4.9, ratingCount: 129, completed: 184, reliability: 0.2 };
+    expect(recommendReasons([a, b])).toEqual(["reliable"]);
+  });
+});

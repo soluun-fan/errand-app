@@ -20,6 +20,8 @@ export interface RankedApplicant {
   rating: number;
   ratingCount: number;
   completed: number;
+  /** Share of offers turned into jobs in the last 30 days (with a prior). */
+  reliability: number;
 }
 
 
@@ -59,6 +61,7 @@ export async function rankApplicants(deal: ErrandDeal, now = Date.now()): Promis
         rating: bayesRating(Number(p.rating_sum), Number(p.rating_count)),
         ratingCount: Number(p.rating_count),
         completed: Number(p.completed_count),
+        reliability: (mine.filter((o) => o.status === "won").length + 1) / (mine.length + 2),
         score: score({
           helperId: p.id as string,
           distanceKm: km,

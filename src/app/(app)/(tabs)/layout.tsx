@@ -1,4 +1,5 @@
 import { AppTabs } from "@/components/app-tabs";
+import { space } from "@/components/ui";
 import { getViewer } from "@/lib/auth";
 import { getMode } from "@/lib/mode";
 
@@ -13,7 +14,7 @@ export default async function TabsLayout({ children }: LayoutProps<"/">) {
   const mode = await getMode();
   return (
     <>
-      <div className="flex flex-1 flex-col gap-4 pb-28 md:pb-8">{children}</div>
+      <div className={`flex flex-1 flex-col ${space.blocks} pb-28 md:pb-8`}>{children}</div>
       <AppTabs mode={mode} />
     </>
   );

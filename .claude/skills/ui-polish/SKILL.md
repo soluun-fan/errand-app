@@ -19,6 +19,7 @@ The rules live in `docs/ui.md` (read the sections you need). This is the checkli
 - Touch targets ≥ 48 px (`min-h-12`), CTA 56 px.
 
 ## Layout and geometry
+- Spacing scale (`space` in `src/components/ui.tsx`, docs/ui.md): `space.page` between sections, `space.blocks` on simple screens, `space.section` title → content, `space.group` inside a list. A gap between separate blocks is never smaller than the 20 px edge; things that belong together share a `gap-3` wrapper. No one-off `gap-*` / `-mt-*` to nudge a single block.
 - Page edge 20 px on phones (`px-5`) — the app and the landing page alike. Swipe rows bleed with `-mx-5 px-5` so their first card lines up with the edge.
 - Grids keep rows full: pick column counts that divide the item count (everyday kinds: 3 on phones, 5 wider = 2 rows of 10; licensed: one row of 3 wide tiles). Use `auto-fit` for rows whose length varies. Reuse `everydayGridClass` / `licensedGridClass` / `serviceTileClass` (`src/components/service-tile.tsx`).
 - Long lists: newest few, the rest folded (`<details>` or `ExpandableGrid`) with "Бүгдийг харах (n)".

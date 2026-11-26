@@ -2,7 +2,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { BadgeChips, ConditionChips } from "@/components/conditions";
 import { Countdown } from "@/components/countdown";
 import { CustomerTaskMap } from "@/components/customer-task-map";
-import { AddressBox, DetailSection, DetailTitle } from "@/components/detail";
+import { AddressBox, DetailSection, DetailTitle, RouteStops } from "@/components/detail";
 import { DirectPayCustomerCard } from "@/components/direct-pay-card";
 import { Ico } from "@/components/icon";
 import { InlineAction } from "@/components/inline-action";
@@ -15,7 +15,7 @@ import { StepTracker } from "@/components/step-tracker";
 import { TaskPhotoGrid } from "@/components/task-photo-grid";
 import { TaskPhotoManager } from "@/components/task-photo-manager";
 import { TimelineList } from "@/components/timeline-list";
-import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, btn, chipClass, field, fieldLabel } from "@/components/ui";
+import { Card, FlowHeader, HeldBadge, Note, PrimaryBar, SegmentedLinks, btn, field, fieldLabel } from "@/components/ui";
 import { recommendReasons } from "@/lib/dispatch/plan";
 import type { T } from "@/i18n";
 import type { OnTime } from "@/lib/badges";
@@ -261,19 +261,16 @@ export function DealView(p: DealViewProps) {
           {deal.category === "escort" && <p className="text-sm text-ink-2">{t("care.posterChoice")}</p>}
           {applicants.length === 0 && <p className="text-[15px] text-ink-2">{t("deal.noOffers")}</p>}
           {applicants.length > 1 && (
-            <nav aria-label={t("deal.sortLabel")} className="flex flex-wrap gap-2">
-              {(["recommended", "near", "rating"] as const).map((s) => (
-                <Link
-                  key={s}
-                  href={s === "recommended" ? `/tasks/${deal.id}` : `/tasks/${deal.id}?sort=${s}`}
-                  scroll={false}
-                  aria-current={sortBy === s ? "page" : undefined}
-                  className={chipClass(sortBy === s)}
-                >
-                  {t(`deal.sort.${s}`)}
-                </Link>
-              ))}
-            </nav>
+            <SegmentedLinks
+              label={t("deal.sortLabel")}
+              current={sortBy}
+              keepScroll
+              items={(["recommended", "near", "rating"] as const).map((s) => ({
+                key: s,
+                href: s === "recommended" ? `/tasks/${deal.id}` : `/tasks/${deal.id}?sort=${s}`,
+                label: t(`deal.sort.${s}`),
+              }))}
+            />
           )}
           {applicants.length > 0 && pickAt !== null && (
             <p className="self-start rounded-full bg-fill px-3 py-1 text-sm font-medium">
@@ -537,19 +534,29 @@ export function DealView(p: DealViewProps) {
         ) : (
           p.photos && <TaskPhotoGrid photos={p.photos} t={t} />
         )}
-        <div className="flex flex-col gap-2">
-          {deal.pickupAddress && <AddressBox icon="●" label={t("task.pickup")} address={deal.pickupAddress} />}
-          <AddressBox
-            icon="↘"
-            label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
-            address={deal.address}
-            directionsUrl={deal.location ? googlePlaceUrl(deal.location) : undefined}
-            directionsLabel={t("map.openShort")}
-          />
-        </div>
+        <RouteStops
+          stops={[
+            ...(deal.pickupAddress
+              ? [{ key: "pickup", kind: "pickup" as const, children: <AddressBox label={t("task.pickup")} address={deal.pickupAddress} /> }]
+              : []),
+            {
+              key: "drop",
+              kind: "drop" as const,
+              children: (
+                <AddressBox
+                  label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
+                  address={deal.address}
+                  directionsUrl={deal.location ? googlePlaceUrl(deal.location) : undefined}
+                  directionsLabel={t("map.openShort")}
+                />
+              ),
+            },
+          ]}
+        />
         {detailBits.length > 0 && <p className="text-[15px] text-ink-2">{detailBits.join(" · ")}</p>}
         {deal.details.note && <p className="rounded-input bg-fill p-3 text-[15px]">{deal.details.note}</p>}
       </DetailSection>
+      {p.recipientCheck}
 
       <DetailSection label={t("deal.timeline")}>
         <TimelineList

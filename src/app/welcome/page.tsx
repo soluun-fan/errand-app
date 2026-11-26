@@ -13,7 +13,7 @@ import { LandingSearch, LoginGate, LoginPromptProvider } from "@/components/logi
 import { OpenBoard } from "@/components/open-board";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { SeeAllArrow, SectionHeader, btn, seeAllClass } from "@/components/ui";
+import { SeeAllArrow, SectionHeader, btn, seeAllClass, space } from "@/components/ui";
 import { ReviewCard } from "@/components/review-card";
 import { recentReviews } from "@/lib/helper-profile";
 import { getLocale, getT } from "@/i18n/server";
@@ -125,7 +125,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* hero: the question, search, popular starts — and real recent activity beside it */}
         <section className="bg-brand-bg/60">
-          <div className={`${wrap} grid gap-8 py-10 md:grid-cols-[1.25fr_1fr] md:items-start md:py-16`}>
+          <div className={`${wrap} grid gap-8 py-10 md:grid-cols-[1.25fr_1fr] md:items-start md:gap-12 md:py-16`}>
             <div className="flex min-w-0 flex-col gap-5">
               <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-[13px] font-medium shadow-card">
                 <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${online > 0 ? "bg-held" : "bg-ink-3"}`} />
@@ -157,7 +157,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* categories with today's starting price */}
-        <section className={`${wrap} flex flex-col gap-5 py-12`}>
+        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
           <SectionHeader size="lg" title={t("landing.catsTitle")} sub={t("home.allFrom")} />
           <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
             <LoginGate key={id} next={`/post?cat=${id}`} className={className}>{tile}</LoginGate>
@@ -181,7 +181,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* requests waiting for a helper — recruits helpers; shown only when there are some */}
         {board.length > 0 && (
           <section className="bg-bg py-12">
-            <div className={`${wrap} flex flex-col gap-5`}>
+            <div className={`${wrap} flex flex-col ${space.section}`}>
               <SectionHeader
                 size="lg"
                 title={t("landing.boardTitle")}
@@ -199,7 +199,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* helpers' finished work: real photos, each agreed by that job's customer */}
         {work.length > 0 && (
-          <section className={`${wrap} flex flex-col gap-5 py-12`}>
+          <section className={`${wrap} flex flex-col ${space.section} py-12`}>
             <SectionHeader size="lg" title={t("workPhotos.homeTitle")} sub={t("workPhotos.homeSub")} />
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {work.map((p) => (
@@ -213,7 +213,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* what customers say: 4★ and up with a written note, photo reviews first (PleaseHelp-style) */}
         {reviews.length > 0 && (
-          <section className={`${wrap} flex flex-col gap-5 pb-12`}>
+          <section className={`${wrap} flex flex-col ${space.section} pb-12`}>
             <SectionHeader size="lg" title={t("web.reviews")} sub={t("web.reviewsSelection")} />
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {reviews.map((r, i) => (
@@ -227,7 +227,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* how it works, 4 steps */}
         <section id="how" className="scroll-mt-20 py-12">
-          <div className={`${wrap} flex flex-col gap-6`}>
+          <div className={`${wrap} flex flex-col ${space.section}`}>
             <SectionHeader size="lg" title={t("landing.howTitle")} sub={t("landing.howSub")} />
             <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((s, i) => (
@@ -258,7 +258,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         )}
 
         {/* why us — two-tone heading */}
-        <section className={`${wrap} flex flex-col gap-6 py-12`}>
+        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
           <h2 className="text-[30px] font-extrabold tracking-tight md:text-[40px]">
             <span className="text-ink-2">{t("landing.whyA")} </span>
             {t("landing.whyB")}

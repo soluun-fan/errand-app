@@ -99,7 +99,6 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
   return (
     <>
     {live && <AutoRefresh seconds={deal.status === "open" || deal.status === "in_progress" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
-    {canVerifyRecipient && recipientVerification !== undefined && <RecipientVerificationCard dealId={deal.id} verification={recipientVerification} />}
     {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
       {[...questions].map(([helper, unread]) => (
@@ -126,6 +125,7 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
       dispatch={dispatch}
       ranked={ranked}
       applicantSort={applicantSort}
+      recipientCheck={canVerifyRecipient && recipientVerification !== undefined ? <RecipientVerificationCard dealId={deal.id} verification={recipientVerification} /> : undefined}
       organizations={await organizationNames([deal.payeeOrgId, ...deal.offers.map((o) => o.orgId)])}
       helperLocation={helperLocation}
       chat={chat}

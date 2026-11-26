@@ -34,6 +34,22 @@ export function Wide({ children, className = "" }: { children: ReactNode; classN
   return <div className={`md:mx-[calc((100%-min(69rem,100vw-3rem))/2)] ${className}`}>{children}</div>;
 }
 
+/**
+ * Spacing scale (docs/ui.md "Spacing"). A bigger gap means "less related". A gap between two
+ * separate blocks is never smaller than the 20 px page edge, so nothing looks squeezed beside wide
+ * margins on bigger screens.
+ */
+export const space = {
+  /** between the sections of a page: 32 / 56 px */
+  page: "gap-8 md:gap-14",
+  /** between the blocks of a simple screen (Profile, Tasks, Jobs, Earnings — the tab layout): 24 / 32 px */
+  blocks: "gap-6 md:gap-8",
+  /** a section's title → its content, and between groups inside a section: 16 / 24 px */
+  section: "gap-4 md:gap-6",
+  /** cards in one list or grid, a label → its control: 12 px */
+  group: "gap-3",
+} as const;
+
 /** Title of a root (tab) screen. */
 export const pageTitle = "pt-2 text-[24px] font-bold tracking-tight";
 
@@ -153,15 +169,16 @@ export function EmptyState({ icon, title, body, action }: { icon?: ReactNode; ti
 }
 
 /** Segmented control as links (server-friendly): e.g. History tabs. */
-export function SegmentedLinks({ items, current }: { items: { key: string; href: string; label: string }[]; current: string }) {
+export function SegmentedLinks({ items, current, label, keepScroll = false }: { items: { key: string; href: string; label: string }[]; current: string; label?: string; keepScroll?: boolean }) {
   return (
-    <nav className="grid auto-cols-fr grid-flow-col gap-1 rounded-full bg-fill p-1">
+    <nav aria-label={label} className="flex gap-1 rounded-full bg-fill p-1">
       {items.map((i) => (
         <Link
           key={i.key}
           href={i.href}
+          scroll={!keepScroll}
           aria-current={i.key === current ? "page" : undefined}
-          className={`flex min-h-11 items-center justify-center rounded-full text-[15px] font-semibold ${
+          className={`flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full px-3 text-[15px] font-semibold ${
             i.key === current ? "bg-bg text-ink shadow-float" : "text-ink-2"
           }`}
         >

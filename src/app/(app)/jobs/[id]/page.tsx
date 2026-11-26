@@ -11,7 +11,7 @@ import { ProofUploader } from "@/components/proof-uploader";
 import { CareCheckOut } from "@/components/care-check-out";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { ConfirmSheet } from "@/components/sheet";
-import { AddressBox, DetailRows, DetailSection, DetailTitle, MapHero } from "@/components/detail";
+import { AddressBox, DetailRows, DetailSection, DetailTitle, MapHero, RouteStops } from "@/components/detail";
 import { StatusBadge } from "@/components/status-badge";
 import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
@@ -63,12 +63,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       <>
         <Note tone="info">{t("care.launchScope")}</Note>
         {hasApplication && (
-          <InlineAction
-            action={jobAction}
-            fields={{ dealId: deal.id, intent: "unapply" }}
-            label={t("job.unapply")}
-            className={btn.text}
-          />
+          <InlineAction action={jobAction} fields={{ dealId: deal.id, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />
         )}
       </>
     );
@@ -79,15 +74,30 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const customer = (await publicProfiles([deal.customerId])).get(deal.customerId);
   // what helpers said about this customer (kept apart from helper ratings), and whether I rated them
   const [{ data: custStats }, { data: myRating }] = await Promise.all([
-    createAdminClient().from("profiles").select("customer_rating_sum, customer_rating_count").eq("id", deal.customerId)
+    createAdminClient()
+      .from("profiles")
+      .select("customer_rating_sum, customer_rating_count")
+      .eq("id", deal.customerId)
       .maybeSingle<{ customer_rating_sum: number; customer_rating_count: number }>(),
-    createAdminClient().from("ratings").select("stars").eq("deal_id", deal.id).eq("from_user_id", viewer.profile.id).maybeSingle<{ stars: number }>(),
+    createAdminClient()
+      .from("ratings")
+      .select("stars")
+      .eq("deal_id", deal.id)
+      .eq("from_user_id", viewer.profile.id)
+      .maybeSingle<{ stars: number }>(),
   ]);
-  const customerRating = custStats && custStats.customer_rating_count > 0 ? custStats.customer_rating_sum / custStats.customer_rating_count : null;
+  const customerRating =
+    custStats && custStats.customer_rating_count > 0 ? custStats.customer_rating_sum / custStats.customer_rating_count : null;
   const now = Date.now();
   // while bargaining, the price on the table between this helper and the customer
   const onTable = deal.status === "open" && myOffer?.price != null ? myOffer.price : deal.fee;
-  const net = errandSplit({ fee: onTable, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet;
+  const net = errandSplit({
+    fee: onTable,
+    itemBudget: 0,
+    receipt: null,
+    serviceFee: deal.serviceFee,
+    commissionBps: deal.commissionBps,
+  }).helperFeeNet;
   const fields = { dealId: deal.id };
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
   /** a handover photo (or care check-out) by this helper that is still there */
@@ -133,7 +143,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     >
       <label className={fieldLabel}>
         {t("job.quotePrice")}
-        <input name="price" inputMode="numeric" defaultValue={String(start)} className={`${field} text-[20px] font-bold tabular-nums`} required />
+        <input
+          name="price"
+          inputMode="numeric"
+          defaultValue={String(start)}
+          className={`${field} text-[20px] font-bold tabular-nums`}
+          required
+        />
       </label>
       {intent === "quote" && (
         <label className={fieldLabel}>
@@ -150,9 +166,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   const specialized = categoryTrust(deal.category) !== "open";
   const qualification = viewer.actor.qualified?.find((q) => q.category === deal.category);
-  const payeeOrgId = deal.helperId ? deal.payeeOrgId : myOffer ? myOffer.orgId : qualification?.orgId ?? null;
+  const payeeOrgId = deal.helperId ? deal.payeeOrgId : myOffer ? myOffer.orgId : (qualification?.orgId ?? null);
   const payee = payeeOrgId ? (await organizationNames([payeeOrgId])).get(payeeOrgId) : undefined;
-  const canTake = viewer.actor.helperApproved && (specialized ? Boolean(qualification) : (viewer.actor.categories ?? []).includes(deal.category));
+  const canTake =
+    viewer.actor.helperApproved && (specialized ? Boolean(qualification) : (viewer.actor.categories ?? []).includes(deal.category));
   // the customer's conditions this helper doesn't meet (docs/decisions.md 2026-11-18 "Task conditions")
   const missing = deal.status === "open" && viewer.actor.helperApproved ? missingConditions(deal.details.require, viewer.actor.badges) : [];
   const gateActions =
@@ -174,13 +191,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   if (deal.status === "open" && !myOffer && canTake && missing.length > 0) {
     line = t("conditions.youMiss");
     primary = (
-      <Link href={missing.includes("language") && missing.length === 1 ? "/profile" : "/helper/badges"} className={`${btn.secondary} w-full`}>
+      <Link
+        href={missing.includes("language") && missing.length === 1 ? "/profile" : "/helper/badges"}
+        className={`${btn.secondary} w-full`}
+      >
         {t("conditions.getThem")}
       </Link>
     );
   } else if (deal.status === "open" && !myOffer && !canTake) {
     line = viewer.actor.helperApproved
-      ? specialized ? t("specialized.qualified") : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
+      ? specialized
+        ? t("specialized.qualified")
+        : t("job.needCategory", { category: t(`categoryShort.${deal.category}`) })
       : t("job.needApproval");
     // every "you need…" has the page to do it
     if (!viewer.actor.helperApproved) {
@@ -225,7 +247,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       </InlineAction>
     );
     secondary.push(priceSheet("quote", deal.postedFee));
-    secondary.push(declineSheet || <InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />);
+    secondary.push(
+      declineSheet || (
+        <InlineAction key="skip" action={jobAction} fields={{ ...fields, intent: "skip" }} label={t("job.skip")} className={btn.text} />
+      ),
+    );
   } else if (deal.status === "open" && myOffer) {
     if (myOffer.proposedBy === "customer" && myOffer.price !== null) {
       // the customer answered with their price: take it (→ matched) or answer with another
@@ -243,7 +269,15 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     }
     secondary.push(priceSheet("reprice", myOffer.price ?? deal.postedFee));
     secondary.push(
-      declineSheet || <InlineAction key="unapply" action={jobAction} fields={{ ...fields, intent: "unapply" }} label={t("job.unapply")} className={btn.text} />,
+      declineSheet || (
+        <InlineAction
+          key="unapply"
+          action={jobAction}
+          fields={{ ...fields, intent: "unapply" }}
+          label={t("job.unapply")}
+          className={btn.text}
+        />
+      ),
     );
   } else if (mine && deal.status === "awaiting_payment") {
     line = deal.payBy ? <Countdown until={deal.payBy} serverNow={now} template={t("job.waitingPay")} /> : null;
@@ -260,11 +294,25 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     const ready = handoverLive && !needReceipt && deal.topUp?.status !== "pending";
     if (ready) {
       primary = (
-        <InlineAction action={jobAction} fields={{ ...fields, intent: "finish" }} label={t("proof.finishSlide")} className={`${btn.primary} w-full`} slide>
+        <InlineAction
+          action={jobAction}
+          fields={{ ...fields, intent: "finish" }}
+          label={t("proof.finishSlide")}
+          className={`${btn.primary} w-full`}
+          slide
+        >
           {deal.details.require?.handoverCode && (
             <label className={fieldLabel}>
               <Ico as={Hash} /> {t("conditions.codeAsk")}
-              <input name="code" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required autoComplete="off" className={`${field} text-center text-[24px] font-bold tracking-[0.3em] tabular-nums`} />
+              <input
+                name="code"
+                inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
+                required
+                autoComplete="off"
+                className={`${field} text-center text-[24px] font-bold tracking-[0.3em] tabular-nums`}
+              />
             </label>
           )}
         </InlineAction>
@@ -287,7 +335,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         title={t("job.cancelLateTitle")}
         body={
           late
-            ? t("job.cancelLateBody", { days: days === 1 ? t("job.pauseDay") : t("job.pauseDays", { n: days }), minutes: ruleOf(deal, "backOutGraceMinutes") })
+            ? t("job.cancelLateBody", {
+                days: days === 1 ? t("job.pauseDay") : t("job.pauseDays", { n: days }),
+                minutes: ruleOf(deal, "backOutGraceMinutes"),
+              })
             : t("job.cancelFreeBody", { minutes: ruleOf(deal, "backOutGraceMinutes") })
         }
         confirmLabel={t("job.cancelLate")}
@@ -303,13 +354,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const pickupLabel = deal.pickupAddress ?? t("map.pickup");
   const markers: MapMarker[] = [
     ...(deal.pickupLocation
-      ? [exact ? { ...deal.pickupLocation, kind: "pickup" as const, label: pickupLabel } : { ...fuzz(deal.pickupLocation), kind: "pickupArea" as const }]
+      ? [
+          exact
+            ? { ...deal.pickupLocation, kind: "pickup" as const, label: pickupLabel }
+            : { ...fuzz(deal.pickupLocation), kind: "pickupArea" as const },
+        ]
       : []),
-    ...(deal.location ? [exact ? { ...deal.location, kind: "task" as const, label: deal.address } : { ...fuzz(deal.location), kind: "area" as const }] : []),
+    ...(deal.location
+      ? [exact ? { ...deal.location, kind: "task" as const, label: deal.address } : { ...fuzz(deal.location), kind: "area" as const }]
+      : []),
   ];
   // the pickup pin beats its text for the Google Maps waypoint
   const directions = googleDirectionsUrl(deal.location ?? deal.address, deal.pickupLocation ?? deal.pickupAddress);
-
 
   const photos = await taskPhotosFor(deal.id);
   const firstMeeting = !startPhoto && mine && !(await workedTogether(deal.customerId, [me])).has(me);
@@ -317,7 +373,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const unread = chatAccess.canRead && chatAccess.threadHelperId ? await unreadCount(deal.id, chatAccess.threadHelperId, me) : null;
   const sos = mine ? await liveSos(deal.id, me) : null;
 
-  const pickupDirections = deal.pickupLocation || deal.pickupAddress ? googleDirectionsUrl(deal.pickupLocation ?? (deal.pickupAddress as string)) : undefined;
+  const pickupDirections =
+    deal.pickupLocation || deal.pickupAddress ? googleDirectionsUrl(deal.pickupLocation ?? (deal.pickupAddress as string)) : undefined;
 
   return (
     <>
@@ -332,7 +389,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           {/* "On my way" shares the helper's location from now; "Need more time?" for traffic (2026-11-24) */}
           {!helperLate(deal, now) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {!deal.enRouteAt && <InlineAction action={jobAction} fields={{ dealId: deal.id, intent: "on_my_way" }} label={t("noShow.onMyWay")} className={btn.small} />}
+              {!deal.enRouteAt && (
+                <InlineAction
+                  action={jobAction}
+                  fields={{ dealId: deal.id, intent: "on_my_way" }}
+                  label={t("noShow.onMyWay")}
+                  className={btn.small}
+                />
+              )}
               {[15, 30]
                 .filter((m) => (deal.arriveExtendMinutes ?? 0) + m <= ruleOf(deal, "maxDelayMinutes"))
                 .map((m) => (
@@ -368,7 +432,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           )}
         </div>
       )}
-      {(["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status)) && <AutoRefresh seconds={10} />}
+      {["open", "awaiting_payment", "matched", "in_progress"].includes(deal.status) && <AutoRefresh seconds={10} />}
 
       {markers.length > 0 && (
         <MapHero caption={exact ? undefined : t("map.approx")} backHref="/jobs" backLabel={t("common.back")}>
@@ -380,7 +444,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             routeFromMe={deal.status === "open" || deal.status === "awaiting_payment" || onJob}
             className="h-[44vh] min-h-64"
             // tap the map: Google Maps with the route (approximate area until the helper is matched)
-            openUrl={exact ? directions : helperStart(deal) ? googleDirectionsUrl(fuzz(helperStart(deal) as { lat: number; lng: number })) : undefined}
+            openUrl={
+              exact
+                ? directions
+                : helperStart(deal)
+                  ? googleDirectionsUrl(fuzz(helperStart(deal) as { lat: number; lng: number }))
+                  : undefined
+            }
           />
         </MapHero>
       )}
@@ -398,7 +468,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {invitedMe && deal.invite && (
           <Note tone="info">
             {t("invite.toYou", { name: customer?.name ?? t("deal.customer") })}{" "}
-            {deal.invite.openAfter ? <Countdown until={deal.invite.until} serverNow={now} template={t("invite.toYouUntil")} /> : t("invite.toYouOnly")}
+            {deal.invite.openAfter ? (
+              <Countdown until={deal.invite.until} serverNow={now} template={t("invite.toYouUntil")} />
+            ) : (
+              t("invite.toYouOnly")
+            )}
           </Note>
         )}
         {deal.status === "open" && categoryTrust(deal.category) === "care" && <Note tone="warn">{t("care.helperNote")}</Note>}
@@ -406,17 +480,36 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         {!startPhoto && mine && firstMeeting && <Note tone="info">{t("care.meetFirstHelper")}</Note>}
         {line && <p className="text-[16px]">{line}</p>}
         {mine && deal.heldAmount > 0 && (
-          <HeldBadge>{deal.payMode === "direct" ? t("direct.helperBadge", { amount: fmtMoney(owedToHelper(deal)) }) : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}</HeldBadge>
+          <HeldBadge>
+            {deal.payMode === "direct"
+              ? t("direct.helperBadge", { amount: fmtMoney(owedToHelper(deal)) })
+              : t("money.heldBadge", { amount: fmtMoney(deal.heldAmount) })}
+          </HeldBadge>
         )}
       </DetailTitle>
 
       {chatAccess.inquiry ? (
-        <Link href={`/chat/${deal.id}`} className={btn.secondary}>{t("chat.askQuestion")}{unread ? ` · ${t("chat.unread", { n: unread })}` : ""}</Link>
-      ) : unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callsEnabled() && callParty(deal, me) !== null} t={t} />}
-      {payee && <Note tone="info"><Link href={`/orgs/${payee.id}`} className="font-semibold underline">{t("org.payee", { name: payee.name })}</Link><br />{t("org.workerPay")}</Note>}
+        <Link href={`/chat/${deal.id}`} className={btn.secondary}>
+          {t("chat.askQuestion")}
+          {unread ? ` · ${t("chat.unread", { n: unread })}` : ""}
+        </Link>
+      ) : (
+        unread !== null && <ContactRow dealId={deal.id} unread={unread} canCall={callsEnabled() && callParty(deal, me) !== null} t={t} />
+      )}
+      {payee && (
+        <Note tone="info">
+          <Link href={`/orgs/${payee.id}`} className="font-semibold underline">
+            {t("org.payee", { name: payee.name })}
+          </Link>
+          <br />
+          {t("org.workerPay")}
+        </Note>
+      )}
       {mine && directPayOpen(deal) && <DirectPayHelperCard dealId={deal.id} state={await directPayState(deal)} action={jobAction} t={t} />}
       {mine && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
-      {mine && <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />}
+      {mine && (
+        <PriceChangeCard deal={deal} me="helper" otherName={customer?.name ?? t("deal.customer")} action={jobAction} pay={null} t={t} />
+      )}
 
       {/* the key facts in one lined card (PleaseHelp-style): what it pays · what to buy · when */}
       <DetailRows
@@ -430,8 +523,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             value:
               deal.itemBudget > 0 ? (
                 <>
-                  <span className="block text-[17px] font-bold tabular-nums">{t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}</span>
-                  <span className="block text-sm text-ink-2">{t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}</span>
+                  <span className="block text-[17px] font-bold tabular-nums">
+                    {t("job.itemsUpTo", { amount: fmtMoney(deal.itemBudget) })}
+                  </span>
+                  <span className="block text-sm text-ink-2">
+                    {t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}
+                  </span>
                 </>
               ) : (
                 <span className="text-[17px] font-semibold">{t("job.noItems")}</span>
@@ -455,31 +552,44 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </DetailSection>
       )}
 
-
       <DetailSection label={t("job.placeLabel")}>
         <p className="whitespace-pre-line pb-1 text-[16px]">{deal.description}</p>
         <ConditionChips variety={deal.details.variety} require={deal.details.require} t={t} missing={missing} />
         <TaskPhotoGrid photos={photos} t={t} />
-        <div className="flex flex-col gap-2">
-          {deal.pickupAddress && (
-            <AddressBox
-              icon="●"
-              label={t("task.pickup")}
-              address={exact ? deal.pickupAddress : null}
-              hidden={t("job.addressAfterMatch")}
-              directionsUrl={exact ? pickupDirections : undefined}
-              directionsLabel={t("map.directionsShort")}
-            />
-          )}
-          <AddressBox
-            icon="↘"
-            label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
-            address={exact ? deal.address : null}
-            hidden={t("job.addressAfterMatch")}
-            directionsUrl={exact ? directions : undefined}
-            directionsLabel={t("map.directionsShort")}
-          />
-        </div>
+        <RouteStops
+          stops={[
+            ...(deal.pickupAddress
+              ? [
+                  {
+                    key: "pickup",
+                    kind: "pickup" as const,
+                    children: (
+                      <AddressBox
+                        label={t("task.pickup")}
+                        address={exact ? deal.pickupAddress : null}
+                        hidden={t("job.addressAfterMatch")}
+                        directionsUrl={exact ? pickupDirections : undefined}
+                        directionsLabel={t("map.directionsShort")}
+                      />
+                    ),
+                  },
+                ]
+              : []),
+            {
+              key: "drop",
+              kind: "drop" as const,
+              children: (
+                <AddressBox
+                  label={deal.pickupAddress || deal.pickupLocation ? t("task.drop") : t("task.where")}
+                  address={exact ? deal.address : null}
+                  hidden={t("job.addressAfterMatch")}
+                  directionsUrl={exact ? directions : undefined}
+                  directionsLabel={t("map.directionsShort")}
+                />
+              ),
+            },
+          ]}
+        />
         {bits.length > 0 && <p className="text-[15px] text-ink-2">{bits.join(" · ")}</p>}
         {mine && dt.note && <p className="rounded-input bg-fill p-3 text-[15px]">{dt.note}</p>}
       </DetailSection>
@@ -547,7 +657,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 {[1, 2, 3, 4, 5].map((n) => (
                   <label key={n} className="cursor-pointer">
                     <input type="radio" name="stars" value={n} required defaultChecked={n === 5} className="peer sr-only" />
-                    <span aria-label={t("rating.stars", { n })} className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn">
+                    <span
+                      aria-label={t("rating.stars", { n })}
+                      className="flex h-12 w-12 items-center justify-center rounded-input border border-line text-xl text-ink-3 peer-checked:border-2 peer-checked:border-ink peer-checked:text-warn"
+                    >
                       ★{n}
                     </span>
                   </label>
@@ -557,7 +670,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 {CUSTOMER_TAGS.map((tag) => (
                   <label key={tag} className="cursor-pointer">
                     <input type="checkbox" name="tags" value={tag} className="peer sr-only" />
-                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white">{t(`rateCustomer.tags.${tag}`)}</span>
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-fill px-4 text-[15px] peer-checked:bg-ink peer-checked:text-white">
+                      {t(`rateCustomer.tags.${tag}`)}
+                    </span>
                   </label>
                 ))}
               </div>

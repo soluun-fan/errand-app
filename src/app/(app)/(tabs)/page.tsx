@@ -6,7 +6,7 @@ import { CategoryIcon } from "@/components/category-icon";
 import { DealCard } from "@/components/deal-card";
 import { RecentRequests } from "@/components/recent-requests";
 import { SeasonalRow } from "@/components/seasonal-row";
-import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, chipClass, seeAllClass } from "@/components/ui";
+import { Avatar, LinkRow, SeeAllArrow, SectionHeader, Wide, chipClass, seeAllClass, space } from "@/components/ui";
 import { TERMINAL_STATUSES } from "@/lib/engine";
 import { HelperCard } from "@/components/helper-card";
 import { OpenBoard } from "@/components/open-board";
@@ -65,10 +65,11 @@ export default async function Home() {
 
   const name = viewer.profile.name?.split(" ")[0];
 
-  const section = (title: string, more: string | null, body: React.ReactNode) => (
-    <section className="flex flex-col gap-3">
+  const section = (title: string, more: string | null, body: React.ReactNode, sub?: string) => (
+    <section className={`flex flex-col ${space.section}`}>
       <SectionHeader
         title={title}
+        sub={sub}
         more={
           more && (
             <Link href={more} className={seeAllClass}>
@@ -82,12 +83,12 @@ export default async function Home() {
   );
 
   return (
-    <Wide className="flex flex-col gap-6 md:gap-10">
+    <Wide className={`flex flex-col ${space.page}`}>
       {/* what the app is waiting for from you, each with the page to do it — first thing on the screen */}
       <TodoCard items={todos} t={t} />
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web */}
-      <section className="grid grid-cols-1 gap-5 md:rounded-[28px] md:bg-brand-bg/50 md:p-8 lg:grid-cols-[1.35fr_1fr] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-4">
+      <section className="grid grid-cols-1 gap-8 md:rounded-[28px] md:bg-brand-bg/50 md:p-10 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-12">
+        <div className="flex min-w-0 flex-col gap-5">
           <header className="flex items-center justify-between pt-2 md:hidden">
             <p className="text-[14px] text-ink-2">
               {name ? t("home.hello") : t("home.greetingAnon")}
@@ -151,13 +152,13 @@ export default async function Home() {
       {section(
         t("home.kindsTitle"),
         null,
-        <div className="flex flex-col gap-4">
-          {/* the only price that is ours is the minimum — said once, not on every tile */}
-          <p className="-mt-2 text-[14px] text-ink-2">{t("home.allFrom")}</p>
+        // the only price that is ours is the minimum — said once (the header's sub), not on every tile
+        <div className={`flex flex-col ${space.section}`}>
           <CategoryGroups live={live} cfg={cfg} covers={covers} t={t} link={(id, className, tile) => (
             <Link key={id} href={`/post?cat=${id}`} className={className}>{tile}</Link>
           )} />
         </div>,
+        t("home.allFrom"),
       )}
 
       <nav aria-label={t("home.explore")} className="grid gap-2 sm:grid-cols-2 md:hidden">
@@ -179,7 +180,7 @@ export default async function Home() {
       />
 
       {/* discovery (open requests, helpers, their work, reviews): the website only — phones stay short (2026-11-24) */}
-      <div className="hidden flex-col gap-10 md:flex">
+      <div className="hidden flex-col gap-14 md:flex">
       {board.length > 0 && section(t("web.requestsTitle"), "/requests", <OpenBoard items={board} t={t} locale={locale} hrefFor={(id) => `/jobs/${id}`} covers={covers} />)}
 
       {helpers.length > 0 &&

@@ -1,9 +1,9 @@
-import { AlarmClock, Briefcase, CircleHelp, Heart, House, IdCard, Landmark, LifeBuoy, MapPin, ScrollText, ShieldCheck, UserRound } from "lucide-react";
+import { AlarmClock, Briefcase, ChevronRight, CircleHelp, HandHelping, Heart, House, IdCard, Landmark, LifeBuoy, MapPin, ScrollText, ShieldCheck, UserRound } from "lucide-react";
 import { TodoCard } from "@/components/todo-card";
 import { helperTodos } from "@/lib/todo";
 import Link from "next/link";
 import { signOut } from "@/app/login/actions";
-import { Card, LinkRow, btn, field, fieldLabel, pageTitle } from "@/components/ui";
+import { Avatar, Card, LinkRow, btn, field, fieldLabel, pageTitle } from "@/components/ui";
 import { LOCALES } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { listSavedAddresses } from "@/lib/addresses";
@@ -55,7 +55,23 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
 
   return (
     <>
-      <h1 className={pageTitle}>{profile.name || t("profile.title")}</h1>
+      <header className="flex items-center gap-3">
+        <Avatar name={profile.name || "?"} size={56} />
+        <h1 className={`${pageTitle} min-w-0 flex-1 break-words`}>{profile.name || t("profile.title")}</h1>
+      </header>
+      {/* PleaseHelp-style invitation: a customer who has never applied sees how to start helping */}
+      {mode === "customer" && profile.role === "customer" && !profile.helper_status && (
+        <Link href="/helper/apply" className="press flex items-center gap-3 rounded-card bg-brand-bg p-4">
+          <span aria-hidden className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand text-white">
+            <HandHelping size={22} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-bold text-brand-ink">{t("helper.becomeTitle")}</span>
+            <span className="block text-[14px] text-ink-2">{t("profile.becomeSub")}</span>
+          </span>
+          <ChevronRight aria-hidden size={20} className="flex-none text-brand-ink" />
+        </Link>
+      )}
       {(mode === "helper" || profile.role === "helper" || profile.helper_status) && (!unverifiedHelpersTestMode || actor.helperApproved) && <TodoCard items={await helperTodos(viewer)} t={t} />}
       {sp.org === "sent" && <p role="status" className="rounded-card bg-held-bg p-4 text-held">{t("org.sent")}</p>}
       {actor.helperApproved && (

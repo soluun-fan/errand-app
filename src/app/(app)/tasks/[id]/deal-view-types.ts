@@ -36,7 +36,7 @@ export interface DealViewProps {
   dispatch?: { notified: number } | null;
   /** Live applicants, best first (dispatch score); the first is "Recommended". */
   /** Live applicants, best first (`rankApplicants`): the first is "Recommended". */
-  ranked?: { helperId: string; distanceKm: number | null; rating: number; ratingCount: number; completed: number }[];
+  ranked?: { helperId: string; distanceKm: number | null; rating: number; ratingCount: number; completed: number; reliability: number }[];
   /** How the customer sorts the applicants (the recommendation stays marked either way). */
   applicantSort?: ApplicantSort;
   /** Live helper position during the job (customer only). */
@@ -69,4 +69,6 @@ export interface DealViewProps {
   safety?: ReactNode;
   /** Finished task: the helper's request to show photos + the task's public photos. */
   workPhotos?: ReactNode;
+  /** Delivery: the optional recipient phone check (client component), shown under the place. */
+  recipientCheck?: ReactNode;
 }

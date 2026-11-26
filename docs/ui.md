@@ -9,7 +9,13 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
 - Type: **Onest** (has every Mongolian letter; load `cyrillic-ext` or Ө/Ү fall back). Body 15 px, inputs 16 px (no iOS zoom), page titles 22–24 px bold tight, card labels 13 px semibold grey. Tabular numbers for money.
 - Icons: **Lucide** (`lucide-react`), 16–22 px, stroke 2 — never emoji for UI. Category icons via `CategoryIcon` (`tile` = soft orange square).
 - Radius: input 14 · CTA 16 · card/tile 20 · sheet 28 · chip full. Cards have **no border**: white on the grey page with `shadow-card`; floating things use `shadow-float`. Selected = 2px orange border.
-- Spacing 4px grid, side padding 20. Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
+- Spacing 4px grid, side padding 20. **Spacing scale** (2026-11-26, `space` in `src/components/ui.tsx`): a bigger gap means "less related", and a gap between two separate blocks is never smaller than the 20 px page edge.
+  - `space.page`: 32 / 56 px (phone / desktop) between the sections of a page (Home, landing).
+  - `space.blocks`: 24 / 32 px between the blocks of a simple screen (the tab layout: Profile, Tasks, Jobs, Earnings).
+  - `space.section`: 16 / 24 px from a section's title to its content, and between groups inside it.
+  - `space.group`: 12 px between cards of one list, and from a label to its control. Things that belong together (a button and its fine print, two money cards) go in one wrapper with `gap-3`, so the bigger page gap doesn't pull them apart.
+  - Side-by-side columns on desktop (hero + side card) are 48 px apart, at least as wide as the hero's own padding.
+- Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
 - Motion: sheets 250ms, snap 30/55/92%. Haptic on paid / matched / released. Respect reduced motion.
 
 ## Layouts

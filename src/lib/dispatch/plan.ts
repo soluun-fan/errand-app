@@ -79,15 +79,17 @@ export function score(c: Candidate, profile: RankProfile = "now"): number {
 }
 
 /** Why the first applicant is recommended: the parts where they lead the others. */
-export type RecommendReason = "closest" | "bestRated" | "mostJobs";
+export type RecommendReason = "closest" | "bestRated" | "mostJobs" | "reliable";
 
-export function recommendReasons(ranked: readonly { distanceKm: number | null; rating: number; ratingCount: number; completed: number }[]): RecommendReason[] {
+export function recommendReasons(ranked: readonly { distanceKm: number | null; rating: number; ratingCount: number; completed: number; reliability?: number }[]): RecommendReason[] {
   const [top, ...rest] = ranked;
   if (!top || rest.length === 0) return [];
   const reasons: RecommendReason[] = [];
   if (top.distanceKm !== null && rest.every((r) => r.distanceKm === null || r.distanceKm >= top.distanceKm!)) reasons.push("closest");
   if (top.ratingCount > 0 && rest.every((r) => r.rating <= top.rating)) reasons.push("bestRated");
   if (top.completed > 0 && rest.every((r) => r.completed <= top.completed)) reasons.push("mostJobs");
+  // takes the jobs it's offered and turns up: said when it's what put them first
+  if (top.reliability !== undefined && rest.every((r) => (r.reliability ?? 0) < top.reliability!)) reasons.push("reliable");
   return reasons;
 }
 

@@ -426,3 +426,16 @@ Owner: "customer should be the one to choose. probably the closest one they shou
   - one `SectionHeader` everywhere: title, grey line under it, "See all →" on the right;
   - a reviews row on the landing page (4★ and up with a note, photo reviews first);
   - the helper's job screen shows Pay · Shopping · When as one card of label/value rows split by thin lines (`DetailRows`).
+
+## 2026-11-26 — More from PleaseHelp's app screens (profile, home, request form)
+The owner sent screenshots of PleaseHelp's profile, home, request form and subcategory list. Same rule as before: their layout, our look.
+- **Built:**
+  - **Trips drawn as a route** (`RouteStops`): pickup (dark ring) and drop-off (brand pin) joined by a line. Used in the post form, where both stops now share one card, and on the customer task and helper job pages. This replaces the "●" / "↘" text marks.
+  - **One-tap notes for the helper** under the address note: leave at the door · leave with the building guard (жижүүр) · call me in the app first · entrance code by chat. The note is shown only to the chosen helper.
+  - **Profile:** an avatar beside the name, and a "Become a helper" banner for customers who have never applied.
+- **Already had:** a customer/helper mode switch, saved helpers ("My helpers"), job types, buying for the customer, scheduling, inviting a specific helper, a suggested price, a condition checklist, a floating tab bar with the main action in the middle.
+- **Not copied:**
+  - the prepaid credit balance (we never hold customer money as a balance; see the money model);
+  - an "allow price offers" switch (bargaining is always open);
+  - their 3D character art (we use Lucide icons; our own illustrations would be a separate brand decision).
+- **Open:** extra stops on one trip; a helper "has a car" field the customer can ask for (carry/deliver); per-category tap-to-fill phrases for the description; more job types per category (they list about 10 under delivery; we have 2).
