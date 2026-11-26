@@ -9,6 +9,7 @@ import type { CategoryId } from "@/lib/engine";
 import { compressImage } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import { prepareCover, saveCover } from "../actions";
+import { UserError, shownError } from "@/lib/user-error";
 
 /** One kind's example picture: shown on cards and Home when a task has no photo of its own. */
 export function CoverForm({ category, url }: { category: CategoryId; url: string | null }) {
@@ -25,14 +26,14 @@ export function CoverForm({ category, url }: { category: CategoryId; url: string
     try {
       const { blob } = await compressImage(file);
       const slot = await prepareCover(category, blob.size);
-      if ("error" in slot) throw new Error(slot.error);
+      if ("error" in slot) throw new UserError(slot.error);
       const up = await browserClient().storage.from("kind-covers").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
-      if (up.error) throw new Error(t("taskPhotos.failed"));
+      if (up.error) throw new UserError(t("taskPhotos.failed"));
       const r = await saveCover(category, slot.path);
-      if (r.error) throw new Error(r.error);
+      if (r.error) throw new UserError(r.error);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("taskPhotos.failed"));
+      setError(shownError(e, t("taskPhotos.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

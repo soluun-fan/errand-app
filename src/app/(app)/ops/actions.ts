@@ -8,7 +8,7 @@ import { getViewer } from "@/lib/auth";
 import { acknowledgeIncident, resolveIncident } from "@/lib/incidents";
 import { updateKindMinimum, updatePricing, type PricingSettings } from "@/lib/pricing";
 import { cleanTiers, percentToBps, wholeAmount } from "@/lib/pricing-rules";
-import { PAUSE_DAYS, audit, liftAccountPause, pauseAccount, updateControls, type PauseDays } from "@/lib/safety";
+import { PAUSE_DAYS, audit, isPausedError, liftAccountPause, pauseAccount, updateControls, type PauseDays } from "@/lib/safety";
 import { deleteQuickStart, saveKeywords, saveQuickStart } from "@/lib/content";
 import { MAX_KEYWORDS, QuickStartInput, parseKeywords } from "@/lib/content-rules";
 import { CATEGORIES, type CategoryId } from "@/lib/engine";
@@ -24,6 +24,10 @@ import { decideBadge } from "@/lib/badges";
 import { decideWithdrawal, markAccountChecked } from "@/lib/withdrawals";
 import { resolveError } from "@/lib/error-log";
 import type { Wave } from "@/lib/dispatch/plan";
+import { isDealConflict, runCommand } from "@/lib/db/deals";
+import { runRefunds } from "@/lib/payments/service";
+import { notify } from "@/lib/push";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 async function requireAdmin() {
   const viewer = await getViewer();
@@ -568,6 +572,50 @@ export async function closeSupportAction(_prev: ActionResult, form: FormData): P
       .trim()
       .slice(0, 1000) || null;
   if (!/^[0-9a-f-]{36}$/i.test(id) || !(await closeSupportRequest(id, viewer.profile.id, note))) return { error: t("error.changed") };
+  refresh();
+  return { done: true };
+}
+
+/* ---------- disputes (docs/screens-helper-ops.md "Disputes") ---------- */
+
+/**
+ * Ops decides a disputed task: pay the helper (release) or give the customer everything back
+ * (refund). A note is required and audited; both sides are told; any refund goes to wire now.
+ */
+export async function resolveDisputeAction(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const t = await getT();
+  const viewer = await requireAdmin();
+  if (!viewer) return { error: t("ops.notAdmin") };
+  const dealId = parseOr(Uuid, String(form.get("dealId") ?? ""));
+  const outcome = String(form.get("outcome") ?? "");
+  const note = String(form.get("note") ?? "")
+    .trim()
+    .slice(0, 1000);
+  if (!dealId || (outcome !== "release" && outcome !== "refund")) return { error: t("error.generic") };
+  if (note.length < 5) return { error: t("opsDisputes.noteNeeded") };
+  const db = createAdminClient();
+  try {
+    const r = await runCommand(db, dealId, { type: "resolve", outcome }, { kind: "user", id: viewer.profile.id, role: "admin" });
+    await audit(viewer.profile.id, "dispute.resolved", dealId, { outcome, note });
+    // a refund (or the unspent item budget on a release) is sent to wire now; the tick retries it
+    await runRefunds(dealId).catch((e) => console.error("refund after dispute failed", e));
+    if (r.deal.type === "errand") {
+      const d = r.deal;
+      const body = outcome === "release" ? "push.disputeReleasedBody" : "push.disputeRefundedBody";
+      await notify([d.customerId], { title: "push.disputeDecidedTitle", body, params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` }).catch(
+        () => undefined,
+      );
+      if (d.helperId) {
+        await notify([d.helperId], { title: "push.disputeDecidedTitle", body, params: { title: d.title }, url: `/jobs/${d.id}`, tag: `job-${d.id}` }).catch(
+          () => undefined,
+        );
+      }
+    }
+  } catch (e) {
+    if (isDealConflict(e)) return { error: t("error.changed") };
+    if (isPausedError(e)) return { error: t("opsDisputes.paused") };
+    throw e;
+  }
   refresh();
   return { done: true };
 }

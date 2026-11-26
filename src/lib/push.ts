@@ -2,6 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { MESSAGES, makeT, parseLocale, type Locale, type MessageKey, type Params } from "@/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isPushHost } from "@/lib/input";
 
 /**
  * Web Push (VAPID) — reaches phones even when the app is closed. Native apps will add FCM/APNs
@@ -44,6 +45,7 @@ export async function notify(userIds: string[], n: Notice): Promise<number> {
   let sent = 0;
   await Promise.all(
     (data ?? []).map(async (s) => {
+      if (!isPushHost(s.endpoint)) return void dead.push(s.id); // saved before the host check: never POST there
       const t = makeT(MESSAGES[parseLocale(s.locale)]);
       const payload = JSON.stringify({ title: t(n.title, n.params), body: t(n.body, n.params), url: n.url, tag: n.tag });
       try {

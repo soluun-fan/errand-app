@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { SubmitButton, type ActionResult } from "@/components/sheet";
+import { SubmitButton, keepEntries, type ActionResult } from "@/components/sheet";
 import { Note, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { PlatformRules } from "@/lib/rules";
@@ -9,9 +9,27 @@ import { saveRules } from "../actions";
 
 type NumKey = Exclude<keyof PlatformRules, "dispatchWaves" | "payMode">;
 
-const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "standards" | "care"; fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour" | "mnt" | "times" | "m"][] }[] = [
-  { title: "money", fields: [["paymentWindowMinutes", "min"], ["paymentWindowBookedMinutes", "min"], ["checkHours", "h"]] },
-  { title: "payouts", fields: [["withdrawMin", "mnt"], ["withdrawalsPerDay", "times"], ["autoPayoutDays", "days"], ["dayjobPairMonthCap", "times"]] },
+const GROUPS: {
+  title: "money" | "payouts" | "search" | "backOut" | "standards" | "care";
+  fields: [NumKey, "min" | "h" | "days" | "sec" | "people" | "hour" | "mnt" | "times" | "m"][];
+}[] = [
+  {
+    title: "money",
+    fields: [
+      ["paymentWindowMinutes", "min"],
+      ["paymentWindowBookedMinutes", "min"],
+      ["checkHours", "h"],
+    ],
+  },
+  {
+    title: "payouts",
+    fields: [
+      ["withdrawMin", "mnt"],
+      ["withdrawalsPerDay", "times"],
+      ["autoPayoutDays", "days"],
+      ["dayjobPairMonthCap", "times"],
+    ],
+  },
   {
     title: "search",
     fields: [
@@ -26,7 +44,16 @@ const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "standards" 
       ["maxPendingApplications", "times"],
     ],
   },
-  { title: "backOut", fields: [["backOutGraceMinutes", "min"], ["pauseDaysFirst", "days"], ["pauseDaysSecond", "days"], ["pauseDaysMore", "days"], ["carePauseDays", "days"]] },
+  {
+    title: "backOut",
+    fields: [
+      ["backOutGraceMinutes", "min"],
+      ["pauseDaysFirst", "days"],
+      ["pauseDaysSecond", "days"],
+      ["pauseDaysMore", "days"],
+      ["carePauseDays", "days"],
+    ],
+  },
   {
     title: "standards",
     fields: [
@@ -50,16 +77,25 @@ const GROUPS: { title: "money" | "payouts" | "search" | "backOut" | "standards" 
       ["chatRetentionDays", "days"],
     ],
   },
-  { title: "care", fields: [["careDayStartHour", "hour"], ["careDayEndHour", "hour"], ["careMaxMinutes", "min"], ["careCallMinSeconds", "sec"]] },
+  {
+    title: "care",
+    fields: [
+      ["careDayStartHour", "hour"],
+      ["careDayEndHour", "hour"],
+      ["careMaxMinutes", "min"],
+      ["careCallMinSeconds", "sec"],
+    ],
+  },
 ];
 
 /** Timings and limits Ops can tune. New tasks use them; tasks already posted keep theirs. */
 export function RulesForm({ r }: { r: PlatformRules }) {
   const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(saveRules, {});
+  const [state, action, pending] = useActionState<ActionResult, FormData>(saveRules, {});
   const [waves, setWaves] = useState(r.dispatchWaves);
   return (
-    <form action={action} className="flex flex-col gap-6">
+    // sent by hand so a refused save keeps every edit (React resets <form action> forms)
+    <form onSubmit={keepEntries(action)} className="flex flex-col gap-6">
       {GROUPS.map((g) => (
         <section key={g.title} className="flex flex-col gap-3">
           <h2 className="font-bold">{t(`opsRules.g.${g.title}`)}</h2>
@@ -100,7 +136,11 @@ export function RulesForm({ r }: { r: PlatformRules }) {
         ))}
         <div className="flex gap-3">
           {waves.length < 8 && (
-            <button type="button" className="text-small font-semibold text-brand-ink underline" onClick={() => setWaves([...waves, { radiusKm: 1000, max: 100, seconds: 0 }])}>
+            <button
+              type="button"
+              className="text-small font-semibold text-brand-ink underline"
+              onClick={() => setWaves([...waves, { radiusKm: 1000, max: 100, seconds: 0 }])}
+            >
               {t("opsRules.waveAdd")}
             </button>
           )}
@@ -131,7 +171,7 @@ export function RulesForm({ r }: { r: PlatformRules }) {
         </p>
       )}
       {state.done && <p className="text-small text-held">{t("opsRules.saved")}</p>}
-      <SubmitButton className="min-h-12 rounded-input bg-ink px-4 font-bold text-white">{t("opsRules.save")}</SubmitButton>
+      <SubmitButton className="min-h-12 rounded-input bg-ink px-4 font-bold text-white" busy={pending}>{t("opsRules.save")}</SubmitButton>
     </form>
   );
 }

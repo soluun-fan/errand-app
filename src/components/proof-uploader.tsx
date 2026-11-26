@@ -7,6 +7,7 @@ import { useT } from "@/i18n/client";
 import { compressImage, dhashOfBitmap, sha256Hex } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import { btn, field, fieldLabel } from "./ui";
+import { UserError, shownError } from "@/lib/user-error";
 
 function position(): Promise<{ lat: number; lng: number } | null> {
   if (!("geolocation" in navigator)) return Promise.resolve(null);
@@ -63,9 +64,9 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
       const mime = isVideo ? file.type : "image/jpeg";
       const [hash, pos] = await Promise.all([sha256Hex(blob), position()]);
       const slot = await prepareProof(dealId, kind, mime, blob.size);
-      if ("error" in slot) throw new Error(slot.error);
+      if ("error" in slot) throw new UserError(slot.error);
       const up = await browserClient().storage.from("proofs").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: mime });
-      if (up.error) throw new Error(t("proof.failed"));
+      if (up.error) throw new UserError(t("proof.failed"));
       const r = await submitProof({
         dealId,
         kind,
@@ -80,11 +81,11 @@ export function ProofUploader({ dealId, kind, done, compact = false }: { dealId:
         takenAt: file.lastModified || null,
         note: kind === "progress" ? note.trim() || null : null,
       });
-      if (r.error) throw new Error(r.error);
+      if (r.error) throw new UserError(r.error);
       setNote("");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("proof.failed"));
+      setError(shownError(e, t("proof.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

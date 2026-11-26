@@ -29,7 +29,9 @@ describe("input shapes (server actions are public endpoints)", () => {
     expect(isValid(Uuid, "1; drop table deals")).toBe(false);
     expect(isValid(UploadPath.nullable(), null)).toBe(true);
     expect(isValid(UploadPath, 42)).toBe(false);
-    expect(isValid(PushSubscriptionInput, { endpoint: "https://push.example/abc", keys: { p256dh: "k", auth: "a" } })).toBe(true);
+    expect(isValid(PushSubscriptionInput, { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "k", auth: "a" } })).toBe(true);
+    expect(isValid(PushSubscriptionInput, { endpoint: "https://push.example/abc", keys: { p256dh: "k", auth: "a" } })).toBe(false);
+    expect(isValid(PushSubscriptionInput, { endpoint: "https://fcm.googleapis.com:8443/x", keys: { p256dh: "k", auth: "a" } })).toBe(false);
     expect(isValid(PushSubscriptionInput, { endpoint: "http://push.example/abc", keys: { p256dh: "k", auth: "a" } })).toBe(false);
     expect(isValid(CallLogInput, { kind: "ended", video: false, seconds: 61 })).toBe(true);
     expect(isValid(CallLogInput, { kind: "ended", video: false })).toBe(false);

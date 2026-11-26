@@ -11,6 +11,12 @@ import type { SavedAddress } from "@/lib/addresses";
 import { Check, DoorClosed, Plus } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { CONTACTLESS_KINDS, KIND_ICON, digits, fromSaved, twoPlaces, type Draft } from "./post-draft";
+
+/** Floor as typed, digits only and at most 60 (the engine refuses more). */
+const floorInput = (raw: string) => {
+  const v = digits(raw);
+  return v === "" ? "" : String(Math.min(60, Number(v)));
+};
 const NOTE_MAX = 300;
 const NOTE_CHIPS = ["door", "guard", "callFirst", "codeInChat"] as const;
 
@@ -161,7 +167,8 @@ export function PostLocationStep({
                   inputMode="numeric"
                   value={d[k]}
                   maxLength={k === "floor" ? 2 : 10}
-                  onChange={(e) => set(k, k === "floor" ? digits(e.target.value) : e.target.value)}
+                  // floors stop at 60 (the tallest UB buildings; the engine refuses more)
+                  onChange={(e) => set(k, k === "floor" ? floorInput(e.target.value) : e.target.value)}
                   placeholder={k === "entrance" ? "1" : k === "floor" ? "5" : "54"}
                 />
               </label>

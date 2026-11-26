@@ -20,6 +20,7 @@ import { DetailsJson, PhotoIdsJson, PinJson, Uuid, parseOr } from "@/lib/input";
 import { getControls, isPaused, isPausedError, openTaskCount, isFirstTask } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_TASK_PHOTO_BYTES, attachTaskPhotos, createTaskPhotoSlot, type TaskPhotoSlot } from "@/lib/task-photos";
+import { maskContacts } from "@/lib/chat-rules";
 
 export interface PostState {
   dealId?: string;
@@ -69,8 +70,9 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
     return { error: t("safety.tooManyOpen", { n: controls.maxOpenTasks }), step: STEP.review };
   }
 
-  const title = String(form.get("title") ?? "").trim();
-  const description = String(form.get("description") ?? "").trim();
+  // public to helpers before anyone is chosen: phone numbers, links and handles are masked as in chat
+  const title = maskContacts(String(form.get("title") ?? "").trim()).text;
+  const description = maskContacts(String(form.get("description") ?? "").trim()).text;
   const address = String(form.get("address") ?? "").trim();
   const pickupAddress = String(form.get("pickup") ?? "").trim();
   const category = String(form.get("category")) as CategoryId;
@@ -165,7 +167,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       }
       if (/Pin must be inside Mongolia/.test(e.message)) return { error: t("post.reason.pin"), step: STEP.where };
       if (/Distance must be between/.test(e.message)) return { error: t("post.reason.far"), step: STEP.where };
-      return { error: e.message, step: STEP.where };
+      console.error("post refused", e.message);
+      return { error: t("error.generic"), step: STEP.where };
     }
     throw e;
   }

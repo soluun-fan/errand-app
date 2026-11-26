@@ -338,7 +338,8 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         .update({ status: "declined" })
         .eq("deal_id", dealId)
         .eq("helper_id", viewer.profile.id)
-        .eq("status", "sent");
+        .eq("status", "sent")
+        .throwOnError();
       refresh();
       return { done: true };
     }
@@ -387,7 +388,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
       if ((await pendingApplications(viewer.profile.id)) >= maxPending) return { error: t("job.tooMany", { n: maxPending }) };
     }
     let cmd: Command;
-    const note = String(form.get("note") ?? "").slice(0, 300);
+    const note = maskContacts(String(form.get("note") ?? "").slice(0, 300)).text; // shown to the customer: no phone numbers or links
     // a named price: any amount ≥ the minimum (engine), at most what one task may hold (safety cap)
     const named = async () => {
       const price = parsePrice(form.get("price"));
@@ -536,7 +537,7 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
         url: `/tasks/${dealId}`,
         tag: `task-${dealId}`,
       });
-      if (opened) await runDispatch(dealId); // the first wave goes out now
+      if (opened) await runDispatch(dealId).catch((e) => console.error("dispatch after decline failed", e)); // the first wave goes out now
     } else if (intent === "finish") {
       await notify([deal.customerId], {
         title: "push.doneTitle",

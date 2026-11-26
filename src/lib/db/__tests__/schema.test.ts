@@ -619,7 +619,7 @@ describe("helper verification data", () => {
         tx.query(`update public.payout_accounts set account_number = 'ABC123' where user_id = $1`, [U.c2]),
       ),
     );
-    expect(badAcct.message).toMatch(/check constraint/);
+    expect(badAcct.message).toMatch(/must be an IBAN/); // the rule on entry (20261127020000)
     expect(await scalar<boolean>(db, `select public as v from storage.buckets where id = 'kyc'`)).toBe(false);
   });
 });
@@ -894,13 +894,12 @@ describe("row level security", () => {
     }
   });
 
-  it("users can edit their own name, and only their own", async () => {
-    await as(db, "authenticated", U.c1, (tx) => tx.query(`update public.profiles set name = 'Solongo B.' where id = $1`, [U.c1]));
-    const n = await as(db, "authenticated", U.c1, (tx) =>
-      tx.query(`update public.profiles set name = 'hacked' where id = $1`, [U.c2]),
-    );
-    expect(n.affectedRows).toBe(0);
-    expect(await scalar<string>(db, `select name as v from public.profiles where id = $1`, [U.c1])).toBe("Solongo B.");
+  it("names change only through the app's server, never straight from a browser", async () => {
+    for (const id of [U.c1, U.c2]) {
+      const err = await sqlError(as(db, "authenticated", U.c1, (tx) => tx.query(`update public.profiles set name = 'Guigere Ops' where id = $1`, [id])));
+      expect(err.message).toMatch(/permission denied/);
+    }
+    expect(await scalar<string>(db, `select name as v from public.profiles where id = $1`, [U.c1])).not.toBe("Guigere Ops");
   });
 
   it("saved addresses: owners manage their own; nobody else can read or write them", async () => {

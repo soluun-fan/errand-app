@@ -5,6 +5,7 @@ import { btn } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { compressImage } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
+import { UserError, shownError } from "@/lib/user-error";
 
 /**
  * One document (registration certificate, trade certificate): photo or PDF → a one-time signed
@@ -38,12 +39,12 @@ export function DocUpload({
       const blob: Blob = isPdf ? f : (await compressImage(f)).blob;
       const mime = isPdf ? "application/pdf" : "image/jpeg";
       const slot = await prepare(mime, blob.size);
-      if ("error" in slot) throw new Error(slot.error);
+      if ("error" in slot) throw new UserError(slot.error);
       const up = await browserClient().storage.from("kyc").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: mime });
-      if (up.error) throw new Error(t("proof.failed"));
+      if (up.error) throw new UserError(t("proof.failed"));
       onDone(slot.path);
     } catch (e) {
-      onError(e instanceof Error && e.message ? e.message : t("proof.failed"));
+      onError(shownError(e, t("proof.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

@@ -13,6 +13,7 @@ import { prepareChatImage, sendChat } from "./actions";
 import { CallPanel } from "./call-panel";
 import { VoiceRecorder, type VoiceRecorderHandle } from "./voice-recorder";
 import { Ico } from "@/components/icon";
+import { UserError, shownError } from "@/lib/user-error";
 
 /**
  * The conversation: messages, composer and photo button. New messages arrive through Supabase
@@ -96,12 +97,12 @@ export function ChatRoom({
     try {
       const { blob } = await compressImage(f);
       const slot = await prepareChatImage(dealId, blob.size, withHelper);
-      if ("error" in slot) throw new Error(slot.error);
+      if ("error" in slot) throw new UserError(slot.error);
       const up = await browserClient().storage.from("chat").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
-      if (up.error) throw new Error(t("proof.failed"));
+      if (up.error) throw new UserError(t("proof.failed"));
       await send(slot.path);
     } catch (e) {
-      setNotice({ tone: "bad", text: e instanceof Error && e.message ? e.message : t("proof.failed") });
+      setNotice({ tone: "bad", text: shownError(e, t("proof.failed")) });
       setBusy(false);
     } finally {
       if (file.current) file.current.value = "";

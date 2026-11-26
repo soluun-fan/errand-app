@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, amountDue, apply, createErrand, ext, payable, type ErrandDeal } from "../index";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, amountDue, apply, cancelSplit, createErrand, ext, payable, type ErrandDeal } from "../index";
 import { T0, World, admin, customer, helper, provider, system } from "./helpers";
 
 const c1 = customer("c1");
@@ -360,16 +360,44 @@ describe("cancellation", () => {
     expect(w.ledger).toEqual([]);
   });
 
-  it("after match, before start: ₮3,000 to the helper, rest refunded", () => {
+  it("after match, before start: ₮3,000 to the helper, our service fee kept, the rest refunded", () => {
     const w = new World();
     const id = w.post({ fee: 10000 });
     w.do(id, { type: "accept" }, h1);
     w.pay(id);
-    w.do(id, { type: "cancel" }, c1);
+    const fee = (w.get(id) as ErrandDeal).serviceFee;
+    expect(fee).toBeGreaterThan(0);
+    const t = w.do(id, { type: "cancel" }, c1);
     expect(w.get(id).status).toBe("cancelled");
     expect(w.bal(payable("h1"))).toBe(3000);
-    expect(w.bal(ext("c1"))).toBe(-3000);
+    expect(w.bal("platform")).toBe(fee); // the payment was processed (2026-11-27)
+    expect(w.bal(ext("c1"))).toBe(-3000 - fee);
+    expect(t.events.map((e) => e.code)).toEqual(expect.arrayContaining(["cancel_fee_paid", "fee_kept", "refunded"]));
+  });
+
+  it("a task posted before the rule still refunds our service fee on that cancel", () => {
+    const w = new World();
+    const id = w.post({ fee: 10000 });
+    const d = w.get(id) as ErrandDeal;
+    delete d.details.rules?.keepFeeOnCancel; // as stored by tasks posted before 2026-11-27
+    w.do(id, { type: "accept" }, h1);
+    w.pay(id);
+    w.do(id, { type: "cancel" }, c1);
+    expect(w.bal(payable("h1"))).toBe(3000);
     expect(w.bal("platform")).toBe(0);
+    expect(w.bal(ext("c1"))).toBe(-3000);
+  });
+
+  it("the cancel sheet's numbers are the engine's", () => {
+    const w = new World();
+    const id = w.post({ fee: 10000 });
+    w.do(id, { type: "accept" }, h1);
+    w.pay(id);
+    const d = w.get(id) as ErrandDeal;
+    const split = cancelSplit(d);
+    expect(split.helperFee + split.kept + split.refund).toBe(d.heldAmount);
+    w.do(id, { type: "cancel" }, c1);
+    expect(w.bal(ext("c1"))).toBe(-(split.helperFee + split.kept));
   });
 
   it("customer cannot cancel once the helper has started", () => {
@@ -379,6 +407,22 @@ describe("cancellation", () => {
     w.pay(id);
     w.do(id, { type: "start" }, h1);
     w.reject(id, { type: "cancel" }, c1, "ILLEGAL_TRANSITION");
+  });
+
+  it("the system releases a helper booked elsewhere: searching again, no penalty, only the system may", () => {
+    const w = new World();
+    const id = w.post();
+    w.do(id, { type: "accept" }, h1);
+    w.advance(0.5); // well past the back-out grace: a helper cancel now would be penalised
+    w.reject(id, { type: "release_helper" }, h1, "FORBIDDEN");
+    const t = w.do(id, { type: "release_helper" }, system);
+    const d = w.get(id) as ErrandDeal;
+    expect(d).toMatchObject({ status: "open", helperId: null, heldAmount: 0 });
+    expect(d.offers.map((o) => o.helperId)).not.toContain("h1");
+    expect(t.effects).toEqual([]);
+    expect(t.events.map((e) => e.code)).toContain("helper_withdrew");
+    expect(t.events.map((e) => e.code)).not.toContain("helper_backed_out");
+    w.reject(id, { type: "release_helper" }, system, "ILLEGAL_TRANSITION"); // only while waiting for payment
   });
 
   it("helper backs out after the grace: full refund, the task is posted anew, and a penalty", () => {

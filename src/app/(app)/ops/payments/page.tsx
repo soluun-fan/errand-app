@@ -41,7 +41,8 @@ export default async function OpsPaymentsPage() {
   const { data: refunds } = await db
     .from("provider_refunds")
     .select("id, deal_id, amount, status, error, attempts, created_at")
-    .or("status.eq.manual_required,and(status.eq.failed,attempts.gte.3)")
+    // needs a person: wire asked for manual handling, repeated failures, or "pending" a day with no news
+    .or(`status.eq.manual_required,and(status.eq.failed,attempts.gte.3),and(status.eq.pending,updated_at.lt.${new Date(Date.now() - 86_400_000).toISOString()})`)
     .order("created_at")
     .limit(100)
     .returns<

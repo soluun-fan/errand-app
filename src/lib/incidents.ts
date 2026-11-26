@@ -243,7 +243,8 @@ export async function repingSos(now = Date.now()): Promise<number> {
     .eq("kind", "sos")
     .eq("status", "open")
     .gte("created_at", new Date(now - forMs).toISOString())
-    .returns<{ id: string; deal_id: string; kind: string; status: string; created_at: string; ops_pinged_at: string | null; last_alert_at: string }[]>();
+    .returns<{ id: string; deal_id: string; kind: string; status: string; created_at: string; ops_pinged_at: string | null; last_alert_at: string }[]>()
+    .throwOnError(); // a failed read is a failed reminder round, never "no SOS open"
   let n = 0;
   for (const r of data ?? []) {
     const lastPingAt = Math.max(Date.parse(r.last_alert_at), r.ops_pinged_at ? Date.parse(r.ops_pinged_at) : 0);
@@ -255,7 +256,8 @@ export async function repingSos(now = Date.now()): Promise<number> {
       .eq("id", r.id)
       .eq("status", "open")
       .select("id")
-      .returns<{ id: string }[]>();
+      .returns<{ id: string }[]>()
+      .throwOnError();
     if (!still?.length) continue; // acknowledged meanwhile
     const { data: deal } = await db.from("deals").select("title").eq("id", r.deal_id).maybeSingle<{ title: string }>();
     await alertOps(r.id, true, deal?.title ?? "");
@@ -274,6 +276,7 @@ export async function purgeIncidentLocations(now = Date.now()): Promise<number> 
     .lt("resolved_at", cutoff)
     .is("location_purged_at", null)
     .select("id")
-    .returns<{ id: string }[]>();
+    .returns<{ id: string }[]>()
+    .throwOnError();
   return data?.length ?? 0;
 }

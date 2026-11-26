@@ -74,6 +74,10 @@ it("applies a validated payment before acknowledging it", async () => {
   expect(mocks.write).toHaveBeenCalledOnce();
   expect(mocks.handlePaid.mock.invocationCallOrder[0]).toBeLessThan(mocks.write.mock.invocationCallOrder[0]);
 });
+it("accepts the currency in any letter case", async () => {
+  expect((await POST(request({ ...paid, data: { ...paid.data, currency: "mnt" } }))).status).toBe(200);
+  expect(mocks.handlePaid).toHaveBeenCalledWith("pi_test", 12000, "ch_test");
+});
 it.each([
   undefined,
   null,

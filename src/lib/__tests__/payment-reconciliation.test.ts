@@ -5,6 +5,16 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/payments/wire", async (original) => ({ ...(await original<object>()), getIntent: mocks.getIntent }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
+    // a query or an RPC: each takes the next prepared result, in call order
+    rpc: () => {
+      const result = mocks.results.shift() ?? { data: [] };
+      return {
+        throwOnError: async () => {
+          if (result.error) throw result.error;
+          return result;
+        },
+      };
+    },
     from: () => {
       const result = mocks.results.shift() ?? { data: [] };
       const q = {

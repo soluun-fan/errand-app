@@ -19,6 +19,10 @@ export async function markLateHelpers(now = Date.now()): Promise<number> {
   const { data } = await db.from("deals").select("id, helper_id")
     .eq("type", "errand").eq("status", "matched").not("helper_id", "is", null)
     .lt("assigned_at", new Date(now - 5 * 60_000).toISOString())
+    // nobody can be late before the booked time: skip jobs booked for later (most of them, as it grows)
+    .or(`scheduled_at.is.null,scheduled_at.lt.${new Date(now).toISOString()}`)
+    .order("assigned_at")
+    .limit(200)
     .returns<{ id: string; helper_id: string }[]>().throwOnError();
   if (!data?.length) return 0;
   const { data: marked } = await db.from("helper_marks").select("deal_id, helper_id")

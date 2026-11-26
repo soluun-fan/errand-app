@@ -1,6 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useFormStatus } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/i18n/client";
@@ -42,7 +51,12 @@ export function BottomSheet({
         <div aria-hidden className="mx-auto -mt-2 h-1 w-10 rounded-full bg-line" />
         <div className="grid grid-cols-[minmax(0,1fr)_48px] items-start gap-2">
           <h2 className="min-w-0 py-2 text-title-lg font-semibold leading-snug">{title}</h2>
-          <button type="button" onClick={onClose} aria-label={t("common.close")} className="flex h-12 w-12 items-center justify-center rounded-full text-ink-2 hover:bg-fill">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            className="flex h-12 w-12 items-center justify-center rounded-full text-ink-2 hover:bg-fill"
+          >
             <X aria-hidden size={20} />
           </button>
         </div>
@@ -60,12 +74,18 @@ export function SubmitButton({
   pendingLabel,
   pendingContent,
   disabled = false,
+  busy = false,
   ...rest
-}: { className: string; children: ReactNode; pendingLabel?: string; pendingContent?: ReactNode; disabled?: boolean } & Pick<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "aria-label" | "aria-pressed" | "title"
->) {
-  const { pending } = useFormStatus();
+}: {
+  className: string;
+  children: ReactNode;
+  pendingLabel?: string;
+  pendingContent?: ReactNode;
+  disabled?: boolean;
+  /** Pending state from the caller, for forms submitted by hand (see `keepEntries`). */
+  busy?: boolean;
+} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "aria-label" | "aria-pressed" | "title">) {
+  const pending = useFormStatus().pending || busy;
   const t = useT();
   return (
     <button {...rest} className={className} disabled={pending || disabled} aria-busy={pending}>
@@ -79,6 +99,19 @@ export interface ActionResult {
   done?: boolean;
 }
 export type FormAction = (prev: ActionResult, form: FormData) => Promise<ActionResult>;
+
+/**
+ * onSubmit for a form whose action may return an error: React resets a form after every
+ * `<form action>` call, which would wipe what the person typed when the server says no. Sending
+ * it by hand keeps the entries (validation still runs first; the clicked button is included).
+ */
+export function keepEntries(run: (form: FormData) => void) {
+  return (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
+    startTransition(() => run(data));
+  };
+}
 
 /**
  * Trigger button → sheet that states the exact consequence → confirm runs the server action.
@@ -108,9 +141,13 @@ export function ConfirmSheet({
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const [state, formAction] = useActionState<ActionResult, FormData>(async (prev, form) => {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [state, formAction, pending] = useActionState<ActionResult, FormData>(async (prev, form) => {
     const r = await action(prev, form);
-    if (r.done) setOpen(false);
+    if (r.done) {
+      formRef.current?.reset(); // entries stay after an error, clear after success
+      setOpen(false);
+    }
     return r;
   }, {});
 
@@ -120,7 +157,7 @@ export function ConfirmSheet({
         {trigger}
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title={title}>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form ref={formRef} onSubmit={keepEntries(formAction)} className="flex flex-col gap-4">
           {Object.entries(fields).map(([k, v]) => (
             <input key={k} type="hidden" name={k} value={v} />
           ))}
@@ -132,7 +169,9 @@ export function ConfirmSheet({
             </p>
           )}
           <div className="flex flex-col gap-2">
-            <SubmitButton className={`${confirmClass} w-full`}>{confirmLabel}</SubmitButton>
+            <SubmitButton className={`${confirmClass} w-full`} busy={pending}>
+              {confirmLabel}
+            </SubmitButton>
             <button type="button" className={`${btn.text} w-full`} onClick={() => setOpen(false)}>
               {t("common.cancel")}
             </button>

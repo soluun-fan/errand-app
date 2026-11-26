@@ -11,6 +11,7 @@ import { fmtMoney } from "@/lib/format";
 import { APP_NAME_LATIN } from "@/lib/brand";
 import { paymentConfiguration, type ProviderName } from "./config";
 import { cancelIntent, chargeOf, createCheckout, createIntent, getIntent, refundCharge, WireError } from "./wire";
+import { REFUND_MAX_ATTEMPTS, refundDue, type RefundRow } from "./refund-rules";
 
 /**
  * Payments through wire.mn (docs/decisions.md 2026-11-18 "Direct pay + wire.mn", then "Managed
@@ -247,7 +248,7 @@ export async function stepBackBusyHelper(dealId: string, helperId: string): Prom
   try {
     const d = await loadDeal(db, dealId);
     if (d?.type !== "errand" || d.status !== "awaiting_payment" || d.helperId !== helperId) return;
-    await runCommand(db, dealId, { type: "cancel" }, { kind: "user", id: helperId, role: "helper" });
+    await runCommand(db, dealId, { type: "release_helper" }, { kind: "system" });
     await runDispatch(dealId);
   } catch (e) {
     console.error("step back busy helper failed", e);
@@ -317,13 +318,14 @@ export async function runRefunds(dealId: string): Promise<void> {
   // send every open request
   const { data: open } = await db
     .from("provider_refunds")
-    .select("id, payment_id, amount, reason, attempts")
+    .select("id, payment_id, amount, reason, attempts, status, provider_ref, updated_at")
     .eq("deal_id", dealId)
     .in("status", ["pending", "failed"])
-    .lt("attempts", 10)
-    .returns<{ id: string; payment_id: string; amount: number; reason: string | null; attempts: number }[]>()
+    .lt("attempts", REFUND_MAX_ATTEMPTS)
+    .returns<({ id: string; payment_id: string; amount: number; reason: string | null } & RefundRow)[]>()
     .throwOnError();
-  for (const r of open ?? []) {
+  const now = Date.now();
+  for (const r of (open ?? []).filter((x) => refundDue(x, now))) {
     const charge =
       wirePays.find((p) => p.id === r.payment_id)?.charge_id ?? chargeOf((await getIntent(r.payment_id).catch(() => null)) ?? {});
     if (!charge) {
@@ -364,6 +366,7 @@ export async function sweepRefunds(): Promise<number> {
     .from("provider_payments")
     .select("deal_id")
     .eq("needs_reconciliation", true)
+    .order("created_at")
     .limit(100)
     .returns<{ deal_id: string }[]>()
     .throwOnError();
@@ -376,17 +379,10 @@ export async function sweepRefunds(): Promise<number> {
       console.error("Wire reconciliation failed", id, error);
     }
   }
-  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-  // tasks paid through wire recently whose ledger may hold refunds not yet sent
-  const { data } = await db
-    .from("provider_payments")
-    .select("deal_id")
-    .eq("provider", "wire")
-    .in("status", ["succeeded", "refunded_late"])
-    .gte("created_at", since)
-    .returns<{ deal_id: string }[]>()
-    .throwOnError();
-  const ids = [...new Set([...(data ?? []), ...(repairs ?? [])].map((r) => r.deal_id))];
+  // tasks with refund work, whatever the payment's age: the ledger owes more than we asked wire for,
+  // or a request is due for a retry (public.wire_refund_work, migration 20261127010000)
+  const { data: work } = await db.rpc("wire_refund_work", { p_limit: 100 }).throwOnError();
+  const ids = [...new Set([...((work ?? []) as string[]), ...(repairs ?? []).map((r) => r.deal_id)])];
   for (const id of ids) {
     try {
       await runRefunds(id);

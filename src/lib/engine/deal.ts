@@ -8,15 +8,7 @@
  *
  * Illegal transitions throw `EngineError`; they never partially apply.
  */
-import {
-  DEFAULT_CONFIG,
-  HOUR_MS,
-  MINUTE_MS,
-  customerChoosesHelper,
-  categoryTrust,
-  type CategoryId,
-  type EngineConfig,
-} from "./config";
+import { DEFAULT_CONFIG, HOUR_MS, MINUTE_MS, customerChoosesHelper, categoryTrust, type CategoryId, type EngineConfig } from "./config";
 import { EngineError, assertMoney, fail } from "./errors";
 import { roadKm } from "./geo";
 import { ext, payable } from "./ledger";
@@ -364,6 +356,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     settleHours: cfg.settleHours,
     absentGraceMinutes: cfg.absentGraceMinutes,
     maxDelayMinutes: cfg.maxDelayMinutes,
+    keepFeeOnCancel: 1,
   };
   const freeFirst = input.firstTask === true && cfg.firstTaskFree;
   if (freeFirst) details.freeFirst = true; // shown in the money breakdown
@@ -451,6 +444,17 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
 }
 
 /** A timing this task runs by: copied at posting (`details.rules`); older tasks use the engine default. */
+/**
+ * The customer cancels a paid task after a helper was chosen (and nothing excuses it): the helper's
+ * cancellation fee, the service fee we keep (tasks posted from 2026-11-27), and what is refunded.
+ * The cancel sheet shows exactly these numbers.
+ */
+export function cancelSplit(e: ErrandDeal): { helperFee: number; kept: number; refund: number } {
+  const helperFee = Math.min(e.cancelFee, e.heldAmount);
+  const kept = ruleOf(e, "keepFeeOnCancel") === 1 ? Math.min(e.serviceFee, e.heldAmount - helperFee) : 0;
+  return { helperFee, kept, refund: e.heldAmount - helperFee - kept };
+}
+
 export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
   const v = e.details.rules?.[key];
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -465,6 +469,7 @@ export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
     settleHours: DEFAULT_CONFIG.settleHours,
     absentGraceMinutes: DEFAULT_CONFIG.absentGraceMinutes,
     maxDelayMinutes: DEFAULT_CONFIG.maxDelayMinutes,
+    keepFeeOnCancel: 0, // only tasks posted with the rule keep the fee
   };
   return fallback[key];
 }
@@ -894,9 +899,14 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
             tx.ev("cancelled_after_delay", { helperId: d.helperId as string });
           } else if (d.status === "matched") {
             const helperId = d.helperId as string;
-            const fee = Math.min(d.cancelFee, d.heldAmount);
+            const { helperFee: fee, kept } = cancelSplit(d);
             tx.fromHold("cancel_fee", fee, payable(d.payeeOrgId ?? helperId));
             tx.ev("cancel_fee_paid", d.payeeOrgId ? { amount: fee, helperId, orgId: d.payeeOrgId } : { amount: fee, helperId });
+            if (kept > 0) {
+              // our service fee stays: the payment was processed (2026-11-27, owner's choice)
+              tx.fromHold("platform_fee", kept, "platform");
+              tx.ev("fee_kept", { amount: kept });
+            }
           }
           refundAll(tx, "customer_cancelled");
           if (d.priceChange?.status !== "paid") d.priceChange = null;
@@ -926,6 +936,18 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
         d.status = "cancelled";
         tx.ev("cancelled", { by: "seller" });
       }
+      break;
+    }
+
+    case "release_helper": {
+      // The helper's other task was paid first, so they can't do this one. That is the system's
+      // doing, not the helper backing out: the task searches again and nothing counts against them.
+      const e = asErrand(d, "release the helper of");
+      requireKind(ctx, "system", "Releasing a booked helper");
+      requireStatus(e, "release the helper of", "awaiting_payment");
+      const helperId = e.helperId as string;
+      reopenWithoutHelper(tx, e, helperId, "helper_booked_elsewhere");
+      tx.ev("helper_withdrew", { helperId });
       break;
     }
 

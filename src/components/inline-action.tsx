@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
-import { SubmitButton, type ActionResult, type FormAction } from "./sheet";
+import { useActionState, useRef, type ReactNode } from "react";
+import { SubmitButton, keepEntries, type ActionResult, type FormAction } from "./sheet";
 import { SlideSubmit } from "./slide-submit";
 
 /** A form that runs a server action in one tap (no confirm sheet) and shows its error inline. */
@@ -25,10 +25,16 @@ export function InlineAction({
   /** Shown instead of the form once the action succeeded. */
   done?: ReactNode;
 }) {
-  const [state, formAction] = useActionState<ActionResult, FormData>(action, {});
+  const form = useRef<HTMLFormElement>(null);
+  const [state, formAction, pending] = useActionState<ActionResult, FormData>(async (prev, data) => {
+    const r = await action(prev, data);
+    if (r.done) form.current?.reset(); // entries stay after an error, clear after success
+    return r;
+  }, {});
   if (state.done && done) return <>{done}</>;
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    // the slide control follows the form's own status, so it keeps the native submit
+    <form ref={form} {...(slide ? { action: formAction } : { onSubmit: keepEntries(formAction) })} className="flex flex-col gap-3">
       {Object.entries(fields).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
@@ -38,7 +44,13 @@ export function InlineAction({
           {state.error}
         </p>
       )}
-      {slide ? <SlideSubmit label={label} /> : <SubmitButton className={className}>{label}</SubmitButton>}
+      {slide ? (
+        <SlideSubmit label={label} />
+      ) : (
+        <SubmitButton className={className} busy={pending}>
+          {label}
+        </SubmitButton>
+      )}
     </form>
   );
 }

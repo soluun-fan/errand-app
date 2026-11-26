@@ -7,7 +7,8 @@ const eventSchema = z.object({ id: z.string().min(1).optional(), type: z.string(
 const paymentIdSchema = z.object({ id: z.string().min(1) });
 const paidSchema = paymentIdSchema.extend({
   amount: z.number().int().nonnegative(),
-  currency: z.literal("MNT"),
+  // "MNT" is what we send; accept any letter case so a casing change on wire's side can't stall payments
+  currency: z.string().refine((c) => c.toUpperCase() === "MNT"),
   status: z.literal("succeeded"),
   charge: z.string().min(1).nullish(),
   latest_charge: z.string().min(1).nullish(),

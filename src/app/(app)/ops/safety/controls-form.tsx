@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { SubmitButton, type ActionResult } from "@/components/sheet";
+import { SubmitButton, keepEntries, type ActionResult } from "@/components/sheet";
 import { Note, btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { Controls } from "@/lib/safety";
@@ -10,7 +10,7 @@ import { saveControls } from "../actions";
 /** Pause switches + caps. A pause needs a short note (it's shown in the audit log). */
 export function ControlsForm({ c }: { c: Omit<Controls, "updatedAt"> }) {
   const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(saveControls, {});
+  const [state, action, pending] = useActionState<ActionResult, FormData>(saveControls, {});
   const num = (name: string, label: string, value: number, help: string) => (
     <label className={fieldLabel}>
       {label}
@@ -19,7 +19,8 @@ export function ControlsForm({ c }: { c: Omit<Controls, "updatedAt"> }) {
     </label>
   );
   return (
-    <form action={action} className="flex flex-col gap-6">
+    // sent by hand so a refused save keeps every edit (React resets <form action> forms)
+    <form onSubmit={keepEntries(action)} className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsSafety.switches")}</h2>
         <label className="flex items-start gap-3 text-body">
@@ -56,7 +57,7 @@ export function ControlsForm({ c }: { c: Omit<Controls, "updatedAt"> }) {
         </p>
       )}
       {state.done && <Note tone="held">{t("opsSafety.saved")}</Note>}
-      <SubmitButton className={`${btn.primary} w-full`}>{t("opsSafety.save")}</SubmitButton>
+      <SubmitButton className={`${btn.primary} w-full`} busy={pending}>{t("opsSafety.save")}</SubmitButton>
     </form>
   );
 }

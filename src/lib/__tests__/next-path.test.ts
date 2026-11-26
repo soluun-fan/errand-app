@@ -12,3 +12,10 @@ describe("safeNext (where to go after login)", () => {
     }
   });
 });
+
+it("refuses control characters and backslashes that browsers turn into another host", () => {
+  for (const raw of ["/\t/evil.example", "/\n/evil.example", "/ /evil.example", "/\\evil.example", "/a\\b", "/\x00x"]) {
+    expect(safeNext(raw)).toBe("/");
+  }
+  expect(safeNext("/post?cat=shop&x=1")).toBe("/post?cat=shop&x=1");
+});

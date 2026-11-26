@@ -99,9 +99,13 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
     ? await recipientVerificationForOwner(deal.id, viewer.profile.id)
     : null;
 
+  // just back from wire's checkout but not booked yet: say we're checking, don't offer to pay again
+  const backFromPay = sp.paid === "1" && isCustomer && deal.status === "awaiting_payment" && activeProvider() === "wire";
+
   return (
     <>
-    {live && <AutoRefresh seconds={deal.status === "open" || deal.status === "in_progress" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
+    {live && <AutoRefresh seconds={backFromPay ? 5 : deal.status === "open" || deal.status === "in_progress" ? 10 : 20} poke={isCustomer ? pokeTask.bind(null, deal.id) : undefined} />}
+    {backFromPay && <p role="status" className="rounded-card bg-held-bg p-4 text-body font-semibold text-held">{t("pay.checking")}</p>}
     {questions.size > 0 && <section className="rounded-card bg-bg p-4 shadow-card">
       <h2 className="font-semibold">{t("chat.jobQuestions")}</h2>
       {[...questions].map(([helper, unread]) => (
@@ -122,7 +126,7 @@ export default async function TaskPage({ params, searchParams }: PageProps<"/tas
       locale={locale}
       rated={rated}
       // a helper just accepted: open the pay sheet straight away
-      autoOpenPay={isCustomer && deal.status === "awaiting_payment"}
+      autoOpenPay={isCustomer && deal.status === "awaiting_payment" && !backFromPay}
       mockPay={mockPaymentsEnabled()}
       action={taskAction}
       dispatch={dispatch}

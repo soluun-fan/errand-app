@@ -9,6 +9,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM = { kind: "system" } as const;
 
+/** wire's hosted checkout lives about 10 minutes after it is created. */
+const CHECKOUT_LIFE_MS = 10 * 60_000;
+
+/** Is a wire checkout for this task still open (created within its lifetime, not yet settled)? */
+async function checkoutStillOpen(dealId: string, now: number): Promise<boolean> {
+  const { count } = await createAdminClient()
+    .from("provider_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("deal_id", dealId)
+    .eq("provider", "wire")
+    .eq("status", "pending")
+    .gte("created_at", new Date(now - CHECKOUT_LIFE_MS).toISOString())
+    .throwOnError();
+  return (count ?? 0) > 0;
+}
+
 /**
  * Applies anything that is already due (auto-release, no-helper expiry) before showing a
  * deal, so screens never show a stale "held" state. The background job (CLAUDE.md §10 step 8)
@@ -17,6 +33,14 @@ const SYSTEM = { kind: "system" } as const;
 async function settle(deal: Deal, now = Date.now()): Promise<Deal> {
   const cmd = dueCommand(deal, now);
   if (!cmd) return deal;
+  if (cmd.type === "expire" && deal.status === "awaiting_payment" && (await checkoutStillOpen(deal.id, now))) {
+    // The customer opened wire's checkout before the window closed and may be paying right now.
+    // Ask wire first (a payment books the task); otherwise wait for that checkout to run out
+    // rather than expire, take the money, and refund it as "too late".
+    const { checkWirePayments } = await import("@/lib/payments/service");
+    await checkWirePayments(deal.id).catch((e) => console.error("wire check before expiry failed", e));
+    return (await loadDeal(createAdminClient(), deal.id)) ?? deal;
+  }
   try {
     const after = (await runCommand(createAdminClient(), deal.id, cmd, SYSTEM, { now: () => now })).deal;
     await tellAboutAutomatic(cmd.type, after).catch((e) => console.error("automatic notice failed", e));
@@ -34,9 +58,10 @@ export async function settleDueDeals(now = Date.now()): Promise<number> {
   const db = createAdminClient();
   const iso = new Date(now).toISOString();
   const results = await Promise.all([
-    db.from("deals").select("*").eq("type", "errand").eq("status", "awaiting_payment").lte("pay_by", iso).limit(200),
-    db.from("deals").select("*").eq("type", "errand").eq("status", "open").lte("match_by", iso).limit(200),
-    db.from("deals").select("*").eq("status", "check").lte("check_until", iso).limit(200),
+    // oldest due first, so a batch that keeps failing can't hide newer work behind it forever
+    db.from("deals").select("*").eq("type", "errand").eq("status", "awaiting_payment").lte("pay_by", iso).order("pay_by").limit(200),
+    db.from("deals").select("*").eq("type", "errand").eq("status", "open").lte("match_by", iso).order("match_by").limit(200),
+    db.from("deals").select("*").eq("status", "check").lte("check_until", iso).order("check_until").limit(200),
     // "customer isn't here" countdowns (the engine decides whether the time is up)
     db.from("deals").select("*").eq("type", "errand").eq("status", "in_progress").not("absent_at", "is", null).limit(200),
     // A partial-refund offer has its own deadline, which may precede check_until.
@@ -417,7 +442,7 @@ async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
       title: "push.offerEscalatedTitle",
       body: "push.offerEscalatedOps",
       params: { title: d.title },
-      url: "/ops",
+      url: "/ops/disputes",
       tag: `dispute-${d.id}`,
     });
   }

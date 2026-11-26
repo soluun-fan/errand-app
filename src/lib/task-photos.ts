@@ -77,7 +77,7 @@ export async function taskPhotosFor(dealId: string): Promise<TaskPhotoView[]> {
 export async function purgeLooseTaskPhotos(now = Date.now()): Promise<number> {
   const db = createAdminClient();
   const cutoff = new Date(now - LOOSE_HOURS * 3_600_000).toISOString();
-  const { data } = await db.from("task_photos").select("id, file_path").is("deal_id", null).lt("created_at", cutoff).limit(200).returns<{ id: string; file_path: string }[]>();
+  const { data } = await db.from("task_photos").select("id, file_path").is("deal_id", null).lt("created_at", cutoff).limit(200).returns<{ id: string; file_path: string }[]>().throwOnError();
   const rows = data ?? [];
   if (!rows.length) return 0;
   const { error } = await db.storage.from(TASK_PHOTO_BUCKET).remove(rows.map((r) => r.file_path));

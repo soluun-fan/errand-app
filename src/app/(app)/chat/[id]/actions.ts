@@ -151,6 +151,10 @@ export async function answerCall(dealId: string, callId: string, sdp: string, wi
   const ctx = await callContext(dealId, withHelper);
   if (!ctx || !uuid(callId) || !sdpOk(sdp)) return { error: t("call.notAllowed") };
   if (!callsEnabled() || !(await iceConfig(ctx.viewer.profile.id)).relayOnly) return { error: t("call.temporarilyUnavailable") };
+  // only a call that was really offered to me, by the other side, can be answered: otherwise one
+  // person could "answer" a call nobody made and fake the talk-first record (care work, conditions)
+  const offer = await incomingCall(dealId, callId, ctx.party.me);
+  if (!offer || offer.fromUserId !== ctx.party.other) return { error: t("call.notAllowed") };
   const r = await sendSignal({ dealId, callId, from: ctx.party.me, to: ctx.party.other, kind: "answer", video: false, sdp });
   return r.ok ? {} : { error: t("call.failed") };
 }

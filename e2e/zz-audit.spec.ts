@@ -109,7 +109,7 @@ test("audit crawl", async ({ browser }) => {
 
   const ops = await browser.newContext();
   await loginAs(ops, PHONES.ops);
-  await crawl(ops, "ops", ["/ops", "/ops/withdrawals", "/ops/photos", "/ops/pricing", "/ops/rules", "/ops/payments", "/ops/content", "/ops/safety", "/ops/helpers", "/ops/badges", "/ops/certificates", "/ops/orgs", "/ops/incidents"]);
+  await crawl(ops, "ops", ["/ops", "/ops/withdrawals", "/ops/photos", "/ops/pricing", "/ops/rules", "/ops/payments", "/ops/disputes", "/ops/content", "/ops/safety", "/ops/helpers", "/ops/badges", "/ops/certificates", "/ops/orgs", "/ops/incidents"]);
   await ops.close();
 
   writeFileSync(join(OUT, "findings.json"), JSON.stringify(findings, null, 2));

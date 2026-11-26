@@ -24,6 +24,10 @@ export function IdentityForm() {
     try {
       const r = await submitIdentityCheck({ legalName, birthDate, idLast4, files, consent });
       if (r?.error) setError(r.error);
+    } catch (e) {
+      // a redirect after success is navigation, not a failure; anything else must be said
+      if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+      setError(t("error.generic"));
     } finally {
       setBusy(false);
     }

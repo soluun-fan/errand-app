@@ -9,6 +9,7 @@ import { browserClient } from "@/lib/supabase/browser";
 import { prepareVoice, sendVoice } from "./actions";
 import { Mic } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { UserError, shownError } from "@/lib/user-error";
 
 const TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", "audio/ogg"];
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -69,14 +70,14 @@ export const VoiceRecorder = forwardRef<VoiceRecorderHandle, { dealId: string; w
         setBusy(true);
         try {
           const slot = await prepareVoice(dealId, base, blob.size, withHelper);
-          if ("error" in slot) throw new Error(slot.error);
+          if ("error" in slot) throw new UserError(slot.error);
           const up = await browserClient().storage.from("chat").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: base });
-          if (up.error) throw new Error(t("proof.failed"));
+          if (up.error) throw new UserError(t("proof.failed"));
           const sent = await sendVoice(dealId, slot.path, seconds, withHelper);
-          if (sent.error) throw new Error(sent.error);
+          if (sent.error) throw new UserError(sent.error);
           router.refresh();
         } catch (e) {
-          onError(e instanceof Error && e.message ? e.message : t("proof.failed"));
+          onError(shownError(e, t("proof.failed")));
         } finally {
           setBusy(false);
         }

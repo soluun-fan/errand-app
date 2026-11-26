@@ -27,6 +27,7 @@ import {
   Landmark,
   MessageCircle,
   Pencil,
+  Scale,
   ScrollText,
   ShieldCheck,
   Tag,
@@ -35,6 +36,7 @@ import {
 import { Ico } from "@/components/icon";
 import type { LucideIcon } from "lucide-react";
 import { titled } from "@/lib/page-title";
+import { openDisputeCount } from "@/lib/disputes";
 
 export const generateMetadata = titled("opsHome.title");
 
@@ -42,7 +44,7 @@ export const generateMetadata = titled("opsHome.title");
 export default async function OpsHome() {
   const viewer = await getViewer();
   if (!viewer || viewer.profile.role !== "admin") notFound();
-  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts, errorsOpen, supportOpen] = await Promise.all([
+  const [t, queue, incidents, controls, hb, orgs, certs, reported, payouts, errorsOpen, supportOpen, disputesOpen] = await Promise.all([
     getT(),
     reviewQueue(),
     openIncidentCounts(),
@@ -54,6 +56,7 @@ export default async function OpsHome() {
     withdrawalQueue(),
     openErrorCount(),
     openSupportCount(),
+    openDisputeCount(),
   ]);
   const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());
@@ -115,6 +118,7 @@ export default async function OpsHome() {
         {row("/ops/safety", ShieldCheck, t("opsSafety.title"), null)}
         {row("/ops/pricing", Tag, t("opsPricing.title"), null)}
         {row("/ops/rules", Timer, t("opsRules.title"), null)}
+        {row("/ops/disputes", Scale, t("opsDisputes.title"), disputesOpen ? String(disputesOpen) : null, disputesOpen > 0)}
         {row("/ops/payments", CreditCard, t("opsPay.title"), null)}
         {row("/ops/withdrawals", Landmark, t("opsWithdraw.title"), payouts.length ? String(payouts.length) : null, payouts.length > 0)}
         {row("/ops/badges", Car, t("opsBadges.title"), null)}

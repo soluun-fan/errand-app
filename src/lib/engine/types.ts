@@ -154,6 +154,11 @@ export interface TaskRules {
   absentGraceMinutes?: number;
   /** "Need more time?": at most this many minutes in total per job. */
   maxDelayMinutes?: number;
+  /**
+   * 1 = our service fee is kept when the customer cancels after a helper was chosen and paid
+   * (2026-11-27, it covers the payment processing already paid). Tasks posted before: 0 (refunded).
+   */
+  keepFeeOnCancel?: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -406,6 +411,8 @@ export type Command =
   | { type: "choose"; helperId: string } // customer — or the system for "Choose for me"
   | { type: "withdraw_offer"; helperId?: string } // helper takes back an application (or the system, once they're busy elsewhere)
   | { type: "cancel"; reason?: string } // customer may say why (CANCEL_REASONS, 2026-11-22)
+  /** System only: the helper got booked (paid) elsewhere before this task was paid — no penalty. */
+  | { type: "release_helper" }
   | { type: "expire" }
   | { type: "start" }
   | { type: "on_my_way" } // helper: set off; location shared from now

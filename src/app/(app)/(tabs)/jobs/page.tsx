@@ -389,7 +389,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     );
   }
 
-  const app = await latestApplication(profile.id);
+  const [app, payoutSaved] = await Promise.all([latestApplication(profile.id), hasPayout(profile.id)]);
   const pending = app?.status === "submitted";
   const chip = (state: "done" | "inReview" | "needed") => (
     <span
@@ -405,7 +405,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     [t("helper.stepPhone"), profile.phone ? "done" : "needed"],
     [t("helper.stepDan"), step(profile.kyc_level >= 3)],
     [t("helper.stepSelfie"), step(profile.kyc_level >= 3)],
-    [t("helper.stepPayout"), step(profile.kyc_level >= 3)],
+    // a customer ID check (2026-11-26) verifies the person, not a bank account: that needs its own row
+    [t("helper.stepPayout"), step(payoutSaved)],
   ];
 
   return (

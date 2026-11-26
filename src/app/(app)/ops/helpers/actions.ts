@@ -58,7 +58,8 @@ export async function reopenKyc(_prev: ActionResult, form: FormData): Promise<Ac
   const r = await reopenVerification(appId, viewer.profile.id, note);
   if (r === "busy") return { error: t("ops.reopenBusy") };
   if (r === "changed") return { error: t("error.changed") };
-  await notify([app.userId], { title: "push.kycChangesTitle", body: "push.kycDecisionBody", url: "/helper/apply", tag: "kyc" });
+  // a customer's ID check is redone on /verify, a helper's on the application form
+  await notify([app.userId], { title: "push.kycChangesTitle", body: "push.kycDecisionBody", url: app.purpose === "identity" ? "/verify" : "/helper/apply", tag: "kyc" });
   redirect("/ops/helpers");
 }
 

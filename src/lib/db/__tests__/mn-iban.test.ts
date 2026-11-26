@@ -27,3 +27,19 @@ it("leaves an IBAN as it is, and gives up on unknown banks or odd numbers", asyn
   expect(await iban("Чингис хаан банк", "5000123456")).toBeNull();
   expect(await iban("Хаан банк", "12")).toBeNull();
 });
+
+/** Migration 20261127020000: the IBAN rule checks numbers when entered, not every later update. */
+it("lets an old account be marked or unmarked as checked, but never saves a new non-IBAN number", async () => {
+  const user = "00000000-0000-4000-8000-00000000ab01";
+  await db.query("insert into auth.users (id, phone) values ($1, '99130001')", [user]);
+  await db.query("alter table public.payout_accounts disable trigger payout_accounts_iban");
+  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Голомт банк', '1234567890123', 'Бат')", [user]);
+  await db.query("alter table public.payout_accounts enable trigger payout_accounts_iban");
+  await db.query("update public.payout_accounts set verified_at = now() where user_id = $1", [user]);
+  await db.query("update public.payout_accounts set verified_at = null where user_id = $1", [user]);
+  await expect(db.query("update public.payout_accounts set account_number = '1234567890' where user_id = $1", [user])).rejects.toThrow(/IBAN/);
+  await expect(
+    db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5000123456', 'Бат') on conflict (user_id) do update set account_number = excluded.account_number", [user]),
+  ).rejects.toThrow(/IBAN/);
+  await db.query("update public.payout_accounts set account_number = $2 where user_id = $1", [user, ibanFor(BANK_CODES["Хаан банк"]!, "5000123456")]);
+});

@@ -3891,6 +3891,12 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      wire_refund_work: {
+        Args: {
+          p_limit?: number;
+        };
+        Returns: string[];
+      };
     };
     Enums: {
       category:

@@ -139,8 +139,23 @@ export const ProofSubmitInput = z.object({
   note: z.string().max(140).nullable().optional(),
 });
 
+/**
+ * Browser push services (Chrome/Edge → FCM, Firefox → Mozilla, Safari → Apple, Windows → WNS). The
+ * server POSTs to this address on every notification, so only these hosts are accepted — never an
+ * arbitrary or internal address.
+ */
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^web\.push\.apple\.com$/, /\.push\.apple\.com$/, /\.notify\.windows\.com$/];
+export const isPushHost = (endpoint: string): boolean => {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" && !u.port && PUSH_HOSTS.some((h) => h.test(u.hostname));
+  } catch {
+    return false;
+  }
+};
+
 export const PushSubscriptionInput = z.object({
-  endpoint: z.string().url().startsWith("https://").max(1000),
+  endpoint: z.string().url().startsWith("https://").max(1000).refine(isPushHost),
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
 });
 

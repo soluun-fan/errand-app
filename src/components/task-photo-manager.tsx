@@ -10,6 +10,7 @@ import { compressImage } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import type { TaskPhotoView } from "@/lib/task-photos";
 import { btn } from "./ui";
+import { UserError, shownError } from "@/lib/user-error";
 
 const MAX = 5;
 
@@ -34,18 +35,18 @@ export function TaskPhotoManager({ dealId, photos }: { dealId: string; photos: T
         if (!file.type.startsWith("image/")) continue;
         const { blob } = await compressImage(file);
         const slot = await prepareTaskPhoto(blob.size);
-        if ("error" in slot) throw new Error(slot.error);
+        if ("error" in slot) throw new UserError(slot.error);
         const up = await browserClient().storage.from("task-photos").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
-        if (up.error) throw new Error(t("taskPhotos.failed"));
+        if (up.error) throw new UserError(t("taskPhotos.failed"));
         ids.push(slot.id);
       }
       if (ids.length) {
         const r = await addTaskPhotosAction(dealId, ids);
-        if (r.error) throw new Error(r.error);
+        if (r.error) throw new UserError(r.error);
       }
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("taskPhotos.failed"));
+      setError(shownError(e, t("taskPhotos.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

@@ -87,15 +87,24 @@ export function DealStatusLine({ p, helperName, payeeName }: { p: DealViewProps;
         ? t("direct.line.refunded", { amount: fmtMoney(deal.serviceFee) })
         : t("deal.line.refunded", { amount: fmtMoney(amountDue(deal)) });
       break;
-    case "cancelled":
-      line = events.some((e) => e.code === "fee_kept")
-        ? t("direct.line.cancelledKept", { fee: fmtMoney(deal.serviceFee) })
-        : cancelFeePaid
-          ? deal.payeeOrgId
-            ? t("org.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)), name: payeeName })
-            : t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
-          : t("deal.line.cancelled");
+    case "cancelled": {
+      const kept = events.find((e) => e.code === "fee_kept");
+      line =
+        kept && cancelFeePaid
+          ? // a paid task cancelled after choosing (2026-11-27): the helper's fee, our fee, the rest back
+            t("deal.line.cancelledFeeKept", {
+              fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)),
+              kept: fmtMoney(Number(kept.data.amount ?? 0)),
+            })
+          : kept
+            ? t("direct.line.cancelledKept", { fee: fmtMoney(deal.serviceFee) })
+            : cancelFeePaid
+              ? deal.payeeOrgId
+                ? t("org.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)), name: payeeName })
+                : t("deal.line.cancelledFee", { fee: fmtMoney(Number(cancelFeePaid.data.amount ?? 0)) })
+              : t("deal.line.cancelled");
       break;
+    }
     case "expired": {
       // say why it ended: refunded (old paid-at-posting deals), the one invited helper said no,
       // the match wasn't paid in time, or simply nobody took it

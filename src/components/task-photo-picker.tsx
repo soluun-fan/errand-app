@@ -7,6 +7,7 @@ import { useT } from "@/i18n/client";
 import { compressImage } from "@/lib/image-client";
 import { browserClient } from "@/lib/supabase/browser";
 import { btn } from "./ui";
+import { UserError, shownError } from "@/lib/user-error";
 
 export interface PickedPhoto {
   id: string;
@@ -37,14 +38,14 @@ export function TaskPhotoPicker({ value, onChange }: { value: PickedPhoto[]; onC
         if (!file.type.startsWith("image/")) continue;
         const { blob } = await compressImage(file);
         const slot = await prepareTaskPhoto(blob.size);
-        if ("error" in slot) throw new Error(slot.error);
+        if ("error" in slot) throw new UserError(slot.error);
         const up = await browserClient().storage.from("task-photos").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: "image/jpeg" });
-        if (up.error) throw new Error(t("taskPhotos.failed"));
+        if (up.error) throw new UserError(t("taskPhotos.failed"));
         next = [...next, { id: slot.id, preview: URL.createObjectURL(blob) }];
         onChange(next);
       }
     } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("taskPhotos.failed"));
+      setError(shownError(e, t("taskPhotos.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";

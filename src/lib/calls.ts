@@ -152,15 +152,20 @@ export async function logCall(p: { dealId: string; helperId: string; fromUserId:
   // have an answer on record, and can't have lasted longer than the time since that answer.
   // (Care work needs a real call before choosing, so this line is evidence.)
   if (p.log.kind === "ended") {
-    const { data: answer } = await db
+    // the answer must come from the person the call was offered to (two different people)
+    const { data: signals } = await db
       .from("call_signals")
-      .select("created_at")
+      .select("kind, from_user_id, to_user_id, created_at")
       .eq("deal_id", p.dealId)
       .eq("call_id", p.callId)
-      .eq("kind", "answer")
+      .in("kind", ["offer", "answer"])
       .order("created_at")
-      .limit(1)
-      .maybeSingle<{ created_at: string }>();
+      .returns<{ kind: string; from_user_id: string; to_user_id: string; created_at: string }[]>()
+      .throwOnError();
+    const offer = (signals ?? []).find((s) => s.kind === "offer");
+    const answer = offer
+      ? (signals ?? []).find((s) => s.kind === "answer" && s.from_user_id === offer.to_user_id && s.to_user_id === offer.from_user_id && s.from_user_id !== offer.from_user_id)
+      : undefined;
     p.log = answer
       ? { ...p.log, seconds: Math.max(0, Math.min(p.log.seconds, Math.floor((now - Date.parse(answer.created_at)) / 1000))) }
       : { kind: "failed", video: p.log.video };
@@ -173,7 +178,7 @@ export async function logCall(p: { dealId: string; helperId: string; fromUserId:
 
 /** Signals contain network addresses: delete them after an hour. Run from the cron tick. */
 export async function purgeOldSignals(now = Date.now()): Promise<void> {
-  await createAdminClient().from("call_signals").delete().lt("created_at", new Date(now - SIGNAL_TTL_MS).toISOString());
+  await createAdminClient().from("call_signals").delete().lt("created_at", new Date(now - SIGNAL_TTL_MS).toISOString()).throwOnError();
 }
 
 export interface SignalToMe {

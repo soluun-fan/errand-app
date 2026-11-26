@@ -14,7 +14,7 @@
    explain completion review and separate payout before the helper applies.
 
 ## Ops (desktop web)
-- **Disputes**: queue by age (red > 24 h); detail = both timelines, proof, read-only chat; decide release / refund / split (slider with live money preview) + required note → ledger entries.
+- **Disputes** (`/ops/disputes`, built 2026-11-27): oldest first (red > 24 h); each card = held amount, customer, helper, reason, the customer's note, the conversation (read-only, folded); title links to the task (timeline, proof). Decide **pay the helper** or **refund in full**, each with a required note (audited `dispute.resolved`); both sides get a push; a refund goes to wire at once. Ops gets a push when a dispute opens. Split (slider) is not built yet.
 - **Helper approvals**: ID photo vs selfie vs ДАН name side by side; approve / reject with reason.
 - **Ledger**: filter by deal/user/date; red banner if held total ≠ bank balance.
 - Every Ops action is logged with operator + time and shown on the deal timeline.

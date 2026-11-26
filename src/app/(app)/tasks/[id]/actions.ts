@@ -23,6 +23,7 @@ import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import { mockPaymentsEnabled, paymentProvider } from "@/lib/payments/provider";
 import { HELPER_BUSY, activeProvider, afterPaymentBooked, paymentFor, runRefunds, startWirePayment, stepBackBusyHelper } from "@/lib/payments/service";
 import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
+import { maskContacts } from "@/lib/chat-rules";
 import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
 import { parsePrice } from "@/lib/price-input";
@@ -147,7 +148,7 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           p_from: viewer.profile.id,
           p_stars: stars,
           p_tags: tags,
-          p_note: String(form.get("note") ?? "").slice(0, 500),
+          p_note: maskContacts(String(form.get("note") ?? "").slice(0, 500)).text, // public on the helper profile
         });
         if (error) return { error: error.code === "23505" ? t("error.changed") : t("error.generic") };
         // photos added while rating go public with the review (a failure never loses the rating)
@@ -225,11 +226,22 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
         if (before?.type === "errand" && before.helperId && r.events.some((e) => e.code === "helper_no_show")) {
           await afterLateHelper(r.deal.type === "errand" ? r.deal : null, before.helperId, cmd.type === "replace_helper");
         }
+        // the change is saved by now: a dispatch hiccup must not show "nothing was changed"
         if (cmd.type === "choose" && r.deal.type === "errand") {
           await notifyChosen(r.deal, false);
-          await runDispatch(dealId);
+          await runDispatch(dealId).catch((e) => console.error("dispatch after choose failed", e));
         }
-        if (cmd.type === "open_to_all") await runDispatch(dealId); // the first wave goes out now
+        if (cmd.type === "open_to_all") await runDispatch(dealId).catch((e) => console.error("dispatch after open_to_all failed", e)); // the first wave goes out now
+        // a dispute holds the money until Ops decides (/ops/disputes): tell Ops at once
+        if (cmd.type === "dispute") {
+          await notify(await adminIds(), {
+            title: "push.disputeOpsTitle",
+            body: "push.disputeOpsBody",
+            params: { title: r.deal.title },
+            url: "/ops/disputes",
+            tag: `dispute-${dealId}`,
+          }).catch((e) => console.error("dispute alert failed", e));
+        }
         if (cmd.type === "customer_present" && r.deal.type === "errand" && r.deal.helperId) {
           await notify([r.deal.helperId], { title: "push.presentTitle", body: "push.presentBody", params: { title: r.deal.title }, url: `/jobs/${dealId}`, tag: `job-${dealId}` }).catch(() => undefined);
         }

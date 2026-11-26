@@ -110,6 +110,19 @@ export async function submitIdentity(
 export async function submitApplication(userId: string, a: ApplicationInput): Promise<SubmitResult> {
   for (const path of Object.values(a.files)) if (!(await fileExists(userId, path))) return { ok: false, reason: "files" };
   const db = createAdminClient();
+  // the bank account first: if it fails, nothing is half-saved and the person can simply try again
+  // (an application saved without its account would answer every retry with "already submitted")
+  await db
+    .from("payout_accounts")
+    .upsert({
+      user_id: userId,
+      bank: a.bank,
+      account_number: a.accountNumber,
+      holder_name: a.holderName,
+      verified_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .throwOnError();
   const { error } = await db.from("helper_applications").insert({
     user_id: userId,
     legal_name: a.legalName,
@@ -122,17 +135,6 @@ export async function submitApplication(userId: string, a: ApplicationInput): Pr
     consent_at: new Date().toISOString(),
   });
   if (error) return error.code === "23505" ? { ok: false, reason: "open" } : Promise.reject(new Error(error.message));
-  await db
-    .from("payout_accounts")
-    .upsert({
-      user_id: userId,
-      bank: a.bank,
-      account_number: a.accountNumber,
-      holder_name: a.holderName,
-      verified_at: null,
-      updated_at: new Date().toISOString(),
-    })
-    .throwOnError();
   await db.from("profiles").update({ helper_status: "pending" }).eq("id", userId).throwOnError();
   return { ok: true };
 }

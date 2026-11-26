@@ -1,7 +1,7 @@
 import { ReviewPhotoPicker } from "@/components/review-photo-picker";
 import { ConfirmSheet } from "@/components/sheet";
 import { btn, field, fieldLabel } from "@/components/ui";
-import { amountDue, categoryTrust, errandSplit, helperLate, invitedOnly } from "@/lib/engine";
+import { amountDue, cancelSplit, categoryTrust, errandSplit, helperLate, invitedOnly } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { CANCEL_REASONS, DISPUTE_REASONS, RATING_TAGS } from "@/lib/labels";
 import Link from "next/link";
@@ -173,6 +173,7 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
           );
           break;
         }
+        const cancel = cancelSplit(deal);
         secondary.push(
           <ConfirmSheet
             key="cancel"
@@ -181,11 +182,16 @@ export function customerActions(p: DealViewProps, helperName: string, payeeName:
             trigger={t("deal.cancel")}
             triggerClass={btn.textDanger}
             title={t("deal.cancelFeeTitle")}
-            body={t("deal.cancelFeeBody", {
-              fee: fmtMoney(deal.cancelFee),
-              helper: helperName,
-              refund: fmtMoney(deal.heldAmount - deal.cancelFee),
-            })}
+            body={
+              cancel.kept > 0
+                ? t("deal.cancelFeeKeptBody", {
+                    fee: fmtMoney(cancel.helperFee),
+                    helper: helperName,
+                    kept: fmtMoney(cancel.kept),
+                    refund: fmtMoney(cancel.refund),
+                  })
+                : t("deal.cancelFeeBody", { fee: fmtMoney(cancel.helperFee), helper: helperName, refund: fmtMoney(cancel.refund) })
+            }
             confirmLabel={t("deal.cancel")}
             confirmClass={btn.danger}
           >

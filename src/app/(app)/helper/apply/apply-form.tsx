@@ -11,6 +11,7 @@ import { browserClient } from "@/lib/supabase/browser";
 import { prepareKycUpload, submitKyc } from "./actions";
 import { Lock } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { UserError, shownError } from "@/lib/user-error";
 
 /** One document slot: camera / file → (compress if photo) → signed upload into the applicant's folder. */
 export function DocSlot({
@@ -31,16 +32,16 @@ export function DocSlot({
     if (!f) return;
     setBusy(true);
     try {
-      if (!f.type.startsWith("image/")) throw new Error(t("kyc.errors.type"));
+      if (!f.type.startsWith("image/")) throw new UserError(t("kyc.errors.type"));
       const blob = (await compressImage(f)).blob;
       const mime = "image/jpeg";
       const slot = await prepareKycUpload(doc, mime, blob.size);
-      if ("error" in slot) throw new Error(slot.error);
+      if ("error" in slot) throw new UserError(slot.error);
       const up = await browserClient().storage.from("kyc").uploadToSignedUrl(slot.path, slot.token, blob, { contentType: mime });
-      if (up.error) throw new Error(t("proof.failed"));
+      if (up.error) throw new UserError(t("proof.failed"));
       onDone(slot.path);
     } catch (e) {
-      onError(e instanceof Error && e.message ? e.message : t("proof.failed"));
+      onError(shownError(e, t("proof.failed")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -104,6 +105,10 @@ export function ApplyForm() {
         agreement,
       });
       if (r?.error) setError(r.error);
+    } catch (e) {
+      // a redirect after success is navigation, not a failure; anything else must be said
+      if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+      setError(t("error.generic"));
     } finally {
       setBusy(false);
     }

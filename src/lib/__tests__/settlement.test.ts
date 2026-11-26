@@ -32,6 +32,7 @@ vi.mock("@/lib/supabase/admin", () => ({
           rows = rows.filter((r) => field(r, key) != null);
           return q;
         },
+        order: () => q,
         limit: async (n: number) => ({
           data: mocks.queryError ? null : rows.slice(0, n),
           error: mocks.queryError ? { message: "read failed" } : null,

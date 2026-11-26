@@ -1,5 +1,8 @@
 import "server-only";
-import { isDealConflict, loadDeal, runCommand } from "@/lib/db/deals";
+import { DbError, isDealConflict, loadDeal, runCommand } from "@/lib/db/deals";
+
+/** check_violation: a database rule (task conditions, talk first, pair cap) refused the change. */
+const RULE_REFUSED = "23514";
 import { autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
@@ -46,19 +49,23 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     // "Choose for me" never decides a price the helper hasn't agreed to: skip offers where the
     // customer's own counter-price is still waiting for the helper's answer.
     const ranked = await rankApplicants(deal, now);
-    const best = ranked.find((r) => (deal as ErrandDeal).offers.find((o) => o.helperId === r.helperId)?.proposedBy !== "customer");
-    if (best) {
-      let chosen = false;
+    const eligible = ranked.filter((r) => (deal as ErrandDeal).offers.find((o) => o.helperId === r.helperId)?.proposedBy !== "customer");
+    // The database may still refuse a pick (talk-first call not made, a condition no longer met, the
+    // day-job pair cap): try the next applicant; if nobody fits, the customer chooses. A refusal is
+    // never a failed background run — it is the rule working.
+    for (const best of eligible) {
       try {
         deal = (await runCommand(db, dealId, { type: "choose", helperId: best.helperId }, { kind: "system" })).deal as ErrandDeal;
-        chosen = true;
+        await notifyChosen(deal, true);
+        break;
       } catch (error) {
+        if (error instanceof DbError && error.code === RULE_REFUSED) continue;
         if (!isDealConflict(error)) throw error;
         const latest = await loadDeal(db, dealId);
         if (!latest || latest.type !== "errand" || latest.version === deal.version) throw error;
         deal = latest;
+        break;
       }
-      if (chosen) await notifyChosen(deal, true);
     }
   }
 
@@ -237,7 +244,9 @@ export async function openDealIds(limit = 200): Promise<string[]> {
     .select("id")
     .eq("type", "errand")
     .eq("status", "open")
-    .order("created_at", { ascending: false })
+    // soonest deadline first: with more open tasks than one round handles, the ones about to lapse
+    // get their next wave (new tasks get their first wave when posted)
+    .order("match_by", { ascending: true, nullsFirst: false })
     .limit(limit)
     .throwOnError();
   return (data ?? []).map((r) => r.id as string);

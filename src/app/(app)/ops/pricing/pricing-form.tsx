@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { SubmitButton, type ActionResult } from "@/components/sheet";
+import { SubmitButton, keepEntries, type ActionResult } from "@/components/sheet";
 import { Note, btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import type { PricingSettings } from "@/lib/pricing";
@@ -10,7 +10,7 @@ import { savePricing } from "../actions";
 /** The live price list (docs/decisions.md "Pricing"). New prices apply to tasks posted from now on. */
 export function PricingForm({ p }: { p: PricingSettings }) {
   const t = useT();
-  const [state, action] = useActionState<ActionResult, FormData>(savePricing, {});
+  const [state, action, pending] = useActionState<ActionResult, FormData>(savePricing, {});
   const num = (name: string, label: string, value: number, suffix = "₮") => (
     <label className={fieldLabel}>
       {label}
@@ -21,7 +21,8 @@ export function PricingForm({ p }: { p: PricingSettings }) {
     </label>
   );
   return (
-    <form action={action} className="flex flex-col gap-6">
+    // sent by hand so a refused save keeps every edit (React resets <form action> forms)
+    <form onSubmit={keepEntries(action)} className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         <h2 className="font-bold">{t("opsPricing.build")}</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -87,7 +88,7 @@ export function PricingForm({ p }: { p: PricingSettings }) {
         </p>
       )}
       {state.done && <Note tone="held">{t("opsPricing.saved")}</Note>}
-      <SubmitButton className={`${btn.primary} w-full`}>{t("opsSafety.save")}</SubmitButton>
+      <SubmitButton className={`${btn.primary} w-full`} busy={pending}>{t("opsSafety.save")}</SubmitButton>
     </form>
   );
 }

@@ -508,3 +508,19 @@ Owner: "for convenience sake, do we really not have the option to do easier" —
 
 These are local code and regression-test changes. Hosted migrations and live payment/provider
 checks are separate rollout work; no real payment, payout or account deletion was performed.
+
+## 2026-11-27 — Reliability review fixes
+
+Owner: "fix and refine stuff … make our app incredibly reliable and professional." Four read-only reviews (money, security, flows, database/background jobs); verified findings fixed:
+- **Disputes had no way out.** A disputed task (customer report, or an unanswered partial-refund offer) held the money with no Ops screen. Built `/ops/disputes` (see screens-helper-ops.md); Ops is pushed when one opens.
+- **Refunds are found by what is owed, not by payment age** (`wire_refund_work`, migration 20261127010000): no 30-day window, no silent 1000-row cap; failed requests retry with backoff (1 min doubling to 6 h, 10 tries), then Ops; "pending" a day with no news shows on /ops/payments.
+- **System release is not a back-out.** A helper whose other task was paid first is released by the system (`release_helper`), with no penalty.
+- **No "too late, refunded" while paying.** A match is not expired while a wire checkout opened in time is still live (~10 min); wire is asked first.
+- **"Choose for me"** tries the next applicant when a database rule refuses one, instead of failing the whole background run.
+- **IBAN rule on entry** (migration 20261127020000): checked when a number is entered or changed, so an old account no longer blocks marking it checked / unchecked.
+- Security: a call must really be offered before it can be answered (talk-first can't be faked); the post-login redirect refuses tabs/backslashes; push only to real push services; phone numbers masked in applications, reviews and task text.
+- Forms keep what was typed when the server refuses; uploads show only messages written for people; SOS reminders and privacy clean-ups report database errors.
+Open: organisation earnings have no payout path yet; sign-in rate limits are per server IP at Supabase.
+
+## 2026-11-27 — What we deduct, and when
+Owner chose (all recommended): **helpers keep 100%** of the agreed price (no commission); **our service fee is kept when the customer cancels a paid task after a helper was chosen** (it covers the payment processing already paid — the terms already said "манай хураамж буцахгүй"); **we keep paying the payout bank fee** (~200₮; full-amount withdrawals, at most 2 a day, keep it low). Engine: `cancelSplit()` = helper's cancellation fee + kept service fee + refund, shown on the cancel sheet; snapshot `details.rules.keepFeeOnCancel = 1` at posting, so tasks posted before keep the old promise (fee refunded). Free cases stay free: helper late / no-show, cancelling after the helper asked for more time, before anyone is chosen, before paying. Taxes (e-barimt on full amount or fee, VAT base, withholding on helper payouts) wait for the accountant (docs/advisor-questions.md).

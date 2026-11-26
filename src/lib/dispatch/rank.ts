@@ -100,11 +100,11 @@ export async function releaseOtherCommitments(helperId: string, dealId: string):
     db.from("deals").select("id").eq("helper_id", helperId).eq("status", "awaiting_payment").neq("id", dealId),
   ]);
   const system = { kind: "system" } as const;
-  const helper = { kind: "user", id: helperId, role: "helper" } as const;
   for (const o of applied.data ?? []) {
     await runCommand(db, o.deal_id as string, { type: "withdraw_offer", helperId }, system).catch(() => {});
   }
+  // released by the system, not backing out: no penalty for being booked on a paid task
   for (const d of assigned.data ?? []) {
-    await runCommand(db, d.id as string, { type: "cancel" }, helper).catch(() => {});
+    await runCommand(db, d.id as string, { type: "release_helper" }, system).catch(() => {});
   }
 }
