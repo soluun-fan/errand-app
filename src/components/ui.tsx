@@ -191,7 +191,7 @@ export function SectionPlaceholder({ icon, title, body, action }: { icon: ReactN
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-lead font-bold">{title}</p>
-        <p className="mt-1 text-small leading-relaxed text-ink-2">{body}</p>
+        <p className="mt-1 text-body leading-relaxed text-ink-2">{body}</p>
       </div>
       {action}
     </div>

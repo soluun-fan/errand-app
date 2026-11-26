@@ -25,7 +25,7 @@ function ServiceTile({ category, label, price, cover }: { category: CategoryId; 
       ) : (
         <CategoryIcon id={category} tile size={24} />
       )}
-      <span className="min-w-0 flex-1 text-small font-semibold leading-snug [overflow-wrap:anywhere]">{label}</span>
+      <span className="min-w-0 flex-1 text-body font-semibold leading-snug [overflow-wrap:anywhere] md:text-lead">{label}</span>
       <span className="text-meta leading-snug tabular-nums text-ink-2">{price}</span>
     </>
   );

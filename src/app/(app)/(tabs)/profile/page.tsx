@@ -50,9 +50,10 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
   const { profile, actor } = viewer;
   const [orgs, invitations, memberships, sp] = await Promise.all([myOrganizations(profile.id), myInvitations(profile.id), myMemberships(profile.id), searchParams]);
   const row = (label: string, value: string) => (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-body">
+    // label left, value right on the same line; a long label wraps instead of pushing the value down
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 text-body">
       <span className="text-ink-2">{label}</span>
-      <span className="min-w-0 flex-1 basis-32 break-words text-right font-medium">{value}</span>
+      <span className="break-words text-right font-medium">{value}</span>
     </div>
   );
 
@@ -85,7 +86,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-small font-semibold text-ink-2">{t("mode.label")}</h2>
+        <h2 className="text-title font-bold">{t("mode.label")}</h2>
         <Segmented
           name="mode"
           value={mode}
@@ -119,7 +120,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
 
       {mode === "customer" && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-small font-semibold text-ink-2">{t("profile.addresses")}</h2>
+          <h2 className="text-title font-bold">{t("profile.addresses")}</h2>
           {addresses.length === 0 ? (
             <p className="text-body text-ink-2">{t("profile.addressesEmpty")}</p>
           ) : (
@@ -155,7 +156,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-small font-semibold text-ink-2">{t("lang.label")}</h2>
+        <h2 className="text-title font-bold">{t("lang.label")}</h2>
         <Segmented name="locale" value={locale} action={setLocale} options={LOCALES.map((l) => [l, t(`lang.${l}`)])} />
       </section>
 
@@ -169,7 +170,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/profile"
         <LinkRow href="/help" icon={CircleHelp} label={t("profile.help")} />
       </nav>
       <section className="flex flex-col gap-3">
-        <h2 className="text-small font-semibold text-ink-2">{t("org.my")}</h2>
+        <h2 className="text-title font-bold">{t("org.my")}</h2>
         {invitations.map((m) => <Membership key={m.orgId} invitation={m} pending />)}
         {orgs.filter((o) => o.status === "pending" || o.status === "approved").map((o) => <Link key={o.id} href={`/orgs/${o.id}`} className="rounded-card bg-bg p-4 shadow-card">
           <span className="block font-semibold">{o.name}</span><span className="text-small text-ink-2">{t(`org.statusShort.${o.status}`)}</span>

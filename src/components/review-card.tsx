@@ -24,7 +24,7 @@ export function ReviewCard({ r, t }: { r: RecentReview; t: T }) {
           {date}
         </span>
       </span>
-      <p className="line-clamp-3 flex-1 text-small leading-relaxed">{r.note}</p>
+      <p className="line-clamp-3 flex-1 text-body leading-relaxed">{r.note}</p>
       <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-meta">
         <Link href={`/helpers/${r.helperId}`} className="flex min-h-11 min-w-0 items-center break-words font-semibold text-brand-ink">
           {r.helperName} ›

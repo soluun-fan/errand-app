@@ -45,6 +45,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const wrap = "mx-auto w-full max-w-6xl px-5 sm:px-6"; // 20 px on phones, like the app (docs/ui.md)
+/** Every landing section gets the same top and bottom padding, so neighbours are always 80 / 112 px apart (docs/ui.md). */
+const sectionY = "py-10 md:py-14";
 
 /**
  * Public landing page (docs/decisions.md 2026-11-16, layout ideas from PleaseHelp/UBCab, our own
@@ -143,7 +145,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* hero: the question, search, popular starts — and real recent activity beside it */}
         <section className="bg-brand-bg/60">
-          <div className={`${wrap} ${hero.grid} py-10 md:py-16`}>
+          <div className={`${wrap} ${hero.grid} ${sectionY}`}>
             <div className={hero.main}>
               <p className="flex w-fit max-w-full items-center gap-2 rounded-full bg-bg px-3.5 py-1.5 text-meta font-medium shadow-card">
                 <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${online > 0 ? "bg-held" : "bg-ink-3"}`} />
@@ -175,7 +177,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* categories with today's starting price */}
-        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
+        <section className={`${wrap} flex flex-col ${space.section} ${sectionY}`}>
           <SectionHeader size="lg" title={t("landing.catsTitle")} sub={t("home.allFrom")} />
           <CategoryGroups
             live={live}
@@ -191,7 +193,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* what people need this season (Unegui-style row) */}
-        <section className={`${wrap} pb-12`}>
+        <section className={`${wrap} pb-10 md:pb-14`}>
           <SeasonalRow
             t={t}
             locale={locale}
@@ -205,7 +207,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* requests waiting for a helper — recruits helpers; an honest placeholder until there are some */}
-        <section className="bg-bg py-12">
+        <section className={`bg-bg ${sectionY}`}>
           <div className={`${wrap} flex flex-col ${space.section}`}>
             <SectionHeader
               size="lg"
@@ -235,7 +237,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* helpers' finished work: real photos, each agreed by that job's customer */}
-        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
+        <section className={`${wrap} flex flex-col ${space.section} ${sectionY}`}>
           <SectionHeader size="lg" title={t("workPhotos.homeTitle")} sub={t("workPhotos.homeSub")} />
           {work.length > 0 ? (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -251,7 +253,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* what customers say: 4★ and up with a written note, photo reviews first (PleaseHelp-style) */}
-        <section className={`${wrap} flex flex-col ${space.section} pb-12`}>
+        <section className={`${wrap} flex flex-col ${space.section} ${sectionY}`}>
           <SectionHeader size="lg" title={t("web.reviews")} sub={t("web.reviewsSelection")} />
           {reviews.length > 0 ? (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -271,7 +273,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         </section>
 
         {/* how it works, 4 steps */}
-        <section id="how" className="scroll-mt-20 py-12">
+        <section id="how" className={`scroll-mt-20 ${sectionY}`}>
           <div className={`${wrap} flex flex-col ${space.section}`}>
             <SectionHeader size="lg" title={t("landing.howTitle")} sub={t("landing.howSub")} />
             <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -280,7 +282,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                   <span className="text-meta font-bold text-brand-ink">{t("landing.step", { n: i + 1 })}</span>
                   <s.icon aria-hidden size={28} className="text-ink" />
                   <h3 className="text-title font-bold">{s.title}</h3>
-                  <p className="text-small leading-relaxed text-ink-2">{s.body}</p>
+                  <p className="text-body leading-relaxed text-ink-2">{s.body}</p>
                 </li>
               ))}
             </ol>
@@ -289,7 +291,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
         {/* real totals, only once they're big enough (publicStats) */}
         {stats && (
-          <section aria-labelledby="stats-title" className="bg-brand-bg/60 py-10">
+          <section aria-labelledby="stats-title" className={`bg-brand-bg/60 ${sectionY}`}>
             <h2 id="stats-title" className="sr-only">
               {t("landing.stats.title")}
             </h2>
@@ -307,8 +309,8 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         )}
 
         {/* why us — two-tone heading */}
-        <section className={`${wrap} flex flex-col ${space.section} py-12`}>
-          <h2 className="text-display font-extrabold tracking-tight md:text-display-lg">
+        <section className={`${wrap} flex flex-col ${space.section} ${sectionY}`}>
+          <h2 className="text-headline font-extrabold tracking-tight md:text-display">
             <span className="text-ink-2">{t("landing.whyA")} </span>
             {t("landing.whyB")}
           </h2>
@@ -318,15 +320,15 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
                 <span aria-hidden className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-bg text-brand-ink">
                   <w.icon size={22} />
                 </span>
-                <h3 className="text-lead font-bold leading-snug">{w.title}</h3>
-                <p className="text-meta text-ink-2">{w.body}</p>
+                <h3 className="text-title font-bold leading-snug">{w.title}</h3>
+                <p className="text-body leading-relaxed text-ink-2">{w.body}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* become a helper · how prices work */}
-        <section id="helper" className={`${wrap} grid scroll-mt-20 gap-3 pb-16 md:grid-cols-2`}>
+        <section id="helper" className={`${wrap} grid scroll-mt-20 gap-3 md:grid-cols-2 ${sectionY}`}>
           <div className="flex flex-col gap-3 rounded-card bg-ink p-6 text-white md:p-8">
             <h2 className="text-headline font-extrabold">{t("landing.helperTitle")}</h2>
             <p className="text-body text-white/75">{t("landing.helperBody")}</p>
