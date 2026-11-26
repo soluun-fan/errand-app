@@ -103,6 +103,11 @@ export interface EngineConfig {
    * Counter-offers and price changes are held to the cap saved on the task at posting.
    */
   maxJobTotal: number;
+  /**
+   * Most a helper may be asked to pay for items first ("buy for me"), repaid after confirmation
+   * (2026-11-27). Bigger purchases: the customer pays the shop. Ops: pricing.
+   */
+  maxItemBudget: number;
   /** Suggested price pre-filled on posting = minimum × this (12500 = ×1.25), rounded up. Ops: pricing. */
   suggestBps: number;
   /** Payment window for tasks booked for later / not urgent (V1 spec C5: 30 min; "now" keeps paymentWindowMinutes). */
@@ -169,6 +174,8 @@ export interface EngineConfig {
   /** After "done", a partial-refund offer the other side hasn't answered goes to Ops after this long. */
   settleHours: number;
   absentGraceMinutes: number;
+  /** Unanswered extra-money request for items over budget: lapses after this long (2026-11-27). */
+  topUpWaitMinutes: number;
   maxDelayMinutes: number;
   titleMax: number;
   descriptionMax: number;
@@ -199,6 +206,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   kindCheckHours: Object.fromEntries(CATEGORIES.filter((c) => c.checkHours !== undefined).map((c) => [c.id, c.checkHours!])),
   minFee: 5000,
   maxJobTotal: 200_000,
+  maxItemBudget: 100_000,
   suggestBps: 12_500,
   paymentWindowBookedMinutes: 30,
   payMode: "held",
@@ -247,6 +255,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   lateGraceMinutes: 15,
   settleHours: 24,
   absentGraceMinutes: 10,
+  topUpWaitMinutes: 30,
   maxDelayMinutes: 30,
   titleMax: 40,
   descriptionMax: 500,

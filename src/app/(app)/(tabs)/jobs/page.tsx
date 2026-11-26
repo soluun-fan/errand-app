@@ -14,7 +14,7 @@ import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
-import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
+import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, categoryConfig, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtDuration, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
 import { busyAreas } from "@/lib/busy-areas";
@@ -92,7 +92,11 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
             {t("details.people", { n: 2 })}
           </span>
         )}
-        {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
+        {/* who pays the shop, said before accepting (2026-11-27): a helper without cash picks the second kind */}
+        {d.itemBudget > 0 && <span className={`${tag} bg-warn-bg text-warn`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
+        {d.itemBudget === 0 && categoryConfig(d.category).items && d.category !== "deliver" && (
+          <span className={`${tag} bg-held-bg text-held`}>{t("job.shopPaysCustomer")}</span>
+        )}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}
       </span>
       <ConditionChips variety={d.details.variety} require={d.details.require} t={t} />

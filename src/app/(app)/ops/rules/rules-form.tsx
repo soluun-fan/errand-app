@@ -61,6 +61,7 @@ const GROUPS: {
       ["lateGraceMinutes", "min"],
       ["maxDelayMinutes", "min"],
       ["absentGraceMinutes", "min"],
+      ["topUpWaitMinutes", "min"],
       ["settleHours", "h"],
       ["arriveRadiusM", "m"],
       ["positionMaxAgeSeconds", "sec"],

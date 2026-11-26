@@ -18,6 +18,10 @@ export function dueCommand(deal: Deal, now: number): Command | null {
   if (deal.type === "errand" && deal.status === "in_progress" && deal.absentAt && now >= deal.absentAt + ruleOf(deal, "absentGraceMinutes") * MINUTE_MS) {
     return { type: "absent_cancel" };
   }
+  // a request to pay extra for items over budget that nobody answered: lapses like a "no"
+  if (deal.type === "errand" && deal.status === "in_progress" && deal.topUp?.status === "pending" && now >= deal.topUp.at + ruleOf(deal, "topUpWaitMinutes") * MINUTE_MS) {
+    return { type: "lapse_topup" };
+  }
   if (deal.type === "errand" && deal.status === "open" && deal.matchBy !== null && now >= deal.matchBy) {
     return { type: "expire" };
   }

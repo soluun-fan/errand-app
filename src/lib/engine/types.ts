@@ -159,6 +159,8 @@ export interface TaskRules {
    * (2026-11-27, it covers the payment processing already paid). Tasks posted before: 0 (refunded).
    */
   keepFeeOnCancel?: number;
+  /** A request to pay extra for items over budget lapses after this long without an answer. */
+  topUpWaitMinutes?: number;
 }
 
 export const DEFAULT_DETAILS: ErrandDetails = {
@@ -426,6 +428,10 @@ export type Command =
   | { type: "record_receipt"; amount: number }
   | { type: "confirm_topup"; providerRef: string; amount: number } // provider webhook for the top-up
   | { type: "decline_topup" } // customer: don't pay more, helper returns the items
+  /** System: an extra-money request nobody answered in time lapses like a "no" (2026-11-27). */
+  | { type: "lapse_topup" }
+  /** Helper: the customer paid the shop themselves (QR at the counter) — no receipt to repay. */
+  | { type: "customer_paid_shop" }
   | { type: "record_handover" }
   | { type: "finish" }
   | { type: "handover" } // goods: seller handed the item over

@@ -64,6 +64,8 @@ export async function settleDueDeals(now = Date.now()): Promise<number> {
     db.from("deals").select("*").eq("status", "check").lte("check_until", iso).order("check_until").limit(200),
     // "customer isn't here" countdowns (the engine decides whether the time is up)
     db.from("deals").select("*").eq("type", "errand").eq("status", "in_progress").not("absent_at", "is", null).limit(200),
+    // an extra-money request for items over budget (lapses after its wait; the engine decides)
+    db.from("deals").select("*").eq("type", "errand").eq("status", "in_progress").eq("top_up->>status", "pending").limit(200),
     // A partial-refund offer has its own deadline, which may precede check_until.
     db.from("deals").select("*").eq("type", "errand").eq("status", "check").eq("price_change->>status", "proposed").limit(200),
   ]);
@@ -429,6 +431,10 @@ async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
       url: `/jobs/${d.id}`,
       tag: `job-${d.id}`,
     });
+  } else if (type === "lapse_topup") {
+    // nobody answered the request to pay extra: the helper buys within budget or returns the items
+    await notify([d.helperId], { title: "push.topupLapsedTitle", body: "push.topupLapsedHelper", params: { title: d.title }, url: `/jobs/${d.id}`, tag: `job-${d.id}` });
+    await notify([d.customerId], { title: "push.topupLapsedTitle", body: "push.topupLapsedCustomer", params: { title: d.title }, url: `/tasks/${d.id}`, tag: `task-${d.id}` });
   } else if (type === "escalate_offer") {
     const { adminIds } = await import("@/lib/safety");
     await notify([d.customerId, d.helperId], {

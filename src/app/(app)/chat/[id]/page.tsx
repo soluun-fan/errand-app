@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Avatar, FlowHeader } from "@/components/ui";
+import { Avatar, FlowHeader, Note } from "@/components/ui";
+import { categoryConfig } from "@/lib/engine";
 import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { callParty, callsEnabled } from "@/lib/calls";
@@ -56,6 +57,12 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/cha
         </div>
       </div>
       {canReport && <SafetyBar dealId={deal.id} showSos={(SOS_STATUSES as readonly string[]).includes(deal.status)} live={sos} />}
+      {/* paying a shop by the QR the helper sends: check it is the shop, not a person (2026-11-27) */}
+      {me === deal.customerId &&
+        deal.status === "in_progress" &&
+        categoryConfig(deal.category).items &&
+        deal.category !== "deliver" &&
+        (deal.itemBudget === 0 || deal.receiptAmount === 0) && <Note tone="warn">{t("shopPay.customerNote")}</Note>}
       <ChatRoom
         dealId={deal.id}
         messages={messages}

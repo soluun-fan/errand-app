@@ -340,6 +340,8 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
   const min = taskMinFee(input.category, details, startsAt, cfg);
   if (input.fee < min) fail("INVALID_INPUT", `Minimum fee is ₮${min}`);
   if (input.fee + input.itemBudget > cfg.maxJobTotal) fail("INVALID_INPUT", `Job total is over ₮${cfg.maxJobTotal}`);
+  // the helper pays for the items first: keep that within what a person can carry (bigger: the customer pays the shop)
+  if (input.itemBudget > cfg.maxItemBudget) fail("INVALID_INPUT", `Item budget is over ₮${cfg.maxItemBudget}`);
   details.maxTotal = cfg.maxJobTotal;
   details.minFee = min; // later prices (counters, changes) are checked against this, not today's settings
   const extra = extraTaskFeeFor(input.openTasks ?? 0, cfg);
@@ -357,6 +359,7 @@ export function createErrand(input: NewErrandInput, ctx: Ctx, cfg: EngineConfig 
     absentGraceMinutes: cfg.absentGraceMinutes,
     maxDelayMinutes: cfg.maxDelayMinutes,
     keepFeeOnCancel: 1,
+    topUpWaitMinutes: cfg.topUpWaitMinutes,
   };
   const freeFirst = input.firstTask === true && cfg.firstTaskFree;
   if (freeFirst) details.freeFirst = true; // shown in the money breakdown
@@ -470,6 +473,7 @@ export function ruleOf(e: ErrandDeal, key: keyof TaskRules): number {
     absentGraceMinutes: DEFAULT_CONFIG.absentGraceMinutes,
     maxDelayMinutes: DEFAULT_CONFIG.maxDelayMinutes,
     keepFeeOnCancel: 0, // only tasks posted with the rule keep the fee
+    topUpWaitMinutes: DEFAULT_CONFIG.topUpWaitMinutes,
   };
   return fallback[key];
 }
@@ -1032,6 +1036,35 @@ export function apply(deal: Deal, cmd: Command, ctx: Ctx): Transition {
       e.topUp = { ...(e.topUp as NonNullable<ErrandDeal["topUp"]>), status: "declined" };
       e.receiptAmount = null;
       tx.ev("topup_declined");
+      break;
+    }
+
+    case "lapse_topup": {
+      // Nobody answered the request to pay extra: same as "no" — the helper buys only what the
+      // budget covers (a new receipt) or returns the items and earns the fee. Nobody waits forever.
+      const e = asErrand(d, "lapse a top-up for");
+      requireKind(ctx, "system", "A top-up lapse");
+      requireStatus(e, "lapse a top-up for", "in_progress");
+      const topUp = e.topUp;
+      if (topUp === null || topUp.status !== "pending") fail("ILLEGAL_TRANSITION", "No top-up is waiting for an answer");
+      if (ctx.now < (topUp as NonNullable<ErrandDeal["topUp"]>).at + ruleOf(e, "topUpWaitMinutes") * MINUTE_MS) fail("ILLEGAL_TRANSITION", "The customer still has time to answer");
+      e.topUp = { ...(topUp as NonNullable<ErrandDeal["topUp"]>), status: "declined" };
+      e.receiptAmount = null;
+      tx.ev("topup_lapsed");
+      break;
+    }
+
+    case "customer_paid_shop": {
+      // At the counter the helper sent the shop's QR and the customer paid it from their phone
+      // (2026-11-27): nothing to repay, so the whole item budget goes back to the customer at release.
+      const e = asErrand(d, "record the customer paying the shop for");
+      requireAssignedHelper(ctx, e);
+      requireStatus(e, "record the customer paying the shop for", "in_progress");
+      if (e.itemBudget === 0) fail("INVALID_INPUT", "This task has no item budget");
+      if (e.receiptAmount !== null && e.topUp?.status !== "pending") fail("ILLEGAL_TRANSITION", "A receipt is already recorded");
+      e.receiptAmount = 0;
+      if (e.topUp !== null && e.topUp.status !== "paid") e.topUp = null;
+      tx.ev("shop_paid_by_customer");
       break;
     }
 

@@ -160,6 +160,8 @@ export async function postTask(_prev: PostState, form: FormData): Promise<PostSt
       if (min) return { error: t("post.reason.fee", { amount: fmtMoney(Number(min[1])) }), step: STEP.review };
       const over = /Job total is over ₮(\d+)/.exec(e.message);
       if (over) return { error: t("post.reason.overMax", { amount: fmtMoney(Number(over[1])) }), step: STEP.review };
+      const items = /Item budget is over ₮(\d+)/.exec(e.message);
+      if (items) return { error: t("post.reason.overItems", { amount: fmtMoney(Number(items[1])) }), step: STEP.where };
       const max = /Maximum fee is ₮(\d+)/.exec(e.message);
       if (max) return { error: t("price.tooHigh", { amount: fmtMoney(Number(max[1])) }), step: STEP.review };
       if (/Care work is daytime only/.test(e.message)) {

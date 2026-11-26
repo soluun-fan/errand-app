@@ -2098,6 +2098,7 @@ export type Database = {
           chat_retention_days: number;
           settle_hours: number;
           absent_grace_minutes: number;
+          top_up_wait_minutes: number;
           max_delay_minutes: number;
         };
         Insert: {
@@ -2148,6 +2149,7 @@ export type Database = {
           chat_retention_days?: number;
           settle_hours?: number;
           absent_grace_minutes?: number;
+          top_up_wait_minutes?: number;
           max_delay_minutes?: number;
         };
         Update: {
@@ -2198,6 +2200,7 @@ export type Database = {
           chat_retention_days?: number;
           settle_hours?: number;
           absent_grace_minutes?: number;
+          top_up_wait_minutes?: number;
           max_delay_minutes?: number;
         };
         Relationships: [
@@ -2235,6 +2238,7 @@ export type Database = {
           extra_task_fee: number;
           suggest_bps: number;
           max_job_total: number;
+          max_item_budget: number;
           service_fee_bps: number;
           service_fee_min: number;
           service_fee_max: number;
@@ -2266,6 +2270,7 @@ export type Database = {
           extra_task_fee?: number;
           suggest_bps?: number;
           max_job_total?: number;
+          max_item_budget?: number;
           service_fee_bps?: number;
           service_fee_min?: number;
           service_fee_max?: number;
@@ -2297,6 +2302,7 @@ export type Database = {
           extra_task_fee?: number;
           suggest_bps?: number;
           max_job_total?: number;
+          max_item_budget?: number;
           service_fee_bps?: number;
           service_fee_min?: number;
           service_fee_max?: number;

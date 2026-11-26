@@ -162,6 +162,7 @@ export async function savePricing(_prev: ActionResult, form: FormData): Promise<
     nightEndHour: amt("nightEndHour", 0, 23),
     suggestBps: percentToBps(form.get("suggestPct"), 300),
     maxJobTotal: amt("maxJobTotal", 5000, 10_000_000),
+    maxItemBudget: amt("maxItemBudget", 0, 10_000_000),
   };
   if (next.suggestBps !== null && next.suggestBps < 10_000) return { error: t("opsPricing.invalid") }; // never below the minimum
   if (next.serviceFeeMin !== null && next.serviceFeeMax !== null && next.serviceFeeMin > next.serviceFeeMax)
@@ -373,6 +374,7 @@ const RULE_RANGES: Record<Exclude<keyof PlatformRules, "dispatchWaves" | "payMod
   chatRetentionDays: [7, 730],
   settleHours: [1, 168],
   absentGraceMinutes: [3, 60],
+  topUpWaitMinutes: [5, 240],
   maxDelayMinutes: [0, 120],
 };
 

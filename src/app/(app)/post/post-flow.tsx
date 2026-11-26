@@ -267,6 +267,8 @@ export function PostFlow({
     if (!d.address.trim()) reason = t("task.reasonWhere");
     else if (d.when !== "now" && d.when !== "flexible" && (!start || (parseUbLocal(start) ?? 0) <= now)) reason = t("task.reasonTime");
     else if (buys && d.buyForMe && itemBudget <= 0) reason = t("task.reasonBudget");
+    // the helper pays for the items first: bigger purchases are paid by the customer at the shop
+    else if (buys && d.buyForMe && itemBudget > cfg.maxItemBudget) reason = t("post.reason.overItems", { amount: fmtMoney(cfg.maxItemBudget) });
   }
   if (STEPS[step] === "review" && belowMin) reason = t("post.reason.fee", { amount: fmtMoney(minFee) });
   if (STEPS[step] === "review" && overMax) reason = t("post.reason.overMax", { amount: fmtMoney(cfg.maxJobTotal) });

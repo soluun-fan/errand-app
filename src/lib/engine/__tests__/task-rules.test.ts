@@ -19,7 +19,7 @@ describe("a task runs by the rules it was posted with", () => {
   const custom: EngineConfig = { ...DEFAULT_CONFIG, paymentWindowMinutes: 20, backOutGraceMinutes: 2, nowMatchWindowMinutes: 45, applicationMinutes: 30, autoPickMinutes: 5 };
 
   it("copies the timings onto the task", () => {
-    expect(post(custom).details.rules).toEqual({ paymentWindowMinutes: 20, backOutGraceMinutes: 2, rematchWindowMinutes: 45, applicationMinutes: 30, autoPickMinutes: 5, arriveMinutes: 45, lateGraceMinutes: 15, settleHours: 24, absentGraceMinutes: 10, maxDelayMinutes: 30, keepFeeOnCancel: 1 });
+    expect(post(custom).details.rules).toEqual({ paymentWindowMinutes: 20, backOutGraceMinutes: 2, rematchWindowMinutes: 45, applicationMinutes: 30, autoPickMinutes: 5, arriveMinutes: 45, lateGraceMinutes: 15, settleHours: 24, absentGraceMinutes: 10, maxDelayMinutes: 30, keepFeeOnCancel: 1, topUpWaitMinutes: 30 });
   });
 
   it("uses them: payment window, free back-out window", () => {

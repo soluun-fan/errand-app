@@ -61,6 +61,8 @@ export interface PlatformRules {
   chatRetentionDays: number;
   settleHours: number;
   absentGraceMinutes: number;
+  /** An unanswered request to pay extra for items over budget lapses after this long (2026-11-27). */
+  topUpWaitMinutes: number;
   maxDelayMinutes: number;
 }
 
@@ -109,6 +111,7 @@ interface Row {
   chat_retention_days?: number;
   settle_hours?: number;
   absent_grace_minutes?: number;
+  top_up_wait_minutes?: number;
   max_delay_minutes?: number;
 }
 
@@ -180,6 +183,7 @@ export async function getRules(): Promise<PlatformRules> {
     chatRetentionDays: data.chat_retention_days ?? 90,
     settleHours: data.settle_hours ?? 24,
     absentGraceMinutes: data.absent_grace_minutes ?? 10,
+    topUpWaitMinutes: data.top_up_wait_minutes ?? 30,
     maxDelayMinutes: data.max_delay_minutes ?? 30,
   };
 }
@@ -234,6 +238,7 @@ export async function updateRules(opsId: string, next: PlatformRules): Promise<v
       chat_retention_days: next.chatRetentionDays,
       settle_hours: next.settleHours,
       absent_grace_minutes: next.absentGraceMinutes,
+      top_up_wait_minutes: next.topUpWaitMinutes,
       max_delay_minutes: next.maxDelayMinutes,
       updated_at: new Date().toISOString(),
       updated_by: opsId,

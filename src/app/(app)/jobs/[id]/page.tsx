@@ -17,7 +17,7 @@ import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from 
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
-import { arriveBy, categoryTrust, errandSplit, helperLate, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
+import { arriveBy, categoryConfig, categoryTrust, errandSplit, helperLate, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
 import { ConditionChips } from "@/components/conditions";
 import { getRules } from "@/lib/rules";
 import { directPayOpen, directPayState, owedToHelper } from "@/lib/direct-pay";
@@ -535,6 +535,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                     {t(deal.payMode === "direct" ? "direct.helper.itemsHow" : "job.itemsHow")}
                   </span>
                 </>
+              ) : categoryConfig(deal.category).items && deal.category !== "deliver" ? (
+                // a buying kind where the customer pays the shop (a parcel delivery buys nothing): the helper fronts nothing
+                <>
+                  <span className="block text-title font-bold">{t("job.customerPaysShop")}</span>
+                  <span className="block text-small text-ink-2">{t("job.customerPaysShopHow")}</span>
+                </>
               ) : (
                 <span className="text-title font-semibold">{t("job.noItems")}</span>
               ),
@@ -612,6 +618,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <ProofUploader dealId={deal.id} kind="receipt" done={deal.receiptAmount !== null} />
             )}
             {deal.topUp?.status === "pending" && <Note tone="warn">{t("proof.waitTopUp")}</Note>}
+            {/* not enough cash, over budget, or the customer simply pays: the shop's QR goes to them (2026-11-27) */}
+            {categoryConfig(deal.category).items &&
+              deal.category !== "deliver" &&
+              (deal.itemBudget === 0 || deal.receiptAmount === null || deal.topUp?.status === "pending") && (
+                <ConfirmSheet
+                  action={jobAction}
+                  fields={{ ...fields, intent: "customer_pays_shop" }}
+                  trigger={t("shopPay.trigger")}
+                  triggerClass={`${btn.secondary} w-full`}
+                  title={t("shopPay.title")}
+                  body={t(deal.itemBudget > 0 ? "shopPay.bodyBudget" : "shopPay.body")}
+                  confirmLabel={t("shopPay.confirm")}
+                />
+              )}
             {startPhoto && <ProofUploader dealId={deal.id} kind="progress" done={false} />}
             {startPhoto ? (
               <ProofUploader dealId={deal.id} kind="handover" done={handoverLive} />

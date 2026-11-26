@@ -1,6 +1,6 @@
 /** Rules decided 2026-11-13 (docs/decisions.md): round trip, budget buffer, over-budget top-up. */
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CONFIG, DEFAULT_DETAILS, MINUTE_MS, autoPickAt, ext, heldItemBudget, payable, quoteFee, type ErrandDeal } from "../index";
+import { DEFAULT_CONFIG, DEFAULT_DETAILS, MINUTE_MS, autoPickAt, dueCommand, ext, heldItemBudget, payable, quoteFee, type ErrandDeal } from "../index";
 import { T0, World, customer, helper, provider, system } from "./helpers";
 
 const c1 = customer("c1");
@@ -124,6 +124,58 @@ describe("receipt over budget → top-up", () => {
     w.do(id, { type: "confirm" }, c1);
     expect(w.bal(payable("h1"))).toBe(8100);
     expect(w.bal(ext("c1"))).toBe(-60000 + 50000);
+  });
+
+  it("an unanswered request lapses after 30 minutes, like a no — never earlier, only by the system", () => {
+    const w = new World();
+    const id = inProgress(w);
+    w.do(id, { type: "record_receipt", amount: 54500 }, h1);
+    expect(dueCommand(w.get(id), w.now)).toBeNull();
+    w.reject(id, { type: "lapse_topup" }, system, "ILLEGAL_TRANSITION"); // the customer still has time
+    w.reject(id, { type: "lapse_topup" }, h1, "FORBIDDEN");
+    w.advance(0.5);
+    expect(dueCommand(w.get(id), w.now)).toEqual({ type: "lapse_topup" });
+    w.do(id, { type: "lapse_topup" }, system);
+    const d = w.get(id) as ErrandDeal;
+    expect(d).toMatchObject({ topUp: { status: "declined" }, receiptAmount: null });
+    expect(w.codes(id)).toContain("topup_lapsed");
+    // the helper buys within budget instead, and is repaid that
+    w.do(id, { type: "record_receipt", amount: 48000 }, h1);
+    w.do(id, { type: "record_handover" }, h1);
+    w.do(id, { type: "finish" }, h1);
+    w.do(id, { type: "confirm" }, c1);
+    expect(w.bal(payable("h1"))).toBe(8100 + 48000);
+  });
+
+  it("the customer pays the shop at the counter: no receipt to repay, the whole budget comes back", () => {
+    const w = new World();
+    const id = inProgress(w);
+    w.reject(id, { type: "customer_paid_shop" }, c1, "FORBIDDEN");
+    w.do(id, { type: "customer_paid_shop" }, h1);
+    expect((w.get(id) as ErrandDeal).receiptAmount).toBe(0);
+    expect(w.codes(id)).toContain("shop_paid_by_customer");
+    w.do(id, { type: "record_handover" }, h1);
+    w.do(id, { type: "finish" }, h1); // nothing to show a receipt for
+    w.do(id, { type: "confirm" }, c1);
+    expect(w.bal(payable("h1"))).toBe(8100); // the fee only
+    expect(w.bal(ext("c1"))).toBe(-60000 + 50000); // the item money back in full
+  });
+
+  it("an over-budget request can turn into the customer paying the shop instead", () => {
+    const w = new World();
+    const id = inProgress(w);
+    w.do(id, { type: "record_receipt", amount: 54500 }, h1);
+    w.do(id, { type: "customer_paid_shop" }, h1);
+    expect((w.get(id) as ErrandDeal).topUp).toBeNull();
+    w.do(id, { type: "record_handover" }, h1);
+    w.do(id, { type: "finish" }, h1);
+  });
+
+  it("the helper is never asked to pay more than the item cap first; bigger buys are paid by the customer", () => {
+    const w = new World({ ...DEFAULT_CONFIG, maxItemBudget: 50_000 });
+    w.post({ itemBudget: 50_000, fee: 9000 });
+    expect(() => w.post({ itemBudget: 50_100, fee: 9000 })).toThrow(/Item budget is over ₮50000/);
+    w.post({ itemBudget: 0, fee: 9000 }); // the customer pays the shop: no cap
   });
 
   it("helper can drop items instead: a receipt within budget replaces the request", () => {

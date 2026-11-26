@@ -42,6 +42,7 @@ export function PricingForm({ p }: { p: PricingSettings }) {
           {num("extraTaskFee", t("opsPricing.extraTaskFee"), p.extraTaskFee)}
           {num("suggestPct", t("opsPricing.suggestPct"), p.suggestBps / 100, "%")}
           {num("maxJobTotal", t("opsPricing.maxJobTotal"), p.maxJobTotal)}
+          {num("maxItemBudget", t("opsPricing.maxItemBudget"), p.maxItemBudget)}
           {num("nightStartHour", t("opsPricing.nightStart"), p.nightStartHour, ":00")}
           {num("nightEndHour", t("opsPricing.nightEnd"), p.nightEndHour, ":00")}
         </div>

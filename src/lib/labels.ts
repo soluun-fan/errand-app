@@ -131,6 +131,10 @@ export function describeEvent(code: string, data: Record<string, unknown>, t: T,
       return t(`event.${code}`, { amount: money("amount") });
     case "topup_declined":
       return t("event.topup_declined");
+    case "topup_lapsed":
+      return t("event.topup_lapsed");
+    case "shop_paid_by_customer":
+      return t("event.shop_paid_by_customer");
     case "done":
       return t("event.done", { hours: Number(data.checkHours ?? 24) });
     case "released":

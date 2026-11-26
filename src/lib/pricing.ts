@@ -43,6 +43,8 @@ export interface PricingSettings {
   suggestBps: number;
   /** Highest job total (price + shopping budget), V1 spec C3. */
   maxJobTotal: number;
+  /** Most a helper pays for items first (2026-11-27). */
+  maxItemBudget: number;
 }
 
 interface Row {
@@ -72,6 +74,7 @@ interface Row {
   night_end_hour?: number;
   suggest_bps: number;
   max_job_total: number;
+  max_item_budget?: number;
 }
 
 export async function getPricing(): Promise<PricingSettings> {
@@ -104,6 +107,7 @@ export async function getPricing(): Promise<PricingSettings> {
     nightEndHour: data.night_end_hour ?? DEFAULT_CONFIG.nightEndHour,
     suggestBps: data.suggest_bps ?? DEFAULT_CONFIG.suggestBps,
     maxJobTotal: data.max_job_total ?? DEFAULT_CONFIG.maxJobTotal,
+    maxItemBudget: data.max_item_budget ?? DEFAULT_CONFIG.maxItemBudget,
   };
 }
 
@@ -156,6 +160,7 @@ export async function pricingConfig(): Promise<EngineConfig> {
     lateGraceMinutes: r.lateGraceMinutes,
     settleHours: r.settleHours,
     absentGraceMinutes: r.absentGraceMinutes,
+    topUpWaitMinutes: r.topUpWaitMinutes,
     maxDelayMinutes: r.maxDelayMinutes,
     nowMatchWindowMinutes: r.nowMatchWindowMinutes,
     scheduleMatchWindowMinutes: r.scheduleMatchWindowHours * 60,
@@ -221,6 +226,7 @@ export async function updatePricing(opsId: string, next: PricingSettings): Promi
       night_end_hour: next.nightEndHour,
       suggest_bps: next.suggestBps,
       max_job_total: next.maxJobTotal,
+      max_item_budget: next.maxItemBudget,
       updated_at: new Date().toISOString(),
       updated_by: opsId,
     })

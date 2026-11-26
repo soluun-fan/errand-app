@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/components/sheet";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { DbError, loadDeal, runCommand } from "@/lib/db/deals";
+import { DbError, isDealConflict, loadDeal, runCommand } from "@/lib/db/deals";
 import { parsePrice } from "@/lib/price-input";
 import { notifyPriceChange } from "@/lib/price-notify";
 import { getControls, isPausedError } from "@/lib/safety";
@@ -28,6 +28,7 @@ import { adminIds } from "@/lib/safety";
 import {
   EngineError,
   OPEN_CATEGORIES,
+  categoryConfig,
   categoryTrust,
   minFeeAt,
   ruleOf,
@@ -305,6 +306,22 @@ export async function jobAction(_prev: ActionResult, form: FormData): Promise<Ac
   const dealId = String(form.get("dealId") ?? "");
   const intent = String(form.get("intent") ?? "");
   if (!/^[0-9a-f-]{36}$/i.test(dealId)) return { error: t("common.notFound") };
+
+  // At the till (2026-11-27): the customer pays the shop from their phone, by the QR the helper sends
+  // in the chat. On a "buy for me" job nothing is then repaid to the helper; the budget goes back.
+  if (intent === "customer_pays_shop") {
+    const d = await loadDeal(db, dealId);
+    if (d?.type !== "errand" || d.helperId !== viewer.profile.id) return { error: t("error.forbidden") };
+    if (d.status !== "in_progress" || !categoryConfig(d.category).items || d.category === "deliver") return { error: t("error.changed") };
+    try {
+      if (d.itemBudget > 0) await runCommand(db, d.id, { type: "customer_paid_shop" }, viewer.actor);
+    } catch (e) {
+      if (isDealConflict(e) || e instanceof EngineError) return { error: t("error.changed") };
+      throw e;
+    }
+    await notify([d.customerId], { title: "push.shopQrTitle", body: "push.shopQrBody", params: { title: d.title }, url: `/chat/${d.id}`, tag: `chat-${d.id}` }).catch(() => undefined);
+    redirect(`/chat/${d.id}`);
+  }
 
   try {
     // helpers rate the customer after a finished job (2026-11-22); kept apart from helper ratings
