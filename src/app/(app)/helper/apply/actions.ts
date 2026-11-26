@@ -6,7 +6,7 @@ import { getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
 import { CATEGORIES, OPEN_CATEGORIES, type CategoryId } from "@/lib/engine";
 import { createKycSlot, latestApplication, submitApplication } from "@/lib/kyc";
-import { BANKS, KYC_DOCS, cleanLegalName, isAdult, normalizeAccount, payoutNameOk, type KycDoc } from "@/lib/kyc-rules";
+import { BANKS, KYC_DOCS, cleanCyrillicName, isAdult, accountToIban, payoutNameOk, type KycDoc } from "@/lib/kyc-rules";
 import { KycFormInput, parseOr } from "@/lib/input";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,7 +58,7 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
   if (unverifiedHelpersTestMode) return { error: t("kyc.testDisabled") };
   const f = parseOr(KycFormInput, raw);
   if (!f) return { error: t("kyc.errors.files") };
-  const legalName = cleanLegalName(String(f.legalName ?? ""));
+  const legalName = cleanCyrillicName(String(f.legalName ?? ""));
   if (!legalName) return { error: t("kyc.errors.name") };
   if (!isAdult(String(f.birthDate ?? ""), new Date())) return { error: t("kyc.errors.age") };
   if (!/^\d{4}$/.test(String(f.idLast4 ?? ""))) return { error: t("kyc.errors.last4") };
@@ -72,9 +72,10 @@ export async function submitKyc(raw: KycForm): Promise<{ error?: string }> {
     files[d] = p;
   }
   if (!(BANKS as readonly string[]).includes(f.bank)) return { error: t("kyc.errors.bank") };
-  const account = normalizeAccount(String(f.accountNumber ?? ""));
-  if (!account) return { error: t("kyc.errors.account") };
-  const holder = cleanLegalName(String(f.holderName ?? ""));
+  const acct = accountToIban(String(f.accountNumber ?? ""), f.bank);
+  if ("error" in acct) return { error: t(acct.error === "bank" ? "kyc.errors.accountBank" : "kyc.errors.account") };
+  const account = acct.iban;
+  const holder = cleanCyrillicName(String(f.holderName ?? ""));
   if (!holder || !payoutNameOk(legalName, holder)) return { error: t("kyc.errors.holder") };
   if (f.consent !== true) return { error: t("kyc.errors.consent") };
   if (f.agreement !== true) return { error: t("kyc.errors.agreement") };

@@ -42,7 +42,7 @@ it("allows an approved helper to add a payout account when only test_helper is m
 
   await expect(setPayout("user-1", {
     bank: "Хаан банк",
-    accountNumber: "50000024444",
+    accountNumber: "MN500005005012345678",
     holderName: "Тест Бат",
   })).resolves.toBe("ok");
   expect(mocks.selected).toEqual(["role, helper_status, verified_name, test_helper", "role, helper_status, verified_name", "account_number"]);
@@ -57,8 +57,8 @@ it("does not tell a helper their bank account is missing when the account read f
 
 it("never verifies a bank account just because the typed holder matches an ID-checked name", async () => {
   mocks.responses.push({ data: { role: "helper", helper_status: "approved", verified_name: "Тест Бат", test_helper: false }, error: null });
-  await expect(setPayout("user-1", { bank: "Хаан банк", accountNumber: "50000024444", holderName: "Тест Бат" })).resolves.toBe("ok");
-  expect(mocks.upserts[0]).toMatchObject({ verified_at: null, account_number: "50000024444" });
+  await expect(setPayout("user-1", { bank: "Хаан банк", accountNumber: "MN500005005012345678", holderName: "Тест Бат" })).resolves.toBe("ok");
+  expect(mocks.upserts[0]).toMatchObject({ verified_at: null, account_number: "MN500005005012345678" });
 });
 
 it("rejects an IBAN with a valid shape but a bad checksum before saving it", async () => {
@@ -72,7 +72,7 @@ it("does not convert unrelated profile lookup errors into a not-helper response"
 
   await expect(setPayout("user-1", {
     bank: "Хаан банк",
-    accountNumber: "50000024444",
+    accountNumber: "MN500005005012345678",
     holderName: "Тест Бат",
   })).rejects.toThrow("Could not load helper payout eligibility: permission denied");
   expect(mocks.selected).toEqual(["role, helper_status, verified_name, test_helper"]);

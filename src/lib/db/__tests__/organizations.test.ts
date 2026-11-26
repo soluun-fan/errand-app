@@ -18,7 +18,7 @@ beforeAll(async () => {
   await db.query("insert into public.organizations(id, name, reg_number, kind, owner_id, categories, requested_categories, status) values ($1, 'Test agency', '1234567', 'agency', $2, '{plumbing,childcare}', '{plumbing,childcare}', 'approved')", [orgId, customerId]);
   await db.query("insert into public.org_members(org_id, helper_id, categories, status) values ($1, $2, '{plumbing,childcare}', 'active')", [orgId, helperId]);
   // a worker needs a bank account to work (migration 20261118050000)
-  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
+  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN500005005012345678', 'Test Helper')", [helperId]);
 });
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -164,7 +164,7 @@ it("registration and payout account are atomic", async () => {
   const registration = { name: "Test company", reg_number: "7654321", kind: "company", owner_id: customerId, requested_categories: ["plumbing"], doc_path: "private.pdf" };
   await sqlError(as(db, "service_role", null, (tx) => rpc(tx, "register_organization", { p_org: registration, p_payout: { bank: "Bank", account_number: "bad", holder_name: "Test company" } })));
   expect((await db.query("select id from public.organizations where reg_number = '7654321'")).rows).toEqual([]);
-  const id = await as(db, "service_role", null, (tx) => rpc(tx, "register_organization", { p_org: registration, p_payout: { bank: "Bank", account_number: "12345678", holder_name: "Test company" } }));
+  const id = await as(db, "service_role", null, (tx) => rpc(tx, "register_organization", { p_org: registration, p_payout: { bank: "Bank", account_number: "MN130015005000123456", holder_name: "Test company" } }));
   expect((await db.query("select org_id from public.organization_payout_accounts where org_id = $1", [id])).rows).toHaveLength(1);
 });
 

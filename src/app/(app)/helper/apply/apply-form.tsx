@@ -6,14 +6,24 @@ import { btn, chipClass, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
 import { CATEGORIES } from "@/lib/engine/config";
 import { compressImage } from "@/lib/image-client";
-import { BANKS, KYC_DOCS, type KycDoc } from "@/lib/kyc-rules";
+import { BANKS, KYC_DOCS, accountToIban, type KycDoc } from "@/lib/kyc-rules";
 import { browserClient } from "@/lib/supabase/browser";
 import { prepareKycUpload, submitKyc } from "./actions";
 import { Lock } from "lucide-react";
 import { Ico } from "@/components/icon";
 
 /** One document slot: camera / file → (compress if photo) → signed upload into the applicant's folder. */
-export function DocSlot({ doc, path, onDone, onError }: { doc: KycDoc; path: string | undefined; onDone: (p: string) => void; onError: (m: string) => void }) {
+export function DocSlot({
+  doc,
+  path,
+  onDone,
+  onError,
+}: {
+  doc: KycDoc;
+  path: string | undefined;
+  onDone: (p: string) => void;
+  onError: (m: string) => void;
+}) {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +91,18 @@ export function ApplyForm() {
     setBusy(true);
     setError(null);
     try {
-      const r = await submitKyc({ legalName, birthDate, idLast4, categories, files, bank, accountNumber: account, holderName: holderTouched ? holder : legalName, consent, agreement });
+      const r = await submitKyc({
+        legalName,
+        birthDate,
+        idLast4,
+        categories,
+        files,
+        bank,
+        accountNumber: account,
+        holderName: holderTouched ? holder : legalName,
+        consent,
+        agreement,
+      });
       if (r?.error) setError(r.error);
     } finally {
       setBusy(false);
@@ -94,7 +115,15 @@ export function ApplyForm() {
         <h2 className="font-bold">{t("kyc.stepPerson")}</h2>
         <label className={fieldLabel}>
           {t("kyc.legalName")}
-          <input className={field} value={legalName} maxLength={80} autoComplete="name" onChange={(e) => setLegalName(e.target.value)} />
+          <input
+            className={field}
+            value={legalName}
+            maxLength={80}
+            autoComplete="name"
+            placeholder="Батболдын Тэмүүжин"
+            lang="mn"
+            onChange={(e) => setLegalName(e.target.value)}
+          />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className={fieldLabel}>
@@ -103,7 +132,13 @@ export function ApplyForm() {
           </label>
           <label className={fieldLabel}>
             {t("kyc.idLast4")}
-            <input className={field} inputMode="numeric" maxLength={4} value={idLast4} onChange={(e) => setIdLast4(e.target.value.replace(/\D/g, ""))} />
+            <input
+              className={field}
+              inputMode="numeric"
+              maxLength={4}
+              value={idLast4}
+              onChange={(e) => setIdLast4(e.target.value.replace(/\D/g, ""))}
+            />
           </label>
         </div>
       </section>
@@ -113,7 +148,9 @@ export function ApplyForm() {
         {KYC_DOCS.map((d) => (
           <DocSlot key={d} doc={d} path={files[d]} onDone={(p) => setFiles((x) => ({ ...x, [d]: p }))} onError={setError} />
         ))}
-        <p className="text-small text-ink-2"><Ico as={Lock} size={16} /> {t("kyc.privacy")}</p>
+        <p className="text-small text-ink-2">
+          <Ico as={Lock} size={16} /> {t("kyc.privacy")}
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -122,7 +159,14 @@ export function ApplyForm() {
           <legend className="mb-2 text-body font-medium text-ink-2">{t("kyc.categories")}</legend>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.filter((c) => c.trust === "open").map((c) => (
-              <button key={c.id} type="button" role="checkbox" aria-checked={categories.includes(c.id)} onClick={() => toggle(c.id)} className={chipClass(categories.includes(c.id))}>
+              <button
+                key={c.id}
+                type="button"
+                role="checkbox"
+                aria-checked={categories.includes(c.id)}
+                onClick={() => toggle(c.id)}
+                className={chipClass(categories.includes(c.id))}
+              >
                 <CategoryIcon id={c.id} size={16} /> {t(`categoryShort.${c.id}`)}
               </button>
             ))}
@@ -141,7 +185,27 @@ export function ApplyForm() {
         </label>
         <label className={fieldLabel}>
           {t("kyc.account")}
-          <input className={field} inputMode="text" autoComplete="off" maxLength={34} value={account} onChange={(e) => setAccount(e.target.value)} />
+          <input
+            className={field}
+            inputMode="text"
+            autoComplete="off"
+            maxLength={34}
+            placeholder="5000123456"
+            autoCapitalize="characters"
+            spellCheck={false}
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+          />
+          {(() => {
+            const r = bank && account.trim() ? accountToIban(account, bank) : null;
+            return r && "iban" in r && r.built ? (
+              <span className="text-caption font-normal text-held">
+                {t("kyc.ibanPreview", { iban: r.iban.replace(/(.{4})/g, "$1 ").trim() })}
+              </span>
+            ) : (
+              <span className="text-caption font-normal text-ink-2">{t("kyc.accountHelp")}</span>
+            );
+          })()}
         </label>
         <label className={fieldLabel}>
           {t("kyc.holder")}
@@ -159,11 +223,21 @@ export function ApplyForm() {
       </section>
 
       <label className="flex items-start gap-3 text-body">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-1 h-5 w-5 flex-none accent-ink"
+        />
         <span>{t("kyc.consent")}</span>
       </label>
       <label className="flex items-start gap-3 text-body">
-        <input type="checkbox" checked={agreement} onChange={(e) => setAgreement(e.target.checked)} className="mt-1 h-5 w-5 flex-none accent-ink" />
+        <input
+          type="checkbox"
+          checked={agreement}
+          onChange={(e) => setAgreement(e.target.checked)}
+          className="mt-1 h-5 w-5 flex-none accent-ink"
+        />
         <span>
           {t("kyc.agreement")}{" "}
           <a href="/helper-terms" target="_blank" className="font-semibold text-brand-ink underline underline-offset-2">

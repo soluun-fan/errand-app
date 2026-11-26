@@ -4,7 +4,7 @@ import { startTransition, useActionState, useState, type FormEvent } from "react
 import type { ActionResult } from "@/components/sheet";
 import { btn, field, fieldLabel } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { BANKS } from "@/lib/kyc-rules";
+import { BANKS, accountToIban } from "@/lib/kyc-rules";
 import { savePayout } from "./actions";
 
 /** Bank, account number, account holder — the holder must be the helper themselves. */
@@ -41,7 +41,29 @@ export function BankForm({ next, holder }: { next: "jobs" | "profile"; holder: s
       </label>
       <label className={fieldLabel}>
         {t("kyc.account")}
-        <input name="accountNumber" required inputMode="text" autoComplete="off" maxLength={30} value={account} onChange={(e) => setAccount(e.target.value)} className={`${field} tabular-nums`} />
+        <input
+          name="accountNumber"
+          required
+          inputMode="text"
+          autoComplete="off"
+          maxLength={30}
+          placeholder="5000123456"
+          autoCapitalize="characters"
+          spellCheck={false}
+          value={account}
+          onChange={(e) => setAccount(e.target.value)}
+          className={`${field} tabular-nums`}
+        />
+        {(() => {
+          const r = bank && account.trim() ? accountToIban(account, bank) : null;
+          return r && "iban" in r && r.built ? (
+            <span className="text-caption font-normal text-held">
+              {t("kyc.ibanPreview", { iban: r.iban.replace(/(.{4})/g, "$1 ").trim() })}
+            </span>
+          ) : (
+            <span className="text-caption font-normal text-ink-2">{t("kyc.accountHelp")}</span>
+          );
+        })()}
       </label>
       <label className={fieldLabel}>
         {t("payout.holder")}

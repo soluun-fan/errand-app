@@ -19,6 +19,7 @@ export async function savePayout(_prev: ActionResult, form: FormData): Promise<A
   if (r === "notHelper") return { error: t("error.forbidden") };
   if (r === "bank") return { error: t("kyc.errors.bank") };
   if (r === "account") return { error: t("kyc.errors.account") };
+  if (r === "accountBank") return { error: t("kyc.errors.accountBank") };
   if (r === "holder") return { error: t("payout.holderMismatch") };
   redirect(form.get("next") === "profile" ? "/profile" : "/jobs");
 }

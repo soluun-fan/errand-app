@@ -15,7 +15,7 @@ beforeAll(async () => {
   db = await createTestDb();
   for (const [i, id] of [customerId, helperId].entries()) await db.query("insert into auth.users (id, phone) values ($1, $2)", [id, `9933000${i}`]);
   await db.query("update public.profiles set role = 'helper', helper_status = 'approved', kyc_level = 3, categories = '{queue}' where id = $1", [helperId]);
-  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
+  await db.query("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN500005005012345678', 'Test Helper')", [helperId]);
 });
 afterAll(async () => { await db?.close(); });
 

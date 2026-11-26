@@ -59,7 +59,7 @@ beforeAll(async () => {
     update public.profiles set role = 'admin' where id = '${U.ops}';
     -- a worker needs a bank account to work (migration 20261118050000)
     insert into public.payout_accounts (user_id, bank, account_number, holder_name) values
-      ('${U.h1}', 'Хаан банк', '5012345678', 'Helper One'), ('${U.h2}', 'Голомт банк', '1234567890', 'Helper Two');
+      ('${U.h1}', 'Хаан банк', 'MN500005005012345678', 'Helper One'), ('${U.h2}', 'Голомт банк', 'MN110005001234567890', 'Helper Two');
   `);
 });
 

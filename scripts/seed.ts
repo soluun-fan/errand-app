@@ -6,6 +6,7 @@
  *
  * Phone numbers must match [auth.sms.test_otp] in supabase/config.toml (login code 123456).
  */
+import { ibanFor } from "../src/lib/kyc-rules";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { insertDeal, runCommand } from "../src/lib/db/deals";
 import { amountDue, createErrand, type CategoryId, type UserActor } from "../src/lib/engine";
@@ -93,7 +94,7 @@ async function main() {
       const { error: payErr } = await db
         .from("payout_accounts")
         .upsert(
-          { user_id: ids[u.key], bank: p.payout_bank, account_number: `500000${p.payout_account_last4}`, holder_name: p.payout_holder_name, verified_at: new Date().toISOString() },
+          { user_id: ids[u.key], bank: p.payout_bank, account_number: ibanFor("0005", `500000${p.payout_account_last4}`), holder_name: p.payout_holder_name, verified_at: new Date().toISOString() },
           { onConflict: "user_id", ignoreDuplicates: true },
         );
       if (payErr) throw payErr;

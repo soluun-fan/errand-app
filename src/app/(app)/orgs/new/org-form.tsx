@@ -96,7 +96,7 @@ export function OrgForm() {
         </label>
         <label className={fieldLabel}>
           {t("kyc.account")}
-          <input name="accountNumber" required inputMode="numeric" className={`${field} tabular-nums`} />
+          <input name="accountNumber" required inputMode="text" maxLength={30} placeholder="5000123456" autoCapitalize="characters" spellCheck={false} className={`${field} tabular-nums`} />
         </label>
         <label className={fieldLabel}>
           {t("org.holder")}

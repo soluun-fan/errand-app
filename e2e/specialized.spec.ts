@@ -38,7 +38,7 @@ test("a helper registers a company with its certificate; Ops approves it for plu
   await h.locator("input[type=file]").setInputFiles({ name: "certificate.png", mimeType: "image/png", buffer: PNG });
   await expect(h.getByText("Нэмэгдлээ ✓")).toBeVisible();
   await h.locator("select[name=bank]").selectOption({ index: 1 });
-  await h.locator("input[name=accountNumber]").fill("5000123456");
+  await h.locator("input[name=accountNumber]").fill("MN35 0005 0011 0904 2377");
   await h.locator("input[name=holderName]").fill("Ус Сантехник ХХК");
   await h.locator("input[type=checkbox]").last().check(); // consent
   await h.locator("form button:not([type=button])").last().click();
@@ -47,7 +47,7 @@ test("a helper registers a company with its certificate; Ops approves it for plu
   expect(org).toMatchObject({ status: "pending", owner_id: bat.id });
   orgId = org!.id;
   const { data: payout } = await db.from("organization_payout_accounts").select("account_number").eq("org_id", orgId).single();
-  expect(payout?.account_number).toBe("5000123456"); // saved together with the registration
+  expect(payout?.account_number).toBe("MN350005001109042377"); // saved together with the registration
 
   const ops = await browser.newContext();
   await loginAs(ops, PHONES.ops);

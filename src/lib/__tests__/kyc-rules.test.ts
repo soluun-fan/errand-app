@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanLegalName, isAdult, KYC_DOCS, maskAccount, normalizeAccount, payoutNameOk } from "@/lib/kyc-rules";
+import { accountToIban, cleanCyrillicName, cleanLegalName, ibanFor, isAdult, KYC_DOCS, maskAccount, normalizeAccount, payoutNameOk } from "@/lib/kyc-rules";
 
 const NOW = new Date("2026-11-15T03:00:00Z");
 
@@ -23,7 +23,9 @@ describe("KYC rules", () => {
     expect(normalizeAccount("MN360005001109042377")).toBeNull(); // wrong check digits
     expect(normalizeAccount("MN350005001109042378")).toBeNull(); // mistyped account
     expect(normalizeAccount("MN12 0005 0050 0512 3456 78")).toBeNull(); // too long
-    expect(normalizeAccount("5005-123-456")).toBe("5005123456");
+    expect(normalizeAccount(ibanFor("0005", "5000002290"))).toBe(ibanFor("0005", "5000002290")); // a built IBAN passes its own check
+    expect(normalizeAccount("5005-123-456")).toBeNull(); // old domestic numbers: IBAN only since 2026-11-26
+    expect(normalizeAccount("MN35 0005 0011 0904 237A")).toBeNull(); // only "MN" may be letters
     expect(normalizeAccount("abc")).toBeNull();
     expect(normalizeAccount("12345")).toBeNull();
     expect(maskAccount("5005123456")).toBe("•••• 3456");
@@ -38,5 +40,25 @@ describe("KYC rules", () => {
     expect(cleanLegalName("  Гантулга   Бат-Эрдэнэ ")).toBe("Гантулга Бат-Эрдэнэ");
     expect(cleanLegalName("<b>x</b>")).toBeNull();
     expect(cleanLegalName("Ab")).toBeNull();
+  });
+
+  it("an ordinary account number becomes an IBAN with the chosen bank's code; a pasted IBAN must be that bank's (2026-11-26)", () => {
+    expect(accountToIban("5000 1234 56", "Хаан банк")).toEqual({ iban: ibanFor("0005", "5000123456"), built: true });
+    expect(accountToIban("5000123456", "Хаан банк")).toMatchObject({ iban: expect.stringMatching(/^MN\d{2}0005005000123456$/) });
+    expect(accountToIban("mn35 0005 0011 0904 2377", "Хаан банк")).toEqual({ iban: "MN350005001109042377", built: false });
+    expect(accountToIban("MN350005001109042377", "Голомт банк")).toEqual({ error: "bank" }); // a Khan Bank IBAN, Golomt chosen
+    expect(accountToIban("MN360005001109042377", "Хаан банк")).toEqual({ error: "format" }); // bad check digits
+    expect(accountToIban("5000123456", "Чингис хаан банк")).toEqual({ error: "format" }); // code not confirmed yet: IBAN only
+    expect(accountToIban("12AB", "Хаан банк")).toEqual({ error: "format" });
+  });
+
+  it("a typed legal or holder name is Mongolian Cyrillic, at least two words (2026-11-26)", () => {
+    expect(cleanCyrillicName("  Батболдын   Тэмүүжин ")).toBe("Батболдын Тэмүүжин");
+    expect(cleanCyrillicName("Гантулга Бат-Эрдэнэ")).toBe("Гантулга Бат-Эрдэнэ");
+    expect(cleanCyrillicName("Ө. Үүрцайх")).toBe("Ө. Үүрцайх");
+    expect(cleanCyrillicName("Bat-Erdene G.")).toBeNull(); // Latin
+    expect(cleanCyrillicName("Тэмүүжин")).toBeNull(); // one word
+    expect(cleanCyrillicName("fff")).toBeNull();
+    expect(cleanCyrillicName("Бат 2")).toBeNull();
   });
 });

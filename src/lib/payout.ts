@@ -1,5 +1,5 @@
 import "server-only";
-import { BANKS, cleanLegalName, maskAccount, normalizeAccount, payoutNameOk } from "@/lib/kyc-rules";
+import { BANKS, cleanCyrillicName, maskAccount, accountToIban, payoutNameOk } from "@/lib/kyc-rules";
 import { adminIds, audit } from "@/lib/safety";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,7 +35,7 @@ export async function myPayout(userId: string): Promise<MyPayout | null> {
   return data ? { bank: data.bank, masked: maskAccount(data.account_number), holderName: data.holder_name, verified: data.verified_at !== null } : null;
 }
 
-export type SetPayoutResult = "ok" | "bank" | "account" | "holder" | "notHelper";
+export type SetPayoutResult = "ok" | "bank" | "account" | "accountBank" | "holder" | "notHelper";
 
 function missingTestHelperColumn(error: { code?: string; message?: string }): boolean {
   return (error.code === "42703" || error.code === "PGRST204") && /\btest_helper\b/.test(error.message ?? "");
@@ -66,9 +66,10 @@ export async function setPayout(userId: string, input: { bank: string; accountNu
   if (error) throw new Error(`Could not load helper payout eligibility: ${error.message}`);
   if (!p || p.helper_status !== "approved" || isActiveTestHelper({ test_helper: p.test_helper ?? false })) return "notHelper";
   if (!(BANKS as readonly string[]).includes(input.bank)) return "bank";
-  const account = normalizeAccount(input.accountNumber);
-  if (!account) return "account";
-  const holder = cleanLegalName(input.holderName);
+  const acct = accountToIban(input.accountNumber, input.bank);
+  if ("error" in acct) return acct.error === "bank" ? "accountBank" : "account";
+  const account = acct.iban;
+  const holder = cleanCyrillicName(input.holderName);
   if (!holder) return "holder";
   const checkedName = p.verified_name?.trim() || null;
   if (checkedName && !payoutNameOk(checkedName, holder)) return "holder";

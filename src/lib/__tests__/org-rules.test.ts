@@ -57,9 +57,10 @@ describe("who may take specialized work (docs/decisions.md 2026-11-16 \"Speciali
 });
 
 describe("input checks", () => {
-  const app = { name: "Ус Сантехник ХХК", regNumber: "1234567", kind: "company", categories: ["plumbing"], docPath: "docs/u/x.pdf", bank: "Хаан банк", accountNumber: "5000 1234 56", holderName: "Ус Сантехник ХХК", consent: true };
+  const app = { name: "Ус Сантехник ХХК", regNumber: "1234567", kind: "company", categories: ["plumbing"], docPath: "docs/u/x.pdf", bank: "Хаан банк", accountNumber: "mn50 0005 0050 1234 5678", holderName: "Ус Сантехник ХХК", consent: true };
   it("organisation: 7-digit registration number, specialized kinds only, consent", () => {
-    expect(OrgApplicationInput.parse(app)).toMatchObject({ regNumber: "1234567", accountNumber: "5000123456", description: null });
+    expect(OrgApplicationInput.parse(app)).toMatchObject({ regNumber: "1234567", accountNumber: "MN500005005012345678", description: null });
+    expect(OrgApplicationInput.parse({ ...app, accountNumber: "5000123456" }).accountNumber).toMatch(/^MN\d{2}0005005000123456$/); // built from the bank + number (2026-11-26)
     expect(OrgApplicationInput.safeParse({ ...app, regNumber: "123456" }).success).toBe(false);
     expect(OrgApplicationInput.safeParse({ ...app, categories: ["shop"] }).success).toBe(false);
     expect(OrgApplicationInput.safeParse({ ...app, categories: [] }).success).toBe(false);

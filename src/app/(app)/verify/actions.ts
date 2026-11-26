@@ -6,7 +6,7 @@ import { getViewer } from "@/lib/auth";
 import { unverifiedHelpersTestMode } from "@/lib/helper-test-mode";
 import { KycFormInput, parseOr } from "@/lib/input";
 import { submitIdentity } from "@/lib/kyc";
-import { KYC_DOCS, cleanLegalName, isAdult, type KycDoc } from "@/lib/kyc-rules";
+import { KYC_DOCS, cleanCyrillicName, isAdult, type KycDoc } from "@/lib/kyc-rules";
 import { isOnboarded } from "@/lib/legal-rules";
 import { notify } from "@/lib/push";
 import { adminIds } from "@/lib/safety";
@@ -21,7 +21,7 @@ export async function submitIdentityCheck(raw: { legalName: string; birthDate: s
   // the helper form's schema already describes these fields; kinds and bank are simply absent here
   const f = parseOr(KycFormInput.partial(), raw);
   if (!f) return { error: t("kyc.errors.files") };
-  const legalName = cleanLegalName(String(f.legalName ?? ""));
+  const legalName = cleanCyrillicName(String(f.legalName ?? ""));
   if (!legalName) return { error: t("kyc.errors.name") };
   if (!isAdult(String(f.birthDate ?? ""), new Date())) return { error: t("kyc.errors.age") };
   if (!/^\d{4}$/.test(String(f.idLast4 ?? ""))) return { error: t("kyc.errors.last4") };

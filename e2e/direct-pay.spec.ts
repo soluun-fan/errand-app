@@ -17,7 +17,7 @@ const created: string[] = [];
 let batId = "";
 let hadAccount = false;
 /** Bat's account number, as the customer should see it once the job is done. */
-let batAccount = "5000999888";
+let batAccount = "MN500005005012345678";
 
 test.beforeAll(async () => {
   const bat = await profile(NAMES.bat);

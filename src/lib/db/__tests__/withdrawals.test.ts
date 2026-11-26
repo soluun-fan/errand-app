@@ -43,14 +43,14 @@ describe("withdrawals", () => {
   it("need a checked bank account of the helper's own", async () => {
     await earn(10_000);
     expect((await sqlError(request())).message).toMatch(/bank account not checked/);
-    await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
+    await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN500005005012345678', 'Test Helper')", [helperId]);
     expect((await sqlError(request())).message).toMatch(/bank account not checked/); // added, not yet checked
     await svc("update public.payout_accounts set verified_at = now() where user_id = $1", [helperId]);
   });
 
   it("take the whole available amount; the ledger moves it to 'on its way', then to the bank", async () => {
     const w = (await request()).rows[0] as { id: string; amount: string; reference: string; status: string; account_number: string };
-    expect({ ...w, amount: Number(w.amount) }).toMatchObject({ amount: 10_000, status: "requested", account_number: "5012345678" });
+    expect({ ...w, amount: Number(w.amount) }).toMatchObject({ amount: 10_000, status: "requested", account_number: "MN500005005012345678" });
     expect(w.reference).toMatch(/^PAYOUT-[0-9A-F]{8}$/);
     expect(await balance(`payable:${helperId}`)).toBe(0);
     expect(await balance(`payout:${helperId}`)).toBe(10_000);

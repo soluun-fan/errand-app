@@ -33,7 +33,7 @@ export function IdentityForm() {
     <div className="flex flex-col gap-4">
       <label className={fieldLabel}>
         {t("kyc.legalName")}
-        <input className={field} value={legalName} maxLength={80} autoComplete="name" onChange={(e) => setLegalName(e.target.value)} />
+        <input className={field} value={legalName} maxLength={80} autoComplete="name" placeholder="Батболдын Тэмүүжин" lang="mn" onChange={(e) => setLegalName(e.target.value)} />
       </label>
       <label className={fieldLabel}>
         {t("kyc.birthDate")}

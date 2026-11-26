@@ -54,7 +54,7 @@ describe("no bank account, no work", () => {
   });
 
   it("with one: all three work", async () => {
-    await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', '5012345678', 'Test Helper')", [helperId]);
+    await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN500005005012345678', 'Test Helper')", [helperId]);
     const cands = await svc("select helper_id from public.dispatch_candidates($1, 1000)", [dealId]);
     expect(cands.rows).toEqual([{ helper_id: helperId }]);
     const feed = await svc("select deal_id from public.nearby_open_deals($1)", [helperId]);
