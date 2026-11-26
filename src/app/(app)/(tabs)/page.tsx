@@ -86,8 +86,10 @@ export default async function Home() {
     <Wide className={`flex flex-col ${space.page}`}>
       {/* what the app is waiting for from you, each with the page to do it — first thing on the screen */}
       <TodoCard items={todos} t={t} />
-      {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web */}
-      <section className="grid grid-cols-1 gap-8 md:rounded-[28px] md:bg-brand-bg/50 md:p-10 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-12">
+      {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web.
+          On wider screens its tint runs edge to edge (like the landing page) while its content stays on the page edge,
+          so the search box lines up with every section below. */}
+      <section className="relative isolate grid grid-cols-1 gap-8 md:py-12 md:first:-mt-6 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-12 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50">
         <div className="flex min-w-0 flex-col gap-5">
           <header className="flex items-center justify-between pt-2 md:hidden">
             <p className="text-[14px] text-ink-2">

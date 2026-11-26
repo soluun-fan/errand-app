@@ -14,7 +14,8 @@ Style **B** (chosen 2026-11-16 from three previews): very light warm-grey page, 
   - `space.blocks`: 24 / 32 px between the blocks of a simple screen (the tab layout: Profile, Tasks, Jobs, Earnings).
   - `space.section`: 16 / 24 px from a section's title to its content, and between groups inside it.
   - `space.group`: 12 px between cards of one list, and from a label to its control. Things that belong together (a button and its fine print, two money cards) go in one wrapper with `gap-3`, so the bigger page gap doesn't pull them apart.
-  - Side-by-side columns on desktop (hero + side card) are 48 px apart, at least as wide as the hero's own padding.
+  - Side-by-side columns on desktop (hero + side card) are 48 px apart.
+  - **One left edge per page.** Every section's content starts on the page edge. A page-wide band (the Home and landing hero) tints the full screen width but keeps its content on that edge, never inset inside a padded panel. Only cards inset their content (16 px).
 - Touch ≥48px, CTA 56px. Shadow only on floating items: `0 4px 20px rgba(0,0,0,.08)`.
 - Motion: sheets 250ms, snap 30/55/92%. Haptic on paid / matched / released. Respect reduced motion.
 

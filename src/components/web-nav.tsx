@@ -23,7 +23,7 @@ export function WebNav({ name, mode }: { name: string; mode: AppMode }) {
           <span className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-brand text-white">{APP_MARK}</span>
           {APP_NAME}
         </Link>
-        <nav aria-label={t("tabs.navigation")} className="order-last flex w-full flex-wrap items-center gap-1 text-[15px] xl:order-none xl:w-auto">
+        <nav aria-label={t("tabs.navigation")} className="order-last -ml-3.5 flex w-full flex-wrap items-center gap-1 text-[15px] xl:order-none xl:ml-0 xl:w-auto">
           {!helper && <NavLink href="/tasks">{t("tabs.tasks")}</NavLink>}
           <NavLink href="/requests">{t("web.requests")}</NavLink>
           <NavLink href="/helpers">{t("web.helpers")}</NavLink>
