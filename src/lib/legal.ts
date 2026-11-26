@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/db/database.types";
 import "server-only";
+import { DbError } from "@/lib/db/deals";
 import { LEGAL_VERSIONS, type LegalDoc } from "@/lib/legal-rules";
 import { audit } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,32 +39,22 @@ export async function closeBlocks(userId: string, role: string): Promise<CloseBl
   if (role === "admin") out.push("admin");
   const active = ["awaiting_payment", "open", "matched", "in_progress", "check", "disputed", "held"] as const;
   const [asCustomer, asHelper, payable, payout] = await Promise.all([
-    db.from("deals").select("id", { count: "exact", head: true }).eq("customer_id", userId).in("status", active),
-    db.from("deals").select("id", { count: "exact", head: true }).eq("helper_id", userId).in("status", active),
-    db.rpc("payable_balance", { p_user: userId }),
-    db.rpc("account_balance", { p_account: `payout:${userId}` }),
+    db.from("deals").select("id", { count: "exact", head: true }).eq("customer_id", userId).in("status", active).throwOnError(),
+    db.from("deals").select("id", { count: "exact", head: true }).eq("helper_id", userId).in("status", active).throwOnError(),
+    db.rpc("payable_balance", { p_user: userId }).throwOnError(),
+    db.rpc("account_balance", { p_account: `payout:${userId}` }).throwOnError(),
   ]);
   if ((asCustomer.count ?? 0) + (asHelper.count ?? 0) > 0) out.push("activeTasks");
   if (Number(payable.data ?? 0) > 0 || Number(payout.data ?? 0) > 0) out.push("earnings");
   // an open "not paid" report on an older fee-only task (either side) must be settled first
-  const { data: reports } = await db
-    .from("direct_payments")
-    .select("deal_id")
-    .not("unpaid_reported_at", "is", null)
-    .is("resolved_at", null)
-    .limit(200)
-    .returns<{ deal_id: string }[]>();
-  if (reports?.length) {
-    const { count } = await db
-      .from("deals")
-      .select("id", { count: "exact", head: true })
-      .in(
-        "id",
-        reports.map((r) => r.deal_id),
-      )
-      .or(`customer_id.eq.${userId},helper_id.eq.${userId}`);
-    if ((count ?? 0) > 0) out.push("unpaid");
-  }
+  const { count } = await db
+    .from("deals")
+    .select("id, direct_payments!inner(deal_id)", { count: "exact", head: true })
+    .or(`customer_id.eq.${userId},helper_id.eq.${userId}`)
+    .not("direct_payments.unpaid_reported_at", "is", null)
+    .is("direct_payments.resolved_at", null)
+    .throwOnError();
+  if ((count ?? 0) > 0) out.push("unpaid");
   return out;
 }
 
@@ -81,9 +72,13 @@ export async function closeAccount(userId: string): Promise<boolean> {
     .select("id, file_path")
     .or(`helper_id.eq.${userId},uploaded_by.eq.${userId}`)
     .in("status", ["asked", "shown", "uploading"])
-    .returns<{ id: string; file_path: string | null }[]>();
+    .returns<{ id: string; file_path: string | null }[]>()
+    .throwOnError();
   const files = (photos ?? []).map((p) => p.file_path).filter((f): f is string => Boolean(f));
-  if (files.length) await db.storage.from(WORK_BUCKET).remove(files);
+  if (files.length) {
+    const { error } = await db.storage.from(WORK_BUCKET).remove(files);
+    if (error) throw new DbError(error);
+  }
   if (photos?.length)
     await db
       .from("work_photos")
@@ -91,17 +86,18 @@ export async function closeAccount(userId: string): Promise<boolean> {
       .in(
         "id",
         photos.map((p) => p.id),
-      );
+      )
+      .throwOnError();
 
   await Promise.all([
-    db.from("payout_accounts").delete().eq("user_id", userId),
-    db.from("push_subscriptions").delete().eq("user_id", userId),
-    db.from("saved_addresses").delete().eq("user_id", userId),
-    db.from("saved_helpers").delete().or(`customer_id.eq.${userId},helper_id.eq.${userId}`),
-    db.from("helper_presence").delete().eq("user_id", userId),
+    db.from("payout_accounts").delete().eq("user_id", userId).throwOnError(),
+    db.from("push_subscriptions").delete().eq("user_id", userId).throwOnError(),
+    db.from("saved_addresses").delete().eq("user_id", userId).throwOnError(),
+    db.from("saved_helpers").delete().or(`customer_id.eq.${userId},helper_id.eq.${userId}`).throwOnError(),
+    db.from("helper_presence").delete().eq("user_id", userId).throwOnError(),
     // helper standards (2026-11-22): live job position and the routes kept for disputes
-    db.from("job_locations").delete().eq("helper_id", userId),
-    db.from("job_location_points").delete().eq("helper_id", userId),
+    db.from("job_locations").delete().eq("helper_id", userId).throwOnError(),
+    db.from("job_location_points").delete().eq("helper_id", userId).throwOnError(),
   ]);
   const { error } = await db
     .from("profiles")
@@ -127,7 +123,8 @@ export async function closeAccount(userId: string): Promise<boolean> {
     return false;
   }
   // block sign-in (the phone stays tied to the closed account; to come back, contact us)
-  await db.auth.admin.updateUserById(userId, { ban_duration: "876000h" }).catch((e: unknown) => console.error("ban failed", e));
+  const { error: banError } = await db.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
+  if (banError) throw new DbError(banError);
   await audit(userId, "account.closed", userId, {});
   return true;
 }

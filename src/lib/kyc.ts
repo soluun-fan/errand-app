@@ -85,7 +85,10 @@ export interface ApplicationInput {
 export type SubmitResult = { ok: true } | { ok: false; reason: "files" | "open" };
 
 /** A customer's identity check: the same ID files and Ops review as helpers, nothing else (no kinds, no bank). */
-export async function submitIdentity(userId: string, a: Pick<ApplicationInput, "legalName" | "idLast4" | "birthDate" | "files">): Promise<SubmitResult> {
+export async function submitIdentity(
+  userId: string,
+  a: Pick<ApplicationInput, "legalName" | "idLast4" | "birthDate" | "files">,
+): Promise<SubmitResult> {
   for (const path of Object.values(a.files)) if (!(await fileExists(userId, path))) return { ok: false, reason: "files" };
   const { error } = await createAdminClient().from("helper_applications").insert({
     user_id: userId,
@@ -152,7 +155,13 @@ export async function reviewQueue(): Promise<QueueItem[]> {
     .order("submitted_at")
     .limit(100)
     .returns<{ id: string; user_id: string; legal_name: string; submitted_at: string; purpose: KycPurpose }[]>();
-  return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id, legalName: r.legal_name, submittedAt: Date.parse(r.submitted_at), purpose: r.purpose }));
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    legalName: r.legal_name,
+    submittedAt: Date.parse(r.submitted_at),
+    purpose: r.purpose,
+  }));
 }
 
 /** Recently approved applications, newest first — where Ops finds one to send back for a re-check. */
@@ -164,7 +173,14 @@ export async function recentlyApproved(limit = 30): Promise<(QueueItem & { decid
     .order("decided_at", { ascending: false })
     .limit(limit)
     .returns<{ id: string; user_id: string; legal_name: string; submitted_at: string; decided_at: string; purpose: KycPurpose }[]>();
-  return (data ?? []).map((r) => ({ id: r.id, userId: r.user_id, legalName: r.legal_name, submittedAt: Date.parse(r.submitted_at), decidedAt: Date.parse(r.decided_at), purpose: r.purpose }));
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    legalName: r.legal_name,
+    submittedAt: Date.parse(r.submitted_at),
+    decidedAt: Date.parse(r.decided_at),
+    purpose: r.purpose,
+  }));
 }
 
 /**
@@ -237,7 +253,13 @@ export async function activeHelpers(): Promise<ActiveHelper[]> {
   const ids = (ps ?? []).map((p) => p.id);
   const reviewed = new Set<string>();
   if (ids.length) {
-    const { data } = await db.from("helper_applications").select("user_id").in("user_id", ids).eq("purpose", "helper").eq("status", "approved").returns<{ user_id: string }[]>();
+    const { data } = await db
+      .from("helper_applications")
+      .select("user_id")
+      .in("user_id", ids)
+      .eq("purpose", "helper")
+      .eq("status", "approved")
+      .returns<{ user_id: string }[]>();
     for (const r of data ?? []) reviewed.add(r.user_id);
   }
   return (ps ?? []).map((p) => ({
@@ -256,7 +278,11 @@ export async function activeHelpers(): Promise<ActiveHelper[]> {
  */
 export async function revokeHelper(userId: string, opsId: string, note: string): Promise<"ok" | "busy" | "changed"> {
   const db = createAdminClient();
-  const { data: p } = await db.from("profiles").select("role, helper_status").eq("id", userId).maybeSingle<{ role: string; helper_status: string | null }>();
+  const { data: p } = await db
+    .from("profiles")
+    .select("role, helper_status")
+    .eq("id", userId)
+    .maybeSingle<{ role: string; helper_status: string | null }>();
   if (!p || p.helper_status !== "approved") return "changed";
   const { count } = await db
     .from("deals")
@@ -274,7 +300,15 @@ export async function revokeHelper(userId: string, opsId: string, note: string):
     .throwOnError();
   await db
     .from("profiles")
-    .update({ role: p.role === "admin" ? "admin" : "customer", helper_status: null, test_helper: false, kyc_level: 1, verified_name: null, age_band: null, show_age_band: false })
+    .update({
+      role: p.role === "admin" ? "admin" : "customer",
+      helper_status: null,
+      test_helper: false,
+      kyc_level: 1,
+      verified_name: null,
+      age_band: null,
+      show_age_band: false,
+    })
     .eq("id", userId)
     .throwOnError();
   await db.from("payout_accounts").update({ verified_at: null }).eq("user_id", userId).throwOnError();
@@ -434,11 +468,15 @@ export async function purgeKycFiles(now = Date.now()): Promise<number> {
     .select("id, id_front_path, id_back_path, selfie_path, record_path")
     .lt("decided_at", cutoff)
     .is("files_purged_at", null)
-    .limit(100);
+    .limit(100)
+    .throwOnError();
   let n = 0;
   for (const r of data ?? []) {
     const paths = [r.id_front_path, r.id_back_path, r.selfie_path, r.record_path].filter((p): p is string => Boolean(p));
-    if (paths.length) await db.storage.from(KYC_BUCKET).remove(paths);
+    if (paths.length) {
+      const { error } = await db.storage.from(KYC_BUCKET).remove(paths);
+      if (error) throw error;
+    }
     await db
       .from("helper_applications")
       .update({
@@ -449,7 +487,8 @@ export async function purgeKycFiles(now = Date.now()): Promise<number> {
         birth_date: null,
         files_purged_at: new Date(now).toISOString(),
       })
-      .eq("id", r.id);
+      .eq("id", r.id)
+      .throwOnError();
     n++;
   }
   return n;

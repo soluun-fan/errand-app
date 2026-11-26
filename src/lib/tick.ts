@@ -34,33 +34,52 @@ export interface TickResult {
  */
 export async function runTick(now = Date.now()): Promise<TickResult> {
   const t0 = Date.now();
+  const failures: { job: string; error: unknown }[] = [];
+  async function step<T>(job: string, run: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      failures.push({ job, error });
+      console.error(`${job} failed`, error);
+      return fallback;
+    }
+  }
   // first: an SOS reminder must never wait behind a slow dispatch round
-  const sosReminders = await repingSos(now).catch((e) => (console.error("sos reminder failed", e), 0));
-  const settled = await settleDueDeals(now);
+  const sosReminders = await step("SOS reminders", () => repingSos(now), 0);
+  const settled = await step("task settlement", () => settleDueDeals(now), 0);
   // helper standards: late helpers are marked (and both sides told); stopped locations get a reminder
-  const lateMarked = await markLateHelpers(now).catch((e) => (console.error("late marking failed", e), 0));
-  await nudgeStaleLocations(now).catch((e) => console.error("location reminder failed", e));
+  const lateMarked = await step("late helper marking", () => markLateHelpers(now), 0);
+  await step("location reminders", () => nudgeStaleLocations(now), undefined);
   let dispatched = 0;
   let failedDispatch = 0;
-  for (const id of await openDealIds()) {
+  for (const id of await step("dispatch queue", () => openDealIds(), [])) {
     try {
       if (await runDispatch(id, now)) dispatched++;
     } catch (e) {
       failedDispatch++;
+      failures.push({ job: "dispatch", error: e });
       console.error("dispatch failed", id, e);
     }
   }
-  await purgeOldSignals(now).catch((e) => console.error("signal purge failed", e));
-  const kycPurged = await purgeKycFiles(now).catch((e) => (console.error("kyc purge failed", e), 0));
-  const chatsPurged = await purgeExpiredChats(now).catch((e) => (console.error("chat purge failed", e), 0));
-  await purgeIncidentLocations(now).catch((e) => console.error("incident purge failed", e));
-  const photosPurged = await purgeLooseTaskPhotos(now).catch((e) => (console.error("task photo purge failed", e), 0));
-  await purgeLooseReviewPhotos(now).catch((e) => console.error("review photo purge failed", e));
-  await purgeJobRoutes().catch((e) => console.error("route purge failed", e));
-  await purgeIdlePresence(now).catch((e) => console.error("presence purge failed", e));
+  await step("signal retention", () => purgeOldSignals(now), undefined);
+  const kycPurged = await step("identity document retention", () => purgeKycFiles(now), 0);
+  const chatsPurged = await step("chat retention", () => purgeExpiredChats(now), 0);
+  await step("incident location retention", () => purgeIncidentLocations(now), undefined);
+  const photosPurged = await step("task photo retention", () => purgeLooseTaskPhotos(now), 0);
+  await step("review photo retention", () => purgeLooseReviewPhotos(now), undefined);
+  await step("route retention", () => purgeJobRoutes(), undefined);
+  await step("presence retention", () => purgeIdlePresence(now), undefined);
   // earnings unclaimed for N days are asked for automatically (V1 spec A4)
-  await runAutoPayouts().catch((e) => console.error("auto payouts failed", e));
+  await step("payout requests", () => runAutoPayouts(), undefined);
   // refunds the ledger holds that wire hasn't done yet (new ones and retries)
-  await sweepRefunds().catch((e) => console.error("refund sweep failed", e));
+  await step("refund reconciliation", () => sweepRefunds(), undefined);
+  // Finish independent work, then fail the run so /api/health and Ops cannot claim
+  // that retries, safety reminders or retention succeeded when they did not.
+  if (failures.length) {
+    throw new AggregateError(
+      failures.map((f) => f.error),
+      `Background jobs failed: ${[...new Set(failures.map((f) => f.job))].join(", ")}`,
+    );
+  }
   return { settled, dispatched, failedDispatch, chatsPurged, kycPurged, photosPurged, sosReminders, lateMarked, ms: Date.now() - t0 };
 }

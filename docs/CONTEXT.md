@@ -4,6 +4,13 @@ Read this first if you are a model picking up this codebase cold. It explains wh
 
 _State as of 2026-11-15 (after chat, calls, helper verification and the scheduler). Section 13 covers how code is written here._
 
+_2026-11-27 reliability review: scheduled jobs finish independent work and report partial failures
+through the failed heartbeat; due-task reads and dispatch settings no longer silently fall back.
+Partial-refund offers are escalated at their own deadline. Signed Wire events validate payment
+data before acknowledgement. Profile/device lookup failures reach the error boundary. Account
+closure checks fail on unreadable balances, and file cleanup preserves references until Storage
+confirms removal. Regression tests exercise these failure paths without hosted writes._
+
 _2026-11-24 consistency audit: home-mode cookies are account-bound and cleared on sign-out;
 direct links use navigation appropriate to the screen. Customer Tasks/Profile tabs are shared
 across accounts. Active customer tasks and worker jobs are fetched independently of the latest 50 closed tasks,

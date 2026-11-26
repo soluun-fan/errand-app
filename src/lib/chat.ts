@@ -1,6 +1,6 @@
 import "server-only";
 import { getRules } from "@/lib/rules";
-import { CHAT_RATE_PER_MINUTE, CHAT_RETENTION_DAYS, chatAccess, cleanMessage, maskContacts, mentionsOffAppPayment, type ChatAccess } from "@/lib/chat-rules";
+import { CHAT_RATE_PER_MINUTE, chatAccess, cleanMessage, maskContacts, mentionsOffAppPayment, type ChatAccess } from "@/lib/chat-rules";
 import { hadRealCall } from "@/lib/call-rules";
 import type { Viewer } from "@/lib/auth";
 import { categoryTrust, invitedOnly, liveOffers, type ErrandDeal } from "@/lib/engine";
@@ -271,24 +271,32 @@ export async function chatImageExists(dealId: string, path: string): Promise<boo
  */
 export async function purgeExpiredChats(now = Date.now()): Promise<number> {
   const db = createAdminClient();
-  const days = (await getRules().catch(() => null))?.chatRetentionDays ?? CHAT_RETENTION_DAYS; // Ops setting (2026-11-22)
+  const days = (await getRules()).chatRetentionDays;
   const cutoff = new Date(now - days * 24 * 3_600_000).toISOString();
-  const { data: deals } = await db
-    .from("deals")
-    .select("id")
-    .in("status", ["released", "refunded", "cancelled", "expired"])
-    .lt("updated_at", cutoff)
-    .limit(200);
-  let removed = 0;
-  for (const { id } of (deals ?? []) as { id: string }[]) {
-    const { data: msgs } = await db.from("messages").select("id, image_path, audio_path").eq("deal_id", id);
-    if (!msgs?.length) continue;
-    const paths = msgs
-      .flatMap((m) => [m.image_path as string | null, m.audio_path as string | null])
-      .filter((x): x is string => Boolean(x));
-    if (paths.length) await db.storage.from(CHAT_BUCKET).remove(paths);
-    await db.from("messages").delete().eq("deal_id", id);
-    removed += msgs.length;
+  // Page messages that still exist, not the first 200 old deals forever. Delete
+  // only the selected rows, so an API row cap cannot orphan unselected media.
+  const { data: messages } = await db
+    .from("messages")
+    .select("id, image_path, audio_path, deals!inner(status, updated_at)")
+    .in("deals.status", ["released", "refunded", "cancelled", "expired"])
+    .lt("deals.updated_at", cutoff)
+    .order("id")
+    .limit(200)
+    .throwOnError();
+  if (!messages?.length) return 0;
+  const paths = [...new Set(messages.flatMap((m) => [m.image_path, m.audio_path]).filter((p): p is string => Boolean(p)))];
+  if (paths.length) {
+    const { error } = await db.storage.from(CHAT_BUCKET).remove(paths);
+    if (error) throw error;
   }
-  return removed;
+  const { data: removed } = await db
+    .from("messages")
+    .delete()
+    .in(
+      "id",
+      messages.map((m) => m.id),
+    )
+    .select("id")
+    .throwOnError();
+  return removed?.length ?? 0;
 }

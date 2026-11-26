@@ -15,7 +15,23 @@ import { tickHealth } from "@/lib/health-rules";
 import { certificateQueue, orgQueue } from "@/lib/orgs";
 import { getControls } from "@/lib/safety";
 import { tickHeartbeat } from "@/lib/scheduler";
-import { AlarmClock, Building2, Siren, Car, CreditCard, FireExtinguisher, IdCard, Image, Landmark, MessageCircle, Pencil, ScrollText, ShieldCheck, Tag, Timer } from "lucide-react";
+import {
+  AlarmClock,
+  Building2,
+  Siren,
+  Car,
+  CreditCard,
+  FireExtinguisher,
+  IdCard,
+  Image,
+  Landmark,
+  MessageCircle,
+  Pencil,
+  ScrollText,
+  ShieldCheck,
+  Tag,
+  Timer,
+} from "lucide-react";
 import { Ico } from "@/components/icon";
 import type { LucideIcon } from "lucide-react";
 import { titled } from "@/lib/page-title";
@@ -52,7 +68,11 @@ export default async function OpsHome() {
       <span className="flex items-center gap-3 font-semibold">
         <Ico as={icon} size={20} className="text-ink-2" /> {label}
       </span>
-      {badge && <span className={`rounded-full px-2.5 py-0.5 text-small font-bold ${urgent ? "bg-danger text-white" : "bg-fill text-ink"}`}>{badge}</span>}
+      {badge && (
+        <span className={`rounded-full px-2.5 py-0.5 text-small font-bold ${urgent ? "bg-danger text-white" : "bg-fill text-ink"}`}>
+          {badge}
+        </span>
+      )}
     </Link>
   );
   return (
@@ -60,7 +80,9 @@ export default async function OpsHome() {
       <FlowHeader href="/profile" label={t("common.back")} title={t("opsHome.title")} />
       {(controls.postingPaused || controls.paymentsPaused) && (
         <Note tone="bad">
-          {[controls.postingPaused && t("opsSafety.postingOn"), controls.paymentsPaused && t("opsSafety.paymentsOn")].filter(Boolean).join(" · ")}
+          {[controls.postingPaused && t("opsSafety.postingOn"), controls.paymentsPaused && t("opsSafety.paymentsOn")]
+            .filter(Boolean)
+            .join(" · ")}
         </Note>
       )}
       {/* background jobs: expiries, auto-release, SOS reminders all depend on it */}
@@ -79,7 +101,11 @@ export default async function OpsHome() {
           "/ops/incidents",
           Siren,
           t("opsIncidents.title"),
-          incidents.open ? (incidents.sos ? t("opsHome.sosCount", { n: incidents.sos, all: incidents.open }) : String(incidents.open)) : null,
+          incidents.open
+            ? incidents.sos
+              ? t("opsHome.sosCount", { n: incidents.sos, all: incidents.open })
+              : String(incidents.open)
+            : null,
           incidents.sos > 0,
         )}
         {row("/ops/helpers", IdCard, t("ops.title"), queue.length ? String(queue.length) : null)}

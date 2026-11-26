@@ -1,10 +1,10 @@
 import "server-only";
-import { loadDeal, runCommand } from "@/lib/db/deals";
+import { isDealConflict, loadDeal, runCommand } from "@/lib/db/deals";
 import { autoPickAt, categoryTrust, errandSplit, invitedOnly, liveOffers, ruleOf, type ErrandDeal } from "@/lib/engine";
 import { fmtMoney } from "@/lib/format";
 import { notify } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { dueWave, pickWave, rankProfile, WAVES, type Candidate } from "./plan";
+import { dueWave, pickWave, rankProfile, type Candidate } from "./plan";
 import { getRules } from "@/lib/rules";
 import { rankApplicants } from "./rank";
 import { rankLowerSet } from "@/lib/standards";
@@ -48,12 +48,17 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     const ranked = await rankApplicants(deal, now);
     const best = ranked.find((r) => (deal as ErrandDeal).offers.find((o) => o.helperId === r.helperId)?.proposedBy !== "customer");
     if (best) {
+      let chosen = false;
       try {
         deal = (await runCommand(db, dealId, { type: "choose", helperId: best.helperId }, { kind: "system" })).deal as ErrandDeal;
-        await notifyChosen(deal, true);
-      } catch {
-        deal = (await loadDeal(db, dealId)) as ErrandDeal; // someone acted first
+        chosen = true;
+      } catch (error) {
+        if (!isDealConflict(error)) throw error;
+        const latest = await loadDeal(db, dealId);
+        if (!latest || latest.type !== "errand" || latest.version === deal.version) throw error;
+        deal = latest;
       }
+      if (chosen) await notifyChosen(deal, true);
     }
   }
 
@@ -61,7 +66,8 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     .from("dispatch_state")
     .select("wave, wave_started_at, notified")
     .eq("deal_id", dealId)
-    .maybeSingle<{ wave: number; wave_started_at: string; notified: number }>();
+    .maybeSingle<{ wave: number; wave_started_at: string; notified: number }>()
+    .throwOnError();
 
   if (deal.status !== "open") {
     await closeOffers(dealId, deal.helperId);
@@ -86,7 +92,8 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
         },
         { onConflict: "deal_id,helper_id", ignoreDuplicates: true },
       )
-      .select("helper_id"); // only a newly inserted row comes back → notify exactly once
+      .select("helper_id")
+      .throwOnError(); // only a newly inserted row comes back → notify exactly once
     if (fresh?.length) await notifyInvited(deal, only);
     return { wave: state?.wave ?? -1, notified: state?.notified ?? 0 };
   }
@@ -95,7 +102,7 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
   let startedAt = state ? Date.parse(state.wave_started_at) : null;
   let notified = state?.notified ?? 0;
 
-  const waves = (await getRules().catch(() => null))?.dispatchWaves ?? WAVES; // Ops setting; built-in waves if unreadable
+  const waves = (await getRules()).dispatchWaves;
   const full = liveOffers(deal, now).length >= deal.maxApplicants;
   for (;;) {
     if (full) break;
@@ -108,7 +115,7 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
     });
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as CandidateRow[];
-    const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId);
+    const { data: offered } = await db.from("dispatch_offers").select("helper_id").eq("deal_id", dealId).throwOnError();
     const lower = await rankLowerSet(rows.map((r) => r.helper_id));
     const candidates = rows.map(toCandidate).map((c) => (lower.has(c.helperId) ? { ...c, penalty: MARK_RANK_PENALTY } : c));
     const picks = pickWave(candidates, due, new Set((offered ?? []).map((o) => o.helper_id as string)), waves, rankProfile(deal));
@@ -140,7 +147,10 @@ export async function runDispatch(dealId: string, now = Date.now()): Promise<Dis
       .upsert({ deal_id: dealId, wave, wave_started_at: new Date(now).toISOString(), notified })
       .throwOnError();
     if (picks.length) {
-      await notifyHelpers(deal, picks.map((p) => p.helperId));
+      await notifyHelpers(
+        deal,
+        picks.map((p) => p.helperId),
+      );
       break; // give this wave its time before widening
     }
   }
@@ -164,7 +174,13 @@ async function notifyHelpers(deal: ErrandDeal, helperIds: string[]) {
     // price first: helpers decide from it ("[7,500₮] Дэлгүүрээс хүнс авах")
     title: "push.newJobTitle",
     body: deal.mode === "now" ? "push.newJobBody" : "push.newRequestBody",
-    params: { title: deal.title, fee: fmtMoney(errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet) },
+    params: {
+      title: deal.title,
+      fee: fmtMoney(
+        errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps })
+          .helperFeeNet,
+      ),
+    },
     url: `/jobs/${deal.id}`,
     tag: `job-${deal.id}`,
   });
@@ -174,7 +190,13 @@ async function notifyInvited(deal: ErrandDeal, helperId: string) {
   await notify([helperId], {
     title: "push.newJobTitle",
     body: "push.inviteBody",
-    params: { title: deal.title, fee: fmtMoney(errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperFeeNet) },
+    params: {
+      title: deal.title,
+      fee: fmtMoney(
+        errandSplit({ fee: deal.fee, itemBudget: 0, receipt: null, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps })
+          .helperFeeNet,
+      ),
+    },
     url: `/jobs/${deal.id}`,
     tag: `job-${deal.id}`,
   });
@@ -204,8 +226,8 @@ export async function notifyChosen(deal: ErrandDeal, auto: boolean) {
 /** The task left "open": the winner's offer is marked won, everyone else's closes. */
 async function closeOffers(dealId: string, winner: string | null) {
   const db = createAdminClient();
-  if (winner) await db.from("dispatch_offers").update({ status: "won" }).eq("deal_id", dealId).eq("helper_id", winner);
-  await db.from("dispatch_offers").update({ status: "closed" }).eq("deal_id", dealId).eq("status", "sent");
+  if (winner) await db.from("dispatch_offers").update({ status: "won" }).eq("deal_id", dealId).eq("helper_id", winner).throwOnError();
+  await db.from("dispatch_offers").update({ status: "closed" }).eq("deal_id", dealId).eq("status", "sent").throwOnError();
 }
 
 /** Every open task whose dispatch may need the next wave (for the cron tick). */
@@ -216,7 +238,8 @@ export async function openDealIds(limit = 200): Promise<string[]> {
     .eq("type", "errand")
     .eq("status", "open")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit)
+    .throwOnError();
   return (data ?? []).map((r) => r.id as string);
 }
 

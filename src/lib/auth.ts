@@ -71,9 +71,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 
     const currentError = error;
     if (!currentError) break;
-    const missingColumn = ["age_confirmed_at", "test_helper"].find((column) =>
-      missingProfileColumn(currentError, column),
-    );
+    const missingColumn = ["age_confirmed_at", "test_helper"].find((column) => missingProfileColumn(currentError, column));
     if (!missingColumn) break;
     if (missingColumn === "age_confirmed_at") {
       if (variant === "legacy") break;
@@ -91,7 +89,10 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   const actor = actorFromProfile(profile, Date.now());
   // specialized work: what organisations vouch for them / which certificates Ops approved
   if (actor.helperApproved) {
-    const [qualified, badges] = await Promise.all([qualificationsFor(profile.id, profile.kyc_level), badgesFor(profile.id, profile.kyc_level)]);
+    const [qualified, badges] = await Promise.all([
+      qualificationsFor(profile.id, profile.kyc_level),
+      badgesFor(profile.id, profile.kyc_level),
+    ]);
     actor.qualified = qualified;
     actor.badges = badges; // task conditions, including legacy checks on old tasks
   }

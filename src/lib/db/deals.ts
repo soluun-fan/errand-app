@@ -24,8 +24,7 @@ const CONFLICT = "PT409";
 
 /** Only these failures can be explained by another request changing the deal first. */
 export function isDealConflict(error: unknown): boolean {
-  return (error instanceof DbError && error.code === CONFLICT) ||
-    (error instanceof EngineError && error.code === "ILLEGAL_TRANSITION");
+  return (error instanceof DbError && error.code === CONFLICT) || (error instanceof EngineError && error.code === "ILLEGAL_TRANSITION");
 }
 
 export async function loadDeal(db: SupabaseClient<Database>, id: string): Promise<Deal | null> {

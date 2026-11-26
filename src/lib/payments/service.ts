@@ -269,11 +269,13 @@ export async function checkWirePayments(dealId: string): Promise<void> {
     .or("status.eq.pending,needs_reconciliation.eq.true")
     .returns<{ id: string }[]>()
     .throwOnError();
+  const errors: unknown[] = [];
   for (const p of data ?? []) {
     let pi: Awaited<ReturnType<typeof getIntent>>;
     try {
       pi = await getIntent(p.id);
     } catch (error) {
+      errors.push(error);
       console.error(
         "Wire payment status check failed",
         p.id,
@@ -291,6 +293,7 @@ export async function checkWirePayments(dealId: string): Promise<void> {
         .throwOnError();
     }
   }
+  if (errors.length) throw new AggregateError(errors, "Wire payment status checks failed");
 }
 
 /**
@@ -364,8 +367,14 @@ export async function sweepRefunds(): Promise<number> {
     .limit(100)
     .returns<{ deal_id: string }[]>()
     .throwOnError();
+  const errors: unknown[] = [];
   for (const id of new Set((repairs ?? []).map((r) => r.deal_id))) {
-    await checkWirePayments(id).catch((e) => console.error("Wire reconciliation failed", id, e));
+    try {
+      await checkWirePayments(id);
+    } catch (error) {
+      errors.push(error);
+      console.error("Wire reconciliation failed", id, error);
+    }
   }
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   // tasks paid through wire recently whose ledger may hold refunds not yet sent
@@ -375,8 +384,17 @@ export async function sweepRefunds(): Promise<number> {
     .eq("provider", "wire")
     .in("status", ["succeeded", "refunded_late"])
     .gte("created_at", since)
-    .returns<{ deal_id: string }[]>();
+    .returns<{ deal_id: string }[]>()
+    .throwOnError();
   const ids = [...new Set([...(data ?? []), ...(repairs ?? [])].map((r) => r.deal_id))];
-  for (const id of ids) await runRefunds(id).catch((e) => console.error("refund sweep failed", id, e));
+  for (const id of ids) {
+    try {
+      await runRefunds(id);
+    } catch (error) {
+      errors.push(error);
+      console.error("refund sweep failed", id, error);
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, "Wire reconciliation or refund sweep failed");
   return ids.length;
 }

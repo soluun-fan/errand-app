@@ -362,7 +362,12 @@ export async function browseOpenDeals(
   const customers = [...new Set(items.map((i) => i.deal.customerId))];
   const verified = new Set<string>();
   if (customers.length) {
-    const { data: rows } = await createAdminClient().from("profiles").select("id").in("id", customers).gte("kyc_level", 3).returns<{ id: string }[]>();
+    const { data: rows } = await createAdminClient()
+      .from("profiles")
+      .select("id")
+      .in("id", customers)
+      .gte("kyc_level", 3)
+      .returns<{ id: string }[]>();
     for (const r of rows ?? []) verified.add(r.id);
   }
   return items.map((i) => ({ ...i, customerVerified: verified.has(i.deal.customerId) }));

@@ -484,3 +484,27 @@ Owner: "make the Mongolian citizens write only in Mongolian Cyrillic … regulat
 
 ## 2026-11-26 — Bank accounts are checked at the first payout
 Owner: "for convenience sake, do we really not have the option to do easier" — chose "check during first payout". Ops sends every payout by hand from the bank app, and the bank shows the holder's name before the transfer is confirmed, so that is when the account is checked: no separate step first. A helper may ask for a withdrawal with an unchecked account; on the Ops card a "first payout" note shows the name on the ID, and "Sent" also asks for the name the bank showed — a match (any order, initials, Latin) checks the account and records the payout together; a mismatch records nothing and Ops cancels the transfer and marks it failed (the money goes back to the helper's earnings). The database refuses "sent" unless the account is checked and is the very account the request was made for (migration 20261126050000). Accounts saved before the IBAN rule were rewritten as their IBAN (Mongolbank's formula, `public.mn_iban`, migration 20261126060000), so they can still be checked. The automatic name check through Golomt's Corporate Gateway replaces this once the contract and spec exist.
+
+
+## 2026-11-27 — Report failed work consistently
+
+- Preserve independent scheduler work when one job fails, then report the failed jobs in the
+  heartbeat. A failed due-task lookup is not an empty queue. Concurrent deal transitions are
+  reloaded only for recognized conflict errors and an actually changed version.
+- An unanswered partial-refund offer uses its settlement deadline even when the category has
+  a longer review window. The same scheduler clock is passed to the engine and persistence.
+- Validate signed Wire event payloads, including whole MNT amounts, before applying and
+  acknowledging payments. Incompatible payment data and failed deduplication reads remain
+  retryable (5xx), while signed endpoint verification remains supported. This follows the
+  [Wire webhook contract](https://docs.wire.mn/en/docs/guides/webhooks).
+- Failed profile, device-readiness and Ops support queries surface errors. Do not tell a person
+  they are signed out, need to change phone settings, or have no support requests when the
+  database could not answer.
+- Account closure requires successful task/balance checks, including the account's own unpaid
+  reports without a global 200-report cutoff. Failed personal-data cleanup or sign-in bans
+  cannot be reported as completed. Storage must confirm removal before file references are
+  cleared; chat cleanup operates on bounded message batches so older empty deals and API row
+  limits cannot strand media.
+
+These are local code and regression-test changes. Hosted migrations and live payment/provider
+checks are separate rollout work; no real payment, payout or account deletion was performed.

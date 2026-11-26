@@ -103,6 +103,11 @@ it("reads age confirmation when only the test-helper column is missing", async (
 it("does not hide unrelated profile lookup errors behind the compatibility fallback", async () => {
   responses.push({ data: null, error: { code: "42501", message: "permission denied" } });
 
-  expect(await getViewer()).toBeNull();
+  await expect(getViewer()).rejects.toThrow("permission denied");
   expect(selected).toHaveLength(1);
+});
+
+it("keeps an absent profile distinct from a database failure", async () => {
+  responses.push({ data: null, error: { code: "PGRST116", message: "No rows" } });
+  expect(await getViewer()).toBeNull();
 });

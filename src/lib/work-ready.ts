@@ -26,7 +26,12 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
   const db = createAdminClient();
   const [{ count }, { data: pos }, rules] = await Promise.all([
     db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", profile.id).throwOnError(),
-    db.from("helper_presence").select("lat, updated_at").eq("user_id", profile.id).maybeSingle<{ lat: number | null; updated_at: string }>().throwOnError(),
+    db
+      .from("helper_presence")
+      .select("lat, updated_at")
+      .eq("user_id", profile.id)
+      .maybeSingle<{ lat: number | null; updated_at: string }>()
+      .throwOnError(),
     getRules(),
   ]);
   return missingSteps({

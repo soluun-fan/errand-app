@@ -3720,6 +3720,13 @@ export type Database = {
           ledger_hold: number | null;
         }[];
       };
+      mn_iban: {
+        Args: {
+          p_bank: string | null;
+          p_account: string | null;
+        };
+        Returns: string;
+      };
       nearby_open_deals: {
         Args: {
           p_helper_id: string | null;
