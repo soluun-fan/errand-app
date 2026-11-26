@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   } catch {
     return new Response("bad json", { status: 400 });
   }
+  // wire.mn's signed check when the endpoint is verified from its dashboard: the signature already
+  // proved it's them, so just say yes (it may not carry an event id we'd otherwise insist on)
+  if (event.type === "endpoint.verification") return Response.json({ ok: true });
   if (!event.id || !event.type) return new Response("bad event", { status: 400 });
   const db = createAdminClient();
   const { data: seen } = await db.from("provider_events").select("id").eq("id", event.id).maybeSingle();
