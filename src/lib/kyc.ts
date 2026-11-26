@@ -202,7 +202,8 @@ export async function reopenVerification(appId: string, opsId: string, note: str
   await db
     .from("profiles")
     .update({
-      ...(helper ? { role: prof?.role === "admin" ? "admin" : "customer", helper_status: null } : {}),
+      // a helper also loses the private-test shortcut, or they'd be back at work with one tap
+      ...(helper ? { role: prof?.role === "admin" ? "admin" : "customer", helper_status: null, test_helper: false } : {}),
       kyc_level: 1,
       verified_name: null,
       age_band: null,
