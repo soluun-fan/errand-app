@@ -2463,7 +2463,7 @@ export const en = {
   payout: {
     title: "Bank account",
     current: "Your payout account",
-    unchecked: "Ownership check pending. Entering your name does not verify this bank account.",
+    unchecked: "At your first payout our team checks the account holder's name with the bank — it must match your ID.",
     needed: "Add your own bank account for receiving payments.",
     add: "Add bank account",
     change: "Change account",
@@ -2478,6 +2478,9 @@ export const en = {
       "Your earnings for each job are paid into your own bank account, so you need one before you can go online or apply. It takes a minute.",
   },
   opsWithdraw: {
+    firstPayout: "First payout — check the account now",
+    firstPayoutHelp: "Start the transfer in your bank app and, before confirming, look at the account holder's name it shows. Name on the ID: {name}. If it doesn't match, cancel the transfer and mark this failed.",
+    bankHolderHelp: "Type the name exactly as the bank app showed it before the transfer (any order, initials or Latin are fine). ID: {name}.",
     title: "Withdrawals",
     help: "Automatic bank transfers are not connected. Check the destination owner in the bank, send from the business account with the PAYOUT reference, then record the bank's completed transaction reference. This screen does not send money or verify settlement automatically. Mark Failed only when the bank confirms the transfer did not complete and will not settle; keep pending or uncertain transfers in this queue.",
     none: "Nothing to send.",

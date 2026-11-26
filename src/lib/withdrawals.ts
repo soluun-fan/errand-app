@@ -95,14 +95,14 @@ export async function earningsSummary(helperId: string): Promise<EarningsSummary
   };
 }
 
-export type RequestResult = { ok: true; withdrawal: Withdrawal } | { ok: false; reason: "unchecked" | "minimum" | "tooMany" | "failed" };
+export type RequestResult = { ok: true; withdrawal: Withdrawal } | { ok: false; reason: "noAccount" | "minimum" | "tooMany" | "failed" };
 
 /** The helper asks for everything available. Ops is pushed (target: sent within 15 minutes in opening hours). */
 export async function requestWithdrawal(helperId: string, auto = false): Promise<RequestResult> {
   const { data, error } = await createAdminClient().rpc("request_withdrawal", { p_helper: helperId, p_auto: auto }).single<Row>();
   if (error || !data) {
     const m = error?.message ?? "";
-    if (/not checked/.test(m)) return { ok: false, reason: "unchecked" };
+    if (/no bank account/.test(m)) return { ok: false, reason: "noAccount" };
     if (/minimum/.test(m)) return { ok: false, reason: "minimum" };
     if (/too many/.test(m)) return { ok: false, reason: "tooMany" };
     console.error("withdrawal request failed", m);
@@ -124,6 +124,11 @@ export interface QueueItem {
   holderName: string;
   auto: boolean;
   requestedAt: number;
+  /** checked against the bank yet? If not, the first payout is where Ops checks it (2026-11-26) */
+  accountChecked: boolean;
+  /** for the combined check: the account version and the name on the checked ID */
+  accountUpdatedAt: string | null;
+  verifiedName: string | null;
 }
 
 /** Ops: withdrawals waiting to be sent, oldest first. */
@@ -132,11 +137,18 @@ export async function withdrawalQueue(): Promise<QueueItem[]> {
   const { data, error } = await db.from("withdrawals").select("*").eq("status", "requested").order("requested_at").limit(200).returns<Row[]>();
   if (error) throw new Error(error.message);
   const rows = data ?? [];
-  const { data: people, error: peopleError } = rows.length
-    ? await db.from("profiles").select("id, name").in("id", [...new Set(rows.map((r) => r.helper_id))]).returns<{ id: string; name: string | null }[]>()
-    : { data: [], error: null };
+  const ids = [...new Set(rows.map((r) => r.helper_id))];
+  const [{ data: people, error: peopleError }, { data: accounts, error: acctError }] = ids.length
+    ? await Promise.all([
+        db.from("profiles").select("id, name, verified_name").in("id", ids).returns<{ id: string; name: string | null; verified_name: string | null }[]>(),
+        db.from("payout_accounts").select("user_id, account_number, verified_at, updated_at").in("user_id", ids).returns<{ user_id: string; account_number: string; verified_at: string | null; updated_at: string }[]>(),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
   if (peopleError) throw new Error(peopleError.message);
+  if (acctError) throw new Error(acctError.message);
   const name = new Map((people ?? []).map((p) => [p.id, p.name ?? "—"]));
+  const idName = new Map((people ?? []).map((p) => [p.id, p.verified_name]));
+  const acct = new Map((accounts ?? []).map((a) => [a.user_id, a]));
   return rows.map((r) => ({
     id: r.id,
     helperId: r.helper_id,
@@ -148,6 +160,10 @@ export async function withdrawalQueue(): Promise<QueueItem[]> {
     holderName: r.holder_name,
     auto: r.auto,
     requestedAt: Date.parse(r.requested_at),
+    // checked, and still the account this withdrawal was made for
+    accountChecked: Boolean(acct.get(r.helper_id)?.verified_at) && acct.get(r.helper_id)?.account_number === r.account_number,
+    accountUpdatedAt: acct.get(r.helper_id)?.updated_at ?? null,
+    verifiedName: idName.get(r.helper_id) ?? null,
   }));
 }
 

@@ -37,7 +37,7 @@ export default async function OpsHome() {
     reportedPhotoCount(),
     withdrawalQueue(),
     openErrorCount(),
-    openSupportCount().catch(() => 0),
+    openSupportCount(),
   ]);
   const orgsPending = orgs.filter((o) => o.status === "pending").length;
   const health = tickHealth(hb, Date.now());

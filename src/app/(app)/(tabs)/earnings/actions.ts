@@ -20,7 +20,7 @@ export async function withdrawAction(_prev: ActionResult, _form: FormData): Prom
   const r = await requestWithdrawal(viewer.profile.id);
   if (!r.ok) {
     const rules = await getRules();
-    if (r.reason === "unchecked") return { error: t("earnings.err.unchecked") };
+    if (r.reason === "noAccount") return { error: t("payout.add") };
     if (r.reason === "minimum") return { error: t("earnings.err.minimum", { amount: fmtMoney(rules.withdrawMin) }) };
     if (r.reason === "tooMany") return { error: t("earnings.err.tooMany", { n: rules.withdrawalsPerDay }) };
     return { error: t("error.generic") };

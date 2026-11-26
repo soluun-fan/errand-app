@@ -46,6 +46,13 @@ export default async function OpsWithdrawalsPage() {
             <span className="text-title-lg font-bold tabular-nums">{fmtMoney(w.amount)}</span>
           </div>
           <p className="text-meta text-ink-2">{fmtDateTime(w.requestedAt, locale)}</p>
+          {/* first payout to this account (2026-11-26): the name the bank shows before the transfer checks it */}
+          {!w.accountChecked && (
+            <Note tone="warn">
+              <span className="block font-semibold">{t("opsWithdraw.firstPayout")}</span>
+              <span className="block">{t("opsWithdraw.firstPayoutHelp", { name: w.verifiedName ?? "—" })}</span>
+            </Note>
+          )}
           <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 text-body">
             {(
               [
@@ -76,6 +83,23 @@ export default async function OpsWithdrawalsPage() {
               body={t("opsWithdraw.sentBody", { amount: fmtMoney(w.amount), bank: w.bank, account: w.accountNumber })}
               confirmLabel={t("opsWithdraw.recordSent")}
             >
+              {!w.accountChecked && (
+                <>
+                  <input type="hidden" name="helperId" value={w.helperId} />
+                  <input type="hidden" name="accountUpdatedAt" value={w.accountUpdatedAt ?? ""} />
+                  <label className={fieldLabel}>
+                    {t("opsWithdraw.bankHolder")}
+                    <input name="bankHolderName" required maxLength={80} className={field} autoComplete="off" />
+                    <span className="text-caption font-normal text-ink-2">{t("opsWithdraw.bankHolderHelp", { name: w.verifiedName ?? "—" })}</span>
+                  </label>
+                  {!w.verifiedName && (
+                    <label className="flex min-h-11 items-start gap-2 text-small">
+                      <input type="checkbox" name="identityConfirmed" className="mt-1 size-5" />
+                      {t("opsWithdraw.identityConfirm")}
+                    </label>
+                  )}
+                </>
+              )}
               <label className={fieldLabel}>
                 {t("opsWithdraw.bankReference")}
                 <input name="bankReference" required minLength={3} maxLength={120} className={field} autoComplete="off" />

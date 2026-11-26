@@ -22,6 +22,12 @@ export class DbError extends Error {
 /** SQLSTATE raised by apply_transition() when someone else changed the deal first. */
 const CONFLICT = "PT409";
 
+/** Only these failures can be explained by another request changing the deal first. */
+export function isDealConflict(error: unknown): boolean {
+  return (error instanceof DbError && error.code === CONFLICT) ||
+    (error instanceof EngineError && error.code === "ILLEGAL_TRANSITION");
+}
+
 export async function loadDeal(db: SupabaseClient<Database>, id: string): Promise<Deal | null> {
   const [deal, offers, dispute] = await Promise.all([
     db.from("deals").select("*").eq("id", id).maybeSingle<DealRow>(),

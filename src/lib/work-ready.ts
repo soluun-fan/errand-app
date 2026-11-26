@@ -25,9 +25,9 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
   const h = await headers();
   const db = createAdminClient();
   const [{ count }, { data: pos }, rules] = await Promise.all([
-    db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", profile.id),
-    db.from("helper_presence").select("lat, updated_at").eq("user_id", profile.id).maybeSingle<{ lat: number | null; updated_at: string }>(),
-    getRules().catch(() => null),
+    db.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", profile.id).throwOnError(),
+    db.from("helper_presence").select("lat, updated_at").eq("user_id", profile.id).maybeSingle<{ lat: number | null; updated_at: string }>().throwOnError(),
+    getRules(),
   ]);
   return missingSteps({
     userAgent: h.get("user-agent"),
@@ -35,6 +35,6 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
     pushDevices: count ?? 0,
     positionAt: pos?.lat != null ? Date.parse(pos.updated_at) : null,
     now: Date.now(),
-    freshMs: rules ? rules.readyPositionMinutes * 60_000 : undefined, // Ops setting (2026-11-22)
+    freshMs: rules.readyPositionMinutes * 60_000,
   });
 }

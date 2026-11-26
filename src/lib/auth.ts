@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { DbError } from "@/lib/db/deals";
 import { actorFromProfile, type ProfileRow } from "@/lib/db/mapping";
 import type { UserActor } from "@/lib/engine";
 import { qualificationsFor } from "@/lib/qualifications";
@@ -82,7 +83,10 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
       variant = "without-test-helper";
     }
   }
-  if (error || !profile) return null;
+  // A missing profile is signed out; a failed lookup must reach the error boundary
+  // instead of sending an authenticated person back through login.
+  if (error && error.code !== "PGRST116") throw new DbError({ ...error, message: error.message ?? "Profile lookup failed" });
+  if (!profile) return null;
   if (profile.deleted_at) return null; // a closed account is signed out everywhere
   const actor = actorFromProfile(profile, Date.now());
   // specialized work: what organisations vouch for them / which certificates Ops approved

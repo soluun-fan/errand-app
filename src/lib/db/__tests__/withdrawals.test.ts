@@ -40,11 +40,16 @@ describe("withdrawals", () => {
     expect(p).toEqual({ suggest_bps: 12500, max_job_total: 200000 });
   });
 
-  it("need a checked bank account of the helper's own", async () => {
+  it("need a bank account to ask; a checked one before Ops can mark it sent (2026-11-26: checked at the first payout)", async () => {
     await earn(10_000);
-    expect((await sqlError(request())).message).toMatch(/bank account not checked/);
+    expect((await sqlError(request())).message).toMatch(/no bank account/);
     await svc("insert into public.payout_accounts (user_id, bank, account_number, holder_name) values ($1, 'Хаан банк', 'MN500005005012345678', 'Test Helper')", [helperId]);
-    expect((await sqlError(request())).message).toMatch(/bank account not checked/); // added, not yet checked
+    // asking works with an unchecked account; "sent" is refused until the account is checked
+    // (an automatic one, so it doesn't use up the day's requests the next tests count)
+    const w = (await request(true)).rows[0] as { id: string };
+    expect((await sqlError(svc("select public.decide_withdrawal($1, $2, true, null)", [w.id, opsId]))).message).toMatch(/bank account not checked/);
+    // the bank showed another name: Ops marks it failed and the money goes back to what we owe
+    await svc("select public.decide_withdrawal($1, $2, false, 'name did not match')", [w.id, opsId]);
     await svc("update public.payout_accounts set verified_at = now() where user_id = $1", [helperId]);
   });
 

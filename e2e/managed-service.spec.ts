@@ -71,9 +71,10 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   const available = Number((await db.rpc("payable_balance", { p_user: bat.id })).data ?? 0);
   expect(available - before).toBe(20_000);
 
-  // 3. Bat withdraws everything from the earnings tab. Withdrawals need a bank-checked account
-  // (since 2026-11-22); stand in for Ops recording that check, as /ops/withdrawals would.
-  await db.from("payout_accounts").update({ verified_at: new Date().toISOString() }).eq("user_id", bat.id).is("verified_at", null);
+  // 3. Bat withdraws everything from the earnings tab. Since 2026-11-26 an unchecked account may ask:
+  // Ops checks the holder's name with the bank at this first payout (step 4).
+  const { data: acct } = await db.from("payout_accounts").select("account_number, verified_at").eq("user_id", bat.id).single<{ account_number: string; verified_at: string | null }>();
+  await db.from("payout_accounts").update({ verified_at: null }).eq("user_id", bat.id).throwOnError();
   const helper = await browser.newContext();
   await loginAs(helper, PHONES.bat, { mode: "helper" });
   const h = await helper.newPage();
@@ -95,13 +96,18 @@ test("the customer pays the full amount; after confirming, the helper withdraws 
   // the innermost box holding both this reference and its "record the transfer" button is its card
   const record = "Дууссан банкны шилжүүлгийг бүртгэх";
   const card = o.locator(":is(div, section)", { hasText: w!.reference }).filter({ has: o.getByRole("button", { name: record }) }).last();
-  await expect(card.getByText("5000004417", { exact: true })).toBeVisible();
+  await expect(card.getByText(acct!.account_number, { exact: true })).toBeVisible();
+  await expect(card.getByText("Эхний шилжүүлэг — дансыг одоо шалгана")).toBeVisible();
   await card.getByRole("button", { name: record }).click();
-  // since 2026-11-22 "sent" needs the bank's own transaction number
+  // since 2026-11-22 "sent" needs the bank's own transaction number; this first payout also needs the
+  // name the bank showed — Latin and in capitals here, which still matches the ID name
   const dlg = o.locator("dialog[open]");
+  await dlg.getByLabel("Банкнаас ирсэн данс эзэмшигчийн нэр").fill("BAT-ERDENE G");
   await dlg.getByLabel("Банкны гүйлгээний дугаар").fill("E2E-BANK-REF-123");
   await dlg.getByRole("button", { name: "Шилжүүлгийг бүртгэх" }).click();
   await expect.poll(async () => (await db.from("withdrawals").select("status").eq("id", w!.id).single()).data?.status).toBe("sent");
+  // the account is now checked, in the same step
+  expect((await db.from("payout_accounts").select("verified_at").eq("user_id", bat.id).single()).data?.verified_at).not.toBeNull();
 
   // 5. Bat sees it as sent
   await h.reload();

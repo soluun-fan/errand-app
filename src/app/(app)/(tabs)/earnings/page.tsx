@@ -42,7 +42,8 @@ export default async function EarningsPage() {
     const stage = pendingEarningsStage(job, now);
     return stage ? [{ job, stage }] : [];
   });
-  const canWithdraw = sum.available >= sum.minimum && sum.available > 0 && sum.accountChecked;
+  // an unchecked account may ask: Ops checks the name with the bank at the first payout (2026-11-26)
+  const canWithdraw = sum.available >= sum.minimum && sum.available > 0;
   const testHelper = unverifiedHelpersTestMode && viewer.profile.test_helper;
   // this calendar month (Ulaanbaatar) — a quick sense of how the month is going
   const thisMonth = ubMonthKey(now);
@@ -115,6 +116,7 @@ export default async function EarningsPage() {
       </div>
       {sum.onTheWay > 0 && <Note tone="info">{t("earnings.onTheWay", { amount: fmtMoney(sum.onTheWay) })}</Note>}
 
+      {account && !sum.accountChecked && <Note tone="info">{t("payout.unchecked")}</Note>}
       {/* the withdraw action and its rules read as one block */}
       <div className="flex flex-col gap-3">
         {account ? (
@@ -132,7 +134,7 @@ export default async function EarningsPage() {
             </ConfirmSheet>
           ) : (
             <p className="text-small text-ink-2">
-              {!sum.accountChecked ? t("earnings.err.unchecked") : t("earnings.minimum", { amount: fmtMoney(sum.minimum) })}
+              {t("earnings.minimum", { amount: fmtMoney(sum.minimum) })}
             </p>
           )
         ) : testHelper ? (

@@ -455,6 +455,20 @@ export async function decideWithdrawalAction(_prev: ActionResult, form: FormData
   if (!id) return { error: t("error.generic") };
   if (!sent && !note) return { error: t("opsWithdraw.noteNeeded") };
   if (sent && (bankReference.length < 3 || bankReference.length > 120)) return { error: t("opsWithdraw.referenceNeeded") };
+  // first payout to this account (2026-11-26): the name the bank showed before the transfer checks it
+  const bankHolderName = String(form.get("bankHolderName") ?? "").trim();
+  if (sent && bankHolderName) {
+    const helperId = parseOr(Uuid, String(form.get("helperId") ?? ""));
+    if (!helperId) return { error: t("error.changed") };
+    const checked = await markAccountChecked(helperId, viewer.profile.id, {
+      updatedAt: String(form.get("accountUpdatedAt") ?? ""),
+      bankHolderName,
+      reference: bankReference,
+      identityConfirmed: form.get("identityConfirmed") === "on",
+    });
+    if (checked === "changed") return { error: t("error.changed") };
+    if (checked !== "ok") return { error: t(`opsWithdraw.checkError.${checked}`) };
+  }
   if (!(await decideWithdrawal(id, viewer.profile.id, sent, note, bankReference))) return { error: t("error.changed") };
   refresh();
   return { done: true };

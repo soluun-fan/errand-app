@@ -61,9 +61,8 @@ export async function helperTodos(viewer: Viewer): Promise<Todo[]> {
   ]);
   if (profile.helper_terms_version !== LEGAL_VERSIONS.helper) out.push({ key: "helperTerms", href: "/helper-terms", urgent: true });
   if (!acct) out.push({ key: "bankAdd", href: "/helper/bank", urgent: true });
-  else if (!acct.verified_at) out.push({ key: "bankCheck", href: null });
   if (!(profile.categories ?? []).length) out.push({ key: "workKinds", href: "/profile#work-kinds", urgent: true });
-  if (acct?.verified_at && Number(available ?? 0) >= Math.max(1, rules.withdrawMin)) out.push({ key: "withdraw", href: "/earnings" });
+  if (acct && Number(available ?? 0) >= Math.max(1, rules.withdrawMin)) out.push({ key: "withdraw", href: "/earnings" });
   return out;
 }
 

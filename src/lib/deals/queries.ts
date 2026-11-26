@@ -1,6 +1,6 @@
 import "server-only";
 import type { Viewer } from "@/lib/auth";
-import { loadDeal, runCommand } from "@/lib/db/deals";
+import { DbError, isDealConflict, loadDeal, runCommand } from "@/lib/db/deals";
 import { dealFromRow, type DealRow } from "@/lib/db/mapping";
 import { distanceKm } from "@/lib/dispatch/plan";
 import { helperStart } from "@/lib/maps";
@@ -14,16 +14,18 @@ const SYSTEM = { kind: "system" } as const;
  * deal, so screens never show a stale "held" state. The background job (CLAUDE.md §10 step 8)
  * will do the same on a schedule; both are safe to run because the engine rejects repeats.
  */
-async function settle(deal: Deal): Promise<Deal> {
-  const cmd = dueCommand(deal, Date.now());
+async function settle(deal: Deal, now = Date.now()): Promise<Deal> {
+  const cmd = dueCommand(deal, now);
   if (!cmd) return deal;
   try {
-    const after = (await runCommand(createAdminClient(), deal.id, cmd, SYSTEM)).deal;
+    const after = (await runCommand(createAdminClient(), deal.id, cmd, SYSTEM, { now: () => now })).deal;
     await tellAboutAutomatic(cmd.type, after).catch((e) => console.error("automatic notice failed", e));
     return after;
-  } catch {
-    // Someone else (another request or the job) settled it first; just reload.
-    return (await loadDeal(createAdminClient(), deal.id)) ?? deal;
+  } catch (error) {
+    if (!isDealConflict(error)) throw error;
+    const latest = await loadDeal(createAdminClient(), deal.id);
+    if (!latest || latest.version === deal.version) throw error;
+    return latest;
   }
 }
 
@@ -31,19 +33,28 @@ async function settle(deal: Deal): Promise<Deal> {
 export async function settleDueDeals(now = Date.now()): Promise<number> {
   const db = createAdminClient();
   const iso = new Date(now).toISOString();
-  const [a, b, c, d] = await Promise.all([
+  const results = await Promise.all([
     db.from("deals").select("*").eq("type", "errand").eq("status", "awaiting_payment").lte("pay_by", iso).limit(200),
     db.from("deals").select("*").eq("type", "errand").eq("status", "open").lte("match_by", iso).limit(200),
     db.from("deals").select("*").eq("status", "check").lte("check_until", iso).limit(200),
     // "customer isn't here" countdowns (the engine decides whether the time is up)
     db.from("deals").select("*").eq("type", "errand").eq("status", "in_progress").not("absent_at", "is", null).limit(200),
+    // A partial-refund offer has its own deadline, which may precede check_until.
+    db.from("deals").select("*").eq("type", "errand").eq("status", "check").eq("price_change->>status", "proposed").limit(200),
   ]);
   let n = 0;
-  for (const row of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? []), ...(d.data ?? [])] as DealRow[]) {
-    const deal = dealFromRow(row);
-    const after = await settle(deal);
-    if (after.version !== deal.version) n++;
+  const errors: unknown[] = results.filter((r) => r.error).map((r) => new DbError(r.error!));
+  const rows = new Map(results.flatMap((r) => (r.data ?? []) as DealRow[]).map((row) => [row.id, row]));
+  for (const row of rows.values()) {
+    try {
+      const deal = dealFromRow(row);
+      const after = await settle(deal, now);
+      if (after.version !== deal.version) n++;
+    } catch (error) {
+      errors.push(error);
+    }
   }
+  if (errors.length) throw new AggregateError(errors, "Some due tasks could not be settled");
   return n;
 }
 
