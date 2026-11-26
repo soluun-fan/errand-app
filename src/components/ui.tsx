@@ -59,6 +59,13 @@ export const space = {
  */
 export const hero = {
   grid: "grid grid-cols-1 gap-8 lg:grid-cols-[36rem_minmax(0,20rem)] lg:items-center lg:justify-between lg:gap-16",
+  /**
+   * Home's variant: the text column takes its width from the one-line title (any language, any
+   * name), so the search box under it is exactly as wide as the letters above it.
+   */
+  gridFit: "grid grid-cols-1 gap-8 lg:grid-cols-[auto_minmax(0,20rem)] lg:items-center lg:justify-between lg:gap-16",
+  /** inside gridFit: this row wraps within the title's width instead of widening the column */
+  fitTitleWidth: "lg:w-0 lg:min-w-full",
   main: "flex min-w-0 flex-col gap-5",
   search:
     "flex min-h-14 items-center gap-2 rounded-cta bg-bg py-1.5 pl-4 pr-1.5 shadow-float md:min-h-16 md:border-2 md:border-ink md:shadow-none",

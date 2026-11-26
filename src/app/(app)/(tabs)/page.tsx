@@ -92,7 +92,7 @@ export default async function Home() {
       {/* hero (PleaseHelp-style): question + search + quick starts · live tasks and recent requests beside it on the web.
           On wider screens its tint runs edge to edge (like the landing page) while its content stays on the page edge,
           so the search box lines up with every section below. */}
-      <section className={`relative isolate ${hero.grid} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}>
+      <section className={`relative isolate ${hero.gridFit} md:py-12 md:first:-mt-6 md:before:absolute md:before:inset-y-0 md:before:left-1/2 md:before:-z-10 md:before:w-screen md:before:-translate-x-1/2 md:before:bg-brand-bg/50`}>
         <div className={hero.main}>
           <header className="flex items-center justify-between pt-2 md:hidden">
             <p className="text-small text-ink-2">
@@ -108,8 +108,14 @@ export default async function Home() {
             {viewer.profile.area || t("home.area")}
             {online > 0 && <span className="text-ink-2">· {t("home.online", { n: online })}</span>}
           </p>
-          <h1 className="text-headline font-bold leading-tight tracking-tight md:text-display-lg md:font-extrabold">
-            <span className="hidden md:inline">{name ? `${t("home.hello")} ${name}. ` : ""}</span>
+          {/* wider screens: the greeting (with the name) is a small line, so the big question has the
+              same width for everyone and the search box below can match it exactly */}
+          {name && (
+            <p className="-mb-3 hidden text-title font-semibold text-ink-2 md:block">
+              {t("home.hello")} {name}
+            </p>
+          )}
+          <h1 className="text-headline font-bold leading-tight tracking-tight md:text-display-lg md:font-extrabold lg:whitespace-nowrap xl:text-hero">
             {t("home.hero")}
           </h1>
           <form action="/post" className={hero.search}>
@@ -124,7 +130,7 @@ export default async function Home() {
             </button>
           </form>
           {/* quick starts: an unfinished draft, your repeats, then popular tasks */}
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0">
+          <div className={`-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0 ${hero.fitTitleWidth}`}>
             <DraftChip key={viewer.profile.id} userId={viewer.profile.id} />
             {repeat.map((d) => (
               <Link key={d.id} href={`/post?cat=${d.category}&title=${encodeURIComponent(d.title)}`} className={`${hero.chip} ${hero.chipPlain}`}>
