@@ -2657,7 +2657,7 @@ export const mn: Messages = {
     notifGo: "Мэдэгдэл асаах",
     notifDenied: "Мэдэгдэл хаагдсан байна. Хаягийн хажуугийн цоож дүрс → Permissions → Notifications → Allow дараад дахин ачаална уу.",
     notifDeniedIos: "Мэдэгдэл хаагдсан байна. Settings → Notifications → {app} → Allow Notifications асаагаад апп-аа дахин нээнэ үү.",
-    notifUnsupported: "Энэ хөтөч мэдэгдэл харуулж чадахгүй. Chrome (Android) эсвэл Safari (iPhone) ашиглана уу.",
+    notifUnsupported: "Энэ хөтөч эсвэл нууц (incognito/private) цонх мэдэгдэл харуулж чадахгүй. Энгийн цонхонд утсан дээр Chrome (Android) эсвэл Safari (iPhone), компьютер дээр Chrome эсвэл Edge ашиглана уу.",
     notifAfterInstall: "Эхлээд {app} апп-ыг нүүр дэлгэцэндээ нэмнэ үү (дээрх алхам); дараа нь мэдэгдэл асаана.",
     location: "Байршил асаах",
     geoBody: "Ойрын ажил авах, захиалагчид таныг замд гарсныг харуулахад хэрэгтэй. Зөвхөн ажиллаж байх үед хуваалцана.",

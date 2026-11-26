@@ -2648,7 +2648,7 @@ export const en = {
     notifGo: "Turn on notifications",
     notifDenied: "Notifications are blocked. Tap the lock icon next to the address → Permissions → Notifications → Allow, then reload.",
     notifDeniedIos: "Notifications are blocked. Open Settings → Notifications → {app} → Allow Notifications, then reopen the app.",
-    notifUnsupported: "This browser can't show notifications. Use Chrome (Android) or Safari (iPhone).",
+    notifUnsupported: "This browser, or a private/incognito window, can't show notifications. In a normal window use Chrome (Android) or Safari (iPhone) on a phone, Chrome or Edge on a computer.",
     notifAfterInstall: "Add {app} to your Home Screen first (step above); then you can turn notifications on.",
     location: "Turn on location",
     geoBody: "Needed to get nearby jobs and to show the customer you are on the way. Shared only while you work.",
