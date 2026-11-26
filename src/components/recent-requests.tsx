@@ -40,8 +40,8 @@ export function RecentRequests({ items, t, now }: { items: PublicRequest[]; t: T
             <li key={i} className="flex items-center gap-3 rounded-cta bg-canvas px-3 py-2.5">
               <CategoryIcon id={r.category} tile size={20} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-body font-semibold">{t(`category.${r.category}`)}</span>
-                <span className="block truncate text-caption text-ink-2">
+                <span className="line-clamp-2 block text-body font-semibold leading-snug">{t(`category.${r.category}`)}</span>
+                <span className="line-clamp-2 block text-caption text-ink-2">
                   {t(`status.${r.status}`)} · {t("landing.ago", { t: ago(now - r.createdAt, t) })}
                 </span>
               </span>
