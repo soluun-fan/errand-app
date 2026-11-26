@@ -53,17 +53,17 @@ export const space = {
 /**
  * The Home and landing hero (PleaseHelp's layout, our look), one shape for both pages: a text column
  * of 576 px — measured so the title and paragraph letters end where the search box ends (mn and en),
- * so nothing in the column sticks out past the text. The side card is at most 320 px (owner, 2026-11-26) and sits on the
- * page's right edge; the space between them is never under 64 px and grows to ~208 px on wide screens,
- * so the two halves breathe instead of looking squeezed; they are centred against each other; a search box with a thin ink border (no shadow on wider screens) and small chips under it.
+ * so nothing in the column sticks out past the text. The side card is at most 416 px and sits on the
+ * page's right edge; the space between them is about 112 px on wide screens (owner, 2026-11-26: 208 was
+ * "ridiculously large", 48 "compressed") and never under 64 px; they are centred against each other; a search box with a thin ink border (no shadow on wider screens) and small chips under it.
  */
 export const hero = {
-  grid: "grid grid-cols-1 gap-8 lg:grid-cols-[36rem_minmax(0,20rem)] lg:items-center lg:justify-between lg:gap-16",
+  grid: "grid grid-cols-1 gap-8 lg:grid-cols-[36rem_minmax(0,26rem)] lg:items-center lg:justify-between lg:gap-16",
   /**
    * Home's variant: the text column takes its width from the one-line title (any language, any
    * name), so the search box under it is exactly as wide as the letters above it.
    */
-  gridFit: "grid grid-cols-1 gap-8 lg:grid-cols-[auto_minmax(0,20rem)] lg:items-center lg:justify-between lg:gap-16",
+  gridFit: "grid grid-cols-1 gap-8 lg:grid-cols-[auto_minmax(0,26rem)] lg:items-center lg:justify-between lg:gap-16",
   /** inside gridFit: this row wraps within the title's width instead of widening the column */
   fitTitleWidth: "lg:w-0 lg:min-w-full",
   main: "flex min-w-0 flex-col gap-5",
