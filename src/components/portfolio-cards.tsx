@@ -1,4 +1,5 @@
 import { answerPortfolioAction, askPortfolioAction, removeWorkPhotoAction, reportWorkPhotoAction } from "@/app/(app)/helpers/photo-actions";
+import { Flag } from "lucide-react";
 import type { T } from "@/i18n";
 import { REPORT_REASONS, type TaskWorkPhoto } from "@/lib/work-photos";
 import { InlineAction } from "./inline-action";
@@ -31,8 +32,14 @@ export function WorkPhotoReport({ photoId, t }: { photoId: string; t: T }) {
     <ConfirmSheet
       action={reportWorkPhotoAction}
       fields={{ photoId }}
-      trigger={t("workPhotos.report")}
-      triggerClass={`${btn.text} min-h-9 px-1 text-[12px]`}
+      // a quiet flag, not a second button competing with the card (the name stays for screen readers)
+      trigger={
+        <>
+          <Flag aria-hidden size={15} />
+          <span className="sr-only">{t("workPhotos.report")}</span>
+        </>
+      }
+      triggerClass="flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink-3 hover:bg-fill hover:text-ink-2"
       title={t("workPhotos.reportTitle")}
       confirmLabel={t("workPhotos.reportSend")}
     >

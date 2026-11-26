@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarClock, ChevronRight, Landmark, MapPin, Zap } from "lucide-react";
+import { CalendarClock, ChevronRight, Landmark, MapPin, Users, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
 import { helperTodos } from "@/lib/todo";
 import { WorkReady } from "@/components/work-ready";
@@ -69,6 +69,13 @@ function JobRow({ item, t, now = 0, locale = "mn", mine, pic = null }: { item: J
           <span className={`${tag} bg-brand text-white`}>{t("invite.badge")}</span>
         ) : (
           d.status === "open" && <span className={`${tag} ${full ? "bg-fill text-ink-2" : "bg-brand-bg text-brand-ink"}`}>{full ? t("job.full") : t("job.available")}</span>
+        )}
+        {/* a team job, said up front (PleaseHelp "2 helpers wanted") */}
+        {d.details.people === 2 && (
+          <span className={`${tag} bg-fill text-ink-2`}>
+            <Users aria-hidden size={13} />
+            {t("details.people", { n: 2 })}
+          </span>
         )}
         {d.itemBudget > 0 && <span className={`${tag} bg-fill text-ink-2`}>{t("job.buysItems", { amount: fmtMoney(d.itemBudget) })}</span>}
         {outside && <span className={`${tag} bg-fill text-ink-2`}>{t("job.notYourCategory")}</span>}

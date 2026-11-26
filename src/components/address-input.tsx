@@ -51,6 +51,7 @@ export function AddressInput({
   const [showChoices, setShowChoices] = useState(false);
   const [allChoices, setAllChoices] = useState(false);
   const query = value.trim().toLocaleLowerCase();
+  const quick = choices.filter((c) => c.address.trim() !== value.trim()).slice(0, 3);
   const matches = choices.filter((a) => allChoices || !query || `${a.label} ${a.address}`.toLocaleLowerCase().includes(query));
   return (
     <section className={rail ? "" : "rounded-card bg-bg p-4 shadow-card"} aria-labelledby={`${id}-label`}>
@@ -88,6 +89,29 @@ export function AddressInput({
         }}
         className="min-h-12 w-full min-w-0 rounded-input border border-line bg-canvas/60 px-3 text-[16px] outline-none placeholder:text-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/15"
       />
+      {/* saved and recent places as one-tap chips (PleaseHelp-style); the full list stays under "Saved" */}
+      {quick.length > 0 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+          {quick.map((choice) => {
+            const Icon = icons[choice.kind];
+            return (
+              <button
+                key={choice.id}
+                type="button"
+                onClick={() => {
+                  setPendingPin(null);
+                  onChoose(choice);
+                  setShowChoices(false);
+                }}
+                className="press inline-flex min-h-11 max-w-[14rem] flex-none items-center gap-1.5 rounded-full border border-line bg-bg px-3 text-[14px] font-medium"
+              >
+                <Icon aria-hidden size={15} className="flex-none text-brand-ink" />
+                <span className="truncate">{choice.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <p id={`${id}-hint`} className="mt-2 text-[13px] leading-relaxed text-ink-2">
         {hint}
       </p>

@@ -203,12 +203,17 @@ export default async function HelperProfilePage({ params }: PageProps<"/helpers/
       {!me && (
         <PrimaryBar>
           {/* a direct request: the post form, sent to this helper first */}
-          {invitable && invitable.categories.length > 0 && (
-            <Link href={`/post?helper=${p.id}`} className={`${btn.primary} w-full`}>
-              <Send aria-hidden size={18} /> {t("invite.send")}
-            </Link>
+          {invitable && invitable.categories.length > 0 ? (
+            // one row: save (heart) beside the main action, as on PleaseHelp
+            <div className="flex gap-2">
+              <SaveButton helperId={p.id} saved={saved} t={t} icon />
+              <Link href={`/post?helper=${p.id}`} className={`${btn.primary} flex-1`}>
+                <Send aria-hidden size={18} /> {t("invite.send")}
+              </Link>
+            </div>
+          ) : (
+            <SaveButton helperId={p.id} saved={saved} t={t} />
           )}
-          <SaveButton helperId={p.id} saved={saved} t={t} quiet={Boolean(invitable)} />
         </PrimaryBar>
       )}
     </>

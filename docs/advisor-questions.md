@@ -29,3 +29,11 @@ Background: Guigere sells small errands as a **managed service**. The customer p
    - What exactly may we say about monitoring?
 10. **Showing helper gender or age range.** If we offer it, it would be opt-in by the helper and shown only to signed-in customers. Is that allowed? Could a customer's filter on it count as discrimination?
 11. **Off-app payment rule.** Our terms will say that paying outside the app can lead to both accounts being paused. Is that enforceable, and how should it be worded?
+12. **Account clauses we would like to add** (a comparable Korean errand app has them; our terms already say one account per person, own number, real name, keep login codes private, suspension for fraud):
+    - An account can't be lent, sold or handed to someone else.
+    - Tell us at once if someone else is using your account.
+    - A changed phone number is moved through Support after checking it's really you.
+    - We may refuse to open an account that uses someone else's name or number, duplicates an existing one, gives false details, or belongs to someone we removed for breaking the rules.
+    - Question: is this wording enough under Mongolian law, and may we refuse a number linked to fraud reports (we would only know from our own reports, not police or telecom data)?
+13. **Notice before changing the terms.** Today the app asks people to accept the new version before they go on. The Korean app gives 7 days' notice, or 30 days when a change is worse for users; it treats silence after clear notice as acceptance, and users who disagree may close their account. What notice does Mongolian law expect, and should we copy that model?
+14. **Foreign helpers.** The Korean app accepts foreigners only with long-term residence visas. Can foreigners living in Mongolia (residence permit holders, students) be helpers, or do they need a work permit? Until we know, should helper checks accept only a Mongolian ID card?

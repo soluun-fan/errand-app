@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/i18n/client";
@@ -52,12 +52,23 @@ export function BottomSheet({
 }
 
 /** Disables itself while its form is submitting (double-tap protection, UI-FLOWS §14). */
-export function SubmitButton({ className, children, pendingLabel, disabled = false }: { className: string; children: ReactNode; pendingLabel?: string; disabled?: boolean }) {
+/** `pendingContent` replaces the "Working…" text (e.g. a spinner in an icon-only button); other button attributes (aria-label, aria-pressed, title) pass through. */
+export function SubmitButton({
+  className,
+  children,
+  pendingLabel,
+  pendingContent,
+  disabled = false,
+  ...rest
+}: { className: string; children: ReactNode; pendingLabel?: string; pendingContent?: ReactNode; disabled?: boolean } & Pick<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "aria-label" | "aria-pressed" | "title"
+>) {
   const { pending } = useFormStatus();
   const t = useT();
   return (
-    <button className={className} disabled={pending || disabled} aria-busy={pending}>
-      {pending ? (pendingLabel ?? t("common.working")) : children}
+    <button {...rest} className={className} disabled={pending || disabled} aria-busy={pending}>
+      {pending ? (pendingContent ?? pendingLabel ?? t("common.working")) : children}
     </button>
   );
 }

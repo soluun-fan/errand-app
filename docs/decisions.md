@@ -438,4 +438,10 @@ The owner sent screenshots of PleaseHelp's profile, home, request form and subca
   - the prepaid credit balance (we never hold customer money as a balance; see the money model);
   - an "allow price offers" switch (bargaining is always open);
   - their 3D character art (we use Lucide icons; our own illustrations would be a separate brand decision).
-- **Open:** extra stops on one trip; a helper "has a car" field the customer can ask for (carry/deliver); per-category tap-to-fill phrases for the description; more job types per category (they list about 10 under delivery; we have 2).
+- **Second batch** (their helper profile, portfolio, reviews and the moving form):
+  - The helper profile's bottom bar is one row: a heart (save) next to "Send a request", instead of two full-width buttons.
+  - Saved and recent places show as one-tap chips under each address box; the full list stays under "Saved".
+  - Reporting a work photo is a small grey flag, not a bold "Report" that competes with the card.
+  - Already had: stats row (rating · jobs · joined), review tags with counts ("on time · 12"), work photos with the price when the customer agreed, reviews with photos, one or two helpers.
+  - Not copied: gender and age on the profile (an open question for the lawyer); reviews of customers shown publicly; a separate portfolio-post page (the helper's profile already holds the photos).
+- **Open:** extra stops on one trip; a helper "has a car" field the customer can ask for (carry/deliver); "is there parking for the helper?" on carry jobs (UB apartment yards); per-category tap-to-fill phrases for the description; more job types per category (they list about 10 under delivery; we have 2).
