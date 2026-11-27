@@ -9,13 +9,14 @@ import { BottomSheet, SubmitButton, type ActionResult } from "./sheet";
 import { Note, btn, chipClass, field, fieldLabel } from "./ui";
 import { Ambulance, Phone } from "lucide-react";
 import { Ico } from "@/components/icon";
+import { getCurrentPositionWithFallback } from "@/lib/location-client";
 
 /** Best-effort position for an SOS: never waits more than 6 s and never blocks sending. */
 function currentPosition(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
   if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(null);
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(null), 6500);
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       (p) => {
         clearTimeout(timer);
         resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });

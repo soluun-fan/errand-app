@@ -9,6 +9,7 @@ import { useLocale, useT } from "@/i18n/client";
 import { mapStyle } from "@/lib/map-style";
 import { LocateButton, chipElement, foldAttributionLater, helperElement, meElement, pinElement } from "./map-ui";
 import { UB_CENTER } from "./pin-map";
+import { getCurrentPositionWithFallback } from "@/lib/location-client";
 
 export type MarkerKind = "task" | "pickup" | "helper" | "me" | "job" | "area" | "pickupArea" | "busy";
 
@@ -154,7 +155,7 @@ export function TaskMap({
 
   useEffect(() => {
     if (!showMe || !("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       (p) => setMe({ lat: p.coords.latitude, lng: p.coords.longitude }),
       () => {},
       { maximumAge: 60_000, timeout: 10_000 },
@@ -253,7 +254,7 @@ export function TaskMap({
           onClick={() => {
             if (!("geolocation" in navigator)) return;
             setLocating(true);
-            navigator.geolocation.getCurrentPosition(
+            getCurrentPositionWithFallback(
               (p) => {
                 setLocating(false);
                 const pos = { lat: p.coords.latitude, lng: p.coords.longitude };

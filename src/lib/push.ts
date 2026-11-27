@@ -3,6 +3,7 @@ import webpush from "web-push";
 import { MESSAGES, makeT, parseLocale, type Locale, type MessageKey, type Params } from "@/i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPushHost } from "@/lib/input";
+import { runtimeVapidPublicKey } from "@/lib/vapid-env";
 
 /**
  * Web Push (VAPID) — reaches phones even when the app is closed. Native apps will add FCM/APNs
@@ -11,7 +12,7 @@ import { isPushHost } from "@/lib/input";
 let configured: boolean | null = null;
 function ready(): boolean {
   if (configured !== null) return configured;
-  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const pub = runtimeVapidPublicKey(); // read at run time, not baked in at build
   const priv = process.env.VAPID_PRIVATE_KEY;
   configured = Boolean(pub && priv);
   if (configured) webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "mailto:ops@example.com", pub as string, priv as string);

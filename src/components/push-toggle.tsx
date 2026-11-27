@@ -5,6 +5,7 @@ import { removePush, savePush } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
 import { btn } from "./ui";
 import { Bell } from "lucide-react";
+import { useVapidKey } from "@/lib/use-vapid-key";
 
 type State = "loading" | "unsupported" | "off" | "on" | "denied";
 
@@ -20,10 +21,11 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
 export function PushToggle() {
   const t = useT();
   const [state, setState] = useState<State>("loading");
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const publicKey = useVapidKey();
 
   /* eslint-disable react-hooks/set-state-in-effect -- Read browser notification capability after hydration and synchronize its subscription. */
   useEffect(() => {
+    if (publicKey === undefined) return; // still asking the server for the key
     if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       setState("unsupported");
       return;

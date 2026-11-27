@@ -8,6 +8,7 @@ import { useLocale, useT } from "@/i18n/client";
 import { BASE_STYLE_URL, mapStyle } from "@/lib/map-style";
 import { LocateButton, foldAttributionLater, meElement, pinElement, pinSvg } from "./map-ui";
 import { PlaceSearch } from "./place-search";
+import { getCurrentPositionWithFallback } from "@/lib/location-client";
 
 /** Open-source map (MapLibre) on free OpenStreetMap-based tiles — no API key (docs/decisions.md). Restyled in lib/map-style.ts. */
 export const MAP_STYLE = BASE_STYLE_URL;
@@ -148,7 +149,7 @@ export function PinMap({
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       (p) => {
         setLocating(false);
         changed.current({ lat: Math.round(p.coords.latitude * 1e6) / 1e6, lng: Math.round(p.coords.longitude * 1e6) / 1e6 });

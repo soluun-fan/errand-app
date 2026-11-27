@@ -107,3 +107,20 @@ it("discards a GPS result delivered after the app moved to the background", asyn
   await vi.advanceTimersByTimeAsync(0);
   expect(send).toHaveBeenCalledTimes(1);
 });
+
+const geoError = (code: number) => ({ code, message: "x", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+
+it("asks again with normal accuracy when high accuracy is unavailable (computers, indoors)", async () => {
+  locate.mockImplementationOnce((_ok: unknown, fail: (e: unknown) => void) => fail(geoError(2)));
+  const p = await currentPosition();
+  expect(p.coords.latitude).toBe(47.92);
+  expect(locate).toHaveBeenCalledTimes(2);
+  expect(locate.mock.calls[0][2]).toMatchObject({ enableHighAccuracy: true });
+  expect(locate.mock.calls[1][2]).toMatchObject({ enableHighAccuracy: false });
+});
+
+it("never asks again after the person refused location", async () => {
+  locate.mockImplementation((_ok: unknown, fail: (e: unknown) => void) => fail(geoError(1)));
+  await expect(currentPosition()).rejects.toMatchObject({ code: 1 });
+  expect(locate).toHaveBeenCalledTimes(1);
+});

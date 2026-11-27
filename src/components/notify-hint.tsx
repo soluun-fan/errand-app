@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { savePush } from "@/app/(app)/jobs/actions";
 import { useT } from "@/i18n/client";
 import { btn } from "./ui";
+import { useVapidKey } from "@/lib/use-vapid-key";
 
 function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
@@ -24,9 +25,10 @@ const LATER = "notify-hint-later";
 export function NotifyHint() {
   const t = useT();
   const [state, setState] = useState<"hidden" | "off" | "busy">("hidden");
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const publicKey = useVapidKey();
 
   useEffect(() => {
+    if (publicKey === undefined) return; // still asking the server for the key
     if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     if (Notification.permission === "denied") return;
     try {

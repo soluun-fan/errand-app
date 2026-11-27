@@ -2,10 +2,38 @@ import { LOCATION_INTERVAL_MS } from "./location-rules";
 
 export type LocationStatus = "locating" | "live" | "denied" | "unavailable";
 
+/**
+ * getCurrentPosition, but when high accuracy can't be had ("Position update is unavailable" — common
+ * on computers and indoors — or too slow), ask once more with normal accuracy (Wi-Fi / cell). A
+ * refused permission is never retried. Same call shape as the browser's own (2026-11-27).
+ */
+export function getCurrentPositionWithFallback(
+  success: PositionCallback,
+  error: PositionErrorCallback,
+  options: PositionOptions = {},
+): void {
+  if (!navigator.geolocation) {
+    error({ code: 2, message: "Geolocation unavailable", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    success,
+    (e) => {
+      if (e.code === 1 /* PERMISSION_DENIED */ || options.enableHighAccuracy === false) return error(e);
+      navigator.geolocation.getCurrentPosition(success, error, {
+        enableHighAccuracy: false,
+        maximumAge: Math.max(options.maximumAge ?? 0, 30_000),
+        timeout: Math.max(options.timeout ?? 0, 20_000),
+      });
+    },
+    options,
+  );
+}
+
 export function currentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error("Geolocation unavailable"));
-    navigator.geolocation.getCurrentPosition((p) => {
+    getCurrentPositionWithFallback((p) => {
       const age = Date.now() - p.timestamp;
       if (!Number.isFinite(age) || age < -5_000 || age > 30_000 ||
         !Number.isFinite(p.coords.latitude) || Math.abs(p.coords.latitude) > 90 ||

@@ -7,6 +7,8 @@ import { reportClientError } from "@/app/report-error";
 import { useT } from "@/i18n/client";
 import { isMobileDevice } from "@/lib/work-ready-rules";
 import { btn } from "./ui";
+import { useVapidKey } from "@/lib/use-vapid-key";
+import { getCurrentPositionWithFallback } from "@/lib/location-client";
 
 /**
  * "failed": asked but it didn't work (no location found, the browser refused quietly) — said, with a retry.
@@ -59,7 +61,7 @@ export function WorkReady({
     setWhy(text);
     void reportClientError(`work-ready ${text} · ${navigator.userAgent.slice(0, 160)}`, null, location.pathname).catch(() => undefined);
   }, []);
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const publicKey = useVapidKey();
 
   const sendPosition = useCallback(() => {
     if (!navigator.geolocation) {
@@ -67,7 +69,7 @@ export function WorkReady({
       return;
     }
     setGeo("loading");
-    navigator.geolocation.getCurrentPosition(
+    getCurrentPositionWithFallback(
       async (p) => {
         try {
           const saved = await reportPosition(p.coords.latitude, p.coords.longitude);
@@ -89,7 +91,7 @@ export function WorkReady({
 
   /* eslint-disable react-hooks/set-state-in-effect -- Read device permissions after hydration; these capabilities are owned by the browser. */
   useEffect(() => {
-    if (!enforce) return;
+    if (!enforce || publicKey === undefined) return; // wait for the key (from the build, or the server)
     setMounted(true);
     const uaMobile = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile;
     setPhone(computerOk || uaMobile === true || isMobileDevice(navigator.userAgent));
