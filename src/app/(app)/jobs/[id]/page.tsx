@@ -16,7 +16,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { FlowHeader, HeldBadge, Note, PrimaryBar, btn, field, fieldLabel } from "@/components/ui";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { getJobForHelper, publicProfiles } from "@/lib/deals/queries";
+import { getJobForHelper, publicProfiles, timeline } from "@/lib/deals/queries";
 import { arriveBy, categoryConfig, categoryTrust, errandSplit, helperLate, invitedOnly, missingConditions, ruleOf } from "@/lib/engine";
 import { ConditionChips } from "@/components/conditions";
 import { getRules } from "@/lib/rules";
@@ -30,7 +30,7 @@ import { callParty, callsEnabled } from "@/lib/calls";
 import { proofsFor } from "@/lib/proofs";
 import { portfolioCandidates } from "@/lib/work-photos";
 import { WorkReady } from "@/components/work-ready";
-import { computerAllowed, deviceCheckBypassed } from "@/lib/work-ready";
+import { computerAllowed, computerPositionFresh, deviceCheckBypassed } from "@/lib/work-ready";
 import { PortfolioAskSection } from "@/components/portfolio-cards";
 import { taskPhotosFor } from "@/lib/task-photos";
 import { workedTogether } from "@/lib/care";
@@ -44,6 +44,7 @@ import { organizationNames } from "@/lib/orgs";
 import { ContactRow } from "../../tasks/[id]/deal-view";
 import { jobAction, removeMyProof } from "../actions";
 import { Hash } from "lucide-react";
+import { JobOutcome, type ReleasedHow } from "@/components/job-outcome";
 import { Ico } from "@/components/icon";
 import { titled } from "@/lib/page-title";
 
@@ -102,6 +103,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     commissionBps: deal.commissionBps,
   }).helperFeeNet;
   const fields = { dealId: deal.id };
+  // the helper's own finished job: what they get (fee + items repaid), and how it was approved
+  const outcome =
+    mine && (deal.status === "check" || deal.status === "released" || deal.status === "disputed")
+      ? await (async () => {
+          const released = deal.status === "released" ? (await timeline(deal.id)).findLast((e) => e.code === "released") : undefined;
+          const how = released?.data.how;
+          return {
+            status: deal.status as "check" | "released" | "disputed",
+            amount: errandSplit({ fee: deal.fee, itemBudget: deal.itemBudget, receipt: deal.receiptAmount, serviceFee: deal.serviceFee, commissionBps: deal.commissionBps }).helperNet,
+            how: (how === "confirmed" || how === "auto" || how === "ops" ? how : null) as ReleasedHow,
+            releasedAt: released ? released.at : null,
+          };
+        })()
+      : null;
   const proofs = mine && deal.status !== "open" && deal.status !== "awaiting_payment" ? await proofsFor(deal.id) : [];
   /** a handover photo (or care check-out) by this helper that is still there */
   const handoverLive = proofs.some((p) => p.kind === "handover" && p.uploadedBy === me);
@@ -460,13 +475,28 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </MapHero>
       )}
 
+      {/* finished, checking, approved — impossible to miss (2026-11-27) */}
+      {outcome && (
+        <div className="mx-auto w-full max-w-2xl">
+          <JobOutcome
+            status={outcome.status}
+            checkUntil={deal.checkUntil}
+            serverNow={now}
+            amount={outcome.amount}
+            how={outcome.how}
+            releasedAt={outcome.releasedAt}
+            t={t}
+            locale={locale}
+          />
+        </div>
+      )}
       <DetailTitle
         tag={
           <>
             <CategoryIcon id={deal.category} size={16} /> {t(`categoryShort.${deal.category}`)}
           </>
         }
-        status={<StatusBadge status={deal.status} t={t} />}
+        status={<StatusBadge status={deal.status} t={t} helper />}
         title={deal.title}
         overlap={markers.length > 0}
       >
@@ -731,7 +761,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       {(primary || secondary.length > 0) && (
         <PrimaryBar>
           {/* applying, taking a price or starting needs a phone with notifications + location on */}
-          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))} computerOk={await computerAllowed(viewer.profile.id)}>{primary}</WorkReady> : primary}
+          {gateActions ? <WorkReady enforce={!(await deviceCheckBypassed(viewer.profile))} computerOk={await computerAllowed(viewer.profile.id)} positionSaved={await computerPositionFresh(viewer.profile.id)}>{primary}</WorkReady> : primary}
           {secondary.length > 0 && <div className="flex flex-wrap justify-center gap-1">{secondary}</div>}
         </PrimaryBar>
       )}

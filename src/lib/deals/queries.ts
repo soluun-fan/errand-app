@@ -431,6 +431,8 @@ async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
       url: `/jobs/${d.id}`,
       tag: `job-${d.id}`,
     });
+  } else if (type === "auto_release") {
+    await notifyJobPaid(d, "auto");
   } else if (type === "lapse_topup") {
     // nobody answered the request to pay extra: the helper buys within budget or returns the items
     await notify([d.helperId], { title: "push.topupLapsedTitle", body: "push.topupLapsedHelper", params: { title: d.title }, url: `/jobs/${d.id}`, tag: `job-${d.id}` });
@@ -452,4 +454,20 @@ async function tellAboutAutomatic(type: string, d: Deal): Promise<void> {
       tag: `dispute-${d.id}`,
     });
   }
+}
+
+/** "Approved — X₮ is in your Earnings" to the helper (2026-11-27): by the customer, or when the check time ended. */
+export async function notifyJobPaid(d: ErrandDeal, how: "confirmed" | "auto"): Promise<void> {
+  if (!d.helperId || d.status !== "released") return;
+  const { notify } = await import("@/lib/push");
+  const { errandSplit } = await import("@/lib/engine");
+  const { fmtMoney } = await import("@/lib/format");
+  const amount = errandSplit({ fee: d.fee, itemBudget: d.itemBudget, receipt: d.receiptAmount, serviceFee: d.serviceFee, commissionBps: d.commissionBps }).helperNet;
+  await notify([d.helperId], {
+    title: "push.jobPaidTitle",
+    body: how === "auto" ? "push.jobPaidAutoBody" : "push.jobPaidBody",
+    params: { title: d.title, amount: fmtMoney(amount) },
+    url: `/jobs/${d.id}`,
+    tag: `job-${d.id}`,
+  });
 }

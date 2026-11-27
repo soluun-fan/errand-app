@@ -26,6 +26,7 @@ import { markDirectPay, owedToHelper } from "@/lib/direct-pay";
 import { maskContacts } from "@/lib/chat-rules";
 import { headers } from "next/headers";
 import { notifyPriceChange } from "@/lib/price-notify";
+import { notifyJobPaid } from "@/lib/deals/queries";
 import { parsePrice } from "@/lib/price-input";
 import { adminIds, getControls, isPausedError, payinBlock, type PayinBlock } from "@/lib/safety";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -232,6 +233,10 @@ export async function taskAction(_prev: ActionResult, form: FormData): Promise<A
           await runDispatch(dealId).catch((e) => console.error("dispatch after choose failed", e));
         }
         if (cmd.type === "open_to_all") await runDispatch(dealId).catch((e) => console.error("dispatch after open_to_all failed", e)); // the first wave goes out now
+        // the helper learns at once that the job was approved and the money is in their Earnings
+        if (cmd.type === "confirm" && r.deal.type === "errand" && r.deal.helperId) {
+          await notifyJobPaid(r.deal, "confirmed").catch((e) => console.error("paid notice failed", e));
+        }
         // a dispute holds the money until Ops decides (/ops/disputes): tell Ops at once
         if (cmd.type === "dispute") {
           await notify(await adminIds(), {

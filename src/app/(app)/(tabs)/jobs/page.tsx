@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { CalendarClock, ChevronRight, DoorClosed, IdCard, Landmark, MapPin, Users, Zap } from "lucide-react";
 import { hasPayout } from "@/lib/payout";
-import { helperTodos } from "@/lib/todo";
+import { customerTodos, helperTodos } from "@/lib/todo";
 import { WorkReady } from "@/components/work-ready";
-import { computerAllowed, deviceCheckBypassed } from "@/lib/work-ready";
+import { computerAllowed, computerPositionFresh, deviceCheckBypassed } from "@/lib/work-ready";
 import { TodoCard } from "@/components/todo-card";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
@@ -13,7 +13,7 @@ import { Avatar, Card, SegmentedLinks, btn, chipClass } from "@/components/ui";
 import type { Locale, T } from "@/i18n";
 import { getLocale, getT } from "@/i18n/server";
 import { getViewer } from "@/lib/auth";
-import { browseOpenDeals, getPresence, listMyJobs, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
+import { browseOpenDeals, getPresence, listMyJobs, listMyTasks, myApplications, myOffers, nearbyFeed, type BoardSort, type JobListItem } from "@/lib/deals/queries";
 import { LAUNCH_CATEGORIES, OPEN_CATEGORIES, TERMINAL_STATUSES, categoryConfig, errandSplit, invitedOnly, type CategoryId, type ErrandDeal } from "@/lib/engine";
 import { fmtDateTime, fmtDuration, fmtMoney } from "@/lib/format";
 import { TaskMap, type MapMarker } from "@/components/task-map";
@@ -271,7 +271,10 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       </>
     );
   }
-  const todos = await helperTodos(viewer);
+  // a helper who also posted tasks must still see what those wait for (pay, confirm the finished
+  // job…) without switching to customer mode — 2026-11-27: a finished job sat unconfirmed for this
+  const [helperItems, ownTasks] = await Promise.all([helperTodos(viewer), listMyTasks(profile.id)]);
+  const todos = [...(await customerTodos(profile.id, ownTasks.map((x) => x.deal))).filter((x) => x.urgent), ...helperItems];
   if (actor.helperApproved) {
     const now = Date.now();
     const [presence, offersAll, nearby, mine, applied, busy] = await Promise.all([
@@ -312,7 +315,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
                 <CategoryIcon id={d.category} tile size={20} />
                 <span className="min-w-0 break-words text-title font-semibold">{d.title}</span>
                 <ChevronRight aria-hidden size={18} className="flex-none text-ink-2" />
-                <div className="col-start-2 -mt-1.5"><StatusBadge status={d.status} t={t} /></div>
+                <div className="col-start-2 -mt-1.5"><StatusBadge status={d.status} t={t} helper /></div>
               </Link>
             ))}
           </section>
@@ -330,7 +333,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         <TodoCard items={todos} t={t} />
         {/* a phone with notifications and location on, or no work (owner, 2026-11-18) */}
         <div id="online" className="scroll-mt-20">
-          <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))} computerOk={await computerAllowed(profile.id)}>
+          <WorkReady enforce={!online && !(await deviceCheckBypassed(profile))} computerOk={await computerAllowed(profile.id)} positionSaved={await computerPositionFresh(profile.id)}>
             <OnlineCard online={online} radiusKm={presence?.radiusKm ?? 3} />
           </WorkReady>
         </div>

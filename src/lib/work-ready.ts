@@ -29,6 +29,23 @@ export async function computerAllowed(userId: string): Promise<boolean> {
   return !error && data?.desktop_ok === true;
 }
 
+/**
+ * A computer doesn't move, and many can't locate themselves at all (no GPS; Wi-Fi guesses fail): for
+ * helpers Ops allowed on a computer, a position — often marked on the map by hand — counts for 12 h.
+ */
+export const COMPUTER_POSITION_MS = 12 * 3_600_000;
+
+/** For the readiness card: does this computer-allowed helper have a position from the last 12 h? */
+export async function computerPositionFresh(userId: string): Promise<boolean> {
+  if (!(await computerAllowed(userId))) return false;
+  const { data } = await createAdminClient()
+    .from("helper_presence")
+    .select("lat, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle<{ lat: number | null; updated_at: string }>();
+  return data?.lat != null && Date.now() - Date.parse(data.updated_at) < COMPUTER_POSITION_MS;
+}
+
 export async function workReadyMissing(profile: { id: string; test_helper?: boolean }): Promise<ReadyStep[]> {
   if (await deviceCheckBypassed(profile)) return [];
   const computer = await computerAllowed(profile.id);
@@ -50,7 +67,7 @@ export async function workReadyMissing(profile: { id: string; test_helper?: bool
     pushDevices: count ?? 0,
     positionAt: pos?.lat != null ? Date.parse(pos.updated_at) : null,
     now: Date.now(),
-    freshMs: rules.readyPositionMinutes * 60_000,
+    freshMs: computer ? COMPUTER_POSITION_MS : rules.readyPositionMinutes * 60_000,
   });
   return computer ? missing.filter((s) => s !== "phone") : missing;
 }

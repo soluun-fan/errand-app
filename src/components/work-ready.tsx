@@ -1,13 +1,14 @@
 "use client";
 
 import { Bell, MapPin, Share, Smartphone } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { reportPosition, savePush } from "@/app/(app)/jobs/actions";
 import { reportClientError } from "@/app/report-error";
 import { useT } from "@/i18n/client";
 import { isMobileDevice } from "@/lib/work-ready-rules";
 import { btn } from "./ui";
 import { useVapidKey } from "@/lib/use-vapid-key";
+import { PinMap, type Pin } from "./pin-map";
 import { getCurrentPositionWithFallback } from "@/lib/location-client";
 
 /**
@@ -38,11 +39,14 @@ const isStandalone = () =>
 export function WorkReady({
   enforce,
   computerOk = false,
+  positionSaved = false,
   children,
 }: {
   enforce: boolean;
   /** Ops let this helper work from a computer: the phone step counts as done (2026-11-27). */
   computerOk?: boolean;
+  /** Computer helpers: a position from the last 12 h is on file (often marked on the map by hand). */
+  positionSaved?: boolean;
   children: ReactNode;
 }) {
   const t = useT();
@@ -53,6 +57,22 @@ export function WorkReady({
   const [push, setPush] = useState<Perm>("loading");
   const [geo, setGeo] = useState<Perm>("loading");
   const [checked, setChecked] = useState(false);
+  // computers often can't locate themselves: mark where you work on the map instead
+  const [picking, setPicking] = useState(false);
+  const [pin, setPin] = useState<Pin | null>(null);
+  // the map reports its starting point on load: only a spot the helper chose (moved to) is saved
+  const [touched, setTouched] = useState(false);
+  const pinBox = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const box = pinBox.current;
+    if (!picking || !box) return;
+    box.scrollIntoView({ block: "center", behavior: "smooth" });
+    const touch = () => setTouched(true);
+    for (const ev of ["pointerdown", "wheel", "keydown"] as const) box.addEventListener(ev, touch);
+    return () => {
+      for (const ev of ["pointerdown", "wheel", "keydown"] as const) box.removeEventListener(ev, touch);
+    };
+  }, [picking]);
   // why notifications or location didn't work, in plain technical words: shown small, and sent to the
   // Ops error log so a "nothing happens" report can be diagnosed without the person's computer
   const [why, setWhy] = useState<string | null>(null);
@@ -121,8 +141,10 @@ export function WorkReady({
           setPush("failed");
           explain("notifications", `setup failed (${e instanceof Error ? e.message : String(e)})`);
         });
-    // location: already allowed → send a fresh position (the server needs one from the last 15 min)
-    if (!("geolocation" in navigator)) setGeo("unsupported");
+    // location: already allowed → send a fresh position (the server needs one from the last 15 min);
+    // a computer helper with a position from the last 12 h is ready as it is
+    if (computerOk && positionSaved) setGeo("on");
+    else if (!("geolocation" in navigator)) setGeo("unsupported");
     else if (navigator.permissions?.query)
       navigator.permissions
         .query({ name: "geolocation" as PermissionName })
@@ -132,11 +154,25 @@ export function WorkReady({
         })
         .catch(() => setGeo("off"));
     else setGeo("off");
-  }, [enforce, computerOk, publicKey, sendPosition, explain]);
+  }, [enforce, computerOk, positionSaved, publicKey, sendPosition, explain]);
   useEffect(() => {
     if (!checked && push !== "loading" && geo !== "loading") setChecked(true);
   }, [checked, push, geo]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  async function savePin() {
+    if (!pin) return;
+    setGeo("loading");
+    try {
+      const saved = await reportPosition(pin.lat, pin.lng);
+      setGeo(saved ? "on" : "failed");
+      if (saved) setPicking(false);
+      else explain("location", "the server did not accept the marked position");
+    } catch (e) {
+      setGeo("failed");
+      explain("location", `saving the marked position failed (${e instanceof Error ? e.message : String(e)})`);
+    }
+  }
 
   async function turnOnPush() {
     setPush("loading");
@@ -181,7 +217,8 @@ export function WorkReady({
   return (
     <section
       aria-labelledby="ready-title"
-      className="flex max-h-[70vh] flex-col overflow-y-auto rounded-card border-2 border-brand bg-bg p-4 text-left shadow-card"
+      // grows while the location map is open, so the map is never cut off inside the card
+      className={`flex flex-col rounded-card border-2 border-brand bg-bg p-4 text-left shadow-card ${picking ? "" : "max-h-[70vh] overflow-y-auto"}`}
     >
       <h2 id="ready-title" className="text-title font-bold">
         {t("workReady.title")}
@@ -232,10 +269,31 @@ export function WorkReady({
                   ? t("workReady.checking")
                   : t("workReady.geoBody"),
           geo === "on",
-          (retry(geo) || geo === "loading") && phone ? (
-            <button type="button" onClick={sendPosition} disabled={geo === "loading"} className={`${btn.primary} w-full`}>
-              {geo === "loading" ? t("workReady.checking") : t("workReady.geoGo")}
-            </button>
+          (retry(geo) || geo === "loading" || (computerOk && geo !== "on")) && phone ? (
+            <span className="flex flex-col gap-2">
+              {geo !== "denied" && geo !== "unsupported" && (
+                <button type="button" onClick={sendPosition} disabled={geo === "loading"} className={`${btn.primary} w-full`}>
+                  {geo === "loading" ? t("workReady.checking") : t("workReady.geoGo")}
+                </button>
+              )}
+              {/* a computer that can't locate itself: mark where you work (counts for 12 h) */}
+              {computerOk &&
+                (picking ? (
+                  <span className="flex flex-col gap-2">
+                    <span className="block text-meta text-ink-2">{t("workReady.pinHint")}</span>
+                    <span ref={pinBox} className="block">
+                      <PinMap value={pin} onChange={setPin} height={240} />
+                    </span>
+                    <button type="button" onClick={savePin} disabled={!pin || !touched || geo === "loading"} className={`${btn.primary} w-full`}>
+                      {t("workReady.pinSave")}
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setPicking(true)} className={`${btn.secondary} w-full`}>
+                    {t("workReady.pinGo")}
+                  </button>
+                ))}
+            </span>
           ) : null,
         )}
       </ol>
