@@ -2649,6 +2649,7 @@ export const en = {
     notifDenied: "Notifications are blocked. Tap the lock icon next to the address → Permissions → Notifications → Allow, then reload.",
     notifDeniedIos: "Notifications are blocked. Open Settings → Notifications → {app} → Allow Notifications, then reopen the app.",
     checking: "Checking…",
+    why: "Technical reason (to tell our team): {why}",
     notifNoKey: "Notifications aren't set up on this site (a server setting). Please tell our team — it's not your browser.",
     notifFailed: "Couldn't turn on notifications. Try again. If it still fails: padlock next to the address → Notifications → Allow, then reload.",
     geoFailed: "Your phone couldn't find its location. Check GPS/location is on and try again.",

@@ -3,6 +3,7 @@
 import { Bell, MapPin, Share, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { reportPosition, savePush } from "@/app/(app)/jobs/actions";
+import { reportClientError } from "@/app/report-error";
 import { useT } from "@/i18n/client";
 import { isMobileDevice } from "@/lib/work-ready-rules";
 import { btn } from "./ui";
@@ -50,6 +51,14 @@ export function WorkReady({
   const [push, setPush] = useState<Perm>("loading");
   const [geo, setGeo] = useState<Perm>("loading");
   const [checked, setChecked] = useState(false);
+  // why notifications or location didn't work, in plain technical words: shown small, and sent to the
+  // Ops error log so a "nothing happens" report can be diagnosed without the person's computer
+  const [why, setWhy] = useState<string | null>(null);
+  const explain = useCallback((what: string, detail: string) => {
+    const text = `${what}: ${detail}`;
+    setWhy(text);
+    void reportClientError(`work-ready ${text} · ${navigator.userAgent.slice(0, 160)}`, null, location.pathname).catch(() => undefined);
+  }, []);
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
   const sendPosition = useCallback(() => {
@@ -61,16 +70,22 @@ export function WorkReady({
     navigator.geolocation.getCurrentPosition(
       async (p) => {
         try {
-          setGeo((await reportPosition(p.coords.latitude, p.coords.longitude)) ? "on" : "failed");
-        } catch {
+          const saved = await reportPosition(p.coords.latitude, p.coords.longitude);
+          setGeo(saved ? "on" : "failed");
+          if (!saved) explain("location", "the server did not accept the position");
+        } catch (e) {
           setGeo("failed");
+          explain("location", `saving failed (${e instanceof Error ? e.message : String(e)})`);
         }
       },
       // no position (computer location services off, no Wi-Fi) or too slow: say so, never a silent "off"
-      (e) => setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "failed"),
+      (e) => {
+        setGeo(e.code === e.PERMISSION_DENIED ? "denied" : "failed");
+        if (e.code !== e.PERMISSION_DENIED) explain("location", `${e.code === e.TIMEOUT ? "timeout" : "unavailable"} (${e.message || "no message"})`);
+      },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
-  }, []);
+  }, [explain]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- Read device permissions after hydration; these capabilities are owned by the browser. */
   useEffect(() => {
@@ -81,8 +96,12 @@ export function WorkReady({
     setIos(isIos());
     setInstalled(!isIos() || isStandalone());
     // notifications: subscribed on this device (and saved on the server again, in case it was lost)
+    const missingApi = !("serviceWorker" in navigator) ? "serviceWorker" : !("PushManager" in window) ? "PushManager" : !("Notification" in window) ? "Notification" : null;
     if (!publicKey) setPush("nokey");
-    else if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) setPush("unsupported");
+    else if (missingApi) {
+      setPush("unsupported");
+      explain("notifications", `this browser has no ${missingApi}`);
+    }
     else if (Notification.permission === "denied") setPush("denied");
     else
       navigator.serviceWorker
@@ -95,7 +114,11 @@ export function WorkReady({
           }
           setPush(sub ? "on" : "off");
         })
-        .catch(() => setPush("unsupported"));
+        .catch((e: unknown) => {
+          // the browser has the features but setting up the notification worker failed: a retry may help
+          setPush("failed");
+          explain("notifications", `setup failed (${e instanceof Error ? e.message : String(e)})`);
+        });
     // location: already allowed → send a fresh position (the server needs one from the last 15 min)
     if (!("geolocation" in navigator)) setGeo("unsupported");
     else if (navigator.permissions?.query)
@@ -107,7 +130,7 @@ export function WorkReady({
         })
         .catch(() => setGeo("off"));
     else setGeo("off");
-  }, [enforce, computerOk, publicKey, sendPosition]);
+  }, [enforce, computerOk, publicKey, sendPosition, explain]);
   useEffect(() => {
     if (!checked && push !== "loading" && geo !== "loading") setChecked(true);
   }, [checked, push, geo]);
@@ -124,8 +147,9 @@ export function WorkReady({
       const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
       await savePush({ endpoint: j.endpoint, keys: j.keys });
       setPush("on");
-    } catch {
+    } catch (e) {
       setPush("failed");
+      explain("notifications", `turning on failed (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)})`);
     }
   }
 
@@ -213,6 +237,7 @@ export function WorkReady({
           ) : null,
         )}
       </ol>
+      {why && <p className="mt-2 break-words text-caption text-ink-2">{t("workReady.why", { why })}</p>}
     </section>
   );
 }
