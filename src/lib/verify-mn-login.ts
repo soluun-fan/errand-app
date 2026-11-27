@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "./supabase/admin";
 import { createClient } from "./supabase/server";
 import { createVerifyMnClient, type VerifyMnSession } from "./verify-mn";
+import { recordError } from "./error-log";
 
 const name = "verify-mn-login";
 const client = createVerifyMnClient();
@@ -83,8 +84,41 @@ export async function checkVerifyMnLogin(sessionId: string) {
   if (status.sessionStatus === "PENDING") return { status: "pending", view: publicView(challenge) } as const;
 
   const auth = await createClient();
-  const { data, error } = await auth.auth.verifyOtp({ phone: challenge.phone, token: challenge.token, type: "sms" });
-  if (error || !data.user || !data.session) return { status: "auth-failed" } as const;
+  let { data, error } = await auth.auth.verifyOtp({ phone: challenge.phone, token: challenge.token, type: "sms" });
+  if (error || !data.user || !data.session) {
+    // Verify.MN has proved the phone is theirs, but the private sign-in code may have run out
+    // while they were sending the SMS (Supabase's code lifetime is short): take a fresh code and
+    // use it at once, instead of telling them to try again (2026-11-27).
+    const first = error?.message ?? "no session";
+    const fresh = await freshCode(challenge.phone, challenge.token);
+    if (fresh) ({ data, error } = await auth.auth.verifyOtp({ phone: challenge.phone, token: fresh, type: "sms" }));
+    if (error || !data.user || !data.session) {
+      // never the code itself: the reason and the phone's last digits are enough to look into it
+      await recordError({
+        source: "server",
+        route: "/login",
+        message: `Verify.MN sign-in failed for …${challenge.phone.slice(-3)}: ${first}${fresh ? ` · fresh code: ${error?.message ?? "no session"}` : " · no fresh code"}`,
+      }).catch(() => undefined);
+      return { status: "auth-failed" } as const;
+    }
+  }
   await clearPendingLogin();
   return { status: "verified", userId: data.user.id } as const;
+}
+
+/** A new private sign-in code for this phone (the old one is refused). Null if Supabase won't issue one now. */
+async function freshCode(phone: string, old: string): Promise<string | null> {
+  const auth = await createClient();
+  const { error } = await auth.auth.signInWithOtp({ phone });
+  if (error) {
+    await recordError({ source: "server", route: "/login", message: `Verify.MN sign-in: fresh code refused for …${phone.slice(-3)}: ${error.message}` }).catch(() => undefined);
+    return null;
+  }
+  // the hook stores it a moment later
+  for (let i = 0; i < 5; i++) {
+    const { data } = await createAdminClient().rpc("dev_latest_sms_code", { p_phone: phone });
+    if (typeof data === "string" && /^\d{6}$/.test(data) && data !== old) return data;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return null;
 }

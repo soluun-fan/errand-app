@@ -12,6 +12,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({
 vi.mock("../supabase/admin", () => ({ createAdminClient: () => ({ rpc: outbox }) }));
 vi.mock("../supabase/server", () => ({ createClient: () => ({ auth: { signInWithOtp: issue, verifyOtp: redeem } }) }));
 vi.mock("../verify-mn", () => ({ createVerifyMnClient: () => ({ createSession, getSession }) }));
+vi.mock("../error-log", () => ({ recordError: async () => undefined }));
 
 import { checkVerifyMnLogin, pendingLogin, startVerifyMnLogin } from "../verify-mn-login";
 
@@ -76,4 +77,17 @@ it("keeps the verified challenge when Supabase cannot finish sign-in", async () 
   expect(await checkVerifyMnLogin("session")).toEqual({ status: "auth-failed" });
   expect(await pendingLogin()).not.toBeNull();
   expect(redeem).toHaveBeenCalledTimes(1);
+});
+
+it("after Verify.MN confirms, an expired private code is replaced by a fresh one and the person is signed in", async () => {
+  await startVerifyMnLogin(phone);
+  getSession.mockResolvedValue({ sessionStatus: "VERIFIED", expiresAt: new Date(Date.now() + 300000).toISOString() });
+  redeem
+    .mockResolvedValueOnce({ data: { user: null, session: null }, error: { message: "Token has expired or is invalid" } })
+    .mockResolvedValueOnce({ data: { user: { id: "user-id" }, session: { access_token: "access" } }, error: null });
+  outbox.mockResolvedValueOnce({ data: "777111" }); // the fresh code the hook stored
+
+  expect(await checkVerifyMnLogin("session")).toEqual({ status: "verified", userId: "user-id" });
+  expect(issue).toHaveBeenCalledTimes(2); // the original, and the fresh one
+  expect(redeem).toHaveBeenLastCalledWith({ phone, token: "777111", type: "sms" });
 });
